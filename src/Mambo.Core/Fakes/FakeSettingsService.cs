@@ -20,6 +20,7 @@ public sealed class FakeSettingsService(FakeOperation operation, IUiScheduler sc
     public AppSettings Current { get { lock (gate) return current; } }
     public ConnectionDefaults ConnectionDefaults { get { lock (gate) return connectionDefaults; } }
     public ExternalPlayerStatus ExternalPlayerStatus { get { lock (gate) return externalPlayerStatus; } }
+    public string LogDirectory => "";
     public event EventHandler? Changed;
 
     public Task UpdateAsync(Func<AppSettings, AppSettings> update, CancellationToken cancellationToken = default) => RunCommandAsync(async token =>
@@ -29,9 +30,11 @@ public sealed class FakeSettingsService(FakeOperation operation, IUiScheduler sc
         {
             ThrowIfStopped(token);
             var value = update(current);
-            if (value.DeviceId != current.DeviceId || !double.IsFinite(value.Volume) || value.Volume is < 0 or > 100 || !Enum.IsDefined(value.HdrMode))
+            if (value.DeviceId != current.DeviceId || !double.IsFinite(value.Volume) || value.Volume is < 0 or > 100 || !Enum.IsDefined(value.HdrMode) ||
+                !Enum.IsDefined(value.PlaybackMode) || !Enum.IsDefined(value.HardwareDecoding) || !Enum.IsDefined(value.ThemeMode))
                 throw InvalidInput("播放器设置无效。");
-            current = value with { PlaybackMode = PlaybackMode.Embedded, ExternalMpvPath = null };
+            current = value with { PlaybackMode = PlaybackMode.Embedded, ExternalMpvPath = null, ExternalMpvApproval = null };
+            externalPlayerStatus = ExternalPlayerStatus.UsingEmbedded;
             PublishLocked();
         }
     }, cancellationToken);
@@ -40,7 +43,7 @@ public sealed class FakeSettingsService(FakeOperation operation, IUiScheduler sc
     {
         ArgumentNullException.ThrowIfNull(settings);
         if (!double.IsFinite(settings.Volume) || settings.Volume is < 0 or > 100 || settings.DeviceId == Guid.Empty ||
-            !Enum.IsDefined(settings.HdrMode) || !Enum.IsDefined(settings.PlaybackMode) || !Enum.IsDefined(settings.HardwareDecoding))
+            !Enum.IsDefined(settings.HdrMode) || !Enum.IsDefined(settings.PlaybackMode) || !Enum.IsDefined(settings.HardwareDecoding) || !Enum.IsDefined(settings.ThemeMode))
             throw InvalidInput("播放器设置无效。");
         return RunCommandAsync(async token =>
         {
@@ -49,7 +52,7 @@ public sealed class FakeSettingsService(FakeOperation operation, IUiScheduler sc
             {
                 ThrowIfStopped(token);
                 if (settings.DeviceId != current.DeviceId) throw InvalidInput("设备标识不可修改。");
-                current = settings with { PlaybackMode = PlaybackMode.Embedded, ExternalMpvPath = null };
+                current = settings with { PlaybackMode = PlaybackMode.Embedded, ExternalMpvPath = null, ExternalMpvApproval = null };
                 externalPlayerStatus = ExternalPlayerStatus.UsingEmbedded;
                 PublishLocked();
             }
@@ -117,6 +120,16 @@ public sealed class FakeSettingsService(FakeOperation operation, IUiScheduler sc
         }
     }, cancellationToken);
 
+    public Task<long> GetCacheSizeAsync(CancellationToken cancellationToken = default)
+    {
+        lock (gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(312L * 1024 * 1024);
+        }
+    }
+
     private async Task RunCommandAsync(Func<CancellationToken, Task> command, CancellationToken cancellationToken)
     {
         CancellationTokenSource linked;
@@ -173,7 +186,7 @@ public sealed class FakeSettingsService(FakeOperation operation, IUiScheduler sc
             disposed = true;
             revision++;
             connectionDefaults = new();
-            current = current with { ExternalMpvPath = null, PlaybackMode = PlaybackMode.Embedded };
+            current = current with { ExternalMpvPath = null, ExternalMpvApproval = null, PlaybackMode = PlaybackMode.Embedded };
             externalPlayerStatus = ExternalPlayerStatus.UsingEmbedded;
             Changed = null;
         }

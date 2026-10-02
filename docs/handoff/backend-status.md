@@ -7,7 +7,7 @@
 | `ISessionService` | 真 | 登录、恢复、过期及注销通过合成测试；用户确认真实 Emby 登录、重启恢复及 Windows 凭据检查通过 | 2026-10-02 |
 | `ILibraryService` | 真 | 真实端点、库过滤、分页/筛选/搜索/详情/NextUp、账号隔离、SWR/磁盘首屏/停止失效已测试；用户确认真实视频库列表通过，其余端点暂以合成测试验证 | 2026-10-02 |
 | `IImageService` | 真 | 缓存/优先级/合并/取消/重定向/缺图已测试；前端解码与 RemoteImage 控件由 Claude 接入 | 2026-10-02 |
-| `ISettingsService` | 真 | 原子更新/备份恢复/只读 DeviceId/清理错误已测试，音量经组合工具恢复；外部播放器验证在 P7 | 2026-10-02 |
+| `ISettingsService` | 真 | 原子更新/备份恢复/主题/缓存统计/日志目录已测试；外部 MPV 显式批准、指纹复验与变化后撤销已实现，真实 exe 人工验收待完成 | 2026-10-02 |
 | `ILibraryPreferences` | 真 | 文件持久化、账号/库隔离、通知和重启恢复已测试 | 2026-10-02 |
 | `IPlaybackService` / `IPlaybackSession` | 已测试 | 准备/候选/连播/重试/上报/转码清理已测试，真实 libmpv Debug / AOT 组合冒烟通过；用户确认 P3 真实服务器验收通过 | 2026-10-02 |
 | `VideoSurface`（`Attach` / `Detach`） | 真 | 公开入口支持 Demo 和真实 composition，会话重试后重绑、HDR/尺寸、销毁前 UI 解绑均已接入；实际 Debug / AOT 冒烟通过，人工显示检查沿用 P0 遗留项 | 2026-10-02 |
@@ -32,6 +32,14 @@ R-003 外壳交接：启动解析 AppShutdownCoordinator（安装 WinUI 异常�
 
 全套 237/237 测试通过，无失败或跳过（Core 231、Player 6）；Debug 构建 / Native AOT 发布零警告零错误，本地 composition 播放冒烟均正常退出，并验证切集/重试后的三次停止保持 1.5 倍速。2026-10-02 用户回复“验收通过，继续”，确认 P3 真实服务器的位置/倍速、强制转码与停止清理、整季连播及断网补发通过，P3 已勾选。Video Lab 可“恢复 Emby 会话”后按 itemId 播放，人工输入不落盘。R-015 的测试发现问题同批修复；最终外壳关闭要求见 R-016。
 
+## P7 外部播放器后端与设置增量
+
+2026-10-02：ExternalMpvEngine 已接入真实播放组合根，文件选择后的显式版本探测（3 秒、最低 0.38.0）、指纹批准/只读复验、JSON IPC 超时、类型化事件及本次进程的有限清理均已实现。文件变化会撤销批准、切回内置并通知设置页；再次启用须用户重新验证。只有明确选择文件时才执行版本探测，普通启动/复验不执行未知 exe；假模式保持 Demo。
+
+326/326 测试通过，构建与 Native AOT 发布零警告零错误；Debug/AOT 假管道冒烟实际执行服务端 PID 的 LibraryImport 及 JSON 编解码，本地真实 libmpv composition 的 P3 回归仍通过。新增手动选集回归同时修复 Replace 后误删当前条目的 P3 问题。P7 前端面板和真实 exe 的进程终止/替换人工验收尚待完成，详见 [P7 外部 MPV](../decisions/P7-external-player.md) 和 R-019。
+
+R-017 后端设置增量已完成：AppSettings.ThemeMode 的类型为 SettingsThemeMode，旧文件默认 System；GetCacheSizeAsync 返回缓存字节数；LogDirectory 返回日志路径，假模式为空。版本仍按原请求放在 P8。R-018 已完成：假模式组合根默认读取两项环境参数，显式 options 优先。Contracts v1 只有兼容增量，前端无须引用实现类型。
+
 ## P0 骨架与视频验证
 
 2026-10-02：WinUI 3 / .NET 10 四项目骨架、libmpv 下载锁、Video Lab、HDR / DPI / 交换链互操作、认证 URL 预解析及 AOT 配置已实现。`dotnet build -p:Platform=x64` 零警告零错误，`dotnet test` 13 项通过；Debug 与 AOT 的 4K HEVC `d3d11va` 播放、缓冲区尺寸同步、最大化 / 全屏及 AOT DLL 缺失中文错误已验证。
@@ -43,3 +51,5 @@ R-003 外壳交接：启动解析 AppShutdownCoordinator（安装 WinUI 异常�
 ## 契约变更记录
 
 2026-10-02：初始草案经 Claude 有条件通过，R-004–R-009 完成后冻结 v1。破坏性变更在冻结前收敛：LogoutResult 返回值、结束原因/关闭重载、Preview 替换重载；同批完成稳定错误码、图片回退、异步通知、预取、分页刷新状态和原子设置更新。
+
+2026-10-02 P7：新增 SettingsThemeMode/ThemeMode、ExternalMpvApproval，以及 ISettingsService 的缓存统计/日志目录默认成员；外部批准仍使用既有 ValidateExternalPlayerAsync。旧设置及旧接口实现兼容，指纹记录由后端维护。

@@ -47,7 +47,7 @@ Claude 的 R-015 同批修复：中央启用 `UseMicrosoftTestingPlatformRunner`
 
 2026-10-02：用户确认以下 P3 验收通过，包括位置/倍速上报、强制转码及停止清理、整季连播、断网后停止补发。P0 原有未通过与待测遗留项不因本次确认改变。以下步骤保留供复验。
 
-1. 运行 `publish/aot/Mambo.exe`，在 Video Lab 点“恢复 Emby 会话”，输入本机 Emby 条目的 itemId，再点“按 itemId 播放”。沿用 P1 保存的 Windows 凭据；恢复失败时用 P1 的本地登录工具重新登录。
+1. 运行 `publish/aot/Mambo.exe --video-lab`，在 Video Lab 点“恢复 Emby 会话”，输入本机 Emby 条目的 itemId，再点“按 itemId 播放”。沿用 P1 保存的 Windows 凭据；恢复失败时用 P1 的本地登录工具重新登录。P4 合并后默认启动前端外壳，诊断窗口需带 --video-lab。
 2. 选择电影或单集，暂停、拖动进度、切换 1.5 倍速，再停止；在 Emby 后台核对 Playing / Progress / Stopped 的位置及倍速。
 3. 验证强制转码片源可播，停止后服务器转码会话已清理。按一个季或其中一集的 itemId 启动，让同季连续播放至末集结束。
 4. 断网后停止播放，再恢复网络，等待发件箱的五分钟重试，核对停止进度补发成功。需要时可重启并恢复账号触发重新处理；无须删除数据或凭据。

@@ -56,14 +56,7 @@ public sealed partial class FakeLab : UserControl
     }
 
     private static FakeOptions ReadOptions()
-    {
-        var options = new FakeOptions();
-        if (int.TryParse(Environment.GetEnvironmentVariable("MAMBO_FAKE_DELAY_MS"), out var delay))
-            options = options with { Delay = TimeSpan.FromMilliseconds(Math.Clamp(delay, 0, 10000)) };
-        if (double.TryParse(Environment.GetEnvironmentVariable("MAMBO_FAKE_FAILURE_RATE"), CultureInfo.InvariantCulture, out var rate) && double.IsFinite(rate))
-            options = options with { FailureRate = Math.Clamp(rate, 0, 1) };
-        return options;
-    }
+        => FakeOptions.FromEnvironment(Environment.GetEnvironmentVariable("MAMBO_FAKE_DELAY_MS"), Environment.GetEnvironmentVariable("MAMBO_FAKE_FAILURE_RATE"));
 
     private async void OnLoaded(object sender, RoutedEventArgs args)
     {

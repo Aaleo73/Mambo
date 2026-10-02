@@ -23,7 +23,7 @@ try {
     $env:MAMBO_PLAYBACK_LAB_SAMPLE = $SamplePath
     $env:MAMBO_PLAYBACK_LAB_REPORT = $reportPath
     $env:MAMBO_FAKE = $null
-    $process = Start-Process -FilePath $executable -ArgumentList @('--p3-smoke') -WorkingDirectory $repoRoot -WindowStyle Hidden -PassThru
+    $process = Start-Process -FilePath $executable -ArgumentList @('--video-lab', '--p3-smoke') -WorkingDirectory $repoRoot -WindowStyle Hidden -PassThru
     if (-not $process.WaitForExit(60000)) { throw '播放验证超过 60 秒，请关闭测试窗口。' }
     if ($process.ExitCode -ne 0) { throw "播放验证进程失败，退出码 $($process.ExitCode)。" }
     if (-not (Test-Path -LiteralPath $reportPath) -or (Get-Item -LiteralPath $reportPath).LastWriteTimeUtc -le $reportStamp) { throw '播放验证没有写出新报告。' }

@@ -88,6 +88,11 @@ public sealed partial class VideoLab : UserControl
             return;
         }
         refresh.Start();
+        if (Program.Arguments.Contains("--p7-smoke", StringComparer.Ordinal))
+        {
+            await ExternalIpcLabSmoke.RunAsync(Environment.GetEnvironmentVariable("MAMBO_EXTERNAL_LAB_REPORT") ?? "");
+            window?.Close(); return;
+        }
         if (Program.Arguments.Contains("--p3-smoke", StringComparer.Ordinal))
         {
             var playbackSample = Environment.GetEnvironmentVariable("MAMBO_PLAYBACK_LAB_SAMPLE") ?? "";
@@ -158,7 +163,9 @@ public sealed partial class VideoLab : UserControl
     {
         if (sender != backendSession || backendSession is null) return;
         var snapshot = backendSession.Snapshot;
-        StatusText.Text = snapshot.Error?.Message ?? $"播放状态：{snapshot.Phase}；位置 {TimeSpan.FromTicks(snapshot.PositionTicks):g}；倍速 {snapshot.PlaybackRate:F2}";
+        var approvalNotice = backendServices?.GetRequiredService<ISettingsService>().ExternalPlayerStatus == ExternalPlayerStatus.Invalid
+            ? "；外部 MPV 需要重新选择并批准，已切回内置播放。" : "";
+        StatusText.Text = (snapshot.Error?.Message ?? $"播放状态：{snapshot.Phase}；位置 {TimeSpan.FromTicks(snapshot.PositionTicks):g}；倍速 {snapshot.PlaybackRate:F2}") + approvalNotice;
         power.SetPlaying(snapshot.Phase == PlayerPhase.Playing && !snapshot.IsPaused);
         if (!seeking) { PositionSlider.Maximum = Math.Max(1, TimeSpan.FromTicks(snapshot.DurationTicks).TotalSeconds);
             PositionSlider.Value = Math.Clamp(TimeSpan.FromTicks(snapshot.PositionTicks).TotalSeconds, 0, PositionSlider.Maximum); }
@@ -170,12 +177,29 @@ public sealed partial class VideoLab : UserControl
     private async void RateItemClicked(object sender, RoutedEventArgs args) => await GuardAsync(async () =>
     { if (backendSession is { } session) await session.SetRateAsync(1.5); });
 
+    private async void PickExternalMpvClicked(object sender, RoutedEventArgs args) => await GuardAsync(async () =>
+    {
+        if (window is null) return;
+        var path = await ExternalMpvPicker.PickAsync(window.AppWindow.Id);
+        if (path is null) return;
+        var settings = GetBackendServices().GetRequiredService<ISettingsService>();
+        await settings.ValidateExternalPlayerAsync(path);
+        await settings.UpdateAsync(value => value with { PlaybackMode = PlaybackMode.External });
+        StatusText.Text = "外部播放器已批准，下次按 itemId 播放将使用外部窗口。";
+    });
+    private async void UseEmbeddedClicked(object sender, RoutedEventArgs args) => await GuardAsync(async () =>
+    {
+        await GetBackendServices().GetRequiredService<ISettingsService>().UpdateAsync(value => value with { PlaybackMode = PlaybackMode.Embedded });
+        StatusText.Text = "下次播放将使用内置画面。";
+    });
+
     private async Task GuardAsync(Func<Task> action)
     {
         if (busy) return;
         busy = true;
         OpenButton.IsEnabled = false;
         try { await action(); }
+        catch (AppException ex) { StatusText.Text = ex.Error.Message; }
         catch (Exception ex) when (ex is InvalidOperationException or ArgumentException or TimeoutException)
         {
             StatusText.Text = ex.Message;
@@ -310,7 +334,8 @@ public sealed partial class VideoLab : UserControl
     {
         if (backendSession is { } session)
         {
-            DiagnosticsText.Text = $"会话：{session.Snapshot.Phase}\n画面：{Surface.BufferSize.Width} × {Surface.BufferSize.Height}\n倍速：{session.Snapshot.PlaybackRate:F2}";
+            var engineName = session.Snapshot.EngineKind == EngineKind.External ? "外部 MPV" : "内置播放器";
+            DiagnosticsText.Text = $"会话：{session.Snapshot.Phase}\n播放器：{engineName}\n画面：{Surface.BufferSize.Width} × {Surface.BufferSize.Height}\n倍速：{session.Snapshot.PlaybackRate:F2}";
             return;
         }
         var duration = Number("duration");

@@ -18,4 +18,9 @@ public static class ErrorCodes
     public const string InvalidResponse = "contract.invalid_response";
     public const string PersistenceFailed = "persistence.failed";
     public const string PlaybackFailed = "playback.failed";
+    public const string ExternalPathInvalid = "player.external_path_invalid";
+    public const string ExternalVersionInvalid = "player.external_version_invalid";
+    public const string ExternalVersionTimeout = "player.external_version_timeout";
+    public const string ExternalFileChanged = "player.external_file_changed";
+    public const string ExternalApprovalRequired = "player.external_approval_required";
 }

@@ -1580,5 +1580,5 @@ Claude: P2（P0 期间即可开始）──► 评审契约 ──► P4（假�
 - [ ] P4 外壳与浏览页面（Claude）
 - [ ] P5 播放页 UI（Claude）
 - [ ] P6 打磨与加固（双方）
-- [ ] P7 外部播放器（Codex + Claude）
+- [ ] P7 外部播放器（Codex 后端已实现，326 项测试与 Debug/AOT IPC 冒烟通过；Claude 设置/面板接入及【需用户】进程终止/文件替换验收待完成，见 `docs/decisions/P7-external-player.md`）
 - [ ] P8 打包发布（Codex + Claude）

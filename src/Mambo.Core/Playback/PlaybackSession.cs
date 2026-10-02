@@ -233,6 +233,7 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
                 append ? LoadMode.Append : LoadMode.Replace, candidate.FileOptions, lifetime.Token).ConfigureAwait(false);
             if (entry.NativeId < 0) throw new InvalidOperationException("播放器未返回播放条目标识。");
             entry.Loaded = false;
+            entry.WasAppended = append;
             loaded[entry.NativeId] = entry;
             preparing.Remove(entry.Index);
             if (append) appended = entry;
@@ -273,8 +274,9 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
                     PositionTicks = entry.PositionTicks, DurationTicks = entry.Prepared.Entry.DurationTicks ?? 0,
                     Phase = PlayerPhase.Opening, Error = null, AudioTracks = [], SubtitleTracks = [],
                     SelectedAudioTrackId = null, SelectedSubtitleTrackId = null, BufferedRanges = [], IsSlowOpening = false });
-                if (loaded.Count > 1 && entry.Index > 0 && engine is not null)
+                if (entry.WasAppended && engine is not null)
                 {
+                    entry.WasAppended = false;
                     // 自动切集后移除已经结束的第一项，只保留当前项与随后追加项。
                     if (loaded.Values.Any(value => value.Ended && value.Index < entry.Index))
                         await engine.CommandAsync(RemoveOldEntryCommand, lifetime.Token).ConfigureAwait(false);
@@ -662,6 +664,7 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
         public ResolvedCandidate? Candidate { get; set; }
         public long NativeId { get; set; }
         public bool Loaded { get; set; }
+        public bool WasAppended { get; set; }
         public bool Confirmed { get; set; }
         public bool Ended { get; set; }
         public long PositionTicks { get; set; }

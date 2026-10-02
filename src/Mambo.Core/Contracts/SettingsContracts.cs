@@ -21,6 +21,13 @@ public enum HardwareDecodingMode
     Off,
 }
 
+public enum SettingsThemeMode
+{
+    System,
+    Light,
+    Dark,
+}
+
 public enum ExternalPlayerStatus
 {
     UsingEmbedded,
@@ -50,6 +57,8 @@ public sealed record AppSettings
     public Guid DeviceId { get; init; }
     public PlaybackMode PlaybackMode { get; init; } = PlaybackMode.Embedded;
     public string? ExternalMpvPath { get; init; }
+    public ExternalMpvApproval? ExternalMpvApproval { get; init; }
+    public SettingsThemeMode ThemeMode { get; init; } = SettingsThemeMode.System;
     public HdrMode HdrMode { get; init; } = HdrMode.Auto;
     public HardwareDecodingMode HardwareDecoding { get; init; } = HardwareDecodingMode.Auto;
     public double Volume { get; init; } = 100;
@@ -68,6 +77,14 @@ public interface ISettingsService
     Task SaveConnectionDefaultsAsync(ConnectionDefaults defaults, CancellationToken cancellationToken = default);
     Task ValidateExternalPlayerAsync(string path, CancellationToken cancellationToken = default);
     Task ClearCacheAsync(CancellationToken cancellationToken = default);
+    /// <summary>查询缓存与 mpv 着色器缓存的文件字节数；旧实现默认返回 0。</summary>
+    Task<long> GetCacheSizeAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(0L);
+    }
+    /// <summary>日志目录的绝对路径；旧实现可返回空字符串。</summary>
+    string LogDirectory => "";
 }
 
 public sealed class LibraryPreferenceChangedEventArgs(string libraryId, LibraryQuery query) : EventArgs

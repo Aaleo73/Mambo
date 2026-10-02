@@ -30,6 +30,10 @@
                 <Button Content="下一集" Click="NextItemClicked" />
                 <Button Content="1.5 倍速" Click="RateItemClicked" />
             </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Content="选择并批准外部 MPV" Click="PickExternalMpvClicked" />
+                <Button Content="使用内置播放" Click="UseEmbeddedClicked" />
+            </StackPanel>
         </StackPanel>
         <Grid Grid.Row="1" ColumnSpacing="12">
             <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="320" /></Grid.ColumnDefinitions>

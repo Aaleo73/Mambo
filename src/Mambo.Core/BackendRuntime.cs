@@ -24,13 +24,14 @@ public sealed class BackendRuntime : IDisposable, IAsyncDisposable
     private readonly IMessenger messenger;
     public BackendRuntime(AppPaths paths, ISecretStore secrets, IUiScheduler scheduler, IMessenger messenger,
         TimeProvider? clock = null, HttpMessageHandler? apiHandler = null, HttpMessageHandler? imageHandler = null,
-        Func<CancellationToken, Task<IPlayerEngine>>? engineFactory = null, HttpMessageHandler? playbackHandler = null)
+        Func<CancellationToken, Task<IPlayerEngine>>? engineFactory = null, HttpMessageHandler? playbackHandler = null,
+        IExternalPlayerValidator? externalPlayerValidator = null)
     {
         this.scheduler = scheduler; this.messenger = messenger;
         clock ??= TimeProvider.System;
         Log = new(paths);
         Accounts = new();
-        Settings = new(paths, scheduler);
+        Settings = new(paths, scheduler, externalPlayerValidator);
         Requests = new(clock);
         Api = new(Settings.Current.DeviceId, apiHandler);
         QueryCache = new(scheduler, new(paths, clock), clock);

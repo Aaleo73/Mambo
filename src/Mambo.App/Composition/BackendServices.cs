@@ -7,6 +7,8 @@ using Mambo.Core.Session;
 using Mambo.App.Platform;
 using Microsoft.Extensions.DependencyInjection;
 using Mambo.Player.LibMpv;
+using Mambo.Player.External;
+using Mambo.Core.Playback;
 
 namespace Mambo.App.Composition;
 
@@ -23,16 +25,17 @@ public static class BackendServices
         ArgumentNullException.ThrowIfNull(scheduler);
         services.AddSingleton<IUiScheduler>(scheduler);
         services.AddSingleton<TimeProvider>(clock ?? TimeProvider.System);
-        services.AddSingleton<FakeOptions>(options ?? new FakeOptions());
+        services.AddSingleton<FakeOptions>(options ?? (fake ? FakeOptions.FromEnvironment(
+            Environment.GetEnvironmentVariable("MAMBO_FAKE_DELAY_MS"), Environment.GetEnvironmentVariable("MAMBO_FAKE_FAILURE_RATE")) : new FakeOptions()));
         services.AddSingleton<IMessenger>(_ => new WeakReferenceMessenger());
         if (!fake)
         {
             services.AddSingleton<ISecretStore>(_ => new WindowsCredentialStore());
+            services.AddSingleton<IExternalPlayerValidator>(_ => new MpvExecutableApproval());
             services.AddSingleton(p => new BackendRuntime(new AppPaths(), p.GetRequiredService<ISecretStore>(),
                 p.GetRequiredService<IUiScheduler>(), p.GetRequiredService<IMessenger>(), p.GetRequiredService<TimeProvider>(),
-                engineFactory: async cancellationToken => await LibMpvEngine.CreateAsync(1, 1,
-                    optionOverrides: new Dictionary<string, string> { ["hwdec"] = p.GetRequiredService<ISettingsService>().Current.HardwareDecoding == HardwareDecodingMode.Off ? "no" : "d3d11va" },
-                    cancellationToken: cancellationToken).ConfigureAwait(false)));
+                engineFactory: cancellationToken => CreateEngineAsync(p, cancellationToken),
+                externalPlayerValidator: p.GetRequiredService<IExternalPlayerValidator>()));
             services.AddSingleton<ISessionService>(p => p.GetRequiredService<BackendRuntime>().Session);
             services.AddSingleton<ILibraryService>(p => p.GetRequiredService<BackendRuntime>().Library);
             services.AddSingleton<ISettingsService>(p => p.GetRequiredService<BackendRuntime>().Settings);
@@ -56,5 +59,16 @@ public static class BackendServices
         services.AddSingleton<IImageService>(p => new FakeImageService(p.GetRequiredService<DemoCatalog>(), p.GetRequiredService<FakeOperation>()));
         services.AddSingleton(p => new AppShutdownCoordinator(p.GetRequiredService<IPlaybackService>(), p.GetRequiredService<IMessenger>()));
         return services;
+    }
+
+    private static async Task<IPlayerEngine> CreateEngineAsync(IServiceProvider services, CancellationToken cancellationToken)
+    {
+        var settings = services.GetRequiredService<BackendRuntime>().Settings;
+        var options = new Dictionary<string, string> { ["hwdec"] = settings.Current.HardwareDecoding == HardwareDecodingMode.Off ? "no" : "d3d11va" };
+        var approval = await settings.GetApprovedExternalPlayerAsync(cancellationToken).ConfigureAwait(false);
+        if (approval is not null)
+            return await ExternalMpvEngine.CreateAsync(approval, services.GetRequiredService<IExternalPlayerValidator>(),
+                options, cancellationToken).ConfigureAwait(false);
+        return await LibMpvEngine.CreateAsync(1, 1, optionOverrides: options, cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 }
