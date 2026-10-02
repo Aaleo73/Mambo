@@ -8,13 +8,23 @@ using Mambo.Core.Session;
 
 namespace Mambo.Core.Reliability;
 
-/// <summary>Only delivery identifiers and account scope are persisted; no token or media title.</summary>
+/// <summary>Persist delivery scope and final playback state; no token or media title.</summary>
 public sealed record StopReportRecord(string ServerId, string ServerBase, string UserId, string IdempotencyId,
     string ItemId, long PlaybackStartTimeTicks, long PositionTicks)
 {
     public string? MediaSourceId { get; init; }
     public string? LiveStreamId { get; init; }
     public string? PlaySessionId { get; init; }
+    public string PlayMethod { get; init; } = "DirectPlay";
+    public double PlaybackRate { get; init; } = 1;
+    public bool CanSeek { get; init; } = true;
+    public bool IsPaused { get; init; }
+    public bool IsMuted { get; init; }
+    public double VolumeLevel { get; init; } = 100;
+    public int PlaylistIndex { get; init; }
+    public int PlaylistLength { get; init; } = 1;
+    public int? AudioStreamIndex { get; init; }
+    public int? SubtitleStreamIndex { get; init; }
     public DateTimeOffset QueuedAt { get; init; }
     public DateTimeOffset? LastAttemptAt { get; init; }
     public int AttemptCount { get; init; }
@@ -56,6 +66,8 @@ public sealed class StopOutbox : IDisposable, IAsyncDisposable
     }
 
     public ImmutableArray<StopReportRecord> Snapshot { get { lock (gate) return records; } }
+    /// <summary>停止已被服务器接受且本轮本地确认完成，用于恢复网络后的资料库失效。</summary>
+    public event Action<AccountSession, StopReportRecord>? Delivered;
 
     public async Task QueueAsync(StopReportRecord record, CancellationToken cancellationToken = default)
     {
@@ -91,6 +103,7 @@ public sealed class StopOutbox : IDisposable, IAsyncDisposable
         lock (gate) ObjectDisposedException.ThrowIf(disposed, this);
         if (!await flushes.WaitAsync(0, cancellationToken).ConfigureAwait(false)) return;
         var acknowledged = new HashSet<string>(StringComparer.Ordinal);
+        var delivered = new List<StopReportRecord>();
         using var deadline = new CancellationTokenSource(budget, clock);
         using var round = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, accountToken, shutdown.Token, deadline.Token);
         try
@@ -113,8 +126,14 @@ public sealed class StopOutbox : IDisposable, IAsyncDisposable
                         ItemId = record.ItemId, MediaSourceId = record.MediaSourceId, LiveStreamId = record.LiveStreamId,
                         PlaySessionId = record.PlaySessionId, PlaybackStartTimeTicks = record.PlaybackStartTimeTicks,
                         PositionTicks = record.PositionTicks, Failed = false,
+                        PlayMethod = record.PlayMethod, PlaybackRate = record.PlaybackRate,
+                        CanSeek = record.CanSeek, IsPaused = record.IsPaused, IsMuted = record.IsMuted,
+                        VolumeLevel = record.VolumeLevel, PlaylistIndex = record.PlaylistIndex,
+                        PlaylistLength = record.PlaylistLength, AudioStreamIndex = record.AudioStreamIndex,
+                        SubtitleStreamIndex = record.SubtitleStreamIndex,
                     }, round.Token).ConfigureAwait(false);
                     acknowledged.Add(record.IdempotencyId);
+                    delivered.Add(record);
                 }
                 catch (AppException error)
                 {
@@ -139,6 +158,7 @@ public sealed class StopOutbox : IDisposable, IAsyncDisposable
             }
             finally { flushes.Release(); }
         }
+        foreach (var record in delivered) Delivered?.Invoke(account, record);
         cancellationToken.ThrowIfCancellationRequested();
     }
 
@@ -269,6 +289,10 @@ public sealed class StopOutbox : IDisposable, IAsyncDisposable
         if (string.IsNullOrWhiteSpace(record.ServerId) || string.IsNullOrWhiteSpace(record.UserId) ||
             string.IsNullOrWhiteSpace(record.ItemId) || !Guid.TryParse(record.IdempotencyId, out _) ||
             record.PlaybackStartTimeTicks < 0 || record.PositionTicks < 0 || record.AttemptCount < 0 ||
+            record.PlayMethod is not ("DirectPlay" or "DirectStream" or "Transcode") ||
+            !double.IsFinite(record.PlaybackRate) || record.PlaybackRate is < 0.25 or > 4 ||
+            !double.IsFinite(record.VolumeLevel) || record.VolumeLevel is < 0 or > 100 ||
+            record.PlaylistIndex < 0 || record.PlaylistLength < 1 || record.PlaylistIndex >= record.PlaylistLength ||
             record.State is not ("pending" or "awaiting_reauth"))
             throw new AppException(new(AppErrorKind.Contract, ErrorCodes.InvalidArgument, "停止记录字段无效。", false));
         _ = ServerAddress.Normalize(record.ServerBase);

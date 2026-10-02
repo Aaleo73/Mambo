@@ -104,19 +104,31 @@ public sealed class MpvCore : IAsyncDisposable
                     throw new ArgumentException("播放请求头包含无效字符。", nameof(headers));
             options["http-header-fields"] = new MpvValue.Text(string.Join(",", headers.Select(pair => $"{pair.Key}: {pair.Value}")));
         }
+        return await LoadFileAsync(address, "replace", options, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<long> LoadFileAsync(string address, string mode,
+        IReadOnlyDictionary<string, MpvValue?> options, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(address);
+        if (mode is not ("replace" or "append")) throw new ArgumentException("播放加载模式无效。", nameof(mode));
         // 第三个参数是 index，第四个参数必须用 NODE_MAP，不能拼接转义的命令字符串。
         var result = await CommandNodeAsync(new MpvValue.Array(
-            [new MpvValue.Text("loadfile"), new MpvValue.Text(address), new MpvValue.Text("replace"),
-             new MpvValue.WholeNumber(-1), new MpvValue.Map(options)]), cancellationToken).ConfigureAwait(false);
+            [new MpvValue.Text("loadfile"), new MpvValue.Text(address), new MpvValue.Text(mode),
+             new MpvValue.WholeNumber(-1), new MpvValue.Map(options)]), TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
         return result is MpvValue.Map map &&
             map.Values.GetValueOrDefault("playlist_entry_id") is MpvValue.WholeNumber entry ? entry.Value : -1;
     }
 
-    public Task<MpvValue?> CommandAsync(params string[] arguments) => CommandNodeAsync(
-        new MpvValue.Array(arguments.Select(x => (MpvValue?)new MpvValue.Text(x)).ToArray()));
+    public Task<MpvValue?> CommandAsync(params string[] arguments) => CommandAsync(arguments.AsMemory());
 
-    private async Task<MpvValue?> CommandNodeAsync(MpvValue arguments, CancellationToken cancellationToken = default)
+    public Task<MpvValue?> CommandAsync(ReadOnlyMemory<string> arguments, CancellationToken cancellationToken = default) => CommandNodeAsync(
+        new MpvValue.Array(arguments.ToArray().Select(x => (MpvValue?)new MpvValue.Text(x)).ToArray()),
+        TimeSpan.FromSeconds(3), cancellationToken);
+
+    private async Task<MpvValue?> CommandNodeAsync(MpvValue arguments, TimeSpan timeout, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var id = (ulong)Interlocked.Increment(ref nextRequestId);
         var completion = new TaskCompletionSource<MpvValue?>(TaskCreationOptions.RunContinuationsAsynchronously);
         replies[id] = completion;
@@ -125,13 +137,40 @@ public sealed class MpvCore : IAsyncDisposable
             lock (gate)
             {
                 ObjectDisposedException.ThrowIf(disposed, this);
+                cancellationToken.ThrowIfCancellationRequested();
                 using var builder = new MpvNodeBuilder();
                 var node = builder.Build(arguments);
                 Check(LibMpvNative.mpv_command_node_async(handle, id, ref node));
             }
-            return await completion.Task.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
+            return await completion.Task.WaitAsync(timeout, cancellationToken).ConfigureAwait(false);
         }
         finally { replies.TryRemove(id, out _); }
+    }
+
+    public async Task SetPropertyAsync(string name, MpvValue value, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var id = (ulong)Interlocked.Increment(ref nextRequestId);
+        var completion = new TaskCompletionSource<MpvValue?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        replies[id] = completion;
+        try
+        {
+            SetPropertyNodeAsync(id, name, value, cancellationToken);
+            await completion.Task.WaitAsync(TimeSpan.FromSeconds(3), cancellationToken).ConfigureAwait(false);
+        }
+        finally { replies.TryRemove(id, out _); }
+    }
+
+    private unsafe void SetPropertyNodeAsync(ulong id, string name, MpvValue value, CancellationToken cancellationToken)
+    {
+        lock (gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            cancellationToken.ThrowIfCancellationRequested();
+            using var builder = new MpvNodeBuilder();
+            var node = builder.Build(value);
+            Check(LibMpvNative.mpv_set_property_async(handle, id, name, MpvFormat.Node, &node));
+        }
     }
 
     public unsafe void SetProperty(string name, string value)
@@ -194,14 +233,16 @@ public sealed class MpvCore : IAsyncDisposable
                     MpvEventId.QueueOverflow => new MpvMessage.QueueOverflow(),
                     _ => null,
                 };
-                if (current.Id == MpvEventId.CommandReply && replies.TryRemove(current.ReplyUserData, out var completion))
+                if (current.Id is MpvEventId.CommandReply or MpvEventId.SetPropertyReply &&
+                    replies.TryRemove(current.ReplyUserData, out var completion))
                 {
                     if (current.Error < 0)
                         completion.TrySetException(new InvalidOperationException($"播放器命令失败（代码 {current.Error}）。"));
                     else
-                        completion.TrySetResult(MpvNodeReader.Read(*(MpvNode*)current.Data));
+                        completion.TrySetResult(current.Id == MpvEventId.CommandReply && current.Data != 0
+                            ? MpvNodeReader.Read(*(MpvNode*)current.Data) : null);
                 }
-                if (current.Id == MpvEventId.SetPropertyReply && current.Error < 0)
+                if (current.Id == MpvEventId.SetPropertyReply && current.ReplyUserData == 0 && current.Error < 0)
                     messages.Writer.TryWrite(new MpvMessage.Failure($"播放器属性设置失败（代码 {current.Error}）。"));
                 if (message is not null) messages.Writer.TryWrite(message);
                 if (current.Id is MpvEventId.VideoReconfig or MpvEventId.FileLoaded) ReadSwapChain();

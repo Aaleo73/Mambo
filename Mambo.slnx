@@ -9,5 +9,6 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Mambo.Core.Tests/Mambo.Core.Tests.csproj"><Platform Project="x64" /></Project>
+    <Project Path="tests/Mambo.Player.Tests/Mambo.Player.Tests.csproj"><Platform Project="x64" /></Project>
   </Folder>
 </Solution>

@@ -20,9 +20,13 @@ public sealed class BackendRuntime : IDisposable, IAsyncDisposable
     private double lastVolume;
     private Task volumeWrite = Task.CompletedTask;
     private readonly object volumeGate = new();
+    private readonly IUiScheduler scheduler;
+    private readonly IMessenger messenger;
     public BackendRuntime(AppPaths paths, ISecretStore secrets, IUiScheduler scheduler, IMessenger messenger,
-        TimeProvider? clock = null, HttpMessageHandler? apiHandler = null, HttpMessageHandler? imageHandler = null)
+        TimeProvider? clock = null, HttpMessageHandler? apiHandler = null, HttpMessageHandler? imageHandler = null,
+        Func<CancellationToken, Task<IPlayerEngine>>? engineFactory = null, HttpMessageHandler? playbackHandler = null)
     {
+        this.scheduler = scheduler; this.messenger = messenger;
         clock ??= TimeProvider.System;
         Log = new(paths);
         Accounts = new();
@@ -32,8 +36,16 @@ public sealed class BackendRuntime : IDisposable, IAsyncDisposable
         QueryCache = new(scheduler, new(paths, clock), clock);
         ImageCache = new(paths, clock);
         Images = new(Accounts, ImageCache, Settings.Current.DeviceId, clock, imageHandler);
-        Playback = new(Accounts, scheduler, messenger, clock);
         Outbox = new(paths, Api, clock, error => Log.Error("停止记录死信", error));
+        if (engineFactory is null) Playback = new DeferredPlaybackService(Accounts, scheduler, messenger, clock);
+        else
+        {
+            playbackClient = playbackHandler is null ? StreamUrlResolver.CreateClient()
+                : new HttpClient(playbackHandler) { Timeout = Timeout.InfiniteTimeSpan };
+            var preparer = new EntryPreparer(Api, new StreamUrlResolver(playbackClient), Settings.Current.DeviceId, paths, Requests);
+            Playback = new PlaybackCoordinator(Accounts, preparer, engineFactory, Api, Outbox, Settings, scheduler, messenger, clock,
+                error => Log.Error("播放会话", error));
+        }
         Session = new(Api, secrets, Accounts, scheduler, messenger, Playback, clock,
             flush: (account, token) => Outbox.FlushAsync(account, TimeSpan.FromSeconds(3), token),
             clear: async scope => { await QueryCache.ClearAsync(scope).ConfigureAwait(false); await ImageCache.ClearAsync().ConfigureAwait(false); });
@@ -41,6 +53,7 @@ public sealed class BackendRuntime : IDisposable, IAsyncDisposable
         Library = new(Accounts, Api, Requests, QueryCache, scheduler, messenger);
         Preferences = new(Settings, Accounts, scheduler);
         Outbox.StartRetry(() => Accounts.Current);
+        Outbox.Delivered += StopDelivered;
         Settings.CacheClearer = ClearCachesAsync;
         Playback.SessionStarted += ObservePlayback;
         Playback.SessionEnded += StopObservingPlayback;
@@ -52,12 +65,20 @@ public sealed class BackendRuntime : IDisposable, IAsyncDisposable
     public QueryCache QueryCache { get; }
     public ImageByteCache ImageCache { get; }
     public ImageFetcher Images { get; }
-    public DeferredPlaybackService Playback { get; }
+    private readonly HttpClient? playbackClient;
+    public IPlaybackService Playback { get; }
     public StopOutbox Outbox { get; }
     public SessionManager Session { get; }
     public LibraryService Library { get; }
     public LibraryPreferences Preferences { get; }
     public AppLog Log { get; }
+    private void StopDelivered(AccountSession account, StopReportRecord record) => scheduler.TryEnqueue(() =>
+    {
+        if (disposed || !ReferenceEquals(Accounts.Current, account)) return;
+        // 旧离线停止记录没有剧/季标题数据，保守刷新当前账号的连播观察。
+        QueryCache.Invalidate(key => key.Scope == account.Scope && key.Kind is "nextup" or "episodes");
+        messenger.Send(new PlaybackStopped(record.ItemId));
+    });
     private async Task ClearCachesAsync(CancellationToken cancellationToken)
     {
         try
@@ -83,7 +104,7 @@ public sealed class BackendRuntime : IDisposable, IAsyncDisposable
     private void PlaybackUpdated(object? sender, EventArgs args)
     {
         if (disposed || sender != observedPlayback || observedPlayback is null) return;
-        if (observedPlayback.Snapshot.EngineKind != EngineKind.Demo || observedPlayback.Snapshot.Phase is PlayerPhase.Closed or PlayerPhase.Failed) return;
+        if (observedPlayback.Snapshot.Phase is PlayerPhase.Closed or PlayerPhase.Failed) return;
         var volume = observedPlayback.Snapshot.Volume;
         if (volume == lastVolume) return;
         lastVolume = volume;
@@ -102,8 +123,8 @@ public sealed class BackendRuntime : IDisposable, IAsyncDisposable
     public Task CloseAsync() => closing ??= CloseCoreAsync();
     private async Task CloseCoreAsync()
     {
-        if (Playback.Current is { } active) await active.CloseAsync(PlaybackEndReason.AppShutdown).ConfigureAwait(false);
         using var budget = new CancellationTokenSource(TimeSpan.FromSeconds(1.5));
+        if (Playback.Current is { } active) await active.CloseAsync(PlaybackEndReason.AppShutdown).ConfigureAwait(false);
         try { await Outbox.FlushAsync(Accounts.Current, TimeSpan.FromSeconds(1.5), budget.Token).ConfigureAwait(false); }
         catch (OperationCanceledException) { }
         catch (AppException error) { Log.Error("退出停止上报", error.Error); }
@@ -118,11 +139,12 @@ public sealed class BackendRuntime : IDisposable, IAsyncDisposable
         if (disposed) return; disposed = true;
         Settings.CacheClearer = null;
         Playback.SessionStarted -= ObservePlayback; Playback.SessionEnded -= StopObservingPlayback;
+        Outbox.Delivered -= StopDelivered;
         if (observedPlayback is not null) observedPlayback.SnapshotChanged -= PlaybackUpdated;
         Images.AuthenticationExpired -= Session.NotifyAuthenticationExpired;
-        Preferences.Dispose(); Library.Dispose(); Session.Dispose(); Playback.Dispose();
+        Preferences.Dispose(); Library.Dispose(); Session.Dispose(); (Playback as IDisposable)?.Dispose();
         Images.Dispose(); ImageCache.Dispose(); QueryCache.Dispose(); Outbox.Dispose(); Requests.Dispose();
-        Api.Dispose(); Accounts.Dispose(); Settings.Dispose(); Log.Dispose();
+        playbackClient?.Dispose(); Api.Dispose(); Accounts.Dispose(); Settings.Dispose(); Log.Dispose();
     }
     public async ValueTask DisposeAsync()
     {

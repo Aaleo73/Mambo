@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using Mambo.Core.Contracts;
 using Mambo.Core.Session;
+using Mambo.Core.Playback;
 
 namespace Mambo.Core.Networking;
 
@@ -35,7 +36,7 @@ public sealed class EmbyApi : IDisposable
     public Task LogoutAsync(AccountSession account, CancellationToken token) => SendStatusAsync(account, "Sessions/Logout", HttpMethod.Post, null, "注销", token, logout: true);
     public Task<EmbyPlaybackInfo> PlaybackInfoAsync(AccountSession account, string id, long start, CancellationToken token) => SendJsonAsync(account.Address, account,
         "Items/" + Escape(id) + "/PlaybackInfo?UserId=" + Escape(account.Secret.UserId), HttpMethod.Post,
-        JsonSerializer.SerializeToUtf8Bytes(new PlaybackInfoRequest(account.Secret.UserId, start, new DeviceProfile()), EmbyJsonContext.Default.PlaybackInfoRequest), EmbyJsonContext.Default.EmbyPlaybackInfo, "准备播放", token);
+        JsonSerializer.SerializeToUtf8Bytes(new PlaybackInfoRequest(account.Secret.UserId, start, DeviceProfileFactory.Create()), EmbyJsonContext.Default.PlaybackInfoRequest), EmbyJsonContext.Default.EmbyPlaybackInfo, "准备播放", token);
     public Task ReportAsync(AccountSession account, string kind, PlaybackReport report, CancellationToken token) => SendStatusAsync(account,
         "Sessions/Playing" + (kind.Length == 0 ? "" : "/" + kind) + "?reqformat=json", HttpMethod.Post,
         JsonSerializer.SerializeToUtf8Bytes(report, EmbyJsonContext.Default.PlaybackReport), "上报播放", token);

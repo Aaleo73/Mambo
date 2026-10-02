@@ -50,6 +50,31 @@ public sealed class AtomicFileTests
     }
 
     [Fact]
+    public async Task CancellationDuringWindowsDestinationLockKeepsOriginalDocumentAndCleansTemporaryFile()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "此测试验证 Windows 原子替换的文件共享语义。");
+        using var sandbox = new Sandbox();
+        await AtomicFile.WriteAsync(sandbox.FilePath, "original"u8.ToArray(), cancellationToken: TestContext.Current.CancellationToken);
+        using var destinationLock = new FileStream(sandbox.FilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        var replacement = AtomicFile.WriteAsync(sandbox.FilePath, "replacement"u8.ToArray(), cancellationToken: cancellation.Token);
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(5));
+        while (!replacement.IsCompleted && !TemporaryWriterHasClosed(sandbox.Root))
+            await Task.Delay(1, timeout.Token);
+        if (replacement.IsFaulted)
+        {
+            var failure = await Assert.ThrowsAsync<AppException>(() => replacement);
+            Assert.Fail($"取消前的替换提前失败，安全 HRESULT：{failure.Error.DiagnosticId}");
+        }
+        Assert.False(replacement.IsCompleted, "目标文件仍被占用，替换应等待有限重试。");
+        cancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => replacement);
+        Assert.Equal("original", await File.ReadAllTextAsync(sandbox.FilePath, TestContext.Current.CancellationToken));
+        Assert.Empty(Directory.EnumerateFiles(sandbox.Root, "*.tmp"));
+    }
+
+    [Fact]
     public async Task PersistentWindowsLockReturnsSafeErrorAndKeepsOriginalDocument()
     {
         Assert.SkipUnless(OperatingSystem.IsWindows(), "此测试验证 Windows 原子替换的文件共享语义。");

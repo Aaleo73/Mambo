@@ -26,7 +26,8 @@ public static class AtomicFile
                     else File.Move(temporary, path);
                     break;
                 }
-                catch (IOException error) when (attempt < 3 && OperatingSystem.IsWindows() && (error.HResult & 0xffff) is 32 or 33)
+                // ReplaceFile 的 1175 保留原件与临时文件的名称，可在短暂删除占用后重试；1176/1177 不具备此前提。
+                catch (IOException error) when (attempt < 3 && OperatingSystem.IsWindows() && (error.HResult & 0xffff) is 32 or 33 or 1175)
                 { await Task.Delay(TimeSpan.FromMilliseconds(25 << attempt), cancellationToken).ConfigureAwait(false); }
             }
         }

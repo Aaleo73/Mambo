@@ -9,6 +9,8 @@
     <Platform Condition="'$(Platform)' == ''">x64</Platform>
     <Platforms>x64</Platforms>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <!-- xUnit v3 默认生成自身 CLI；与 global.json 的 MTP 运行器保持同一入口。 -->
+    <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
     <!-- 统一 App 的 Debug/Release 还原图；AOT 只影响 publish，不改变 Debug 运行方式。 -->
     <PublishAot Condition="'$(MSBuildProjectName)' == 'Mambo.App'">true</PublishAot>
   </PropertyGroup>

@@ -9,8 +9,8 @@
 | `IImageService` | 真 | 缓存/优先级/合并/取消/重定向/缺图已测试；前端解码与 RemoteImage 控件由 Claude 接入 | 2026-10-02 |
 | `ISettingsService` | 真 | 原子更新/备份恢复/只读 DeviceId/清理错误已测试，音量经组合工具恢复；外部播放器验证在 P7 | 2026-10-02 |
 | `ILibraryPreferences` | 真 | 文件持久化、账号/库隔离、通知和重启恢复已测试 | 2026-10-02 |
-| `IPlaybackService` / `IPlaybackSession` | 假 | 演示及修订的失败/重试/替换/注销已测试；真实请求返回 Preparing→Failed，引擎接入待 P3 | 2026-10-02 |
-| `VideoSurface`（`Attach` / `Detach`） | 假 | 公开 `Attach(IPlaybackSession)` 已支持 Demo Composition 纯色并通过 Debug / AOT；真实会话桥接待 P3，P0 内部交换链入口仅供探针 | 2026-10-02 |
+| `IPlaybackService` / `IPlaybackSession` | 真 | 准备/候选/连播/重试/上报/转码清理已测试，真实 libmpv Debug / AOT 组合冒烟通过；真实服务器人工验收待用户 | 2026-10-02 |
+| `VideoSurface`（`Attach` / `Detach`） | 真 | 公开入口支持 Demo 和真实 composition，会话重试后重绑、HDR/尺寸、销毁前 UI 解绑均已接入；实际 Debug / AOT 冒烟通过，人工显示检查沿用 P0 遗留项 | 2026-10-02 |
 
 ## P1a 契约与假服务
 
@@ -24,7 +24,13 @@
 
 **P1 人工验收通过**（2026-10-02）：用户在真实登录、列库、重启恢复及凭据检查步骤后回复“好了”，PLAN 的 P1 已勾选。验收工具为 publish/core-smoke/Mambo.CoreSmoke.exe --login，退出后运行 --restore；凭据目标为 Mambo:emby-session:v1，敏感输入仅在本机。自动测试仍只用内存凭据，不读取或修改用户的 Windows 凭据。本次确认不扩展到 P0 遗留项或 P3 真实播放验收。
 
-R-003 外壳交接：启动解析 AppShutdownCoordinator（安装 WinUI 异常记录），再调用一次 RestoreAsync；关闭时 await coordinator.CloseAsync 后再销毁 DI。真实播放待 P3；前端可继续以假模式开发页面。
+R-003 外壳交接：启动解析 AppShutdownCoordinator（安装 WinUI 异常记录），再调用一次 RestoreAsync；关闭时 await coordinator.CloseAsync 后再销毁 DI，并在 Window.Closing 返回后排队调用最终 Window.Close（R-016）。真实服务均可接入；前端也可继续以假模式开发页面。
+
+## P3 播放实现
+
+2026-10-02：真实播放准备、候选回退、外部字幕、转码清理、actor 会话、真实倍速上报、StopOutbox 和缓存失效已接入。LibMpvEngine 使用真实 entryId、原生确认及类型化事件，新增六项无头原生测试；VideoSurface 内部桥接负责交换链、HDR、尺寸与重试后重绑，Contracts v1 无破坏性改动。实现及验收命令见 [P3 播放引擎与会话](../decisions/P3-playback.md)。
+
+全套 237/237 测试通过，无失败或跳过（Core 231、Player 6）；Debug 构建 / Native AOT 发布零警告零错误，本地 composition 播放冒烟均正常退出，并验证切集/重试后的三次停止保持 1.5 倍速。人工真实服务器的位置/倍速、强制转码、整季连播及断网补发尚未确认，P3 进度保持未勾选。Video Lab 已可“恢复 Emby 会话”后按 itemId 播放，人工输入不落盘。R-015 的测试发现问题同批修复，前端合并后可直接运行 dotnet test；最终外壳关闭要求见 R-016。
 
 ## P0 骨架与视频验证
 

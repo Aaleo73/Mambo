@@ -6,6 +6,7 @@ using Mambo.Core.Persistence;
 using Mambo.Core.Session;
 using Mambo.App.Platform;
 using Microsoft.Extensions.DependencyInjection;
+using Mambo.Player.LibMpv;
 
 namespace Mambo.App.Composition;
 
@@ -28,7 +29,10 @@ public static class BackendServices
         {
             services.AddSingleton<ISecretStore>(_ => new WindowsCredentialStore());
             services.AddSingleton(p => new BackendRuntime(new AppPaths(), p.GetRequiredService<ISecretStore>(),
-                p.GetRequiredService<IUiScheduler>(), p.GetRequiredService<IMessenger>(), p.GetRequiredService<TimeProvider>()));
+                p.GetRequiredService<IUiScheduler>(), p.GetRequiredService<IMessenger>(), p.GetRequiredService<TimeProvider>(),
+                engineFactory: async cancellationToken => await LibMpvEngine.CreateAsync(1, 1,
+                    optionOverrides: new Dictionary<string, string> { ["hwdec"] = p.GetRequiredService<ISettingsService>().Current.HardwareDecoding == HardwareDecodingMode.Off ? "no" : "d3d11va" },
+                    cancellationToken: cancellationToken).ConfigureAwait(false)));
             services.AddSingleton<ISessionService>(p => p.GetRequiredService<BackendRuntime>().Session);
             services.AddSingleton<ILibraryService>(p => p.GetRequiredService<BackendRuntime>().Library);
             services.AddSingleton<ISettingsService>(p => p.GetRequiredService<BackendRuntime>().Settings);

@@ -8,6 +8,10 @@ using Mambo.App.Platform;
 using Mambo.App.Composition;
 using Mambo.Core.Playback;
 using Mambo.Player.LibMpv;
+using MpvValue = Mambo.Player.LibMpv.MpvValue;
+using Mambo.Core.Contracts;
+using Microsoft.Extensions.DependencyInjection;
+using HdrMode = Mambo.App.Video.HdrMode;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
@@ -43,6 +47,8 @@ public sealed partial class VideoLab : UserControl
     private bool bound;
     private string note = "";
     private readonly PowerRequest power = new();
+    private ServiceProvider? backendServices;
+    private IPlaybackSession? backendSession;
 
     public VideoLab()
     {
@@ -82,6 +88,20 @@ public sealed partial class VideoLab : UserControl
             return;
         }
         refresh.Start();
+        if (Program.Arguments.Contains("--p3-smoke", StringComparer.Ordinal))
+        {
+            var playbackSample = Environment.GetEnvironmentVariable("MAMBO_PLAYBACK_LAB_SAMPLE") ?? "";
+            var playbackReport = Environment.GetEnvironmentVariable("MAMBO_PLAYBACK_LAB_REPORT") ?? "";
+            Application.Current.UnhandledException += (_, failure) =>
+            {
+                var safe = new PlaybackLabReport { Stage = "未处理的界面异常", Error = "播放验证窗口出现异常。",
+                    ErrorKind = failure.Exception.GetType().Name, HResult = failure.Exception.HResult.ToString("X8", CultureInfo.InvariantCulture),
+                    ErrorStack = failure.Exception.StackTrace ?? "" };
+                File.WriteAllText(playbackReport, JsonSerializer.Serialize(safe, PlaybackLabJsonContext.Default.PlaybackLabReport));
+            };
+            await PlaybackLabSmoke.RunAsync(Surface, playbackSample, DispatcherQueue, playbackReport);
+            window?.Close(); return;
+        }
         var sample = Environment.GetEnvironmentVariable("MAMBO_VIDEO_LAB_SAMPLE");
         if (Program.Arguments.Contains("--smoke", StringComparer.Ordinal) && !string.IsNullOrWhiteSpace(sample))
         {
@@ -110,6 +130,45 @@ public sealed partial class VideoLab : UserControl
 
     private async void OpenClicked(object sender, RoutedEventArgs args) => await GuardAsync(
         () => OpenAsync(AddressBox.Text.Trim()));
+    private async void RestoreBackendClicked(object sender, RoutedEventArgs args) => await GuardAsync(async () =>
+    {
+        var services = GetBackendServices();
+        var sessionService = services.GetRequiredService<ISessionService>();
+        await sessionService.RestoreAsync();
+        StatusText.Text = sessionService.State == SessionState.LoggedIn ? "会话已恢复，可按 itemId 播放。" : "未能恢复会话，请在本机登录工具中连接 Emby。";
+    });
+    private ServiceProvider GetBackendServices()
+    {
+        if (backendServices is not null) return backendServices;
+        backendServices = new ServiceCollection().AddBackendServices(false, new UiScheduler(DispatcherQueue)).BuildServiceProvider();
+        _ = backendServices.GetRequiredService<AppShutdownCoordinator>();
+        return backendServices;
+    }
+    private async void PlayItemClicked(object sender, RoutedEventArgs args) => await GuardAsync(async () =>
+    {
+        await StopAsync();
+        var playback = GetBackendServices().GetRequiredService<IPlaybackService>();
+        var opened = await playback.PlayAsync(new(ItemIdBox.Text.Trim(), ReplaceCurrent: true));
+        backendSession = opened;
+        opened.SnapshotChanged += BackendSnapshotChanged;
+        Surface.Attach(opened);
+        BackendSnapshotChanged(opened, EventArgs.Empty);
+    });
+    private void BackendSnapshotChanged(object? sender, EventArgs args)
+    {
+        if (sender != backendSession || backendSession is null) return;
+        var snapshot = backendSession.Snapshot;
+        StatusText.Text = snapshot.Error?.Message ?? $"播放状态：{snapshot.Phase}；位置 {TimeSpan.FromTicks(snapshot.PositionTicks):g}；倍速 {snapshot.PlaybackRate:F2}";
+        power.SetPlaying(snapshot.Phase == PlayerPhase.Playing && !snapshot.IsPaused);
+        if (!seeking) { PositionSlider.Maximum = Math.Max(1, TimeSpan.FromTicks(snapshot.DurationTicks).TotalSeconds);
+            PositionSlider.Value = Math.Clamp(TimeSpan.FromTicks(snapshot.PositionTicks).TotalSeconds, 0, PositionSlider.Maximum); }
+    }
+    private async void PreviousItemClicked(object sender, RoutedEventArgs args) => await GuardAsync(async () =>
+    { if (backendSession is { } session) await session.PreviousAsync(); });
+    private async void NextItemClicked(object sender, RoutedEventArgs args) => await GuardAsync(async () =>
+    { if (backendSession is { } session) await session.NextAsync(); });
+    private async void RateItemClicked(object sender, RoutedEventArgs args) => await GuardAsync(async () =>
+    { if (backendSession is { } session) await session.SetRateAsync(1.5); });
 
     private async Task GuardAsync(Func<Task> action)
     {
@@ -249,6 +308,11 @@ public sealed partial class VideoLab : UserControl
 
     private void RefreshDiagnostics()
     {
+        if (backendSession is { } session)
+        {
+            DiagnosticsText.Text = $"会话：{session.Snapshot.Phase}\n画面：{Surface.BufferSize.Width} × {Surface.BufferSize.Height}\n倍速：{session.Snapshot.PlaybackRate:F2}";
+            return;
+        }
         var duration = Number("duration");
         var position = Number("time-pos");
         paused = properties.GetValueOrDefault("pause") is MpvValue.Flag { Value: true };
@@ -286,15 +350,26 @@ public sealed partial class VideoLab : UserControl
         _ => "不可用",
     };
 
-    private void PauseClicked(object sender, RoutedEventArgs args) => player?.SetProperty("pause", !paused);
+    private async void PauseClicked(object sender, RoutedEventArgs args)
+    {
+        if (backendSession is { } session) await GuardAsync(() => session.TogglePauseAsync());
+        else player?.SetProperty("pause", !paused);
+    }
     private void SeekPressed(object sender, PointerRoutedEventArgs args) => seeking = true;
     private async void SeekReleased(object sender, PointerRoutedEventArgs args)
     {
         seeking = false;
+        if (backendSession is { } session) { await GuardAsync(() => session.SeekAsync(TimeSpan.FromSeconds(PositionSlider.Value))); return; }
         if (player is { } current)
             await GuardAsync(async () => { await current.CommandAsync("seek", PositionSlider.Value.ToString(CultureInfo.InvariantCulture), "absolute"); });
     }
-    private void HdrChanged(object sender, SelectionChangedEventArgs args) => hdr?.SetMode((HdrMode)HdrBox.SelectedIndex);
+    private async void HdrChanged(object sender, SelectionChangedEventArgs args)
+    {
+        if (HdrBox.SelectedIndex < 0) return;
+        hdr?.SetMode((HdrMode)HdrBox.SelectedIndex);
+        if (backendServices is { } services)
+            await GuardAsync(() => services.GetRequiredService<ISettingsService>().UpdateAsync(value => value with { HdrMode = (Mambo.Core.Contracts.HdrMode)HdrBox.SelectedIndex }));
+    }
     private void CursorChanged(object sender, RoutedEventArgs args) => Surface.HideCursor(((ToggleSwitch)sender).IsOn);
     private void FullscreenClicked(object sender, RoutedEventArgs args)
     {
@@ -342,6 +417,12 @@ public sealed partial class VideoLab : UserControl
 
     private async Task StopAsync()
     {
+        if (backendSession is { } session)
+        {
+            await session.CloseAsync();
+            session.SnapshotChanged -= BackendSnapshotChanged;
+            backendSession = null;
+        }
         bindingRetry.Stop();
         pendingSwapChain?.Dispose();
         pendingSwapChain = null;
@@ -359,11 +440,22 @@ public sealed partial class VideoLab : UserControl
         consume = null;
     }
 
-    public Task CloseAsync() => closeTask ??= CloseCoreAsync();
+    public async Task CloseAsync()
+    {
+        // Closing 事件先返回给 WinUI，避免清理已完成时同步重入 Window.Close。
+        await Task.Yield();
+        await (closeTask ??= CloseCoreAsync());
+    }
     private async Task CloseCoreAsync()
     {
         refresh.Stop();
         if (fakeLab is { } demo) await demo.CloseAsync();
+        if (backendServices is { } services)
+        {
+            await services.GetRequiredService<AppShutdownCoordinator>().CloseAsync();
+            await services.DisposeAsync(); backendServices = null;
+        }
+        ItemIdBox.Text = "";
         AddressBox.Text = ServerBox.Text = TokenBox.Password = "";
         try { await StopAsync(); }
         catch { /* 释放有看门狗，窗口关闭不得永久等待。 */ }

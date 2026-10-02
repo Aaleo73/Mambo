@@ -28,11 +28,71 @@ public sealed class StopOutboxTests
         Assert.Equal(1, document.RootElement.GetProperty("records").GetArrayLength());
         Assert.DoesNotContain(account.Secret.AccessToken, json, StringComparison.Ordinal);
         Assert.DoesNotContain("accessToken", json, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("title", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(document.RootElement.GetProperty("records").EnumerateArray().SelectMany(row => row.EnumerateObject()),
+            property => property.Name.Equals("title", StringComparison.OrdinalIgnoreCase) ||
+                property.Name.Equals("mediaTitle", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain("example.invalid", record.ToString(), StringComparison.Ordinal);
         using var restored = new StopOutbox(sandbox.Paths, api);
         Assert.Equal(record.IdempotencyId, Assert.Single(restored.Snapshot).IdempotencyId);
         Assert.Equal(record.PositionTicks, restored.Snapshot[0].PositionTicks);
+    }
+
+    [Fact]
+    public async Task OfflineStopRetainsActualPlaybackStateAcrossReloadAndAuthenticatedReplay()
+    {
+        using var sandbox = new Sandbox();
+        using var account = Account();
+        var record = Record(account) with
+        {
+            PositionTicks = 987654321, MediaSourceId = Guid.NewGuid().ToString("N"),
+            PlaySessionId = Guid.NewGuid().ToString("N"), LiveStreamId = Guid.NewGuid().ToString("N"),
+            PlaybackRate = 1.75, PlayMethod = "Transcode", CanSeek = false, IsPaused = true, IsMuted = true,
+            VolumeLevel = 36, PlaylistIndex = 2, PlaylistLength = 5, AudioStreamIndex = 7, SubtitleStreamIndex = 11,
+        };
+        using (var offlineApi = Api((_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable))))
+        {
+            await using var offline = new StopOutbox(sandbox.Paths, offlineApi);
+            await offline.QueueAsync(record, TestContext.Current.CancellationToken);
+            await offline.FlushAsync(account, TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
+            Assert.Equal(1, Assert.Single(offline.Snapshot).AttemptCount);
+        }
+        using var authenticated = new AccountSession(account.Secret with { AccessToken = Guid.NewGuid().ToString("N") });
+        var bodies = new List<JsonElement>();
+        using var onlineApi = Api(async (request, token) =>
+        {
+            Assert.Equal(authenticated.Secret.AccessToken, Assert.Single(request.Headers.GetValues("X-Emby-Token")));
+            using var body = JsonDocument.Parse(await request.Content!.ReadAsByteArrayAsync(token));
+            bodies.Add(body.RootElement.Clone());
+            return new(HttpStatusCode.OK);
+        });
+        await using var restored = new StopOutbox(sandbox.Paths, onlineApi);
+        var saved = Assert.Single(restored.Snapshot);
+        Assert.Equal(record.IdempotencyId, saved.IdempotencyId);
+        Assert.Equal(record.PlaybackRate, saved.PlaybackRate);
+        Assert.Equal(record.PlayMethod, saved.PlayMethod);
+        await restored.FlushAsync(authenticated, TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
+        var wire = Assert.Single(bodies);
+        Assert.Equal(record.ItemId, wire.GetProperty("ItemId").GetString());
+        Assert.Equal(record.MediaSourceId, wire.GetProperty("MediaSourceId").GetString());
+        Assert.Equal(record.PlaySessionId, wire.GetProperty("PlaySessionId").GetString());
+        Assert.Equal(record.LiveStreamId, wire.GetProperty("LiveStreamId").GetString());
+        Assert.Equal(record.PlaybackStartTimeTicks, wire.GetProperty("PlaybackStartTimeTicks").GetInt64());
+        Assert.Equal(record.PositionTicks, wire.GetProperty("PositionTicks").GetInt64());
+        Assert.Equal(record.PlaybackRate, wire.GetProperty("PlaybackRate").GetDouble());
+        Assert.Equal(record.PlayMethod, wire.GetProperty("PlayMethod").GetString());
+        Assert.Equal(record.CanSeek, wire.GetProperty("CanSeek").GetBoolean());
+        Assert.Equal(record.IsPaused, wire.GetProperty("IsPaused").GetBoolean());
+        Assert.Equal(record.IsMuted, wire.GetProperty("IsMuted").GetBoolean());
+        Assert.Equal(record.VolumeLevel, wire.GetProperty("VolumeLevel").GetDouble());
+        Assert.Equal(record.PlaylistIndex, wire.GetProperty("PlaylistIndex").GetInt32());
+        Assert.Equal(record.PlaylistLength, wire.GetProperty("PlaylistLength").GetInt32());
+        Assert.Equal(record.AudioStreamIndex, wire.GetProperty("AudioStreamIndex").GetInt32());
+        Assert.Equal(record.SubtitleStreamIndex, wire.GetProperty("SubtitleStreamIndex").GetInt32());
+        Assert.False(wire.GetProperty("Failed").GetBoolean());
+        Assert.Empty(restored.Snapshot);
+        var finalJson = await File.ReadAllTextAsync(sandbox.Paths.Outbox, TestContext.Current.CancellationToken);
+        Assert.DoesNotContain(account.Secret.AccessToken, finalJson, StringComparison.Ordinal);
+        Assert.DoesNotContain(authenticated.Secret.AccessToken, finalJson, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -2,14 +2,14 @@
 
 日期：2026-10-02。状态：**契约 v1 冻结**。用户转达 Claude 已审阅；条件通过所要求的 R-004–R-009 已实现并通过测试，R-010–R-014 增量同时完成。
 
-用户已批准 P0 提交并进入 P1。按 PLAN §14.3，先交付契约和全套假服务，供前端并行开发。真实平台实现与本地验收工具见 [P1 Core 平台层](P1-core-platform.md)，P1 真实 Emby 登录、列库、重启恢复及凭据检查已由用户确认通过；原生播放会话桥接属 P3。
+用户已批准 P0 提交并进入 P1。按 PLAN §14.3，先交付契约和全套假服务，供前端并行开发。真实平台实现与本地验收工具见 [P1 Core 平台层](P1-core-platform.md)，P1 真实 Emby 登录、列库、重启恢复及凭据检查已由用户确认通过；原生播放会话桥接现已实现，见 [P3 播放引擎与会话](P3-playback.md)，真实服务器播放验收待用户。
 
 ## 前端接入边界
 
 - 业务类型集中在 `src/Mambo.Core/Contracts/`，命名空间为 `Mambo.Core.Contracts`。领域数据使用不可变 record 和 `ImmutableArray`，不暴露 DTO、播放 URL、令牌或原生句柄。
 - 服务在 `BackendServices.AddBackendServices(fake: true, scheduler: …)` 注册。前端通过 Contracts 接口解析服务，不构造假实现。容器使用显式工厂，避免 AOT 反射激活。
 - App 的 `Debug/VideoLab` 已支持 `--fake` 和 `MAMBO_FAKE=1`，启动 `FakeLab`。Program / App / MainWindow 仍由 Claude 拥有，最终外壳入口的 DI 接入见 R-003。
-- `VideoSurface.Attach(IPlaybackSession)` / `Detach()` 必须在 UI 线程调用。当前公开入口支持 `EngineKind.Demo`，使用 Composition 纯色画面；真实会话的内部桥接在 P3 接入。前端不调用 P0 的内部交换链入口。
+- `VideoSurface.Attach(IPlaybackSession)` / `Detach()` 必须在 UI 线程调用。公开入口支持 `EngineKind.Demo` 的 Composition 纯色和 P3 的真实 libmpv 会话。前端不调用 P0 的内部交换链入口。
 - 不把 Contracts record 直接声明为 XAML 的 `x:DataType`：当前 WinUI 编译器会为 `init` 属性生成普通 setter，导致 CS8852。使用 getter-only 的 partial ViewModel 或投影对象，再通过 `{x:Bind}` 绑定。可参考 `Debug/DemoRows.cs`；其原始 `MediaItem` 保持 internal，避免进入生成的 XAML 类型元数据。
 
 ## 契约 v1 API 与语义
@@ -34,7 +34,7 @@
 
 LogoutAsync 返回 LogoutResult，先关闭播放并用旧身份处理停止记录，再清本地；远端失败与本地断开分开反馈。所有通知始终异步，UI 创建观察后可以先读状态、再订阅。账号切换或 scopeToken 取消后旧观察终止，仍需 Dispose；有缓存时创建观察即可已初始化。图片同 Kind 先自身再父级，缺图不可重试；PlaybackEntry 新增剧名、集名、UserData 和 Image。设置支持 Func 原子更新，DeviceId 不可修改；真实组合根保存会话音量，外壳启动调用一次 RestoreAsync。
 
-VideoSurface 的诊断成员为 internal。外壳用 WindowResizeHook（或等效 WM_ENTERSIZEMOVE/WM_EXITSIZEMOVE）调用 SetLiveResize；控制层隐藏时调用 HideCursor。HDR 目标参数由 VideoSurface 内部处理，前端不参与显示器探测或 mpv 参数设置；真实会话桥接随 P3 接入。
+VideoSurface 的诊断成员为 internal。外壳用 WindowResizeHook（或等效 WM_ENTERSIZEMOVE/WM_EXITSIZEMOVE）调用 SetLiveResize；控制层隐藏时调用 HideCursor。HDR 目标参数由 VideoSurface 内部处理，前端不参与显示器探测或 mpv 参数设置；真实会话桥接已在 P3 接入。
 
 ## 假数据与生命周期
 
@@ -42,7 +42,7 @@ VideoSurface 的诊断成员为 internal。外壳用 WindowResizeHook（或等�
 - 图片由托管代码生成 BMP 渐变与原创点阵标题，无外部图片或旧项目资产。海报宽度上限 960、横图 2560；未知中文用 Unicode 编码显示。真实图片优先级、磁盘缓存与网络调度见 P1 平台记录。
 - 假播放模拟打开、播放时钟、缓冲、失败重试、跳集、12 集连播及季末关闭；使用 `TimeProvider`，测试无需真实等待。关闭幂等，停止开播和计时并退订，压制迟到通知。
 - 假会话启动时已有演示账号；设置、连接默认值和资料库偏好只保存在内存，均未接入 Windows 凭据管理器或真实外部播放器。日期排序使用生成的 DateCreatedUtc，不依赖首映日期代替添加日期。
-- `AppShutdownCoordinator` 负责关闭播放并重置 messenger；P1 已扩展发件箱、设置、查询快照和异步 I/O 清理，真实播放状态上报随 P3 接入。
+- `AppShutdownCoordinator` 负责关闭播放并重置 messenger；P1 已扩展发件箱、设置、查询快照和异步 I/O 清理，P3 已接入真实播放状态上报。
 - 默认延迟 120 ms、错误率 0、固定随机种子。调试入口可通过 `MAMBO_FAKE_DELAY_MS`（0–10000）和 `MAMBO_FAKE_FAILURE_RATE`（0–1）模拟加载和失败；构造假服务也可传入 `FakeOptions` 与受控时钟。
 
 ## 初始验证（修订前）
@@ -66,4 +66,4 @@ pwsh scripts/test-fake-lab.ps1 -Aot -EnvironmentMode
 
 R-002 条件通过的六项阻塞修订已完成，契约 v1 冻结，PLAN 的 P1a 已勾选。R-003 仍由 Claude 在 P4 接入最终外壳与 DI：启动时解析 AppShutdownCoordinator 并调用一次 RestoreAsync，退出先 await CloseAsync 再销毁服务容器。
 
-P1 真实平台层已实现，自动验证见 P1 平台记录；真实登录、列库、重启恢复及凭据检查已于 2026-10-02 经用户确认通过。原生播放、媒体源和真实播放状态上报在 P3 完成。
+P1 真实平台层已实现，自动验证见 P1 平台记录；真实登录、列库、重启恢复及凭据检查已于 2026-10-02 经用户确认通过。P3 原生播放、媒体源和状态上报的实现与自动验证也已完成，真实服务器播放验收尚待用户。

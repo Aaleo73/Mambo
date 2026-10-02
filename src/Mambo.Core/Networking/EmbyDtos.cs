@@ -23,7 +23,8 @@ public sealed record EmbyPerson { public string? Id { get; init; } public string
 public sealed record EmbyMediaSource
 {
     public string? Id { get; init; } public string? Path { get; init; } public string? Container { get; init; } public string? Protocol { get; init; }
-    public bool? SupportsDirectPlay { get; init; } public bool? SupportsDirectStream { get; init; } public string? TranscodingUrl { get; init; }
+    public bool? SupportsDirectPlay { get; init; } public bool? SupportsDirectStream { get; init; } public string? DirectStreamUrl { get; init; } public string? TranscodingUrl { get; init; }
+    public long? Bitrate { get; init; }
     public string? LiveStreamId { get; init; } public long? RunTimeTicks { get; init; }
     public Dictionary<string, string>? RequiredHttpHeaders { get; init; } public EmbyStreamInfo[]? MediaStreams { get; init; }
     public override string ToString() => "EmbyMediaSource { <redacted> }";
@@ -31,7 +32,9 @@ public sealed record EmbyMediaSource
 public sealed record EmbyStreamInfo
 {
     public int? Index { get; init; } public string? Type { get; init; } public string? Codec { get; init; } public string? Language { get; init; }
-    public string? DisplayTitle { get; init; } public bool? IsExternal { get; init; } public bool? IsDefault { get; init; } public string? DeliveryUrl { get; init; }
+    public string? DisplayTitle { get; init; } public string? Title { get; init; }
+    public int? Height { get; init; } public int? Width { get; init; }
+    public bool? IsExternal { get; init; } public bool? IsDefault { get; init; } public string? DeliveryUrl { get; init; }
     public override string ToString() => "EmbyMediaStream { <redacted> }";
 }
 public sealed record EmbyAuthentication { public string? AccessToken { get; init; } public string? ServerId { get; init; } public EmbyItem? User { get; init; } public override string ToString() => "EmbyAuthentication { <redacted> }"; }
@@ -68,8 +71,15 @@ public sealed record PlaybackReport
     public bool IsPaused { get; init; } public bool IsMuted { get; init; } public double VolumeLevel { get; init; } = 100;
     public bool Failed { get; init; }
     public double PlaybackRate { get; init; } = 1; public string? EventName { get; init; }
+    public int PlaylistIndex { get; init; } public int PlaylistLength { get; init; } = 1;
+    public PlaybackQueueItem[] NowPlayingQueue { get; init; } = [];
+    public int MaxStreamingBitrate { get; init; } = int.MaxValue;
+    public string RepeatMode { get; init; } = "RepeatNone";
+    public long SubtitleOffset { get; init; } public bool Shuffle { get; init; }
+    public int? AudioStreamIndex { get; init; } public int? SubtitleStreamIndex { get; init; }
     public override string ToString() => "PlaybackReport { <redacted> }";
 }
+public sealed record PlaybackQueueItem(string Id, string? PlaylistItemId = null);
 public sealed record EmbyFilters { public NameOrString[]? Genres { get; init; } public int[]? Years { get; init; } public NameOrString[]? OfficialRatings { get; init; } }
 [JsonConverter(typeof(NameOrStringConverter))]
 public sealed record NameOrString(string Name);

@@ -121,6 +121,128 @@ public sealed class StreamUrlResolverTests
         Assert.DoesNotContain("example.invalid", error.Message);
     }
 
+    [Theory]
+    [InlineData("/emby-other/video")]
+    [InlineData("/other/video")]
+    [InlineData("/emby%2fvideo")]
+    [InlineData("/emby/%2e%2e/private")]
+    [InlineData("/EMBY/video")]
+    public async Task AuthenticationBoundaryIncludesExactBasePath(string path)
+    {
+        var host = Guid.NewGuid().ToString("N") + ".invalid";
+        var token = Guid.NewGuid().ToString("N");
+        using var handler = new StubHandler(_ => throw new InvalidOperationException("越界地址不应探测"));
+        using var client = new HttpClient(handler);
+        var resolved = await new StreamUrlResolver(client).ResolveAsync(new("https://" + host + path),
+            new("https://" + host + "/emby"), token, new Dictionary<string, string> { ["Referer"] = token }, TestContext.Current.CancellationToken);
+        Assert.Empty(resolved.Headers);
+    }
+
+    [Fact]
+    public async Task SameHostRedirectOutsideBasePathClearsAllRequiredHeadersAndStopsProbe()
+    {
+        var host = Guid.NewGuid().ToString("N") + ".invalid";
+        var token = Guid.NewGuid().ToString("N"); var calls = 0;
+        using var handler = new StubHandler(request =>
+        {
+            calls++; Assert.Equal(token, request.Headers.GetValues("X-Emby-Token").Single());
+            Assert.True(request.Headers.Contains("Referer")); return Redirect("/outside/video?api_key=" + token);
+        });
+        using var client = new HttpClient(handler);
+        var resolved = await new StreamUrlResolver(client).ResolveAsync(new("https://" + host + "/emby/video"),
+            new("https://" + host + "/emby"), token, new Dictionary<string, string> { ["Referer"] = Guid.NewGuid().ToString("N") }, TestContext.Current.CancellationToken);
+        Assert.Equal(1, calls); Assert.Empty(resolved.Headers); Assert.Empty(resolved.Address.Query);
+    }
+
+    [Fact]
+    public async Task EncodedIdentifierInsideBasePathRetainsAuthentication()
+    {
+        var root = new Uri("https://" + Guid.NewGuid().ToString("N") + ".invalid/emby");
+        var token = Guid.NewGuid().ToString("N"); var calls = 0;
+        using var handler = new StubHandler(request =>
+        {
+            calls++; Assert.Equal(token, request.Headers.GetValues("X-Emby-Token").Single());
+            return new(HttpStatusCode.PartialContent);
+        });
+        using var client = new HttpClient(handler);
+        var resolved = await new StreamUrlResolver(client).ResolveAsync(new(root.AbsoluteUri + "/Videos/" + Guid.NewGuid().ToString("N") + "%2Fpart/stream"),
+            root, token, TestContext.Current.CancellationToken);
+        Assert.Equal(1, calls); Assert.Equal(token, resolved.Headers["X-Emby-Token"]);
+    }
+
+    [Fact]
+    public async Task ValidRequiredHeadersRetainedAndInjectionCannotOverrideAuthentication()
+    {
+        var root = new Uri("https://" + Guid.NewGuid().ToString("N") + ".invalid/emby");
+        var token = Guid.NewGuid().ToString("N");
+        var headers = new Dictionary<string, string>
+        {
+            ["Referer"] = "origin", ["X-Emby-Token"] = Guid.NewGuid().ToString("N"), ["X-Bad"] = "one\r\nInjected: two", ["Bad Key"] = "three", ["Host"] = "other",
+        };
+        using var handler = new StubHandler(request =>
+        {
+            Assert.Equal(token, request.Headers.GetValues("X-Emby-Token").Single());
+            Assert.Equal("origin", request.Headers.GetValues("Referer").Single());
+            Assert.False(request.Headers.Contains("X-Bad")); Assert.Null(request.Headers.Host);
+            return new(HttpStatusCode.PartialContent);
+        });
+        using var client = new HttpClient(handler);
+        var resolved = await new StreamUrlResolver(client).ResolveAsync(new(root.AbsoluteUri + "/video"), root, token, headers, TestContext.Current.CancellationToken);
+        Assert.Equal(2, resolved.Headers.Count);
+    }
+
+    [Fact]
+    public async Task SubtitleDownloadRechecksRedirectAfterProbeAndNeverRestoresClearedHeaders()
+    {
+        var root = new Uri("https://" + Guid.NewGuid().ToString("N") + ".invalid/emby");
+        var cdn = new Uri("https://" + Guid.NewGuid().ToString("N") + ".invalid/subtitle");
+        var token = Guid.NewGuid().ToString("N"); var calls = 0;
+        using var handler = new StubHandler(request =>
+        {
+            calls++;
+            if (calls <= 2)
+            {
+                Assert.Equal(token, request.Headers.GetValues("X-Emby-Token").Single());
+                Assert.True(request.Headers.Contains("Referer"));
+                return calls == 1 ? new(HttpStatusCode.PartialContent) : Redirect(cdn.AbsoluteUri + "?token=" + token);
+            }
+            Assert.False(request.Headers.Contains("X-Emby-Token")); Assert.False(request.Headers.Contains("Referer"));
+            Assert.DoesNotContain(token, request.RequestUri!.Query, StringComparison.Ordinal);
+            return calls == 3 ? Redirect(root.AbsoluteUri + "/final") : new(HttpStatusCode.OK) { Content = new StringContent("字幕") };
+        });
+        using var client = new HttpClient(handler);
+        var bytes = await new StreamUrlResolver(client).DownloadSubtitleAsync(new(root.AbsoluteUri + "/subtitle"), root, token,
+            new Dictionary<string, string> { ["Referer"] = root.AbsoluteUri }, TestContext.Current.CancellationToken);
+        Assert.Equal("字幕", System.Text.Encoding.UTF8.GetString(bytes)); Assert.Equal(4, calls);
+    }
+
+    [Fact]
+    public async Task SubtitleDownloadRejectsOversizedResponseWithoutReadingBody()
+    {
+        var root = new Uri("https://" + Guid.NewGuid().ToString("N") + ".invalid/emby");
+        using var handler = new StubHandler(request =>
+        {
+            if (request.Headers.Range is not null) return new(HttpStatusCode.PartialContent);
+            var content = new ByteArrayContent([]); content.Headers.ContentLength = 5 * 1024 * 1024 + 1;
+            return new(HttpStatusCode.OK) { Content = content };
+        });
+        using var client = new HttpClient(handler);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => new StreamUrlResolver(client).DownloadSubtitleAsync(new(root.AbsoluteUri + "/subtitle"), root,
+            Guid.NewGuid().ToString("N"), null, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task AlreadyCancelledCrossOriginResolutionDoesNotSucceed()
+    {
+        var address = new Uri("https://" + Guid.NewGuid().ToString("N") + ".invalid/video");
+        var root = new Uri("https://" + Guid.NewGuid().ToString("N") + ".invalid/emby");
+        using var cancellation = new CancellationTokenSource(); cancellation.Cancel();
+        using var handler = new StubHandler(_ => throw new InvalidOperationException("取消后不应请求"));
+        using var client = new HttpClient(handler);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => new StreamUrlResolver(client).ResolveAsync(address, root,
+            Guid.NewGuid().ToString("N"), cancellation.Token));
+    }
+
     private static HttpResponseMessage Redirect(string address) => new(HttpStatusCode.Found)
     {
         Headers = { Location = new Uri(address, UriKind.RelativeOrAbsolute) },

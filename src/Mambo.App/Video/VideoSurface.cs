@@ -7,10 +7,12 @@ using Microsoft.UI.Xaml.Media;
 using Windows.Foundation;
 using Mambo.Core.Contracts;
 using Microsoft.UI.Composition;
+using Mambo.Core.Playback;
 
 namespace Mambo.App.Video;
 
 /// <summary>公开 API 不暴露 Player 类型。所有 Attach / Detach 和尺寸事件均在 UI 线程执行。</summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1001", Justification = "WinUI 控件在 Unloaded 或 Detach 释放桥接；引擎关闭也先等待 UI 解绑。")]
 public sealed partial class VideoSurface : SwapChainPanel
 {
     private nint swapChain;
@@ -26,6 +28,8 @@ public sealed partial class VideoSurface : SwapChainPanel
     private long deadline;
     private double lastDpiScale = 1;
     private IPlaybackSession? demoSession;
+    private PlaybackVideoBridge? playbackBridge;
+    private PlaybackSession? playbackSession;
     private uint? demoColor;
     private SpriteVisual? demoVisual;
     private CompositionColorBrush? demoBrush;
@@ -102,6 +106,9 @@ public sealed partial class VideoSurface : SwapChainPanel
         if (!DispatcherQueue.HasThreadAccess) throw new InvalidOperationException("视频解绑必须在界面线程执行。");
         poll.Stop();
         commit.Stop();
+        playbackBridge?.Dispose(); playbackBridge = null;
+        if (playbackSession is { } playback) playback.SnapshotChanged -= PlaybackChanged;
+        playbackSession = null;
         if (demoSession is { } demo) demo.SnapshotChanged -= DemoChanged;
         demoSession = null;
         demoColor = null;
@@ -118,17 +125,35 @@ public sealed partial class VideoSurface : SwapChainPanel
         HideCursor(false);
     }
 
-    /// <summary>前端绑定入口；演示只绘制纯色，真实引擎的内部桥接在 P3 接入。</summary>
+    internal void ClearNativeSwapChain()
+    {
+        poll.Stop(); commit.Stop();
+        if (swapChain != 0) SwapChainPanelInterop.Bind(this, 0);
+        swapChain = 0;
+    }
+    internal void ReportDiagnosticError(string message) => DiagnosticError?.Invoke(message);
+    /// <summary>前端绑定入口；交换链、HDR 和关闭解绑由后端桥接管理。</summary>
     public void Attach(IPlaybackSession session)
     {
         ArgumentNullException.ThrowIfNull(session);
         if (!DispatcherQueue.HasThreadAccess) throw new InvalidOperationException("视频绑定必须在界面线程执行。");
-        if (session.Snapshot.EngineKind != EngineKind.Demo)
-            throw new AppException(new AppError(AppErrorKind.Player, "video.bridge_pending", "真实播放会话的视频桥接尚未接入。", false));
         Detach();
+        if (session is PlaybackSession real)
+        {
+            playbackSession = real;
+            real.SnapshotChanged += PlaybackChanged;
+            playbackBridge = new(this, real);
+            return;
+        }
+        if (session.Snapshot.EngineKind != EngineKind.Demo)
+            throw new AppException(new AppError(AppErrorKind.Player, ErrorCodes.PlaybackFailed, "此播放会话不支持内置视频画面。", false));
         demoSession = session;
         session.SnapshotChanged += DemoChanged;
         DemoChanged(session, EventArgs.Empty);
+    }
+    private void PlaybackChanged(object? sender, EventArgs args)
+    {
+        if (sender == playbackSession && playbackSession?.Snapshot.Phase == PlayerPhase.Closed) Detach();
     }
 
     private void DemoChanged(object? sender, EventArgs args)

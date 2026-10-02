@@ -4,7 +4,7 @@
 
 ## 组合与生命周期
 
-`BackendServices.AddBackendServices(fake: false, scheduler: …)` 以显式工厂注册会话、资料库、图片、设置和账号偏好。真实播放桥接仍属于 P3：当前真实播放返回 Preparing → Failed 的准备会话，离线 Preview 可用，遵循相同替换确认契约。
+`BackendServices.AddBackendServices(fake: false, scheduler: …)` 以显式工厂注册会话、资料库、图片、设置和账号偏好。P1 交付时的真实播放为 Preparing → Failed 的准备会话；P3 已接入真实 libmpv 播放，见 [P3 播放引擎与会话](P3-playback.md)。离线 Preview 保持相同替换确认契约。
 
 外壳在启动时解析 `AppShutdownCoordinator`（同时挂接 WinUI 异常日志），再调用一次 `ISessionService.RestoreAsync`。退出时先 await coordinator.CloseAsync，再销毁 DI 容器；关闭包含播放、停止发件箱预算、查询快照和音量写入，以及图片/发件箱 I/O 的异步释放。Program / App / MainWindow 接入由 Claude 在 P4 完成。
 
@@ -52,4 +52,6 @@ pwsh scripts/test-core-platform.ps1 -Aot
 
 验证中曾出现一次停止记录本地写入失败，原始异常没有 HRESULT，未确认该次的直接成因。新增边界测试在本机明确复现：File.Move(overwrite) 在旧读者允许 Delete 共享时仍返回 80070005，而 File.Replace 成功；行为与 [.NET runtime issue 114230](https://github.com/dotnet/runtime/issues/114230) 一致。现已用原子替换修复，并验证旧读者快照、短暂锁重试、长期锁失败保留原数据。Win32 错误分类参考 [Microsoft 系统错误码](https://learn.microsoft.com/en-us/windows/win32/debug/system-error-codes--0-499-)。
 
-测试命令采用 AGENTS 中的 `dotnet test`，不加 Platform 参数。`dotnet test -p:Platform=x64 --no-build` 在当前 Microsoft.Testing.Platform 输出目录选择下会运行零个测试（退出码 5），不能视为通过。中央 `Directory.Build.props` 固定 App 的 PublishAot 还原属性，保证 Debug/Release 锁文件图一致；`.gitattributes` 固定 libmpv 头文件 LF，避免重新获取后的行尾漂移。
+R-015 修复前，`dotnet test -p:Platform=x64 --no-build` 曾运行零个测试（退出码 5），Claude 进一步复现普通 dotnet test 同样发现不到测试。P3 同批修复在中央 Directory.Build.props 显式启用 xUnit v3 的 MTP 入口，干净原 P1 基线真正执行 174 项测试；增加取消测试后 175 项通过，带 Platform 的命令也已可用。标准命令仍按 AGENTS 使用 dotnet test。中央 PublishAot 属性继续保证 Debug/Release 锁文件图一致；`.gitattributes` 固定 libmpv 头文件 LF，避免重新获取后的行尾漂移。
+
+P3 回归又捕获 File.Replace 的 80070497 / Win32 1175，按 ReplaceFileW 保持文件名称的错误语义补充有界重试，并验证取消后原件仍在、临时文件删除；原 P1 没有 HRESULT 的失败不追溯断言为此原因。详情见 P3 记录。

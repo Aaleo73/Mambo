@@ -10,7 +10,7 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
         <StackPanel Spacing="8">
-            <TextBlock Text="Video Lab · P0 视频技术验证" FontSize="22" />
+            <TextBlock Text="Video Lab · 视频与会话验证" FontSize="22" />
             <Grid ColumnSpacing="8">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                 <TextBox x:Name="AddressBox" PlaceholderText="本地文件路径或 HTTP/HTTPS 播放地址（仅保留在内存）" />
@@ -22,6 +22,14 @@
                 <TextBox x:Name="ServerBox" PlaceholderText="Emby 服务器地址（可选，仅内存）" />
                 <PasswordBox x:Name="TokenBox" Grid.Column="1" PlaceholderText="令牌（可选，仅内存，跨域跳转不携带）" />
             </Grid>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Content="恢复 Emby 会话" Click="RestoreBackendClicked" />
+                <TextBox x:Name="ItemIdBox" Width="280" PlaceholderText="itemId（仅内存）" />
+                <Button Content="按 itemId 播放" Click="PlayItemClicked" />
+                <Button Content="上一集" Click="PreviousItemClicked" />
+                <Button Content="下一集" Click="NextItemClicked" />
+                <Button Content="1.5 倍速" Click="RateItemClicked" />
+            </StackPanel>
         </StackPanel>
         <Grid Grid.Row="1" ColumnSpacing="12">
             <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="320" /></Grid.ColumnDefinitions>
