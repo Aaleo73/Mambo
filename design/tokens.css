@@ -1,6 +1,6 @@
 /*
  * Mambo 设计 token（P2 设计稿）
- * 单位为 DIP（1px = 1 DIP）。用户确认后转换为 src/Mambo.App/Themes/Tokens.xaml。
+ * 单位为 DIP（1px = 1 DIP）。已转换为 src/Mambo.App/Themes/Tokens.xaml（2026-10-02 定稿），修改时两边同步。
  * 字体直接引用 App 的 MiSans；用 file:// 直接打开时浏览器可能拦截字体并回退到系统字体，建议按 README 用本地 HTTP 打开。
  */
 

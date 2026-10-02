@@ -1051,15 +1051,13 @@ const DECISIONS = [
   ['D10', '应用图标', '暂缓', null],
   ['R1', '最近播放', '更紧凑', 'page:recent'],
   ['R2', '界面文案', '去掉说明文字', 'page:settings-out'],
-];
-const OPEN_QUESTIONS = [
-  ['Q2', '选集抽屉两种样式都保留', 'player:drawer'],
-  ['Q3', '主题默认跟随系统', 'page:settings-in'],
+  ['Q2', '选集抽屉', '两种都留', 'player:drawer'],
+  ['Q3', '主题默认值', '跟随系统', 'page:settings-in'],
 ];
 function rvBtn(label, act, active = false) { return `<button class="rv-btn ${active ? 'active' : ''}" data-rv="${act}">${label}</button>`; }
 function renderReview() {
   $('#review').innerHTML = `
-    <div class="rv-head"><h1>Mambo 设计稿 · P2 第 3 版</h1>${rvBtn('收起', 'collapse')}</div>
+    <div class="rv-head"><h1>Mambo 设计稿 · P2 定稿</h1>${rvBtn('收起', 'collapse')}</div>
     <div class="rv-sec"><h2 class="rv-title">视图</h2>
       <div class="rv-row">${rvBtn('1500×860', 'size:large', S.size === 'large')}${rvBtn('1100×720（最小）', 'size:small', S.size === 'small')}</div>
       <div class="rv-row" style="margin-top:6px">${rvBtn('适应窗口', 'fit:on', S.fit)}${rvBtn('100%', 'fit:off', !S.fit)}${rvBtn('跟随系统', 'theme:system', S.themeMode === 'system')}${rvBtn('浅色', 'theme:light', S.themeMode === 'light')}${rvBtn('深色', 'theme:dark', S.themeMode === 'dark')}</div>
@@ -1074,9 +1072,7 @@ function renderReview() {
       ${rvBtn('选集·列表', 'player:drawer')}${rvBtn('选集·集号', 'player:drawer-grid')}${rvBtn('片尾即将播放', 'player:upnext')}${rvBtn('播放失败', 'player:failed')}${rvBtn('全屏', 'player:fullscreen')}${rvBtn('关闭播放', 'player:close')}</div>
       <p class="rv-note">快捷键：<span class="rv-kbd">空格</span> 播放/暂停 · <span class="rv-kbd">←/→</span> ±5 秒 · <span class="rv-kbd">↑/↓</span> 音量 · <span class="rv-kbd">[ ]</span> 倍速 · <span class="rv-kbd">C</span> 字幕 · <span class="rv-kbd">V</span> 音轨 · <span class="rv-kbd">F</span> 全屏 · <span class="rv-kbd">Esc</span> 退出全屏/关闭</p></div>
     <div class="rv-sec"><h2 class="rv-title">通用</h2><div class="rv-row">${rvBtn('确认对话框', 'common:dialog')}${rvBtn('通知示例', 'common:toasts')}${rvBtn('错误通知', 'common:toast-error')}${rvBtn('贴靠布局', 'common:snap')}</div></div>
-    <div class="rv-sec"><h2 class="rv-title">待确认</h2>
-      ${OPEN_QUESTIONS.map(([id, title, go]) => `<div class="rv-prop"><b>${id}</b><strong>${title}</strong><span class="rv-go">${rvBtn('查看', go)}</span></div>`).join('')}</div>
-    <div class="rv-sec"><h2 class="rv-title">已定</h2>
+    <div class="rv-sec"><h2 class="rv-title">结论</h2>
       ${DECISIONS.map(([id, title, verdict, go]) => `<div class="rv-prop"><b>${id}</b><strong>${title}</strong><span class="rv-verdict">${verdict}</span>${go ? `<span class="rv-go">${rvBtn('查看', go)}</span>` : ''}</div>`).join('')}</div>`;
 }
 function playerState(kind) {
