@@ -370,6 +370,79 @@
         </Setter>
     </Style>
 
+    <!-- 卡片行标题旁的"查看全部 ›" -->
+    <Style x:Key="RailLinkButtonStyle" TargetType="Button">
+        <Setter Property="Padding" Value="8,4,6,4"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{ThemeResource TextSecondaryBrush}"/>
+        <Setter Property="UseSystemFocusVisuals" Value="True"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid x:Name="Root" Background="{TemplateBinding Background}" CornerRadius="{StaticResource CornerRadiusS}" Padding="{TemplateBinding Padding}">
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CommonStates">
+                                <VisualState x:Name="Normal"/>
+                                <VisualState x:Name="PointerOver">
+                                    <VisualState.Setters>
+                                        <Setter Target="Root.Background" Value="{ThemeResource SubtleFillHoverBrush}"/>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextPrimaryBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Pressed">
+                                    <VisualState.Setters>
+                                        <Setter Target="Root.Background" Value="{ThemeResource SubtleFillPressedBrush}"/>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextPrimaryBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+                        <ContentPresenter x:Name="Content" Content="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}" VerticalAlignment="Center"/>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="HeroDotStyle" TargetType="Border">
+        <Setter Property="Height" Value="6"/>
+        <Setter Property="Width" Value="6"/>
+        <Setter Property="CornerRadius" Value="3"/>
+        <Setter Property="Background" Value="{ThemeResource TextTertiaryBrush}"/>
+        <Setter Property="Opacity" Value="0.5"/>
+    </Style>
+    <Style x:Key="HeroDotActiveStyle" TargetType="Border">
+        <Setter Property="Height" Value="6"/>
+        <Setter Property="Width" Value="22"/>
+        <Setter Property="CornerRadius" Value="3"/>
+        <Setter Property="Background" Value="{ThemeResource TextPrimaryBrush}"/>
+    </Style>
+    <Style x:Key="HeroDotButtonStyle" TargetType="Button">
+        <Setter Property="Padding" Value="3,9"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="IsTabStop" Value="False"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <ContentPresenter Background="Transparent" Padding="{TemplateBinding Padding}" Content="{TemplateBinding Content}"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <Style x:Key="HeroBadgeStyle" TargetType="Border">
+        <Setter Property="Height" Value="18"/>
+        <Setter Property="Padding" Value="5,0"/>
+        <Setter Property="CornerRadius" Value="{StaticResource CornerRadiusXS}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="BorderBrush" Value="#E6FFFFFF"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <Style x:Key="SkeletonBlockStyle" TargetType="Border">
+        <Setter Property="Background" Value="{ThemeResource SkeletonBrush}"/>
+        <Setter Property="CornerRadius" Value="{StaticResource CornerRadiusL}"/>
+    </Style>
+
     <!-- 小图标按钮：通知关闭、清除等 -->
     <Style x:Key="IconButtonStyle" TargetType="Button">
         <Setter Property="Width" Value="32"/>
@@ -393,6 +466,89 @@
                                 <VisualState x:Name="Disabled">
                                     <VisualState.Setters><Setter Target="Root.Opacity" Value="0.4"/></VisualState.Setters>
                                 </VisualState>
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+                        <ContentPresenter Content="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}"
+                                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 卡片：整张可点击、可聚焦，没有按钮外观 -->
+    <Style x:Key="CardButtonStyle" TargetType="Button">
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        <Setter Property="VerticalAlignment" Value="Stretch"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+        <Setter Property="UseSystemFocusVisuals" Value="True"/>
+        <Setter Property="FocusVisualMargin" Value="-4"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <ContentPresenter Background="Transparent" Content="{TemplateBinding Content}"
+                                      HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                      VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 卡片上的圆形播放钮：深色玻璃，悬停为主色 -->
+    <Style x:Key="CardPlayButtonStyle" TargetType="Button">
+        <Setter Property="Width" Value="36"/>
+        <Setter Property="Height" Value="36"/>
+        <Setter Property="Background" Value="#8F101216"/>
+        <Setter Property="Foreground" Value="#FFFFFFFF"/>
+        <Setter Property="UseSystemFocusVisuals" Value="True"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid x:Name="Root" Background="{TemplateBinding Background}" CornerRadius="18" BorderBrush="#38FFFFFF" BorderThickness="1">
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CommonStates">
+                                <VisualState x:Name="Normal"/>
+                                <VisualState x:Name="PointerOver">
+                                    <VisualState.Setters><Setter Target="Root.Background" Value="{ThemeResource AccentBrush}"/></VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Pressed">
+                                    <VisualState.Setters><Setter Target="Root.Background" Value="{ThemeResource AccentPressedBrush}"/></VisualState.Setters>
+                                </VisualState>
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+                        <FontIcon Glyph="&#xF5B0;" FontSize="14" Margin="2,0,0,0" Foreground="{TemplateBinding Foreground}"/>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 卡片行两侧的翻页箭头 -->
+    <Style x:Key="RailArrowButtonStyle" TargetType="Button">
+        <Setter Property="Width" Value="36"/>
+        <Setter Property="Height" Value="36"/>
+        <Setter Property="Background" Value="{ThemeResource PopupBackgroundBrush}"/>
+        <Setter Property="Foreground" Value="{ThemeResource TextPrimaryBrush}"/>
+        <Setter Property="IsTabStop" Value="False"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid x:Name="Root" Background="{TemplateBinding Background}" CornerRadius="18" BorderBrush="{ThemeResource PopupStrokeBrush}" BorderThickness="1"
+                          RenderTransformOrigin="0.5,0.5">
+                        <Grid.RenderTransform><ScaleTransform x:Name="Scale"/></Grid.RenderTransform>
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CommonStates">
+                                <VisualState x:Name="Normal"/>
+                                <VisualState x:Name="PointerOver">
+                                    <VisualState.Setters>
+                                        <Setter Target="Scale.ScaleX" Value="1.06"/>
+                                        <Setter Target="Scale.ScaleY" Value="1.06"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Pressed"/>
                             </VisualStateGroup>
                         </VisualStateManager.VisualStateGroups>
                         <ContentPresenter Content="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}"

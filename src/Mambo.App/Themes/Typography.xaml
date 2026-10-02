@@ -22,6 +22,12 @@
         <Setter Property="FontSize" Value="{StaticResource BodySmallFontSize}"/>
         <Setter Property="TextLineBounds" Value="Full"/>
     </Style>
+    <!-- 不设前景色的小号正文，用在链接等需要继承颜色的地方 -->
+    <Style x:Key="InheritedSmallTextStyle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource MiSansRegularFontFamily}"/>
+        <Setter Property="FontSize" Value="{StaticResource BodySmallFontSize}"/>
+        <Setter Property="TextLineBounds" Value="Full"/>
+    </Style>
     <Style x:Key="CaptionTextStyle" TargetType="TextBlock" BasedOn="{StaticResource BaseTextStyle}">
         <Setter Property="FontSize" Value="{StaticResource CaptionFontSize}"/>
         <Setter Property="LineHeight" Value="{StaticResource CaptionLineHeight}"/>
@@ -71,6 +77,43 @@
     </Style>
     <Style x:Key="CardSubtitleTextStyle" TargetType="TextBlock" BasedOn="{StaticResource CaptionTextStyle}">
         <Setter Property="TextWrapping" Value="NoWrap"/>
+    </Style>
+    <Style x:Key="BadgeTextStyle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource MiSansSemiboldFontFamily}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="Foreground" Value="#FFFFFFFF"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+    <Style x:Key="HeroTitleTextStyle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource MiSansSemiboldFontFamily}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="FontSize" Value="46"/>
+        <Setter Property="LineHeight" Value="52"/>
+        <Setter Property="LineStackingStrategy" Value="BlockLineHeight"/>
+        <Setter Property="Foreground" Value="#FFFFFFFF"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+        <Setter Property="MaxLines" Value="2"/>
+        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+        <Setter Property="VerticalAlignment" Value="Bottom"/>
+    </Style>
+    <Style x:Key="HeroOverviewTextStyle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource MiSansMediumFontFamily}"/>
+        <Setter Property="FontWeight" Value="Medium"/>
+        <Setter Property="FontSize" Value="{StaticResource BodyFontSize}"/>
+        <Setter Property="LineHeight" Value="24"/>
+        <Setter Property="LineStackingStrategy" Value="BlockLineHeight"/>
+        <Setter Property="Foreground" Value="#DBFFFFFF"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+        <Setter Property="MaxLines" Value="2"/>
+        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+    </Style>
+    <Style x:Key="HeroMetaTextStyle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource MiSansMediumFontFamily}"/>
+        <Setter Property="FontWeight" Value="Medium"/>
+        <Setter Property="FontSize" Value="{StaticResource BodyFontSize}"/>
+        <Setter Property="Foreground" Value="#EBFFFFFF"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
     <Style x:Key="OnboardingTitleStyle" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource MiSansBoldFontFamily}"/>

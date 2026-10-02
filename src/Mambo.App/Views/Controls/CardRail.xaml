@@ -1,0 +1,56 @@
+<UserControl
+    x:Class="Mambo.App.Views.Controls.CardRail"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Mambo.App.Views.Controls"
+    xmlns:vm="using:Mambo.App.ViewModels"
+    Visibility="{x:Bind Rail.IsVisible, Mode=OneWay}">
+    <UserControl.Resources>
+        <DataTemplate x:Key="PosterTemplate" x:DataType="vm:MediaCardViewModel">
+            <controls:PosterCard Item="{x:Bind}"/>
+        </DataTemplate>
+        <DataTemplate x:Key="LandscapeTemplate" x:DataType="vm:MediaCardViewModel">
+            <controls:LandscapeCard Item="{x:Bind}"/>
+        </DataTemplate>
+    </UserControl.Resources>
+    <Grid Margin="0,26,0,0" Background="Transparent" PointerEntered="OnPointerEntered" PointerExited="OnPointerExited">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <StackPanel Orientation="Horizontal" Height="32" Padding="40,0" Margin="0,0,0,8" Spacing="6">
+            <TextBlock Style="{StaticResource SubtitleTextStyle}" VerticalAlignment="Center" Text="{x:Bind Rail.Title, Mode=OneWay}"/>
+            <Button Style="{StaticResource RailLinkButtonStyle}" VerticalAlignment="Center" Margin="4,2,0,0" Click="OnLinkClick"
+                    Visibility="{x:Bind Rail.HasLink, Mode=OneWay}" AutomationProperties.Name="{x:Bind Rail.LinkText, Mode=OneWay}">
+                <StackPanel Orientation="Horizontal" Spacing="2">
+                    <TextBlock Style="{StaticResource InheritedSmallTextStyle}" Text="{x:Bind Rail.LinkText, Mode=OneWay}"/>
+                    <FontIcon Glyph="&#xE76C;" FontSize="10"/>
+                </StackPanel>
+            </Button>
+        </StackPanel>
+        <ScrollView x:Name="Scroller" Grid.Row="1" ContentOrientation="Horizontal" HorizontalScrollBarVisibility="Hidden"
+                    VerticalScrollBarVisibility="Hidden" VerticalScrollMode="Disabled" IgnoredInputKinds="MouseWheel"
+                    ViewChanged="OnViewChanged" Visibility="{x:Bind Rail.HasItems, Mode=OneWay}">
+            <ItemsRepeater x:Name="Repeater" Margin="40,8,40,10" ItemsSource="{x:Bind Rail.Items, Mode=OneWay}">
+                <ItemsRepeater.Layout>
+                    <StackLayout Orientation="Horizontal" Spacing="{StaticResource RailSpacing}"/>
+                </ItemsRepeater.Layout>
+            </ItemsRepeater>
+        </ScrollView>
+        <StackPanel x:Name="Skeleton" Grid.Row="1" Orientation="Horizontal" Spacing="16" Padding="40,8,40,10" Visibility="{x:Bind Rail.IsLoading, Mode=OneWay}"/>
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="10" Padding="40,8,40,10" Visibility="{x:Bind Rail.HasError, Mode=OneWay}">
+            <FontIcon Glyph="&#xE7BA;" FontSize="16" Foreground="{ThemeResource WarningBrush}" VerticalAlignment="Center"/>
+            <TextBlock Style="{StaticResource BodySmallTextStyle}" Foreground="{ThemeResource TextSecondaryBrush}" VerticalAlignment="Center"
+                       Text="{x:Bind Rail.ErrorText, Mode=OneWay}"/>
+            <Button Style="{StaticResource SoftButtonStyle}" Height="{StaticResource ControlHeightSmall}" Padding="12,0" Content="重试" Click="OnRetryClick"/>
+        </StackPanel>
+        <Button x:Name="LeftArrow" Grid.Row="1" Style="{StaticResource RailArrowButtonStyle}" HorizontalAlignment="Left" VerticalAlignment="Center"
+                Margin="16,0,0,24" Opacity="0" IsHitTestVisible="False" Click="OnLeftClick" AutomationProperties.Name="向左">
+            <FontIcon Glyph="&#xE76B;" FontSize="12"/>
+        </Button>
+        <Button x:Name="RightArrow" Grid.Row="1" Style="{StaticResource RailArrowButtonStyle}" HorizontalAlignment="Right" VerticalAlignment="Center"
+                Margin="0,0,16,24" Opacity="0" IsHitTestVisible="False" Click="OnRightClick" AutomationProperties.Name="向右">
+            <FontIcon Glyph="&#xE76C;" FontSize="12"/>
+        </Button>
+    </Grid>
+</UserControl>

@@ -14,7 +14,8 @@ public sealed class PageFactory(IServiceProvider services)
         ArgumentNullException.ThrowIfNull(route);
         return route.Kind switch
         {
-            PageKind.Home => new HomePage(Get<ShellViewModel>(), Get<ISessionService>(), Get<Navigator>()),
+            PageKind.Home => new HomePage(Get<ShellViewModel>(), Get<ISessionService>(), Get<ILibraryService>(), Get<Navigator>(),
+                Get<TitleBarService>(), Get<WindowContext>()),
             PageKind.Settings => new SettingsPage(
                 new SettingsViewModel(Get<ISessionService>(), Get<ISettingsService>(), Get<IPlaybackService>(), Get<Navigator>(),
                     Get<ToastService>(), Get<DialogService>(), Get<ThemeService>()),

@@ -306,6 +306,7 @@
     <x:Double x:Key="CaptionButtonWidth">46</x:Double>
     <GridLength x:Key="TitleBarHeightGridLength">40</GridLength>
     <GridLength x:Key="SidebarGridLength">208</GridLength>
+    <GridLength x:Key="LandscapeHeightGridLength">169</GridLength>
     <Thickness x:Key="ContentMargin">0,12,0,0</Thickness>
     <Thickness x:Key="ContentBorderThickness">1,1,0,0</Thickness>
     <Thickness x:Key="PagePadding">40,32,40,56</Thickness>

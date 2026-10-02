@@ -32,6 +32,7 @@ public sealed partial class ShellView : UserControl
         Well.SizeChanged += (_, _) => UpdateWellClip();
         TitleBar.SizeChanged += (_, _) => TitleBarLayoutChanged?.Invoke(this, EventArgs.Empty);
         NavButtons.SizeChanged += (_, _) => TitleBarLayoutChanged?.Invoke(this, EventArgs.Empty);
+        CenterContent.SizeChanged += (_, _) => TitleBarLayoutChanged?.Invoke(this, EventArgs.Empty);
         AddHandler(PointerPressedEvent, new PointerEventHandler(OnPointerPressed), true);
         AddHandler(KeyDownEvent, new KeyEventHandler(OnKeyDown), true);
         Pages.Show(new NavigatedEventArgs(null, navigator.Current, NavigationMode.New));

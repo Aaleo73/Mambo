@@ -39,7 +39,11 @@ public sealed partial class MainWindow : Window
         var context = services.GetRequiredService<WindowContext>();
         context.WindowId = AppWindow.Id;
         context.Handle = hwnd;
+        Activated += (_, e) => context.SetActive(e.WindowActivationState != WindowActivationState.Deactivated);
         services.GetRequiredService<ToastService>().Attach(DispatcherQueue);
+        // XAML 模板里的图片和卡片经静态入口取得这两个服务，先创建它们。
+        _ = services.GetRequiredService<Images.ImageLoader>();
+        _ = services.GetRequiredService<CardActions>();
 
         ExtendsContentIntoTitleBar = true;
         presenter = OverlappedPresenter.Create();
@@ -50,6 +54,7 @@ public sealed partial class MainWindow : Window
         shell = new ShellView(services.GetRequiredService<ShellViewModel>(), services.GetRequiredService<Navigator>(),
             services.GetRequiredService<ToastService>(), services.GetRequiredService<DialogService>(), pages.Create);
         Content = shell;
+        services.GetRequiredService<TitleBarService>().Attach(shell.SetCenterContent);
         SetTitleBar(shell.TitleBarElement);
         SystemBackdrop = new MamboBackdrop();
         chrome = new WindowChrome(this, presenter, shell, hwnd);

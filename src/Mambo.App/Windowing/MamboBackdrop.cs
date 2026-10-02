@@ -44,6 +44,12 @@ public sealed partial class MamboBackdrop : SystemBackdrop
         }
     }
 
+    /// <summary>
+    /// 默认配置变化（主题、激活状态）时框架回调这里。配置由本类自己维护（始终保持激活外观），
+    /// 不调用基类：基类实现面向默认配置，对自定义控制器会抛 ArgumentException。
+    /// </summary>
+    protected override void OnDefaultSystemBackdropConfigurationChanged(ICompositionSupportsSystemBackdrop target, XamlRoot xamlRoot) => UpdateTheme();
+
     private void OnThemeChanged(FrameworkElement sender, object args) => UpdateTheme();
 
     private void UpdateTheme()
