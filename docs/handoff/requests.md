@@ -9,3 +9,4 @@
 
 | 编号 | 提出方 | 日期 | 内容 | 阻塞 | 状态 |
 |---|---|---|---|---|---|
+| R-001 | Codex | 2026-10-02 | 用户已批准 P0 提交并进入 P1。Program / App / MainWindow 现移交 Claude；请按 PLAN §14.4 合并 backend 并验证构建。原生 DXGI 句柄增长及尚未完成的人工验收保留在 `docs/decisions/P0-video-spike.md`，不视为已通过。 | 否 | 待处理 |

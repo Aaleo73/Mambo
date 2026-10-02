@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <AssemblyName>Mambo</AssemblyName>
+    <RootNamespace>Mambo.App</RootNamespace>
+    <UseWinUI>true</UseWinUI>
+    <WinUISDKReferences>false</WinUISDKReferences>
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <SelfContained>true</SelfContained>
+    <EnableMsixTooling>false</EnableMsixTooling>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <PublishAot Condition="'$(Configuration)' == 'Release'">true</PublishAot>
+    <IsAotCompatible>true</IsAotCompatible>
+    <SatelliteResourceLanguages>zh-Hans;en</SatelliteResourceLanguages>
+    <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" />
+    <PackageReference Include="Microsoft.Windows.CsWin32" PrivateAssets="all" />
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <ProjectReference Include="../Mambo.Core/Mambo.Core.csproj" />
+    <ProjectReference Include="../Mambo.Player/Mambo.Player.csproj" />
+    <Content Include="../../third_party/libmpv/bin/libmpv-2.dll" Link="mpv/libmpv-2.dll"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"
+             Condition="Exists('../../third_party/libmpv/bin/libmpv-2.dll')" />
+    <Content Include="Assets/Fonts/*.ttf" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Manifest Include="$(ApplicationManifest)" />
+  </ItemGroup>
+  <Target Name="PublishXamlResources" BeforeTargets="ComputeResolvedFilesToPublishList" DependsOnTargets="Build">
+    <ItemGroup>
+      <_MamboPri Include="$(OutDir)$(AssemblyName).pri" Condition="Exists('$(OutDir)$(AssemblyName).pri')" />
+      <_MamboXbf Include="$(IntermediateOutputPath)**/*.xbf" Exclude="$(IntermediateOutputPath)embed/**" />
+      <ResolvedFileToPublish Include="@(_MamboPri)" RelativePath="%(Filename)%(Extension)" CopyToPublishDirectory="PreserveNewest" />
+      <ResolvedFileToPublish Include="@(_MamboXbf)" RelativePath="%(RecursiveDir)%(Filename)%(Extension)" CopyToPublishDirectory="PreserveNewest" />
+    </ItemGroup>
+  </Target>
+</Project>
