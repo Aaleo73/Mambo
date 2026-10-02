@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mambo 设计稿</title>
+  <link rel="icon" href="app-icon.svg">
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="prototype.css">
+</head>
+<body>
+  <div class="desk-bg"></div>
+  <div class="desk" id="desk">
+    <div class="stage" id="stage">
+      <div class="window" id="window" data-theme="light" data-size="large">
+        <header class="titlebar" id="titlebar"></header>
+        <div class="shell">
+          <nav class="sidebar" id="sidebar" aria-label="导航"></nav>
+          <main class="well"><div class="page-host" id="page"></div></main>
+        </div>
+        <section class="player" id="player" aria-label="播放器"></section>
+        <div class="layer-dialog" id="dialog"></div>
+        <div class="layer-toast" id="toasts"></div>
+        <div class="fx-layer" id="fx"></div>
+      </div>
+    </div>
+  </div>
+  <aside class="review" id="review" aria-label="审阅面板"></aside>
+  <script src="prototype.js"></script>
+</body>
+</html>

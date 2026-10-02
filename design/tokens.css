@@ -1,0 +1,220 @@
+/*
+ * Mambo 设计 token（P2 设计稿）
+ * 单位为 DIP（1px = 1 DIP）。用户确认后转换为 src/Mambo.App/Themes/Tokens.xaml。
+ * 字体直接引用 App 的 MiSans；用 file:// 直接打开时浏览器可能拦截字体并回退到系统字体，建议按 README 用本地 HTTP 打开。
+ */
+
+@font-face { font-family: "MiSans"; src: url("../src/Mambo.App/Assets/Fonts/MiSans-Regular.ttf") format("truetype"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "MiSans"; src: url("../src/Mambo.App/Assets/Fonts/MiSans-Medium.ttf") format("truetype"); font-weight: 500; font-display: swap; }
+@font-face { font-family: "MiSans"; src: url("../src/Mambo.App/Assets/Fonts/MiSans-Semibold.ttf") format("truetype"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "MiSans"; src: url("../src/Mambo.App/Assets/Fonts/MiSans-Bold.ttf") format("truetype"); font-weight: 700; font-display: swap; }
+
+:root {
+  /* ---------- 字体 ---------- */
+  --font-ui: "MiSans", "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", sans-serif;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  /* 字号 / 行高 */
+  --type-caption: 12px/16px;
+  --type-body-sm: 13px/18px;
+  --type-body: 14px/20px;
+  --type-body-lg: 16px/24px;
+  --type-subtitle: 20px/28px;
+  --type-title: 30px/38px;
+  --type-title-lg: 40px/48px;
+  --tracking-eyebrow: .16em;
+
+  /* ---------- 间距（4px 栅格） ---------- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+
+  /* ---------- 圆角 ---------- */
+  --r-xs: 4px;    /* 徽标、进度条 */
+  --r-sm: 6px;    /* 小按钮、标签 */
+  --r-md: 8px;    /* 按钮、输入框、窗口、对话框 */
+  --r-lg: 12px;   /* 卡片、内容区、菜单 */
+  --r-xl: 16px;   /* 人物卡、大面板 */
+  --r-pill: 999px;
+
+  /* ---------- 外壳尺寸 ---------- */
+  --titlebar-h: 40px;
+  --sidebar-w: 208px;
+  --caption-w: 46px;
+  --page-pad-x: 40px;
+  --page-pad-top: 32px;
+
+  /* ---------- 卡片尺寸 ---------- */
+  --poster-w: 150px;
+  --poster-h: 220px;
+  --poster-r: 12px;
+  --landscape-w: 300px;
+  --landscape-h: 169px;
+  --landscape-r: 10px;
+  --person-w: 132px;
+  --grid-gap-x: 20px;
+  --grid-gap-y: 28px;
+  --rail-gap: 16px;
+  --hero-min-h: 500px;
+  --hero-max-h: 600px;
+  --hero-ratio: .62;      /* 占窗口高度的比例 */
+
+  /* ---------- 动效 ---------- */
+  --ease-standard: cubic-bezier(.4, 0, .2, 1);
+  --ease-enter: cubic-bezier(0, 0, .2, 1);
+  --ease-exit: cubic-bezier(.4, 0, 1, 1);
+  --ease-fluid: cubic-bezier(.2, .8, .2, 1);
+  --ease-settle: cubic-bezier(.22, 1, .36, 1);
+  --dur-micro: 80ms;
+  --dur-fast: 160ms;
+  --dur-normal: 240ms;
+  --dur-route: 280ms;
+  --dur-player: 360ms;
+  --dur-hero: 480ms;
+  --dur-settle: 500ms;
+}
+
+/* ---------- 浅色主题（默认，贴近原版） ---------- */
+[data-theme="light"] {
+  color-scheme: light;
+  --text-1: rgba(22, 22, 26, .92);
+  --text-2: rgba(28, 28, 32, .68);
+  --text-3: rgba(36, 36, 40, .50);
+  --text-disabled: rgba(0, 0, 0, .32);
+  --text-on-accent: #ffffff;
+
+  --accent: #0c68b8;
+  --accent-hover: #0a5ca3;
+  --accent-press: #08508e;
+  --accent-subtle: rgba(12, 104, 184, .10);
+  --accent-text: #0a5fa8;
+  --danger: #c42b1c;
+  --danger-hover: #a52315;
+  --danger-subtle: rgba(196, 43, 28, .08);
+  --warning: #9d5d00;
+  --success: #0f7b0f;
+  --rating: #e5a00d;
+
+  /* 窗口亚克力（WinUI 中为 DesktopAcrylicController） */
+  --acrylic-tint: rgba(243, 246, 250, .70);
+  --window-stroke: rgba(255, 255, 255, .55);
+  --window-shadow: 0 32px 64px rgba(15, 23, 42, .22), 0 2px 21px rgba(15, 23, 42, .14);
+
+  /* 内容层（Fluent Layer） */
+  --layer: rgba(255, 255, 255, .55);
+  --layer-solid: #f7f8fa;
+  --layer-stroke: rgba(0, 0, 0, .07);
+
+  /* 填充与描边 */
+  --fill-subtle-hover: rgba(0, 0, 0, .04);
+  --fill-subtle-press: rgba(0, 0, 0, .07);
+  --fill-control: rgba(255, 255, 255, .72);
+  --fill-control-hover: rgba(255, 255, 255, .92);
+  --fill-control-press: rgba(255, 255, 255, .55);
+  --stroke-control: rgba(0, 0, 0, .08);
+  --stroke-control-strong: rgba(0, 0, 0, .14);
+  --fill-input: rgba(255, 255, 255, .78);
+  --stroke-input-bottom: rgba(0, 0, 0, .42);
+  --nav-active: rgba(0, 0, 0, .07);
+  --nav-hover: rgba(0, 0, 0, .04);
+  --chip: rgba(0, 0, 0, .045);
+  --chip-hover: rgba(0, 0, 0, .075);
+
+  --card-stroke: rgba(0, 0, 0, .10);
+  --card-stroke-hover: rgba(0, 0, 0, .22);
+  --placeholder: rgba(0, 0, 0, .05);
+  --skeleton: rgba(0, 0, 0, .06);
+  --skeleton-shine: rgba(255, 255, 255, .55);
+
+  --popup-bg: rgba(250, 250, 252, .94);
+  --popup-stroke: rgba(0, 0, 0, .08);
+  --popup-shadow: 0 8px 32px rgba(15, 23, 42, .16), 0 2px 8px rgba(15, 23, 42, .08);
+  --scrim: rgba(0, 0, 0, .28);
+  --focus-outer: rgba(0, 0, 0, .9);
+  --focus-inner: #ffffff;
+  --scrollbar: rgba(0, 0, 0, .22);
+}
+
+/* ---------- 深色主题（评估用） ---------- */
+[data-theme="dark"] {
+  color-scheme: dark;
+  --text-1: rgba(255, 255, 255, .94);
+  --text-2: rgba(255, 255, 255, .70);
+  --text-3: rgba(255, 255, 255, .50);
+  --text-disabled: rgba(255, 255, 255, .34);
+  --text-on-accent: #ffffff;
+
+  --accent: #3b8fe0;
+  --accent-hover: #5aa2e6;
+  --accent-press: #2f7cc6;
+  --accent-subtle: rgba(59, 143, 224, .16);
+  --accent-text: #7ab7f0;
+  --danger: #e0503f;
+  --danger-hover: #c94232;
+  --danger-subtle: rgba(224, 80, 63, .14);
+  --warning: #f2b14c;
+  --success: #6ccb5f;
+  --rating: #f0b429;
+
+  --acrylic-tint: rgba(30, 32, 36, .74);
+  --window-stroke: rgba(255, 255, 255, .10);
+  --window-shadow: 0 32px 64px rgba(0, 0, 0, .45), 0 2px 21px rgba(0, 0, 0, .35);
+
+  --layer: rgba(255, 255, 255, .045);
+  --layer-solid: #24262b;
+  --layer-stroke: rgba(255, 255, 255, .07);
+
+  --fill-subtle-hover: rgba(255, 255, 255, .06);
+  --fill-subtle-press: rgba(255, 255, 255, .04);
+  --fill-control: rgba(255, 255, 255, .07);
+  --fill-control-hover: rgba(255, 255, 255, .10);
+  --fill-control-press: rgba(255, 255, 255, .05);
+  --stroke-control: rgba(255, 255, 255, .08);
+  --stroke-control-strong: rgba(255, 255, 255, .16);
+  --fill-input: rgba(255, 255, 255, .06);
+  --stroke-input-bottom: rgba(255, 255, 255, .54);
+  --nav-active: rgba(255, 255, 255, .08);
+  --nav-hover: rgba(255, 255, 255, .05);
+  --chip: rgba(255, 255, 255, .07);
+  --chip-hover: rgba(255, 255, 255, .11);
+
+  --card-stroke: rgba(255, 255, 255, .10);
+  --card-stroke-hover: rgba(255, 255, 255, .26);
+  --placeholder: rgba(255, 255, 255, .06);
+  --skeleton: rgba(255, 255, 255, .07);
+  --skeleton-shine: rgba(255, 255, 255, .10);
+
+  --popup-bg: rgba(40, 42, 47, .96);
+  --popup-stroke: rgba(255, 255, 255, .10);
+  --popup-shadow: 0 8px 32px rgba(0, 0, 0, .45), 0 2px 8px rgba(0, 0, 0, .3);
+  --scrim: rgba(0, 0, 0, .45);
+  --focus-outer: rgba(255, 255, 255, .92);
+  --focus-inner: rgba(0, 0, 0, .9);
+  --scrollbar: rgba(255, 255, 255, .26);
+}
+
+/* ---------- 播放层（始终深色；画面上方不用模糊材质） ---------- */
+.player {
+  --p-text-1: rgba(255, 255, 255, .96);
+  --p-text-2: rgba(255, 255, 255, .72);
+  --p-text-3: rgba(255, 255, 255, .50);
+  --p-panel: rgba(24, 25, 28, .92);
+  --p-panel-stroke: rgba(255, 255, 255, .10);
+  --p-hover: rgba(255, 255, 255, .10);
+  --p-press: rgba(255, 255, 255, .06);
+  --p-track: rgba(255, 255, 255, .24);
+  --p-buffer: rgba(255, 255, 255, .44);
+  --p-fill: #ffffff;
+  --p-pill: rgba(16, 17, 20, .72);
+  --p-scrim-bottom: linear-gradient(to top, rgba(0, 0, 0, .86) 0%, rgba(0, 0, 0, .52) 42%, rgba(0, 0, 0, 0) 100%);
+  --p-scrim-top: linear-gradient(to bottom, rgba(0, 0, 0, .62) 0%, rgba(0, 0, 0, 0) 100%);
+}
