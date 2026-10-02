@@ -48,6 +48,13 @@ public sealed partial class SidebarView : UserControl
     {
         if (e.Key != VirtualKey.Enter) return;
         e.Handled = true;
+        Search();
+    }
+
+    private void OnSearchClick(object sender, RoutedEventArgs e) => Search();
+
+    private void Search()
+    {
         var text = SearchBox.Text.Trim();
         if (IsSearchable(text)) navigator.Navigate(Route.Search(text));
     }

@@ -20,14 +20,15 @@ public sealed class PageFactory(IServiceProvider services)
                 new SettingsViewModel(Get<ISessionService>(), Get<ISettingsService>(), Get<IPlaybackService>(), Get<Navigator>(),
                     Get<ToastService>(), Get<DialogService>(), Get<ThemeService>()),
                 Get<WindowContext>(), Get<ToastService>(), Get<DialogService>()),
-            PageKind.Recent => new PlaceholderPage("RECENT", "最近播放"),
-            PageKind.Library => new PlaceholderPage("LIBRARY", LibraryName(route.Parameter)),
-            PageKind.Search => new PlaceholderPage("SEARCH", "搜索"),
+            PageKind.Recent => new RecentPage(new RecentViewModel(Get<ILibraryService>())),
+            PageKind.Library => new LibraryPage(new LibraryViewModel(Get<ILibraryService>(), Get<ILibraryPreferences>(), Library(route.Parameter ?? ""))),
+            PageKind.Search => new SearchPage(new SearchViewModel(Get<ILibraryService>(), route.Parameter ?? "")),
             _ => new PlaceholderPage("DETAIL", "详情"),
         };
     }
 
-    private string LibraryName(string? id) => Get<ShellViewModel>().LibraryModels.FirstOrDefault(l => l.Id == id)?.Name ?? "资料库";
+    private MediaLibrary Library(string id) =>
+        Get<ShellViewModel>().LibraryModels.FirstOrDefault(l => l.Id == id) ?? new MediaLibrary(id, "资料库", LibraryKind.Mixed);
 
     private T Get<T>() where T : notnull => services.GetRequiredService<T>();
 }
