@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Mambo.App.Video;
 using Mambo.App.Platform;
+using Mambo.App.Composition;
 using Mambo.Core.Playback;
 using Mambo.Player.LibMpv;
 using Microsoft.UI.Dispatching;
@@ -27,6 +28,7 @@ public sealed partial class VideoLab : UserControl
     private Task? consume;
     private Task? closeTask;
     private bool busy;
+    private FakeLab? fakeLab;
     private bool seeking;
     private bool paused;
     private readonly ConcurrentDictionary<string, MpvValue> properties = new();
@@ -71,6 +73,14 @@ public sealed partial class VideoLab : UserControl
     private async void OnLoaded(object sender, RoutedEventArgs args)
     {
         windowReadyMs = Program.UptimeMilliseconds;
+        if (BackendServices.IsFakeMode(Program.Arguments, Environment.GetEnvironmentVariable("MAMBO_FAKE")))
+        {
+            Application.Current.UnhandledException += (_, failure) => FakeLab.RecordFailure(failure.Exception, "未处理的 UI 异常");
+            fakeLab = new FakeLab();
+            fakeLab.SmokeCompleted += () => window?.Close();
+            Content = fakeLab;
+            return;
+        }
         refresh.Start();
         var sample = Environment.GetEnvironmentVariable("MAMBO_VIDEO_LAB_SAMPLE");
         if (Program.Arguments.Contains("--smoke", StringComparer.Ordinal) && !string.IsNullOrWhiteSpace(sample))
@@ -353,6 +363,7 @@ public sealed partial class VideoLab : UserControl
     private async Task CloseCoreAsync()
     {
         refresh.Stop();
+        if (fakeLab is { } demo) await demo.CloseAsync();
         AddressBox.Text = ServerBox.Text = TokenBox.Password = "";
         try { await StopAsync(); }
         catch { /* 释放有看门狗，窗口关闭不得永久等待。 */ }

@@ -1573,7 +1573,7 @@ Claude: P2（P0 期间即可开始）──► 评审契约 ──► P4（假�
 ## 进度
 
 - [x] P0 工具链、骨架与视频技术验证（Codex；关卡 ①：2026-10-02 用户批准携遗留项进入 P1；未通过与待测项见 `docs/decisions/P0-video-spike.md`）
-- [ ] P1a 契约与假实现（Codex；Claude 已评审，契约 v1 冻结）
+- [ ] P1a 契约与假实现（Codex；2026-10-02 草案与假服务已实现，61 项测试及 Debug / AOT 假模式通过；待 R-002 Claude 评审并冻结 v1）
 - [ ] P1 Core 平台层（Codex）
 - [ ] P2 设计稿（Claude；关卡 ②：用户已确认）
 - [ ] P3 播放引擎与会话（Codex）

@@ -24,6 +24,7 @@
     <PackageReference Include="Microsoft.WindowsAppSDK" />
     <PackageReference Include="Microsoft.Windows.CsWin32" PrivateAssets="all" />
     <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <ProjectReference Include="../Mambo.Core/Mambo.Core.csproj" />
     <ProjectReference Include="../Mambo.Player/Mambo.Player.csproj" />
     <Content Include="../../third_party/libmpv/bin/libmpv-2.dll" Link="mpv/libmpv-2.dll"

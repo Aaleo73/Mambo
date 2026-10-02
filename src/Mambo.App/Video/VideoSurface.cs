@@ -5,6 +5,8 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Hosting;
 using Microsoft.UI.Xaml.Media;
 using Windows.Foundation;
+using Mambo.Core.Contracts;
+using Microsoft.UI.Composition;
 
 namespace Mambo.App.Video;
 
@@ -23,6 +25,10 @@ public sealed partial class VideoSurface : SwapChainPanel
     private readonly DispatcherQueueTimer commit;
     private long deadline;
     private double lastDpiScale = 1;
+    private IPlaybackSession? demoSession;
+    private uint? demoColor;
+    private SpriteVisual? demoVisual;
+    private CompositionColorBrush? demoBrush;
     private readonly InputSystemCursor arrow = InputSystemCursor.Create(InputSystemCursorShape.Arrow);
     public event Action<int, int>? PixelSizeRequested;
     public event Action<string>? DiagnosticError;
@@ -30,6 +36,7 @@ public sealed partial class VideoSurface : SwapChainPanel
     public (int Width, int Height) PixelSize =>
         (Math.Max(1, (int)Math.Round(target.Width * DpiScale)), Math.Max(1, (int)Math.Round(target.Height * DpiScale)));
     public (int Width, int Height) BufferSize => SwapChainPanelInterop.BufferSize(swapChain);
+    internal bool IsDemoAttached => demoSession is not null;
 
     public VideoSurface()
     {
@@ -78,6 +85,7 @@ public sealed partial class VideoSurface : SwapChainPanel
     internal void Attach(nint swapChainAddress)
     {
         if (!DispatcherQueue.HasThreadAccess) throw new InvalidOperationException("视频绑定必须在界面线程执行。");
+        if (demoSession is not null) Detach();
         if (swapChainAddress == 0) { Detach(); return; }
         SwapChainPanelInterop.Bind(this, swapChainAddress);
         swapChain = swapChainAddress;
@@ -94,9 +102,54 @@ public sealed partial class VideoSurface : SwapChainPanel
         if (!DispatcherQueue.HasThreadAccess) throw new InvalidOperationException("视频解绑必须在界面线程执行。");
         poll.Stop();
         commit.Stop();
+        if (demoSession is { } demo) demo.SnapshotChanged -= DemoChanged;
+        demoSession = null;
+        demoColor = null;
+        if (demoVisual is not null)
+        {
+            ElementCompositionPreview.SetElementChildVisual(this, null);
+            demoVisual.Dispose();
+            demoBrush?.Dispose();
+            demoVisual = null;
+            demoBrush = null;
+        }
         if (swapChain != 0) SwapChainPanelInterop.Bind(this, 0);
         swapChain = 0;
         HideCursor(false);
+    }
+
+    /// <summary>前端绑定入口；演示只绘制纯色，真实引擎的内部桥接在 P3 接入。</summary>
+    public void Attach(IPlaybackSession session)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        if (!DispatcherQueue.HasThreadAccess) throw new InvalidOperationException("视频绑定必须在界面线程执行。");
+        if (session.Snapshot.EngineKind != EngineKind.Demo)
+            throw new AppException(new AppError(AppErrorKind.Player, "video.bridge_pending", "真实播放会话的视频桥接尚未接入。", false));
+        Detach();
+        demoSession = session;
+        session.SnapshotChanged += DemoChanged;
+        DemoChanged(session, EventArgs.Empty);
+    }
+
+    private void DemoChanged(object? sender, EventArgs args)
+    {
+        if (sender != demoSession || demoSession is null) return;
+        var snapshot = demoSession.Snapshot;
+        if (snapshot.Phase == PlayerPhase.Closed) { Detach(); return; }
+        var color = snapshot.DemoColorArgb ?? 0xFF203048u;
+        if (color == demoColor) return;
+        demoColor = color;
+        var value = new Windows.UI.Color
+        {
+            A = (byte)(color >> 24), R = (byte)(color >> 16), G = (byte)(color >> 8), B = (byte)color,
+        };
+        if (demoBrush is not null) { demoBrush.Color = value; return; }
+        var compositor = ElementCompositionPreview.GetElementVisual(this).Compositor;
+        demoBrush = compositor.CreateColorBrush(value);
+        demoVisual = compositor.CreateSpriteVisual();
+        demoVisual.RelativeSizeAdjustment = System.Numerics.Vector2.One;
+        demoVisual.Brush = demoBrush;
+        ElementCompositionPreview.SetElementChildVisual(this, demoVisual);
     }
 
     public void HideCursor(bool hide) { ProtectedCursor = hide ? null : arrow; }
