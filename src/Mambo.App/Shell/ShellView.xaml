@@ -1,0 +1,66 @@
+<UserControl
+    x:Class="Mambo.App.Shell.ShellView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:shell="using:Mambo.App.Shell">
+    <Grid x:Name="Root">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="{StaticResource TitleBarHeightGridLength}"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="{StaticResource SidebarGridLength}"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <Grid x:Name="TitleBar" Grid.ColumnSpan="2" Background="Transparent">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="{StaticResource SidebarGridLength}"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel x:Name="NavButtons" Orientation="Horizontal" Spacing="2" Margin="8,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center">
+                <Button x:Name="BackButton" Style="{StaticResource TitleBarButtonStyle}" IsEnabled="{x:Bind ViewModel.CanGoBack, Mode=OneWay}"
+                        Click="OnBackClick" ToolTipService.ToolTip="后退（Alt+←）" AutomationProperties.Name="后退">
+                    <FontIcon Glyph="&#xE72B;" FontSize="14"/>
+                </Button>
+                <Button x:Name="ForwardButton" Style="{StaticResource TitleBarButtonStyle}" IsEnabled="{x:Bind ViewModel.CanGoForward, Mode=OneWay}"
+                        Click="OnForwardClick" ToolTipService.ToolTip="前进（Alt+→）" AutomationProperties.Name="前进">
+                    <FontIcon Glyph="&#xE72A;" FontSize="14"/>
+                </Button>
+            </StackPanel>
+            <Grid x:Name="CenterArea" Grid.Column="1" Padding="16,0">
+                <TextBlock Style="{StaticResource BodySmallTextStyle}" FontFamily="{StaticResource MiSansMediumFontFamily}" FontWeight="Medium"
+                           Foreground="{ThemeResource TextSecondaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                           Text="{x:Bind ViewModel.TitleText, Mode=OneWay}"/>
+                <ContentPresenter x:Name="CenterContent" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Grid>
+            <StackPanel Grid.Column="2" Orientation="Horizontal">
+                <Button x:Name="MinimizeButton" Style="{StaticResource CaptionButtonStyle}" Click="OnMinimizeClick"
+                        ToolTipService.ToolTip="最小化" AutomationProperties.Name="最小化">
+                    <FontIcon Glyph="&#xE921;" FontSize="10"/>
+                </Button>
+                <Grid x:Name="MaximizeButton" Width="{StaticResource CaptionButtonWidth}" Height="{StaticResource TitleBarHeight}" Background="Transparent">
+                    <Border x:Name="MaximizeHover" Background="{ThemeResource SubtleFillHoverBrush}" Opacity="0"/>
+                    <Border x:Name="MaximizePressed" Background="{ThemeResource SubtleFillPressedBrush}" Opacity="0"/>
+                    <FontIcon x:Name="MaximizeGlyph" Glyph="&#xE922;" FontSize="10" Foreground="{ThemeResource TextPrimaryBrush}"
+                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Grid>
+                <Button x:Name="CloseButton" Style="{StaticResource CloseCaptionButtonStyle}" Click="OnCloseClick"
+                        ToolTipService.ToolTip="关闭" AutomationProperties.Name="关闭">
+                    <FontIcon Glyph="&#xE8BB;" FontSize="10"/>
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <Border x:Name="SidebarSlot" Grid.Row="1"/>
+        <Border x:Name="Well" Grid.Row="1" Grid.Column="1" Margin="{StaticResource ContentMargin}"
+                BorderBrush="{ThemeResource ContentStrokeBrush}" BorderThickness="{StaticResource ContentBorderThickness}"
+                CornerRadius="{StaticResource ContentCornerRadius}">
+            <shell:PageHost x:Name="Pages"/>
+        </Border>
+
+        <Grid x:Name="OverlayLayer" Grid.RowSpan="2" Grid.ColumnSpan="2"/>
+        <shell:DialogHost x:Name="Dialogs" Grid.RowSpan="2" Grid.ColumnSpan="2"/>
+    </Grid>
+</UserControl>

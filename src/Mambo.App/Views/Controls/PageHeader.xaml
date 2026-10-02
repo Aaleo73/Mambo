@@ -1,0 +1,22 @@
+<UserControl
+    x:Class="Mambo.App.Views.Controls.PageHeader"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid MinHeight="58" Margin="0,0,0,22" ColumnSpacing="14">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <StackPanel VerticalAlignment="Bottom">
+            <TextBlock Style="{StaticResource EyebrowTextStyle}" Margin="0,0,0,2" Text="{x:Bind Eyebrow, Mode=OneWay}"/>
+            <TextBlock Style="{StaticResource PageTitleTextStyle}" Text="{x:Bind Title, Mode=OneWay}"/>
+        </StackPanel>
+        <Border Grid.Column="1" VerticalAlignment="Bottom" Margin="0,0,0,7" Padding="10,0" CornerRadius="{StaticResource CornerRadiusPill}"
+                Background="{ThemeResource ChipFillBrush}" Visibility="{x:Bind HasCount, Mode=OneWay}">
+            <TextBlock Style="{StaticResource CaptionTextStyle}" FontFamily="{StaticResource MiSansMediumFontFamily}" FontWeight="Medium"
+                       LineHeight="22" Text="{x:Bind Count, Mode=OneWay}"/>
+        </Border>
+        <ContentPresenter Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,0,4" Content="{x:Bind Actions, Mode=OneWay}"/>
+    </Grid>
+</UserControl>
