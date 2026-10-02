@@ -64,6 +64,7 @@ public interface ISettingsService
     ExternalPlayerStatus ExternalPlayerStatus { get; }
     event EventHandler? Changed;
     Task UpdateAsync(AppSettings settings, CancellationToken cancellationToken = default);
+    Task UpdateAsync(Func<AppSettings, AppSettings> update, CancellationToken cancellationToken = default);
     Task SaveConnectionDefaultsAsync(ConnectionDefaults defaults, CancellationToken cancellationToken = default);
     Task ValidateExternalPlayerAsync(string path, CancellationToken cancellationToken = default);
     Task ClearCacheAsync(CancellationToken cancellationToken = default);

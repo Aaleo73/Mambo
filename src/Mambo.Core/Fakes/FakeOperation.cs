@@ -26,6 +26,6 @@ public sealed class FakeOperation
         cancellationToken.ThrowIfCancellationRequested();
         bool fail;
         lock (gate) fail = random.NextDouble() < options.FailureRate;
-        if (fail) throw new AppException(new AppError(AppErrorKind.Network, "demo.unavailable", "演示服务暂时不可用，请重试。", true));
+        if (fail) throw new AppException(new AppError(AppErrorKind.Network, ErrorCodes.NetworkUnavailable, "演示服务暂时不可用，请重试。", true));
     }
 }

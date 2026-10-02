@@ -64,7 +64,7 @@ public sealed class FakeImageTests
             cancellationToken: TestContext.Current.CancellationToken);
         clock.Advance(options.Delay);
         var error = await Assert.ThrowsAsync<AppException>(() => failed);
-        Assert.Equal("demo.unavailable", error.Error.Code);
+        Assert.Equal(ErrorCodes.NetworkUnavailable, error.Error.Code);
     }
 
     private static (byte Red, byte Green, byte Blue) Pixel(byte[] pixels, int width, int height, int x, int y)

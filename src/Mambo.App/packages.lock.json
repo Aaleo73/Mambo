@@ -202,13 +202,30 @@
       "mambo.core": {
         "type": "Project",
         "dependencies": {
-          "CommunityToolkit.Mvvm": "[8.4.2, )"
+          "CommunityToolkit.Mvvm": "[8.4.2, )",
+          "Serilog": "[4.3.0, )",
+          "Serilog.Sinks.File": "[7.0.0, )"
         }
       },
       "mambo.player": {
         "type": "Project",
         "dependencies": {
           "Mambo.Core": "[1.0.0, )"
+        }
+      },
+      "Serilog": {
+        "type": "CentralTransitive",
+        "requested": "[4.3.0, )",
+        "resolved": "4.3.0",
+        "contentHash": "+cDryFR0GRhsGOnZSKwaDzRRl4MupvJ42FhCE4zhQRVanX0Jpg6WuCBk59OVhVDPmab1bB+nRykAnykYELA9qQ=="
+      },
+      "Serilog.Sinks.File": {
+        "type": "CentralTransitive",
+        "requested": "[7.0.0, )",
+        "resolved": "7.0.0",
+        "contentHash": "fKL7mXv7qaiNBUC71ssvn/dU0k9t0o45+qm2XgKAlSt19xF+ijjxyA3R6HmCgfKEKwfcfkwWjayuQtRueZFkYw==",
+        "dependencies": {
+          "Serilog": "4.2.0"
         }
       }
     },

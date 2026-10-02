@@ -59,8 +59,8 @@ public sealed class FakeLibraryPreferences(IUiScheduler scheduler) : ILibraryPre
             lock (gate)
             {
                 if (disposed || revisions.GetValueOrDefault(libraryId) != version) return;
-                Changed?.Invoke(this, new LibraryPreferenceChangedEventArgs(libraryId, query));
             }
+            Changed?.Invoke(this, new LibraryPreferenceChangedEventArgs(libraryId, query));
         });
     }
 

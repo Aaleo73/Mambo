@@ -22,6 +22,20 @@ public sealed class FakeSettingsService(FakeOperation operation, IUiScheduler sc
     public ExternalPlayerStatus ExternalPlayerStatus { get { lock (gate) return externalPlayerStatus; } }
     public event EventHandler? Changed;
 
+    public Task UpdateAsync(Func<AppSettings, AppSettings> update, CancellationToken cancellationToken = default) => RunCommandAsync(async token =>
+    {
+        await operation.ExecuteAsync(token).ConfigureAwait(false);
+        lock (gate)
+        {
+            ThrowIfStopped(token);
+            var value = update(current);
+            if (value.DeviceId != current.DeviceId || !double.IsFinite(value.Volume) || value.Volume is < 0 or > 100 || !Enum.IsDefined(value.HdrMode))
+                throw InvalidInput("播放器设置无效。");
+            current = value with { PlaybackMode = PlaybackMode.Embedded, ExternalMpvPath = null };
+            PublishLocked();
+        }
+    }, cancellationToken);
+
     public Task UpdateAsync(AppSettings settings, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(settings);
@@ -34,6 +48,7 @@ public sealed class FakeSettingsService(FakeOperation operation, IUiScheduler sc
             lock (gate)
             {
                 ThrowIfStopped(token);
+                if (settings.DeviceId != current.DeviceId) throw InvalidInput("设备标识不可修改。");
                 current = settings with { PlaybackMode = PlaybackMode.Embedded, ExternalMpvPath = null };
                 externalPlayerStatus = ExternalPlayerStatus.UsingEmbedded;
                 PublishLocked();
@@ -144,8 +159,9 @@ public sealed class FakeSettingsService(FakeOperation operation, IUiScheduler sc
         {
             lock (gate)
             {
-                if (!disposed && version == revision) Changed?.Invoke(this, EventArgs.Empty);
+                if (disposed || version != revision) return;
             }
+            Changed?.Invoke(this, EventArgs.Empty);
         });
     }
 

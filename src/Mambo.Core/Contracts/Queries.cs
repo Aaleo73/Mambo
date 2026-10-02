@@ -3,7 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace Mambo.Core.Contracts;
 
-/// <summary>将可观察状态的通知投递到 UI 线程；返回 false 表示 UI 正在关闭。</summary>
+/// <summary>始终异步排队到 UI 线程，禁止内联回调；返回 false 表示 UI 正在关闭。服务在回调时不持锁。</summary>
 public interface IUiScheduler
 {
     bool TryEnqueue(Action callback);
@@ -41,6 +41,7 @@ public interface IPagedQuery<T> : IDisposable
     bool IsInitialized { get; }
     bool HasMore { get; }
     bool IsLoading { get; }
+    bool IsRefreshing { get; }
     [SuppressMessage("Naming", "CA1716:Identifiers should not match keywords", Justification = "Error 是 PLAN §14.3 明确约定的 C# 契约成员名。")]
     AppError? Error { get; }
     event EventHandler? Updated;

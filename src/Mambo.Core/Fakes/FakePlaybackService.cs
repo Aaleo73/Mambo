@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Text;
 using CommunityToolkit.Mvvm.Messaging;
 using Mambo.Core.Contracts;
 
@@ -15,6 +16,7 @@ public sealed class FakePlaybackService : IPlaybackService, IDisposable, IAsyncD
     private readonly IMessenger messenger;
     private readonly object gate = new();
     private FakePlaybackSession? current;
+    private string? requestedId;
     private bool isStarting;
     private bool disposed;
 
@@ -46,18 +48,20 @@ public sealed class FakePlaybackService : IPlaybackService, IDisposable, IAsyncD
     {
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
-        var (entries, entryIndex, startTicks) = Resolve(request);
+        if (string.IsNullOrWhiteSpace(request.ItemId) || Encoding.UTF8.GetByteCount(request.ItemId) > 256 ||
+            request.ItemId.Any(char.IsControl) || request.ItemId is "." or ".." || request.StartTicks < 0)
+            throw Error(ErrorCodes.InvalidArgument, "播放请求无效。");
         FakePlaybackSession? previous;
         lock (gate)
         {
             ObjectDisposedException.ThrowIf(disposed, this);
             if (current is { IsClosed: true }) current = null;
-            if (current is not null && current.ItemId == entries[entryIndex].ItemId)
+            if (current is not null && (current.ItemId == request.ItemId || requestedId == request.ItemId))
                 return current;
             if (isStarting)
-                throw Error("demo.playback.busy", "正在打开播放，请稍候。");
+                throw Error(ErrorCodes.PlaybackBusy, "正在打开播放，请稍候。");
             if (current is not null && !request.ReplaceCurrent)
-                throw Error("demo.playback.confirm", "正在播放其他项目，请先确认切换播放。");
+                throw Error(ErrorCodes.ReplaceConfirmationRequired, "正在播放其他项目，请先确认切换播放。");
             previous = current;
             isStarting = true;
         }
@@ -65,15 +69,17 @@ public sealed class FakePlaybackService : IPlaybackService, IDisposable, IAsyncD
         try
         {
             if (previous is not null)
-                await previous.CloseAsync(cancellationToken).ConfigureAwait(false);
+                await previous.CloseAsync(PlaybackEndReason.Replaced, cancellationToken).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
             FakePlaybackSession created;
             lock (gate)
             {
                 ObjectDisposedException.ThrowIf(disposed, this);
-                created = new FakePlaybackSession(entries, entryIndex, startTicks, operation, options,
-                    clock, scheduler, messenger, OnClosed, OnEntrySkipped);
+                cancellationToken.ThrowIfCancellationRequested();
+                created = new FakePlaybackSession([new PlaybackEntry(request.ItemId, "正在准备播放")], 0, request.StartTicks ?? 0, operation, options,
+                    clock, scheduler, messenger, OnClosed, OnEntrySkipped, () => Resolve(request));
                 current = created;
+                requestedId = request.ItemId;
                 isStarting = false;
             }
             scheduler.TryEnqueue(() =>
@@ -94,13 +100,16 @@ public sealed class FakePlaybackService : IPlaybackService, IDisposable, IAsyncD
     }
 
     public Task<IPlaybackSession> PreviewAsync(CancellationToken cancellationToken = default) =>
-        PlayAsync(new PlayRequest("demo-episode-001-01-01", 0, true), cancellationToken);
+        PreviewAsync(false, cancellationToken);
+
+    public Task<IPlaybackSession> PreviewAsync(bool replaceCurrent, CancellationToken cancellationToken = default) =>
+        PlayAsync(new PlayRequest("demo-episode-001-01-01", 0, replaceCurrent), cancellationToken);
 
     private (ImmutableArray<PlaybackEntry> Entries, int Index, long Start) Resolve(PlayRequest request)
     {
         if (request.StartTicks < 0)
             throw Error("demo.playback.position", "播放起点不能小于零。");
-        var item = catalog.Find(request.ItemId) ?? throw Error("demo.playback.not-found", "未找到演示媒体。");
+        var item = catalog.Find(request.ItemId) ?? throw Error(ErrorCodes.ItemNotFound, "未找到演示媒体。");
         if (item.Kind is MediaKind.Series or MediaKind.Season)
         {
             var episodes = catalog.AllItems.Where(candidate => candidate.Kind == MediaKind.Episode &&
@@ -110,10 +119,10 @@ public sealed class FakePlaybackService : IPlaybackService, IDisposable, IAsyncD
             item = episodes.FirstOrDefault(candidate => candidate.UserData.PlaybackPositionTicks >= TimeSpan.FromSeconds(30).Ticks)
                 ?? episodes.FirstOrDefault(candidate => !candidate.UserData.Played)
                 ?? episodes.FirstOrDefault()
-                ?? throw Error("demo.playback.empty", "这个演示节目没有可播放的剧集。");
+                ?? throw Error(ErrorCodes.ItemNotPlayable, "这个演示节目没有可播放的剧集。");
         }
         if (item.Kind is not (MediaKind.Movie or MediaKind.Episode or MediaKind.Video))
-            throw Error("demo.playback.kind", "这个项目暂时不能播放。");
+            throw Error(ErrorCodes.ItemNotPlayable, "这个项目暂时不能播放。");
         var plan = item.Kind == MediaKind.Episode && item.SeasonId is not null
             ? catalog.AllItems.Where(candidate => candidate.Kind == MediaKind.Episode && candidate.SeasonId == item.SeasonId)
                 .OrderBy(candidate => candidate.ParentIndexNumber).ThenBy(candidate => candidate.IndexNumber)
@@ -131,20 +140,22 @@ public sealed class FakePlaybackService : IPlaybackService, IDisposable, IAsyncD
     {
         SeriesId = item.SeriesId,
         SeasonId = item.SeasonId,
+        SeriesName = item.SeriesName, EpisodeName = item.Name, UserData = item.UserData,
+        Image = item.Images.FirstOrDefault(image => image.Kind == ImageKind.Thumb) ?? item.Images.FirstOrDefault(),
         SeasonNumber = item.ParentIndexNumber,
         EpisodeNumber = item.IndexNumber,
         EpisodeLabel = item.Kind == MediaKind.Episode ? $"S{item.ParentIndexNumber:00}E{item.IndexNumber:00}" : null,
         DurationTicks = item.RunTimeTicks ?? TimeSpan.FromMinutes(24).Ticks,
     };
 
-    private void OnClosed(FakePlaybackSession session)
+    private void OnClosed(FakePlaybackSession session, PlaybackEndReason reason)
     {
         lock (gate)
         {
             if (disposed) return;
-            if (ReferenceEquals(current, session)) current = null;
+            if (ReferenceEquals(current, session)) { current = null; requestedId = null; }
         }
-        SessionEnded?.Invoke(this, new PlaybackSessionEventArgs(session));
+        SessionEnded?.Invoke(this, new PlaybackSessionEventArgs(session, reason));
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
