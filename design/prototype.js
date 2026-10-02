@@ -332,7 +332,7 @@ function seasonPlan(ep) { return EPISODES.get(`${ep.seriesId}:${ep.season}`); }
 const S = {
   route: { name: 'home', params: {} }, back: [], fwd: [],
   loggedIn: true, homeVariant: 'normal', libVariant: 'normal',
-  theme: 'light', size: 'large', fit: true, reduceMotion: false, annotate: false, scale: 1,
+  theme: 'light', themeMode: 'system', size: 'large', fit: true, reduceMotion: false, annotate: false, scale: 1,
   heroIndex: 0, heroHover: false,
   filtersOpen: false, sortOpen: false, sort: 'added', filters: { genre: new Set(), decade: new Set(), cert: new Set() },
   searchText: '', season: {}, selectedEp: {},
@@ -341,6 +341,10 @@ const S = {
 };
 const win = () => $('#window');
 const host = () => $('#page');
+const systemDark = window.matchMedia('(prefers-color-scheme: dark)');
+const resolveTheme = () => S.themeMode === 'system' ? (systemDark.matches ? 'dark' : 'light') : S.themeMode;
+S.theme = resolveTheme();
+systemDark.addEventListener('change', () => { if (S.themeMode === 'system') { S.theme = resolveTheme(); render({ page: false }); } });
 
 /* ================= 导航 ================= */
 function sameRoute(a, b) { return a.name === b.name && JSON.stringify(a.params || {}) === JSON.stringify(b.params || {}); }
@@ -482,10 +486,6 @@ function heroHtml(item) {
       ${logoHtml(item)}
       ${metaRow(item)}
       <p class="hero-overview">${esc(item.overview)}</p>
-      <div class="hero-actions anno-host" data-d="D4">
-        <button class="btn btn-accent btn-lg" data-act="play" data-id="${item.id}">${icon('play')}${item.kind === 'series' ? '继续观看' : '播放'}</button>
-        <button class="btn btn-glass btn-lg" data-act="detail" data-id="${item.id}" data-hero-src="1">${icon('info')}详情</button>
-      </div>
     </div>
   </section>`;
 }
@@ -621,35 +621,47 @@ function pageDetail() {
 /* ================= 页面：设置 ================= */
 function pageSettings() {
   const server = S.loggedIn
-    ? `<div class="set-card"><div class="avatar">演</div><div class="set-text"><div class="set-title">演示用户</div><div class="set-desc">已连接到 demo.example · Emby 4.9</div></div>
-        <div class="set-control"><button class="btn btn-danger" data-act="logout">${icon('logout')}断开连接</button></div></div>`
-    : `<div class="set-card col"><div class="set-row">${icon('server', 'set-icon')}<div class="set-text"><div class="set-title">连接 Emby 服务器</div><div class="set-desc">未填写协议时将使用 HTTPS。仅在可信网络中明确填写 http://。</div></div></div>
-        <div class="form-grid"><label class="field"><span class="field-label">服务器地址</span><input class="input" placeholder="https://your-emby-server" value="https://demo.example"></label>
-          <label class="field"><span class="field-label">用户名</span><input class="input" placeholder="用户名" value="演示用户"></label>
-          <label class="field"><span class="field-label">密码</span><input class="input" type="password" placeholder="可以为空"></label>
-          <button class="btn btn-accent" data-act="login" ${S.connecting ? 'disabled' : ''} style="min-width:96px">${S.connecting ? '连接中…' : '连接'}</button></div></div>`;
-  const mpvStatus = { none: ['', '留空表示只使用内置播放器。'], ok: ['ok', '已批准使用此 mpv（外部窗口可用）'], bad: ['warn', '未找到该路径下的 mpv 可执行文件，将使用内置播放器'], checking: ['', '正在校验…'] }[S.mpvStatus];
+    ? `<div class="account"><div class="avatar">演</div><div><div class="account-name">演示用户</div><div class="account-sub">demo.example · Emby 4.9</div></div>
+        <button class="btn btn-connected" data-act="logout" title="断开连接"><span class="rest-text">${icon('check')}已连接</span><span class="hover-text">${icon('logout')}断开连接</span></button></div>`
+    : `<form class="login-form" onsubmit="return false">
+        <label class="field"><span class="field-label">服务器地址</span><input class="input" placeholder="https://your-emby-server" value="https://demo.example">
+          <span class="helper">未填写协议时将使用 HTTPS。仅在可信网络中明确填写 http://。</span></label>
+        <label class="field"><span class="field-label">用户名</span><input class="input" placeholder="用户名" value="演示用户"></label>
+        <label class="field"><span class="field-label">密码</span><input class="input" type="password" placeholder="可以为空"></label>
+        <div><button class="btn btn-accent" data-act="login" ${S.connecting ? 'disabled' : ''} style="min-width:120px">${S.connecting ? '连接中…' : '连接'}</button></div></form>`;
+  const mpvStatus = { none: ['', '留空表示只使用内置播放器。'], ok: ['ok', '已批准使用此 mpv，外部窗口可用。'], bad: ['warn', '未找到该路径下的 mpv 可执行文件，将使用内置播放器。'], checking: ['', '正在校验…'] }[S.mpvStatus];
   const hdrLabel = { auto: '自动', always: '始终 HDR', off: '关闭' }[S.hdr];
-  return `<div class="page"><div class="set-wrap anno-host" data-d="D7">${pageHead('SETTINGS', '设置')}
-    <div class="set-group"><h2 class="set-group-title">服务器</h2>${server}</div>
-    <div class="set-group"><h2 class="set-group-title">播放</h2>
-      <div class="set-card">${icon('display', 'set-icon')}<div class="set-text"><div class="set-title">播放方式</div><div class="set-desc">默认使用内置播放器，不必另外安装 mpv。想用独立窗口播放，请先在下面指定自己的 mpv。</div></div>
-        <div class="set-control"><div class="segmented"><button class="seg ${S.playbackMode === 'embedded' ? 'on' : ''}" data-act="mode" data-mode="embedded">内置播放器</button><button class="seg ${S.playbackMode === 'external' ? 'on' : ''}" data-act="mode" data-mode="external" ${S.mpvStatus === 'ok' ? '' : 'disabled'}>外部窗口</button></div></div></div>
-      <div class="set-card col"><div class="set-row">${icon('file', 'set-icon')}<div class="set-text"><div class="set-title">外部 mpv 路径</div><div class="set-desc">应用不附带 mpv 程序；只有在这里指定后才能选择"外部窗口"。</div></div>
-          <div class="set-control"><div class="path-row"><input class="input" id="mpv-path" placeholder="例如 C:\\Program Files\\mpv\\mpv.exe" value="${esc(S.mpvPath)}"><button class="btn" data-act="pick-mpv">选择文件</button></div></div></div>
-        <div class="status-line ${mpvStatus[0]}" style="padding-left:36px">${mpvStatus[0] === 'ok' ? icon('success', 'ico-14') : mpvStatus[0] === 'warn' ? icon('warning', 'ico-14') : icon('info', 'ico-14')}${mpvStatus[1]}</div></div>
-      <div class="set-card">${icon('sun', 'set-icon')}<div class="set-text"><div class="set-title">HDR</div><div class="set-desc">自动：显示器开启 HDR 时直通 HDR 片源，否则映射为 SDR。</div></div>
-        <div class="set-control menu-anchor"><button class="select" data-act="hdr-menu"><span>${hdrLabel}</span>${icon('chevD', 'ico-14')}</button>
-          ${S.hdrMenu ? `<div class="menu">${[['auto', '自动'], ['always', '始终 HDR'], ['off', '关闭']].map(([k, l]) => `<button class="menu-item" data-act="set-hdr" data-v="${k}"><span class="menu-check">${k === S.hdr ? icon('check') : ''}</span>${l}</button>`).join('')}</div>` : ''}</div></div>
-      <div class="set-card">${icon('chip', 'set-icon')}<div class="set-text"><div class="set-title">硬件解码</div><div class="set-desc">使用显卡解码（d3d11va），4K 与 HEVC 播放更省电。遇到花屏可以关闭。</div></div>
-        <div class="set-control"><button class="toggle" data-act="hwdec"><span>${S.hwdec ? '开' : '关'}</span><span class="switch ${S.hwdec ? 'on' : ''}"></span></button></div></div>
-      <div class="set-card">${icon('play', 'set-icon')}<div class="set-text"><div class="set-title">预览播放页</div><div class="set-desc">用演示数据打开播放页，查看画面控制与选集的样子。</div></div>
-        <div class="set-control"><button class="btn" data-act="preview-player">打开预览</button></div></div></div>
-    <div class="set-group"><h2 class="set-group-title">关于</h2>
-      <div class="set-card"><img src="app-icon.svg" alt="" width="32" height="32" style="flex:none"><div class="set-text"><div class="set-title">Mambo</div><div class="set-desc">版本 0.3.0（设计稿）· Windows 上的 Emby 媒体客户端</div></div>
-        <div class="set-control"><button class="btn btn-subtle">${icon('book')}第三方许可</button></div></div>
-      <div class="set-card">${icon('trash', 'set-icon')}<div class="set-text"><div class="set-title">缓存</div><div class="set-desc">图片与媒体库缓存共占用 312 MB，清除后会重新下载。</div></div>
-        <div class="set-control"><button class="btn btn-subtle">${icon('folder')}打开日志目录</button><button class="btn" data-act="clear-cache">清除缓存</button></div></div></div>
+  const seg = (act, key, value, label, disabled = false) => `<button class="seg ${value === key ? 'on' : ''}" data-act="${act}" data-mode="${key}" ${disabled ? 'disabled' : ''}>${label}</button>`;
+  return `<div class="page"><div class="set-wrap">${pageHead('SETTINGS', '设置')}
+    <section class="set-section"><div class="set-label">服务器配置</div><div class="set-body">${server}</div></section>
+    <section class="set-section"><div class="set-label">播放器设置</div><div class="set-body">
+      <div class="set-item"><div class="set-item-title">播放方式</div>
+        <div class="segmented">${seg('mode', 'embedded', S.playbackMode, '内置播放器')}${seg('mode', 'external', S.playbackMode, '外部窗口', S.mpvStatus !== 'ok')}</div>
+        <div class="helper">默认使用内置播放器，不必另外安装 mpv。想在独立窗口播放，请先在下面指定自己的 mpv 可执行文件。</div></div>
+      <div class="set-item" style="align-self:stretch"><div class="set-item-title">MPV 路径</div>
+        <div class="path-row"><input class="input" id="mpv-path" placeholder="例如 C:\\Program Files\\mpv\\mpv.exe" value="${esc(S.mpvPath)}"><button class="btn" data-act="pick-mpv">选择文件</button></div>
+        <div class="status-line ${mpvStatus[0]}">${mpvStatus[0] === 'ok' ? icon('success', 'ico-14') : mpvStatus[0] === 'warn' ? icon('warning', 'ico-14') : icon('info', 'ico-14')}${mpvStatus[1]}</div></div>
+      <div class="set-item"><div class="set-item-title">HDR</div>
+        <div class="menu-anchor"><button class="select" data-act="hdr-menu"><span>${hdrLabel}</span>${icon('chevD', 'ico-14')}</button>
+          ${S.hdrMenu ? `<div class="menu" style="left:0;right:auto">${[['auto', '自动'], ['always', '始终 HDR'], ['off', '关闭']].map(([k, l]) => `<button class="menu-item" data-act="set-hdr" data-v="${k}"><span class="menu-check">${k === S.hdr ? icon('check') : ''}</span>${l}</button>`).join('')}</div>` : ''}</div>
+        <div class="helper">自动：显示器开启 HDR 时直通 HDR 片源，否则映射为 SDR。</div></div>
+      <div class="set-item"><div class="set-item-title">硬件解码</div>
+        <button class="toggle" data-act="hwdec"><span class="switch ${S.hwdec ? 'on' : ''}"></span><span>${S.hwdec ? '已开启' : '已关闭'}</span></button>
+        <div class="helper">使用显卡解码（d3d11va），4K 与 HEVC 更省电。遇到花屏可以关闭。</div></div>
+      <div class="set-item"><div class="set-item-title">预览播放页</div>
+        <button class="btn" data-act="preview-player">${icon('play', 'ico-14')}打开预览</button>
+        <div class="helper">用演示数据打开播放页，查看画面控制与选集的样子。</div></div>
+    </div></section>
+    <section class="set-section"><div class="set-label">外观</div><div class="set-body">
+      <div class="set-item"><div class="set-item-title">主题</div>
+        <div class="segmented">${seg('theme-mode', 'system', S.themeMode, '跟随系统')}${seg('theme-mode', 'light', S.themeMode, '浅色')}${seg('theme-mode', 'dark', S.themeMode, '深色')}</div>
+        <div class="helper">跟随系统时，Windows 切换深浅色后应用会随之切换。</div></div>
+    </div></section>
+    <section class="set-section"><div class="set-label">关于</div><div class="set-body">
+      <div class="set-item"><div class="about-title">Mambo<span class="version-badge">v0.3.0</span></div>
+        <div class="helper">Windows 上的 Emby 媒体客户端，内置 mpv 播放器。</div>
+        <div class="set-row" style="margin-top:6px"><button class="btn">${icon('book', 'ico-14')}第三方许可</button><button class="btn">${icon('folder', 'ico-14')}打开日志目录</button><button class="btn" data-act="clear-cache">${icon('trash', 'ico-14')}清除缓存 · 312 MB</button></div></div>
+    </div></section>
   </div></div>`;
 }
 
@@ -853,8 +865,8 @@ function closeDialog() { S.dialog = null; renderDialog(); }
 function renderDialog() {
   const el = $('#dialog'), d = S.dialog;
   el.classList.toggle('open', !!d);
-  el.innerHTML = d ? `<div class="dialog" role="dialog" aria-modal="true"><div class="dialog-body"><h2 class="dialog-title">${esc(d.title)}</h2><p class="dialog-text">${esc(d.text)}</p></div>
-    <div class="dialog-foot"><button class="btn ${d.danger ? 'btn-danger-fill' : 'btn-accent'}" data-act="dialog-ok">${esc(d.confirm || '确定')}</button><button class="btn" data-act="dialog-cancel">取消</button></div></div>` : '';
+  el.innerHTML = d ? `<div class="dialog" role="dialog" aria-modal="true"><h2 class="dialog-title">${esc(d.title)}</h2><p class="dialog-text">${esc(d.text)}</p>
+    <div class="dialog-foot"><button class="btn" data-act="dialog-cancel">取消</button><button class="btn ${d.danger ? 'btn-danger-text' : 'btn-accent'}" data-act="dialog-ok">${esc(d.confirm || '确认')}</button></div></div>` : '';
 }
 let toastSeq = 0;
 function toast(kind, text, action) {
@@ -923,6 +935,7 @@ const ACT = {
     else doLogout();
   },
   mode(el) { S.playbackMode = el.dataset.mode; renderPage(); },
+  'theme-mode'(el) { S.themeMode = el.dataset.mode; S.theme = resolveTheme(); render({ scroll: host().scrollTop }); },
   'pick-mpv'() { S.mpvPath = 'C:\\Program Files\\mpv\\mpv.exe'; validateMpv(); },
   'hdr-menu'() { S.hdrMenu = !S.hdrMenu; renderPage(); },
   'set-hdr'(el) { S.hdr = el.dataset.v; S.hdrMenu = false; renderPage(); },
@@ -1040,26 +1053,32 @@ function fit() {
 window.addEventListener('resize', fit);
 
 /* ================= 审阅面板 ================= */
-const PROPOSALS = [
-  ['D1', '标题栏', '窗口按钮换成 Windows 11 样式（46×40），最大化按钮登记为非客户区，悬停时出现系统贴靠布局。后退/前进与居中标题保持原样。', 'snap'],
-  ['D2', '控件 Fluent 化', '按钮、输入框、下拉、开关、菜单统一为 Windows 11 风格：圆角 8、底边描边、清晰焦点框。配色、MiSans、卡片比例沿用原版。', 'page:library-filter'],
-  ['D3', '内容层', '亚克力外壳上加一层半透明内容层（白 55%），侧栏与内容区层次更分明；原版两者是同一层。', 'page:home'],
-  ['D4', '首页 hero 按钮', 'hero 增加「播放/继续观看」与「详情」按钮；整块点击进详情、标题栏分页点、7 秒轮播保持原样。', 'page:home'],
-  ['D5', '播放页全屏优先', '播放时隐藏侧栏、画面铺满窗口（保留可拖动的深色标题栏）；选集改为右侧抽屉（列表或原版集号方块二选一）；新增片尾"即将播放"卡片；双击画面切换全屏（原版为最大化）。', 'player:drawer'],
-  ['D6', '转场', '浏览 ↔ 播放由 3D 翻折改为缩放 + 淡入；卡片 → 详情改用 ConnectedAnimation（封面放大成详情背景，点任意海报可看效果）。', 'player:open'],
-  ['D7', '设置页', '改为 Windows 11 设置卡片样式（分组卡片）；新增 HDR、硬件解码、缓存/日志入口。', 'page:settings-in'],
-  ['D8', '详情页播放按钮', '播放圆钮旁加文字说明（继续播放 · 剩余时间）；海报圆角由 14 调为 12。', 'page:detail-series'],
-  ['D9', '深色模式', '提供深色主题（下方可切换）。需要决定：v1 是否提供，是否跟随系统。', 'theme:dark'],
-  ['D10', '应用图标', '新图标：蓝色圆角方块 + 播放三角 + 回声弧线（见面板底部，16px 下仍可辨认）。', null],
+// 第 1 轮审阅的结论（2026-10-02）。
+const DECISIONS = [
+  ['D1', '标题栏', '同意', 'Windows 11 窗口按钮（46×40），最大化按钮悬停出现贴靠布局。', 'common:snap'],
+  ['D2', '控件风格', '按原版优化', '本版已改：恢复原版的中性柔和底、细边框、12 圆角、半粗体文字；统一尺寸，补齐悬停 / 按下 / 焦点 / 禁用状态。', 'page:library-filter'],
+  ['D3', '内容层', '不加', '本版已改：内容区与外壳同一层玻璃，只保留左、上细线和 12px 上间距。', 'page:home'],
+  ['D4', '首页 hero 按钮', '不加', '本版已改：整块点击进入详情。', 'page:home'],
+  ['D5', '播放页全屏优先', '同意', '隐藏侧栏、画面铺满；选集抽屉；片尾"即将播放"卡；双击画面切换全屏。', 'player:drawer'],
+  ['D6', '转场', '同意', '浏览 ↔ 播放缩放 + 淡入；卡片 → 详情 ConnectedAnimation。', 'player:open'],
+  ['D7', '设置页', '按原版', '本版已改：恢复原版两栏布局；计划中的 HDR、硬件解码、缓存、日志保留，新增"外观"。', 'page:settings-in'],
+  ['D8', '详情页播放按钮', '同意', '圆钮旁加"继续播放 · 剩余时间"；海报圆角 12。', 'page:detail-series'],
+  ['D9', '深色模式', '同意', 'v1 提供深色主题，设置 → 外观可选跟随系统 / 浅色 / 深色。', 'page:settings-in'],
+  ['D10', '应用图标', '暂缓', '以后再设计，本版已移除图标草稿。', null],
+];
+const OPEN_QUESTIONS = [
+  ['Q1', '第 2 版控件', '按钮、输入框、下拉、开关、菜单、对话框、通知都已按原版风格重做，请再看一眼是否满意。', 'page:settings-out'],
+  ['Q2', '选集抽屉', '目前"列表"和"集号方块"两种都保留，可在抽屉右上角切换（默认列表，记住上次选择）。是否两种都留？', 'player:drawer'],
+  ['Q3', '主题默认值', '默认"跟随系统"，可在设置里固定为浅色或深色。这样可以吗？', 'page:settings-in'],
 ];
 function rvBtn(label, act, active = false) { return `<button class="rv-btn ${active ? 'active' : ''}" data-rv="${act}">${label}</button>`; }
 function renderReview() {
   const p = S.player;
   $('#review').innerHTML = `
-    <div class="rv-head"><h1>Mambo 设计稿 · P2</h1>${rvBtn('收起', 'collapse')}<p>左侧是可点击的原型（1:1 按 DIP 绘制），这里用来切换页面、状态与选项。橙色编号对应下方"待确认"。</p></div>
+    <div class="rv-head"><h1>Mambo 设计稿 · P2 第 2 版</h1>${rvBtn('收起', 'collapse')}<p>左侧是可点击的原型（1:1 按 DIP 绘制），这里用来切换页面、状态与选项。第 1 轮结论已应用，最下方是还需确认的 3 个问题。</p></div>
     <div class="rv-sec"><h2 class="rv-title">视图</h2>
       <div class="rv-row">${rvBtn('1500×860', 'size:large', S.size === 'large')}${rvBtn('1100×720（最小）', 'size:small', S.size === 'small')}</div>
-      <div class="rv-row" style="margin-top:6px">${rvBtn('适应窗口', 'fit:on', S.fit)}${rvBtn('100%', 'fit:off', !S.fit)}${rvBtn('浅色', 'theme:light', S.theme === 'light')}${rvBtn('深色', 'theme:dark', S.theme === 'dark')}</div>
+      <div class="rv-row" style="margin-top:6px">${rvBtn('适应窗口', 'fit:on', S.fit)}${rvBtn('100%', 'fit:off', !S.fit)}${rvBtn('跟随系统', 'theme:system', S.themeMode === 'system')}${rvBtn('浅色', 'theme:light', S.themeMode === 'light')}${rvBtn('深色', 'theme:dark', S.themeMode === 'dark')}</div>
       <div class="rv-row" style="margin-top:6px">${rvBtn('显示改动标注', 'annotate', S.annotate)}${rvBtn('减少动画', 'motion', S.reduceMotion)}${rvBtn(S.loggedIn ? '已登录' : '未登录', 'login')}</div></div>
     <div class="rv-sec"><h2 class="rv-title">页面</h2><div class="rv-row">
       ${rvBtn('首页', 'page:home')}${rvBtn('首页·加载中', 'page:home-loading')}${rvBtn('首页·连接失败', 'page:home-error')}${rvBtn('未登录引导', 'page:onboard')}
@@ -1071,11 +1090,10 @@ function renderReview() {
       ${rvBtn('选集·列表', 'player:drawer')}${rvBtn('选集·集号', 'player:drawer-grid')}${rvBtn('片尾即将播放', 'player:upnext')}${rvBtn('播放失败', 'player:failed')}${rvBtn('全屏', 'player:fullscreen')}${rvBtn('关闭播放', 'player:close')}</div>
       <p class="rv-note">快捷键：<span class="rv-kbd">空格</span> 播放/暂停 · <span class="rv-kbd">←/→</span> ±5 秒 · <span class="rv-kbd">↑/↓</span> 音量 · <span class="rv-kbd">[ ]</span> 倍速 · <span class="rv-kbd">C</span> 字幕 · <span class="rv-kbd">V</span> 音轨 · <span class="rv-kbd">F</span> 全屏 · <span class="rv-kbd">Esc</span> 退出全屏/关闭</p></div>
     <div class="rv-sec"><h2 class="rv-title">通用</h2><div class="rv-row">${rvBtn('确认对话框', 'common:dialog')}${rvBtn('通知示例', 'common:toasts')}${rvBtn('错误通知', 'common:toast-error')}${rvBtn('贴靠布局', 'common:snap')}</div></div>
-    <div class="rv-sec"><h2 class="rv-title">待确认（请逐项回复 同意 / 不同意 / 修改意见）</h2>
-      ${PROPOSALS.map(([id, title, text, go]) => `<div class="rv-prop"><b>${id}</b><strong>${title}</strong><p>${text}</p>${go ? `<div class="rv-go">${rvBtn('查看', go)}</div>` : ''}</div>`).join('')}</div>
-    <div class="rv-sec"><h2 class="rv-title">D10 应用图标</h2><div class="rv-icons">
-      <div class="rv-icon-tile light">${[64, 32, 24, 16].map(n => `<img src="app-icon.svg" width="${n}" height="${n}" alt="">`).join('')}</div>
-      <div class="rv-icon-tile dark">${[64, 32, 24, 16].map(n => `<img src="app-icon.svg" width="${n}" height="${n}" alt="">`).join('')}</div></div></div>
+    <div class="rv-sec"><h2 class="rv-title">还需确认（请回复 Q1–Q3）</h2>
+      ${OPEN_QUESTIONS.map(([id, title, text, go]) => `<div class="rv-prop"><b>${id}</b><strong>${title}</strong><p>${text}</p><div class="rv-go">${rvBtn('查看', go)}</div></div>`).join('')}</div>
+    <div class="rv-sec"><h2 class="rv-title">第 1 轮结论</h2>
+      ${DECISIONS.map(([id, title, verdict, text, go]) => `<div class="rv-prop"><b>${id}</b><strong>${title}</strong><span class="rv-verdict">${verdict}</span><p>${text}</p>${go ? `<div class="rv-go">${rvBtn('查看', go)}</div>` : ''}</div>`).join('')}</div>
     <p class="rv-note">保持不变：亚克力浅色外壳、40px 标题栏、208px 侧栏、MiSans、主色 #0c68b8、海报 150×220 / 横版 300×169、首页 hero + 卡片行、详情 hero + 季/集 + 演职人员。<br>当前播放：${p ? '进行中' : '无'}</p>`;
 }
 function playerState(kind) {
@@ -1128,7 +1146,7 @@ $('#review').addEventListener('click', e => {
     case 'collapse': setReviewCollapsed(true, true); return;
     case 'size': S.size = arg; break;
     case 'fit': S.fit = arg === 'on'; break;
-    case 'theme': S.theme = arg; break;
+    case 'theme': S.themeMode = arg; S.theme = resolveTheme(); break;
     case 'annotate': S.annotate = !S.annotate; break;
     case 'motion': S.reduceMotion = !S.reduceMotion; break;
     case 'login': S.loggedIn = !S.loggedIn; if (!S.loggedIn) { S.route = { name: 'home', params: {} }; S.back = []; S.fwd = []; } break;

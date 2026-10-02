@@ -46,6 +46,15 @@
   --r-xl: 16px;   /* 人物卡、大面板 */
   --r-pill: 999px;
 
+  /* ---------- 控件（沿用原版：柔和中性底 + 细边框 + 12 圆角） ---------- */
+  --r-control: 12px;   /* 原版 --radius-control */
+  --r-item: 10px;      /* 导航项、菜单项 */
+  --r-popup: 16px;     /* 弹出面（原版 18，略收） */
+  --control-h: 36px;
+  --control-h-lg: 42px; /* 原版按钮高度 */
+  --control-h-sm: 30px;
+  --nav-h: 40px;
+
   /* ---------- 外壳尺寸 ---------- */
   --titlebar-h: 40px;
   --sidebar-w: 208px;
@@ -109,39 +118,44 @@
   --window-stroke: rgba(255, 255, 255, .55);
   --window-shadow: 0 32px 64px rgba(15, 23, 42, .22), 0 2px 21px rgba(15, 23, 42, .14);
 
-  /* 内容层（Fluent Layer） */
-  --layer: rgba(255, 255, 255, .55);
-  --layer-solid: #f7f8fa;
-  --layer-stroke: rgba(0, 0, 0, .07);
+  /* 内容区：与外壳同一层玻璃，只有左、上细线（原版） */
+  --content-stroke: rgba(0, 0, 0, .10);
+  --rule: rgba(0, 0, 0, .08);
+  --inverse: #ffffff;      /* 选中环、反色文字 */
 
-  /* 填充与描边 */
+  /* 填充与描边（原版的中性柔和底） */
   --fill-subtle-hover: rgba(0, 0, 0, .04);
   --fill-subtle-press: rgba(0, 0, 0, .07);
-  --fill-control: rgba(255, 255, 255, .72);
-  --fill-control-hover: rgba(255, 255, 255, .92);
-  --fill-control-press: rgba(255, 255, 255, .55);
-  --stroke-control: rgba(0, 0, 0, .08);
-  --stroke-control-strong: rgba(0, 0, 0, .14);
-  --fill-input: rgba(255, 255, 255, .78);
-  --stroke-input-bottom: rgba(0, 0, 0, .42);
-  --nav-active: rgba(0, 0, 0, .07);
+  --fill-control: rgba(0, 0, 0, .035);
+  --fill-control-hover: rgba(0, 0, 0, .06);
+  --fill-control-press: rgba(0, 0, 0, .085);
+  --stroke-control: rgba(0, 0, 0, .10);
+  --fill-input: rgba(0, 0, 0, .025);
+  --fill-input-hover: rgba(0, 0, 0, .04);
+  --fill-input-focus: rgba(255, 255, 255, .6);
+  --stroke-input: rgba(0, 0, 0, .18);
+  --accent-60: rgba(12, 104, 184, .6);
+  --focus: rgba(12, 104, 184, .72);
+  --focus-soft: rgba(12, 104, 184, .16);
+  --nav-active: rgba(0, 0, 0, .10);
   --nav-hover: rgba(0, 0, 0, .04);
+  --nav-press: rgba(0, 0, 0, .08);
   --chip: rgba(0, 0, 0, .045);
   --chip-hover: rgba(0, 0, 0, .075);
+  --switch-off: rgba(0, 0, 0, .16);
 
-  --card-stroke: rgba(0, 0, 0, .10);
-  --card-stroke-hover: rgba(0, 0, 0, .22);
-  --placeholder: rgba(0, 0, 0, .05);
-  --skeleton: rgba(0, 0, 0, .06);
+  --card-stroke: rgba(0, 0, 0, .14);
+  --card-stroke-hover: rgba(0, 0, 0, .30);
+  --placeholder: rgba(0, 0, 0, .045);
+  --skeleton: rgba(0, 0, 0, .05);
   --skeleton-shine: rgba(255, 255, 255, .55);
 
-  --popup-bg: rgba(250, 250, 252, .94);
-  --popup-stroke: rgba(0, 0, 0, .08);
-  --popup-shadow: 0 8px 32px rgba(15, 23, 42, .16), 0 2px 8px rgba(15, 23, 42, .08);
-  --scrim: rgba(0, 0, 0, .28);
-  --focus-outer: rgba(0, 0, 0, .9);
-  --focus-inner: #ffffff;
-  --scrollbar: rgba(0, 0, 0, .22);
+  /* 弹出面（原版 popup-surface） */
+  --popup-bg: rgba(252, 253, 255, .86);
+  --popup-stroke: rgba(255, 255, 255, .72);
+  --popup-shadow: 0 18px 44px rgba(15, 23, 42, .16);
+  --scrim: rgba(0, 0, 0, .25);
+  --scrollbar: rgba(0, 0, 0, .16);
 }
 
 /* ---------- 深色主题（评估用） ---------- */
@@ -169,37 +183,41 @@
   --window-stroke: rgba(255, 255, 255, .10);
   --window-shadow: 0 32px 64px rgba(0, 0, 0, .45), 0 2px 21px rgba(0, 0, 0, .35);
 
-  --layer: rgba(255, 255, 255, .045);
-  --layer-solid: #24262b;
-  --layer-stroke: rgba(255, 255, 255, .07);
+  --content-stroke: rgba(255, 255, 255, .10);
+  --rule: rgba(255, 255, 255, .08);
+  --inverse: #1d1f24;
 
   --fill-subtle-hover: rgba(255, 255, 255, .06);
   --fill-subtle-press: rgba(255, 255, 255, .04);
-  --fill-control: rgba(255, 255, 255, .07);
-  --fill-control-hover: rgba(255, 255, 255, .10);
-  --fill-control-press: rgba(255, 255, 255, .05);
-  --stroke-control: rgba(255, 255, 255, .08);
-  --stroke-control-strong: rgba(255, 255, 255, .16);
-  --fill-input: rgba(255, 255, 255, .06);
-  --stroke-input-bottom: rgba(255, 255, 255, .54);
-  --nav-active: rgba(255, 255, 255, .08);
+  --fill-control: rgba(255, 255, 255, .06);
+  --fill-control-hover: rgba(255, 255, 255, .09);
+  --fill-control-press: rgba(255, 255, 255, .12);
+  --stroke-control: rgba(255, 255, 255, .10);
+  --fill-input: rgba(255, 255, 255, .05);
+  --fill-input-hover: rgba(255, 255, 255, .07);
+  --fill-input-focus: rgba(0, 0, 0, .22);
+  --stroke-input: rgba(255, 255, 255, .18);
+  --accent-60: rgba(59, 143, 224, .6);
+  --focus: rgba(122, 183, 240, .8);
+  --focus-soft: rgba(59, 143, 224, .22);
+  --nav-active: rgba(255, 255, 255, .10);
   --nav-hover: rgba(255, 255, 255, .05);
+  --nav-press: rgba(255, 255, 255, .08);
   --chip: rgba(255, 255, 255, .07);
   --chip-hover: rgba(255, 255, 255, .11);
+  --switch-off: rgba(255, 255, 255, .22);
 
-  --card-stroke: rgba(255, 255, 255, .10);
-  --card-stroke-hover: rgba(255, 255, 255, .26);
+  --card-stroke: rgba(255, 255, 255, .12);
+  --card-stroke-hover: rgba(255, 255, 255, .30);
   --placeholder: rgba(255, 255, 255, .06);
   --skeleton: rgba(255, 255, 255, .07);
   --skeleton-shine: rgba(255, 255, 255, .10);
 
-  --popup-bg: rgba(40, 42, 47, .96);
-  --popup-stroke: rgba(255, 255, 255, .10);
-  --popup-shadow: 0 8px 32px rgba(0, 0, 0, .45), 0 2px 8px rgba(0, 0, 0, .3);
+  --popup-bg: rgba(44, 46, 52, .86);
+  --popup-stroke: rgba(255, 255, 255, .12);
+  --popup-shadow: 0 18px 44px rgba(0, 0, 0, .45);
   --scrim: rgba(0, 0, 0, .45);
-  --focus-outer: rgba(255, 255, 255, .92);
-  --focus-inner: rgba(0, 0, 0, .9);
-  --scrollbar: rgba(255, 255, 255, .26);
+  --scrollbar: rgba(255, 255, 255, .24);
 }
 
 /* ---------- 播放层（始终深色；画面上方不用模糊材质） ---------- */
