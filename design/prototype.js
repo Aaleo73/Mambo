@@ -312,6 +312,8 @@ for (const s of SERIES) {
 for (const [id, p] of [['s1e1x1', 1], ['s1e1x2', 1], ['s1e1x3', .42], ['s2e1x1', 1], ['s2e1x2', 1], ['s2e1x3', 1], ['s2e1x4', 1], ['s2e1x5', .6], ['s3e1x1', 1], ['s3e1x2', .78]]) {
   const ep = ITEMS.get(id); if (p >= 1) ep.played = true; else ep.progress = p;
 }
+// 再给几部电影一些播放进度，让"最近播放"页更接近真实情况。
+for (const [id, p] of [['m5', .31], ['m8', .57], ['m13', .22], ['m20', .68], ['m23', .44]]) ITEMS.get(id).progress = p;
 const LIBS = [
   { id: 'movies', name: '电影', icon: 'movie', count: 5000, items: allMovies },
   { id: 'shows', name: '剧集', icon: 'tv', count: 3, items: () => SERIES },

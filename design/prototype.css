@@ -242,7 +242,10 @@ body.desk-dark .desk-bg {
 /* ---------------- 网格 ---------------- */
 .grid { display: grid; justify-content: space-between; row-gap: var(--grid-gap-y); }
 .grid-poster { grid-template-columns: repeat(auto-fill, var(--poster-w)); column-gap: var(--grid-gap-x); }
-.grid-landscape { grid-template-columns: repeat(auto-fill, var(--landscape-w)); column-gap: 16px; row-gap: 24px; }
+/* 横版网格：列数随宽度自适应，卡片拉伸填满整行，比例保持 16:9 */
+.grid-landscape { grid-template-columns: repeat(auto-fill, minmax(var(--landscape-min), 1fr)); justify-content: stretch; column-gap: 16px; row-gap: 24px; }
+.grid-landscape .card-landscape { width: auto; min-width: 0; }
+.grid-landscape .card-landscape .card-art { height: auto; aspect-ratio: 16 / 9; }
 .grid .card.reveal { animation: rise var(--dur-normal) var(--ease-settle) both; }
 .load-more { display: flex; justify-content: center; padding: 28px 0 8px; color: var(--text-3); font: var(--type-caption) var(--font-ui); gap: 8px; align-items: center; }
 

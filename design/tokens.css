@@ -69,6 +69,7 @@
   --landscape-w: 300px;
   --landscape-h: 169px;
   --landscape-r: 10px;
+  --landscape-min: 240px;  /* 横版网格最小卡宽：列数 = floor((可用宽 + 16) / (240 + 16))，1100 宽 3 列、1500 宽 4 列、1920 宽 6 列 */
   --person-w: 132px;
   --grid-gap-x: 20px;
   --grid-gap-y: 28px;
