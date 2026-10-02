@@ -491,7 +491,14 @@ mark { background: var(--accent-subtle); color: inherit; border-radius: 3px; pad
 /* ---------------- 审阅面板（不属于应用界面） ---------------- */
 .review { position: fixed; top: 0; right: 0; bottom: 0; width: var(--review-w); overflow-y: auto; background: #f4f5f7; border-left: 1px solid #dadde3; color: #1f2329;
   font: 13px/18px "MiSans", "Segoe UI", sans-serif; padding: 18px 16px 40px; z-index: 100; }
+.rv-head { display: grid; grid-template-columns: 1fr auto; gap: 4px 8px; align-items: start; }
+.rv-head p { grid-column: 1 / -1; }
 .rv-head h1 { margin: 0; font: 600 17px/24px "MiSans", "Segoe UI", sans-serif; }
+.rv-toggle { position: fixed; top: 12px; right: 12px; z-index: 101; display: none; height: 30px; padding: 0 12px; border-radius: 15px; background: #fff; color: #1f2329;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .18), inset 0 0 0 1px #d9dce2; font: 12px/30px "MiSans", "Segoe UI", sans-serif; }
+body.rv-collapsed { --review-w: 0px; }
+body.rv-collapsed .review { display: none; }
+body.rv-collapsed .rv-toggle { display: block; }
 .rv-head p { margin: 4px 0 0; color: #5d6470; font-size: 12px; }
 .rv-sec { margin-top: 18px; }
 .rv-title { margin: 0 0 8px; font: 600 12px/16px "MiSans", "Segoe UI", sans-serif; color: #5d6470; letter-spacing: .06em; }

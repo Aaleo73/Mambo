@@ -1056,7 +1056,7 @@ function rvBtn(label, act, active = false) { return `<button class="rv-btn ${act
 function renderReview() {
   const p = S.player;
   $('#review').innerHTML = `
-    <div class="rv-head"><h1>Mambo 设计稿 · P2</h1><p>左侧是可点击的原型（1:1 按 DIP 绘制），这里用来切换页面、状态与选项。橙色编号对应下方"待确认"。</p></div>
+    <div class="rv-head"><h1>Mambo 设计稿 · P2</h1>${rvBtn('收起', 'collapse')}<p>左侧是可点击的原型（1:1 按 DIP 绘制），这里用来切换页面、状态与选项。橙色编号对应下方"待确认"。</p></div>
     <div class="rv-sec"><h2 class="rv-title">视图</h2>
       <div class="rv-row">${rvBtn('1500×860', 'size:large', S.size === 'large')}${rvBtn('1100×720（最小）', 'size:small', S.size === 'small')}</div>
       <div class="rv-row" style="margin-top:6px">${rvBtn('适应窗口', 'fit:on', S.fit)}${rvBtn('100%', 'fit:off', !S.fit)}${rvBtn('浅色', 'theme:light', S.theme === 'light')}${rvBtn('深色', 'theme:dark', S.theme === 'dark')}</div>
@@ -1125,6 +1125,7 @@ $('#review').addEventListener('click', e => {
   const b = e.target.closest('[data-rv]'); if (!b) return;
   const [kind, arg] = b.dataset.rv.split(':');
   switch (kind) {
+    case 'collapse': setReviewCollapsed(true, true); return;
     case 'size': S.size = arg; break;
     case 'fit': S.fit = arg === 'on'; break;
     case 'theme': S.theme = arg; break;
@@ -1143,6 +1144,18 @@ $('#review').addEventListener('click', e => {
   render({ page: kind !== 'annotate' && kind !== 'motion' ? undefined : false, scroll: host().scrollTop });
 });
 
+/* 审阅面板可以收起；窗口较窄时自动收起，手动操作后不再自动切换。 */
+let reviewManual = false;
+function setReviewCollapsed(collapsed, manual = false) {
+  if (manual) reviewManual = true;
+  document.body.classList.toggle('rv-collapsed', collapsed);
+  fit();
+}
+$('#rv-toggle').addEventListener('click', () => setReviewCollapsed(false, true));
+const autoReview = () => { if (!reviewManual) setReviewCollapsed(window.innerWidth < 1000); };
+window.addEventListener('resize', autoReview);
+
 /* ================= 启动 ================= */
+autoReview();
 render({ scroll: 0 });
 if (document.fonts?.ready) document.fonts.ready.then(fit);
