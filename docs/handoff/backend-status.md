@@ -4,8 +4,8 @@
 
 | 契约服务 | 状态（未开始 / 假 / 真 / 已测试） | 已知限制 | 更新日期 |
 |---|---|---|---|
-| `ISessionService` | 真 | 登录、恢复、过期及注销通过合成测试；真实 Emby 和 Windows 凭据管理器验收待用户 | 2026-10-02 |
-| `ILibraryService` | 真 | 真实端点、库过滤、分页/筛选/搜索/详情/NextUp、账号隔离、SWR/磁盘首屏/停止失效已测试；真实库待用户验收 | 2026-10-02 |
+| `ISessionService` | 真 | 登录、恢复、过期及注销通过合成测试；用户确认真实 Emby 登录、重启恢复及 Windows 凭据检查通过 | 2026-10-02 |
+| `ILibraryService` | 真 | 真实端点、库过滤、分页/筛选/搜索/详情/NextUp、账号隔离、SWR/磁盘首屏/停止失效已测试；用户确认真实视频库列表通过，其余端点暂以合成测试验证 | 2026-10-02 |
 | `IImageService` | 真 | 缓存/优先级/合并/取消/重定向/缺图已测试；前端解码与 RemoteImage 控件由 Claude 接入 | 2026-10-02 |
 | `ISettingsService` | 真 | 原子更新/备份恢复/只读 DeviceId/清理错误已测试，音量经组合工具恢复；外部播放器验证在 P7 | 2026-10-02 |
 | `ILibraryPreferences` | 真 | 文件持久化、账号/库隔离、通知和重启恢复已测试 | 2026-10-02 |
@@ -22,7 +22,7 @@
 
 真实平台层及 AddBackendServices(fake: false) 已接入，174 项 Core 测试通过。Debug / Native AOT 组合工具验证合成登录、库列表、缓存、设置、音量、发件箱、注销、日志与令牌不落盘。账号退出和清缓存使用删除屏障，旧请求/写入不会覆盖新代状态。实现、命令与限制见 [P1 Core 平台层](../decisions/P1-core-platform.md)。
 
-**真实 Emby 人工验收待用户**，因此 PLAN 的 P1 尚未勾选。工具为 publish/core-smoke/Mambo.CoreSmoke.exe --login，退出后运行 --restore；敏感输入只在本机，凭据目标为 Mambo:emby-session:v1。自动测试只用内存凭据，不读取或修改用户的 Windows 凭据。
+**P1 人工验收通过**（2026-10-02）：用户在真实登录、列库、重启恢复及凭据检查步骤后回复“好了”，PLAN 的 P1 已勾选。验收工具为 publish/core-smoke/Mambo.CoreSmoke.exe --login，退出后运行 --restore；凭据目标为 Mambo:emby-session:v1，敏感输入仅在本机。自动测试仍只用内存凭据，不读取或修改用户的 Windows 凭据。本次确认不扩展到 P0 遗留项或 P3 真实播放验收。
 
 R-003 外壳交接：启动解析 AppShutdownCoordinator（安装 WinUI 异常记录），再调用一次 RestoreAsync；关闭时 await coordinator.CloseAsync 后再销毁 DI。真实播放待 P3；前端可继续以假模式开发页面。
 

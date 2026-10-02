@@ -35,7 +35,7 @@ dotnet publish scripts/diagnostics/Mambo.CoreSmoke -c Release -p:Platform=x64 -o
 pwsh scripts/test-core-platform.ps1 -Aot
 ```
 
-【需用户】真实 Emby 与 Windows 凭据验收，在本机 PowerShell 运行：
+【需用户】真实 Emby 与 Windows 凭据验收已于 2026-10-02 经用户确认通过。以下命令保留供本机复验：
 
 ```powershell
 .\publish\core-smoke\Mambo.CoreSmoke.exe --login
@@ -44,11 +44,11 @@ pwsh scripts/test-core-platform.ps1 -Aot
 
 第一条在本机提示输入地址、用户名和隐藏的密码，并输出视频库数量。退出后第二条应恢复会话并再次列出库数量；Windows 凭据管理器应存在 `Mambo:emby-session:v1`。结果回复“通过”或安全错误文案即可，勿发送地址、密码或令牌。可选 `--logout` 会结束当前会话并清除本地凭据；无需注销来完成重启恢复验收。
 
-当前人工验收待用户完成，因此 PLAN 的 P1 尚未勾选。目标解析、媒体源、连播及真实播放上报的测试随 P3 实现；自动隐藏和导航规则随前端阶段实现，不把它们计入本阶段已完成的验证。
+2026-10-02：用户在上述人工验收步骤后回复“好了”，确认真实登录、列出视频库、重启恢复及凭据管理器目标检查通过，PLAN 的 P1 已勾选。目标解析、媒体源、连播及真实播放上报的测试随 P3 实现；自动隐藏和导航规则随前端阶段实现，不把它们计入本阶段已完成的验证。P0 的未通过与待测遗留项不因本次确认改变。
 
 本阶段 `dotnet test` 为 174/174 通过、无跳过。回归覆盖队列截止时间、共享取消、SWR 精确过期、新旧请求代际、退出删除屏障、停止记录故障分类、备份恢复、缺图和重定向，以及 Claude 要求的契约修订。
 
-最终 Debug 构建、App 与 CoreSmoke 的 Native AOT 发布均为 0 警告、0 错误。Debug/AOT 的 Core 组合自测，以及 App 命令行/环境变量两种假模式入口全部通过；报告位于忽略的 artifacts/p1-core-debug.json、p1-core-aot.json 与 p1a-fake-*.json。Debug/Release 的 locked-mode 还原均通过，锁文件不漂移。自动验收只覆盖合成服务器和内存凭据，真实 Windows 凭据读写与真实 Emby 仍待上述人工步骤。
+最终 Debug 构建、App 与 CoreSmoke 的 Native AOT 发布均为 0 警告、0 错误。Debug/AOT 的 Core 组合自测，以及 App 命令行/环境变量两种假模式入口全部通过；报告位于忽略的 artifacts/p1-core-debug.json、p1-core-aot.json 与 p1a-fake-*.json。Debug/Release 的 locked-mode 还原均通过，锁文件不漂移。自动验收只覆盖合成服务器和内存凭据；真实 Emby 登录与恢复、Windows 凭据检查由用户按上述步骤确认。
 
 验证中曾出现一次停止记录本地写入失败，原始异常没有 HRESULT，未确认该次的直接成因。新增边界测试在本机明确复现：File.Move(overwrite) 在旧读者允许 Delete 共享时仍返回 80070005，而 File.Replace 成功；行为与 [.NET runtime issue 114230](https://github.com/dotnet/runtime/issues/114230) 一致。现已用原子替换修复，并验证旧读者快照、短暂锁重试、长期锁失败保留原数据。Win32 错误分类参考 [Microsoft 系统错误码](https://learn.microsoft.com/en-us/windows/win32/debug/system-error-codes--0-499-)。
 
