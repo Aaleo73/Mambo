@@ -61,6 +61,8 @@ public sealed class DemoCatalog
                     {
                         SeriesId = seriesId, SeriesName = seriesName, SeasonId = seasonId,
                         ParentIndexNumber = season, IndexNumber = episode,
+                        Images = episode == 12 ? [] : [new(episodeId, ImageKind.Thumb, "demo-v1"), new(episodeId, ImageKind.Primary, "demo-v1"),
+                            new(seasonId, ImageKind.Backdrop, "demo-v1"), new(seriesId, ImageKind.Backdrop, "demo-v1"), new(seriesId, ImageKind.Logo, "demo-v1")],
                         RunTimeTicks = TimeSpan.FromMinutes(42 + episode % 6).Ticks,
                         UserData = new UserDataState(season == 1 && episode is 3 or 4 ? TimeSpan.FromMinutes(15).Ticks : 0,
                             season == 1 && episode < 3, season == 1 && episode < 3 ? 1 : 0,
@@ -97,10 +99,11 @@ public sealed class DemoCatalog
             Overview = "这是一段用于界面开发与离线演示的合成简介。所有人物、条目和图片均为程序生成。",
             ProductionYear = 2000 + ordinal % 26,
             PremiereDate = Epoch.AddDays(ordinal % 365),
+            DateCreatedUtc = Epoch.AddDays(ordinal % 365),
             CommunityRating = Math.Round(6 + ordinal % 40 / 10d, 1),
             OfficialRating = ordinal % 2 == 0 ? "PG" : "PG-13",
             Genres = (ordinal % 3) switch { 0 => ["科幻", "冒险"], 1 => ["剧情"], _ => ["纪录", "冒险"] },
-            Images = [new(id, ImageKind.Primary, "demo-v1"), new(id, ImageKind.Backdrop, "demo-v1")],
+            Images = ordinal % 17 == 0 ? [] : [new(id, ImageKind.Primary, "demo-v1"), new(id, ImageKind.Backdrop, "demo-v1"), new(id, ImageKind.Thumb, "demo-v1"), new(id, ImageKind.Logo, "demo-v1")],
             People =
             [
                 new("demo-person-actor", "演示演员", PersonKind.Actor)

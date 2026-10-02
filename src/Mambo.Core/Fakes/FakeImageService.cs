@@ -12,12 +12,16 @@ public sealed class FakeImageService(DemoCatalog catalog, FakeOperation operatio
         ImagePriority priority = ImagePriority.Visible, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(image);
-        if (pixelWidth <= 0)
-            throw new AppException(new AppError(AppErrorKind.Contract, "demo.image.size", "图片宽度必须大于零。", false));
+        if (pixelWidth <= 0 || string.IsNullOrWhiteSpace(image.ItemId) || Encoding.UTF8.GetByteCount(image.ItemId) > 256 ||
+            image.ItemId.Any(char.IsControl) || image.Index < 0 || !Enum.IsDefined(image.Kind) || !Enum.IsDefined(priority))
+            throw new AppException(new AppError(AppErrorKind.Contract, ErrorCodes.InvalidArgument, "图片请求参数无效。", false));
         await operation.ExecuteAsync(cancellationToken).ConfigureAwait(false);
         var item = catalog.Find(image.ItemId);
-        var title = item?.Name ?? catalog.AllItems.SelectMany(candidate => candidate.People)
-            .FirstOrDefault(person => person.Id == image.ItemId)?.Name ?? "演示图片";
+        var person = catalog.AllItems.SelectMany(candidate => candidate.People).FirstOrDefault(person => person.Id == image.ItemId);
+        if (!(item?.Images.Any(candidate => candidate.ItemId == image.ItemId && candidate.Kind == image.Kind && candidate.Index == image.Index) ?? false) &&
+            !(person?.Image is { } portraitImage && portraitImage.Kind == image.Kind && portraitImage.Index == image.Index))
+            throw new AppException(new AppError(AppErrorKind.Contract, ErrorCodes.ImageNotFound, "图片不存在。", false));
+        var title = item?.Name ?? person!.Name;
         var portrait = image.Kind == ImageKind.Primary && item?.Kind is not (MediaKind.Episode or MediaKind.Video);
         // Keep even the largest generated poster below the real image pipeline's 16 MB per-entry limit.
         var width = Math.Clamp(pixelWidth, 16, portrait ? 960 : 2560);

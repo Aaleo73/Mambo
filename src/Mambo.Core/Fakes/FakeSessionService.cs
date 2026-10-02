@@ -5,7 +5,7 @@ using Mambo.Core.Contracts;
 namespace Mambo.Core.Fakes;
 
 /// <summary>仅内存的演示会话，不连接服务器或保存登录请求中的地址与密码。</summary>
-public sealed class FakeSessionService(FakeOperation operation, IUiScheduler scheduler, IMessenger messenger) : ISessionService, IDisposable
+public sealed class FakeSessionService(FakeOperation operation, IUiScheduler scheduler, IMessenger messenger, IPlaybackService? playback = null) : ISessionService, IDisposable
 {
     private readonly object gate = new();
     private readonly SemaphoreSlim commands = new(1, 1);
@@ -42,7 +42,7 @@ public sealed class FakeSessionService(FakeOperation operation, IUiScheduler sch
             {
                 ThrowIfStopped(token);
                 if (current is not null)
-                    throw InvalidInput("demo.already_logged_in", "请先断开当前账号，再连接其他账号。");
+                    throw InvalidInput(ErrorCodes.AlreadyLoggedIn, "请先断开当前账号，再连接其他账号。");
             }
             await operation.ExecuteAsync(token).ConfigureAwait(false);
             lock (gate)
@@ -98,8 +98,11 @@ public sealed class FakeSessionService(FakeOperation operation, IUiScheduler sch
         }
     }, cancellationToken);
 
-    public Task LogoutAsync(CancellationToken cancellationToken = default) => RunCommandAsync(token =>
+    public async Task<LogoutResult> LogoutAsync(CancellationToken cancellationToken = default)
     {
+        await RunCommandAsync(async token =>
+    {
+        if (playback?.Current is { } active) await active.CloseAsync(PlaybackEndReason.Logout, token).ConfigureAwait(false);
         lock (gate)
         {
             ThrowIfStopped(token);
@@ -108,8 +111,9 @@ public sealed class FakeSessionService(FakeOperation operation, IUiScheduler sch
             error = null;
             PublishLocked();
         }
-        return Task.CompletedTask;
-    }, cancellationToken);
+    }, cancellationToken).ConfigureAwait(false);
+        return new LogoutResult();
+    }
 
     private async Task RunCommandAsync(Func<CancellationToken, Task> command, CancellationToken cancellationToken)
     {
@@ -155,9 +159,9 @@ public sealed class FakeSessionService(FakeOperation operation, IUiScheduler sch
             lock (gate)
             {
                 if (disposed || version != revision) return;
-                Changed?.Invoke(this, EventArgs.Empty);
-                if (!disposed) messenger.Send(message);
             }
+            Changed?.Invoke(this, EventArgs.Empty);
+            messenger.Send(message);
         });
     }
 

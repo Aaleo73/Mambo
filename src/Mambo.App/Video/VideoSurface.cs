@@ -30,12 +30,12 @@ public sealed partial class VideoSurface : SwapChainPanel
     private SpriteVisual? demoVisual;
     private CompositionColorBrush? demoBrush;
     private readonly InputSystemCursor arrow = InputSystemCursor.Create(InputSystemCursorShape.Arrow);
-    public event Action<int, int>? PixelSizeRequested;
-    public event Action<string>? DiagnosticError;
-    public double DpiScale => XamlRoot?.RasterizationScale ?? 1;
-    public (int Width, int Height) PixelSize =>
+    internal event Action<int, int>? PixelSizeRequested;
+    internal event Action<string>? DiagnosticError;
+    internal double DpiScale => XamlRoot?.RasterizationScale ?? 1;
+    internal (int Width, int Height) PixelSize =>
         (Math.Max(1, (int)Math.Round(target.Width * DpiScale)), Math.Max(1, (int)Math.Round(target.Height * DpiScale)));
-    public (int Width, int Height) BufferSize => SwapChainPanelInterop.BufferSize(swapChain);
+    internal (int Width, int Height) BufferSize => SwapChainPanelInterop.BufferSize(swapChain);
     internal bool IsDemoAttached => demoSession is not null;
 
     public VideoSurface()

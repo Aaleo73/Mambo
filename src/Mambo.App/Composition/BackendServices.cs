@@ -1,6 +1,10 @@
 using CommunityToolkit.Mvvm.Messaging;
 using Mambo.Core.Contracts;
 using Mambo.Core.Fakes;
+using Mambo.Core;
+using Mambo.Core.Persistence;
+using Mambo.Core.Session;
+using Mambo.App.Platform;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Mambo.App.Composition;
@@ -16,15 +20,28 @@ public static class BackendServices
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(scheduler);
-        if (!fake) throw new InvalidOperationException("真实后端尚未注册，请等待 P1 平台层接入。");
         services.AddSingleton<IUiScheduler>(scheduler);
         services.AddSingleton<TimeProvider>(clock ?? TimeProvider.System);
         services.AddSingleton<FakeOptions>(options ?? new FakeOptions());
         services.AddSingleton<IMessenger>(_ => new WeakReferenceMessenger());
+        if (!fake)
+        {
+            services.AddSingleton<ISecretStore>(_ => new WindowsCredentialStore());
+            services.AddSingleton(p => new BackendRuntime(new AppPaths(), p.GetRequiredService<ISecretStore>(),
+                p.GetRequiredService<IUiScheduler>(), p.GetRequiredService<IMessenger>(), p.GetRequiredService<TimeProvider>()));
+            services.AddSingleton<ISessionService>(p => p.GetRequiredService<BackendRuntime>().Session);
+            services.AddSingleton<ILibraryService>(p => p.GetRequiredService<BackendRuntime>().Library);
+            services.AddSingleton<ISettingsService>(p => p.GetRequiredService<BackendRuntime>().Settings);
+            services.AddSingleton<ILibraryPreferences>(p => p.GetRequiredService<BackendRuntime>().Preferences);
+            services.AddSingleton<IImageService>(p => p.GetRequiredService<BackendRuntime>().Images);
+            services.AddSingleton<IPlaybackService>(p => p.GetRequiredService<BackendRuntime>().Playback);
+            services.AddSingleton(p => new AppShutdownCoordinator(p.GetRequiredService<IPlaybackService>(), p.GetRequiredService<IMessenger>(), p.GetRequiredService<BackendRuntime>()));
+            return services;
+        }
         services.AddSingleton(p => new FakeOperation(p.GetRequiredService<FakeOptions>(), p.GetRequiredService<TimeProvider>()));
         services.AddSingleton(_ => new DemoCatalog());
         services.AddSingleton<ISessionService>(p => new FakeSessionService(p.GetRequiredService<FakeOperation>(),
-            p.GetRequiredService<IUiScheduler>(), p.GetRequiredService<IMessenger>()));
+            p.GetRequiredService<IUiScheduler>(), p.GetRequiredService<IMessenger>(), p.GetRequiredService<IPlaybackService>()));
         services.AddSingleton<ILibraryService>(p => new FakeLibraryService(p.GetRequiredService<DemoCatalog>(),
             p.GetRequiredService<IUiScheduler>(), p.GetRequiredService<FakeOperation>()));
         services.AddSingleton<ISettingsService>(p => new FakeSettingsService(p.GetRequiredService<FakeOperation>(), p.GetRequiredService<IUiScheduler>()));

@@ -13,6 +13,8 @@ public enum SessionState
 /// <summary>公开账号身份，不包含地址、密码或访问令牌。</summary>
 public sealed record SessionInfo(string ServerId, string UserId, string UserName);
 
+public sealed record LogoutResult(bool RemoteLogoutFailed = false);
+
 /// <summary>短时使用的登录输入；认证完成后不保留，不写入日志或持久化此对象。</summary>
 public sealed class LoginRequest
 {
@@ -40,5 +42,6 @@ public interface ISessionService
     event EventHandler? Changed;
     Task LoginAsync(LoginRequest request, CancellationToken cancellationToken = default);
     Task RestoreAsync(CancellationToken cancellationToken = default);
-    Task LogoutAsync(CancellationToken cancellationToken = default);
+    /// <summary>先以旧账号结束播放与停止上报，再清除本地会话。前端事先确认；远端注销失败仍已本地断开。</summary>
+    Task<LogoutResult> LogoutAsync(CancellationToken cancellationToken = default);
 }

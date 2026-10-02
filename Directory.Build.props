@@ -9,5 +9,7 @@
     <Platform Condition="'$(Platform)' == ''">x64</Platform>
     <Platforms>x64</Platforms>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <!-- 统一 App 的 Debug/Release 还原图；AOT 只影响 publish，不改变 Debug 运行方式。 -->
+    <PublishAot Condition="'$(MSBuildProjectName)' == 'Mambo.App'">true</PublishAot>
   </PropertyGroup>
 </Project>

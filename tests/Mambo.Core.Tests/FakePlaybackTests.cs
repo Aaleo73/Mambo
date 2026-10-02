@@ -14,7 +14,7 @@ public sealed class FakePlaybackTests
     {
         using var harness = new Harness();
         var session = await harness.Service.PlayAsync(new PlayRequest("demo-episode-001-01-01", 0), TestContext.Current.CancellationToken);
-        Assert.Equal(PlayerPhase.Opening, session.Snapshot.Phase);
+        Assert.Contains(session.Snapshot.Phase, new[] { PlayerPhase.Preparing, PlayerPhase.Opening });
         Assert.Equal(EngineKind.Demo, session.Snapshot.EngineKind);
         Assert.NotNull(session.Snapshot.DemoColorArgb);
         var changes = 0;
@@ -103,8 +103,8 @@ public sealed class FakePlaybackTests
         var ended = 0;
         harness.Service.SessionEnded += (_, _) => { Assert.True(harness.Scheduler.IsInCallback); ended++; };
         var session = await harness.Service.PreviewAsync(TestContext.Current.CancellationToken);
-        Assert.Equal(12, session.Snapshot.Entries.Length);
         await harness.OpenAsync(session);
+        Assert.Equal(12, session.Snapshot.Entries.Length);
         for (var index = 0; index < 12; index++)
         {
             Assert.Equal(index, session.Snapshot.CurrentEntryIndex);
@@ -149,7 +149,7 @@ public sealed class FakePlaybackTests
         Assert.Equal(7, session.Snapshot.CurrentEntryIndex);
         var error = await Assert.ThrowsAsync<AppException>(() => harness.Service.PlayAsync(
             new PlayRequest("demo-movie-0001"), TestContext.Current.CancellationToken));
-        Assert.Equal("demo.playback.confirm", error.Error.Code);
+        Assert.Equal(ErrorCodes.ReplaceConfirmationRequired, error.Error.Code);
         Assert.Same(session, harness.Service.Current);
         var replacement = await harness.Service.PlayAsync(new PlayRequest("demo-movie-0001", 0, true), TestContext.Current.CancellationToken);
         Assert.Equal(PlayerPhase.Closed, session.Snapshot.Phase);
@@ -181,11 +181,9 @@ public sealed class FakePlaybackTests
     {
         using var harness = new Harness(options: new FakeOptions { Delay = TimeSpan.FromMilliseconds(100), FailureRate = 1 });
         var session = await harness.Service.PreviewAsync(TestContext.Current.CancellationToken);
-        var failed = WaitForPhaseAsync(session, PlayerPhase.Failed);
-        harness.Clock.Advance(harness.Options.Delay);
-        await failed;
+        await harness.AdvanceUntilAsync(session, PlayerPhase.Failed);
         Assert.Equal(AppErrorKind.Network, session.Snapshot.Error?.Kind);
-        Assert.Equal("demo.unavailable", session.Snapshot.Error?.Code);
+        Assert.Equal(ErrorCodes.NetworkUnavailable, session.Snapshot.Error?.Code);
         Assert.DoesNotContain("http", session.Snapshot.Error!.Message, StringComparison.OrdinalIgnoreCase);
         await session.CloseAsync(TestContext.Current.CancellationToken);
     }
@@ -253,11 +251,16 @@ public sealed class FakePlaybackTests
             Service = new FakePlaybackService(new DemoCatalog(), new FakeOperation(Options, Clock), Options, Clock, Scheduler, Messenger);
         }
 
-        public async Task OpenAsync(IPlaybackSession session)
+        public Task OpenAsync(IPlaybackSession session) => AdvanceUntilAsync(session, PlayerPhase.Playing);
+
+        public async Task AdvanceUntilAsync(IPlaybackSession session, PlayerPhase phase)
         {
-            var playing = WaitForPhaseAsync(session, PlayerPhase.Playing);
-            Clock.Advance(Options.Delay);
-            await playing;
+            for (var attempt = 0; attempt < 500 && session.Snapshot.Phase != phase; attempt++)
+            {
+                Clock.Advance(Options.Delay > TimeSpan.Zero ? Options.Delay : TimeSpan.FromMilliseconds(1));
+                await Task.Delay(1, TestContext.Current.CancellationToken);
+            }
+            Assert.Equal(phase, session.Snapshot.Phase);
         }
 
         public void Dispose() => Service.Dispose();

@@ -14,7 +14,7 @@ public sealed class FakePlaybackSession : IPlaybackSession, IDisposable, IAsyncD
     private readonly TimeProvider clock;
     private readonly IUiScheduler scheduler;
     private readonly IMessenger messenger;
-    private readonly Action<FakePlaybackSession> onClosed;
+    private readonly Action<FakePlaybackSession, PlaybackEndReason> onClosed;
     private readonly Action<PlaybackEntry, AppError> onSkipped;
     private readonly object gate = new();
     private readonly CancellationTokenSource lifetime = new();
@@ -26,13 +26,16 @@ public sealed class FakePlaybackSession : IPlaybackSession, IDisposable, IAsyncD
     private DateTimeOffset openingStartedUtc;
     private int transition;
     private int notificationEpoch;
+    private bool confirmed;
+    private bool prepared;
+    private readonly Func<(ImmutableArray<PlaybackEntry> Entries, int Index, long Start)>? prepare;
     private bool stopped;
     private bool closeCompleted;
     private Task? closeTask;
 
     internal FakePlaybackSession(ImmutableArray<PlaybackEntry> entries, int entryIndex, long startTicks,
         FakeOperation operation, FakeOptions options, TimeProvider clock, IUiScheduler scheduler,
-        IMessenger messenger, Action<FakePlaybackSession> onClosed, Action<PlaybackEntry, AppError> onSkipped)
+        IMessenger messenger, Action<FakePlaybackSession, PlaybackEndReason> onClosed, Action<PlaybackEntry, AppError> onSkipped, Func<(ImmutableArray<PlaybackEntry> Entries, int Index, long Start)>? prepare = null)
     {
         if (options.PlaybackTick <= TimeSpan.Zero || options.BufferEvery < TimeSpan.Zero || options.BufferDuration < TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(options), "演示播放计时设置无效。");
@@ -43,11 +46,12 @@ public sealed class FakePlaybackSession : IPlaybackSession, IDisposable, IAsyncD
         this.messenger = messenger;
         this.onClosed = onClosed;
         this.onSkipped = onSkipped;
+        this.prepare = prepare;
         var entry = entries[entryIndex];
         var duration = Math.Max(1, entry.DurationTicks ?? TimeSpan.FromMinutes(24).Ticks);
         snapshot = new SessionSnapshot
         {
-            Phase = PlayerPhase.Opening,
+            Phase = PlayerPhase.Preparing,
             EngineKind = EngineKind.Demo,
             Entries = entries,
             Entry = entry,
@@ -73,7 +77,30 @@ public sealed class FakePlaybackSession : IPlaybackSession, IDisposable, IAsyncD
     internal string? ItemId => Volatile.Read(ref snapshot).Entry?.ItemId;
     public event EventHandler? SnapshotChanged;
 
-    internal void Start() => _ = OpenAsync(0);
+    internal void Start() => _ = PrepareAsync();
+
+    private async Task PrepareAsync()
+    {
+        await Task.Yield();
+        try
+        {
+            var result = prepare?.Invoke();
+            lock (gate)
+            {
+                if (stopped) return;
+                if (result is { } data) snapshot = snapshot with { Entries = data.Entries, CurrentEntryIndex = data.Index, Entry = data.Entries[data.Index],
+                    PositionTicks = data.Start, DurationTicks = data.Entries[data.Index].DurationTicks ?? TimeSpan.FromMinutes(24).Ticks, DemoColorArgb = ColorFor(data.Entries[data.Index].ItemId) };
+                prepared = true;
+                snapshot = snapshot with { Phase = PlayerPhase.Opening };
+                Publish();
+            }
+            await OpenAsync(0).ConfigureAwait(false);
+        }
+        catch (AppException error)
+        {
+            lock (gate) { if (stopped) return; snapshot = snapshot with { Phase = PlayerPhase.Failed, Error = error.Error }; Publish(); }
+        }
+    }
 
     private async Task OpenAsync(int expectedTransition)
     {
@@ -90,6 +117,7 @@ public sealed class FakePlaybackSession : IPlaybackSession, IDisposable, IAsyncD
             {
                 if (stopped || expectedTransition != transition) return;
                 lastTimestamp = clock.GetTimestamp();
+                confirmed = true;
                 snapshot = snapshot with { Phase = PlayerPhase.Playing, Error = null, IsSlowOpening = false,
                     CapturedAtUtc = clock.GetUtcNow(), BufferedRanges = Buffer(snapshot.PositionTicks, snapshot.DurationTicks) };
                 Publish();
@@ -144,7 +172,7 @@ public sealed class FakePlaybackSession : IPlaybackSession, IDisposable, IAsyncD
             {
                 snapshot = snapshot with { PositionTicks = snapshot.DurationTicks, CapturedAtUtc = clock.GetUtcNow() };
                 if (snapshot.CanNext) SwitchEntry(snapshot.CurrentEntryIndex + 1, PlayerPhase.Interstitial);
-                else _ = CloseAsync();
+                else _ = CloseAsync(PlaybackEndReason.SeasonEnded);
                 return;
             }
             var buffering = options.BufferEvery > TimeSpan.Zero && options.BufferDuration > TimeSpan.Zero && playSinceBuffer >= options.BufferEvery;
@@ -233,6 +261,7 @@ public sealed class FakePlaybackSession : IPlaybackSession, IDisposable, IAsyncD
     private void SwitchEntry(int index, PlayerPhase phase)
     {
         SendStopped(snapshot.Entry);
+        confirmed = false;
         transition++;
         var entry = snapshot.Entries[index];
         playSinceBuffer = TimeSpan.Zero;
@@ -266,6 +295,7 @@ public sealed class FakePlaybackSession : IPlaybackSession, IDisposable, IAsyncD
         {
             EnsureActive();
             if (snapshot.Phase != PlayerPhase.Failed) return Task.CompletedTask;
+            if (!prepared) { snapshot = snapshot with { Phase = PlayerPhase.Preparing, Error = null }; Publish(); _ = PrepareAsync(); return Task.CompletedTask; }
             transition++;
             openingStartedUtc = clock.GetUtcNow();
             snapshot = snapshot with { Phase = PlayerPhase.Opening, Error = null, IsBuffering = false,
@@ -351,10 +381,12 @@ public sealed class FakePlaybackSession : IPlaybackSession, IDisposable, IAsyncD
 
     private void EnsureActive()
     {
-        if (stopped) throw Error("demo.playback.closed", "播放已经结束。", AppErrorKind.Cancelled);
+        if (stopped) throw Error(ErrorCodes.SessionClosed, "播放已经结束。", AppErrorKind.Cancelled);
     }
 
-    public Task CloseAsync(CancellationToken cancellationToken = default)
+    public Task CloseAsync(CancellationToken cancellationToken = default) => CloseAsync(PlaybackEndReason.UserClosed, cancellationToken);
+
+    public Task CloseAsync(PlaybackEndReason reason, CancellationToken cancellationToken = default)
     {
         Task cleanup;
         lock (gate)
@@ -372,7 +404,7 @@ public sealed class FakePlaybackSession : IPlaybackSession, IDisposable, IAsyncD
                 closeTask = cleanup = completion.Task;
                 snapshot = snapshot with { Phase = PlayerPhase.Closed, IsBuffering = false, IsSeeking = false,
                     CapturedAtUtc = clock.GetUtcNow() };
-                var entry = snapshot.Entry;
+                var entry = confirmed ? snapshot.Entry : null;
                 if (!scheduler.TryEnqueue(() =>
                 {
                     lock (gate) if (closeCompleted) { completion.TrySetResult(); return; }
@@ -380,7 +412,7 @@ public sealed class FakePlaybackSession : IPlaybackSession, IDisposable, IAsyncD
                     {
                         SnapshotChanged?.Invoke(this, EventArgs.Empty);
                         if (entry is not null) messenger.Send(new PlaybackStopped(entry.ItemId, entry.SeriesId, entry.SeasonId));
-                        onClosed(this);
+                        onClosed(this, reason);
                     }
                     finally
                     {
@@ -403,7 +435,7 @@ public sealed class FakePlaybackSession : IPlaybackSession, IDisposable, IAsyncD
 
     private void SendStopped(PlaybackEntry? entry)
     {
-        if (entry is not null && snapshot.Phase == PlayerPhase.Playing)
+        if (entry is not null && confirmed)
             Enqueue(() => messenger.Send(new PlaybackStopped(entry.ItemId, entry.SeriesId, entry.SeasonId)), retainUntilClose: true);
     }
 

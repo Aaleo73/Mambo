@@ -47,7 +47,7 @@ public sealed class FakeServiceTests
         Assert.Equal(service.Current, Assert.Single(recipient.Messages).Session);
 
         var failure = await Assert.ThrowsAsync<AppException>(() => service.LoginAsync(request, TestContext.Current.CancellationToken));
-        Assert.Equal("demo.already_logged_in", failure.Error.Code);
+        Assert.Equal(ErrorCodes.AlreadyLoggedIn, failure.Error.Code);
     }
 
     [Fact]

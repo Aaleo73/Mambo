@@ -36,6 +36,10 @@ public enum FrameStepDirection
 public sealed record PlaybackEntry(string ItemId, string Title)
 {
     public string? SeriesId { get; init; }
+    public string? SeriesName { get; init; }
+    public string? EpisodeName { get; init; }
+    public UserDataState UserData { get; init; } = new();
+    public ImageRef? Image { get; init; }
     public string? SeasonId { get; init; }
     public string? EpisodeLabel { get; init; }
     public int? SeasonNumber { get; init; }

@@ -65,10 +65,12 @@ public sealed record MediaItem(string Id, string Name, MediaKind Kind)
     public string? Overview { get; init; }
     public int? ProductionYear { get; init; }
     public DateTimeOffset? PremiereDate { get; init; }
+    public DateTimeOffset? DateCreatedUtc { get; init; }
     public double? CommunityRating { get; init; }
     public string? OfficialRating { get; init; }
     public long? RunTimeTicks { get; init; }
     public ImmutableArray<string> Genres { get; init; } = [];
+    /// <summary>同一 Kind 先自身、再父级与剧集图片；取第一个匹配项并按卡片回退顺序选 Kind。所有数组非 default。</summary>
     public ImmutableArray<ImageRef> Images { get; init; } = [];
     public ImmutableArray<PersonInfo> People { get; init; } = [];
     public UserDataState UserData { get; init; } = new();

@@ -73,7 +73,7 @@ public sealed class FakeLibraryService : ILibraryService
             var episodes = catalog.AllItems.Where(item => item.SeriesId == seriesId && item.Kind == MediaKind.Episode)
                 .OrderBy(item => item.ParentIndexNumber).ThenBy(item => item.IndexNumber).ToImmutableArray();
             return episodes.FirstOrDefault(item => item.UserData.PlaybackPositionTicks >= TimeSpan.FromSeconds(30).Ticks) ??
-                episodes.FirstOrDefault(item => !item.UserData.Played) ?? episodes[0];
+                episodes.FirstOrDefault(item => !item.UserData.Played) ?? episodes.FirstOrDefault()!;
         }, scopeToken);
     public IQuery<ImmutableArray<SeasonInfo>> ObserveSeasons(string seriesId, CancellationToken scopeToken = default) =>
         Observe(() =>
@@ -93,6 +93,9 @@ public sealed class FakeLibraryService : ILibraryService
     public IQuery<ImmutableArray<SearchGroup>> ObserveSearchGroups(CancellationToken scopeToken = default) =>
         Observe(() => catalog.Libraries.Select((library, index) => new SearchGroup(library.Id, library.Name, index))
             .ToImmutableArray(), scopeToken);
+
+    // 合成目录已全部驻留内存，无需额外 I/O；与真实服务的悬停入口保持一致。
+    public void PrefetchDetail(string itemId) { _ = catalog.Find(itemId); }
 
     public IPagedQuery<MediaItem> ObserveSearch(string libraryId, string searchText, int pageSize = 24,
         CancellationToken scopeToken = default)
@@ -158,11 +161,11 @@ public sealed class FakeLibraryService : ILibraryService
     }
 
     private MediaItem RequireItem(string itemId) => catalog.Find(itemId) ??
-        throw new AppException(new AppError(AppErrorKind.Contract, "demo.item_missing", "演示条目不存在。", false));
+        throw new AppException(new AppError(AppErrorKind.Contract, ErrorCodes.ItemNotFound, "演示条目不存在。", false));
     private void RequireKind(string itemId, MediaKind kind)
     {
         if (RequireItem(itemId).Kind != kind)
-            throw new AppException(new AppError(AppErrorKind.Contract, "demo.item_kind", "演示条目类型不匹配。", false));
+            throw new AppException(new AppError(AppErrorKind.Contract, ErrorCodes.ItemNotPlayable, "演示条目类型不匹配。", false));
     }
 
     private static IEnumerable<MediaItem> Sort(IEnumerable<MediaItem> items, LibraryQuery query)
