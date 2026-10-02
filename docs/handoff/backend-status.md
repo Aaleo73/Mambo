@@ -9,7 +9,7 @@
 | `IImageService` | 真 | 缓存/优先级/合并/取消/重定向/缺图已测试；前端解码与 RemoteImage 控件由 Claude 接入 | 2026-10-02 |
 | `ISettingsService` | 真 | 原子更新/备份恢复/只读 DeviceId/清理错误已测试，音量经组合工具恢复；外部播放器验证在 P7 | 2026-10-02 |
 | `ILibraryPreferences` | 真 | 文件持久化、账号/库隔离、通知和重启恢复已测试 | 2026-10-02 |
-| `IPlaybackService` / `IPlaybackSession` | 真 | 准备/候选/连播/重试/上报/转码清理已测试，真实 libmpv Debug / AOT 组合冒烟通过；真实服务器人工验收待用户 | 2026-10-02 |
+| `IPlaybackService` / `IPlaybackSession` | 已测试 | 准备/候选/连播/重试/上报/转码清理已测试，真实 libmpv Debug / AOT 组合冒烟通过；用户确认 P3 真实服务器验收通过 | 2026-10-02 |
 | `VideoSurface`（`Attach` / `Detach`） | 真 | 公开入口支持 Demo 和真实 composition，会话重试后重绑、HDR/尺寸、销毁前 UI 解绑均已接入；实际 Debug / AOT 冒烟通过，人工显示检查沿用 P0 遗留项 | 2026-10-02 |
 
 ## P1a 契约与假服务
@@ -30,7 +30,7 @@ R-003 外壳交接：启动解析 AppShutdownCoordinator（安装 WinUI 异常�
 
 2026-10-02：真实播放准备、候选回退、外部字幕、转码清理、actor 会话、真实倍速上报、StopOutbox 和缓存失效已接入。LibMpvEngine 使用真实 entryId、原生确认及类型化事件，新增六项无头原生测试；VideoSurface 内部桥接负责交换链、HDR、尺寸与重试后重绑，Contracts v1 无破坏性改动。实现及验收命令见 [P3 播放引擎与会话](../decisions/P3-playback.md)。
 
-全套 237/237 测试通过，无失败或跳过（Core 231、Player 6）；Debug 构建 / Native AOT 发布零警告零错误，本地 composition 播放冒烟均正常退出，并验证切集/重试后的三次停止保持 1.5 倍速。人工真实服务器的位置/倍速、强制转码、整季连播及断网补发尚未确认，P3 进度保持未勾选。Video Lab 已可“恢复 Emby 会话”后按 itemId 播放，人工输入不落盘。R-015 的测试发现问题同批修复，前端合并后可直接运行 dotnet test；最终外壳关闭要求见 R-016。
+全套 237/237 测试通过，无失败或跳过（Core 231、Player 6）；Debug 构建 / Native AOT 发布零警告零错误，本地 composition 播放冒烟均正常退出，并验证切集/重试后的三次停止保持 1.5 倍速。2026-10-02 用户回复“验收通过，继续”，确认 P3 真实服务器的位置/倍速、强制转码与停止清理、整季连播及断网补发通过，P3 已勾选。Video Lab 可“恢复 Emby 会话”后按 itemId 播放，人工输入不落盘。R-015 的测试发现问题同批修复；最终外壳关闭要求见 R-016。
 
 ## P0 骨架与视频验证
 

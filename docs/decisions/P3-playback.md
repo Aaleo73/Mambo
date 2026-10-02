@@ -1,6 +1,6 @@
 # P3 播放引擎与会话
 
-日期：2026-10-02。状态：实现与自动验证完成，真实服务器人工验收待用户进行；PLAN 的 P3 暂不勾选。
+日期：2026-10-02。状态：实现、自动验证与真实服务器人工验收通过；用户回复“验收通过，继续”，PLAN 的 P3 已勾选。
 
 ## 实现与边界
 
@@ -44,6 +44,8 @@ Claude 的 R-015 同批修复：中央启用 `UseMicrosoftTestingPlatformRunner`
 同批调查捕获 Windows File.Replace 的 80070497 / ERROR_UNABLE_TO_REMOVE_REPLACED（1175）；此错误保持原文件与替换文件的名称，可做 25/50/100ms 有界、可取消重试。1176 / 1177 不按此处理。AtomicFile / Outbox 边界测试额外重复 20 轮、共 380 次通过；取消测试确认原件保留、临时文件删除。原 P1 未记录 HRESULT 的写入失败仍不能追溯断言为同一原因。错误语义见 [Microsoft ReplaceFileW 文档](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-replacefilew)。
 
 ## 真实服务器验收【需用户】
+
+2026-10-02：用户确认以下 P3 验收通过，包括位置/倍速上报、强制转码及停止清理、整季连播、断网后停止补发。P0 原有未通过与待测遗留项不因本次确认改变。以下步骤保留供复验。
 
 1. 运行 `publish/aot/Mambo.exe`，在 Video Lab 点“恢复 Emby 会话”，输入本机 Emby 条目的 itemId，再点“按 itemId 播放”。沿用 P1 保存的 Windows 凭据；恢复失败时用 P1 的本地登录工具重新登录。
 2. 选择电影或单集，暂停、拖动进度、切换 1.5 倍速，再停止；在 Emby 后台核对 Playing / Progress / Stopped 的位置及倍速。

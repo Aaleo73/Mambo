@@ -52,6 +52,71 @@
             <SolidColorBrush x:Key="ScrollBarThumbBrush" Color="#29000000"/>
             <AcrylicBrush x:Key="PopupBackgroundBrush" TintColor="#FCFDFF" TintOpacity="0.86" FallbackColor="#FFFCFDFF"/>
             <Color x:Key="PopupShadowColor">#290F172A</Color>
+            <!-- WinUI 轻量样式覆盖：别名必须与被引用的画刷在同一个主题字典里，否则深色会解析成浅色 -->
+            <StaticResource x:Key="ButtonBackground" ResourceKey="ControlFillBrush"/>
+            <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="ControlFillHoverBrush"/>
+            <StaticResource x:Key="ButtonBackgroundPressed" ResourceKey="ControlFillPressedBrush"/>
+            <StaticResource x:Key="ButtonBackgroundDisabled" ResourceKey="ControlFillBrush"/>
+            <StaticResource x:Key="ButtonForeground" ResourceKey="TextSecondaryBrush"/>
+            <StaticResource x:Key="ButtonForegroundPointerOver" ResourceKey="TextPrimaryBrush"/>
+            <StaticResource x:Key="ButtonForegroundPressed" ResourceKey="TextPrimaryBrush"/>
+            <StaticResource x:Key="ButtonForegroundDisabled" ResourceKey="TextDisabledBrush"/>
+            <StaticResource x:Key="ButtonBorderBrush" ResourceKey="ControlStrokeBrush"/>
+            <StaticResource x:Key="ButtonBorderBrushPointerOver" ResourceKey="ControlStrokeBrush"/>
+            <StaticResource x:Key="ButtonBorderBrushPressed" ResourceKey="ControlStrokeBrush"/>
+            <StaticResource x:Key="ButtonBorderBrushDisabled" ResourceKey="ControlStrokeBrush"/>
+            <StaticResource x:Key="AccentButtonBackground" ResourceKey="AccentBrush"/>
+            <StaticResource x:Key="AccentButtonBackgroundPointerOver" ResourceKey="AccentHoverBrush"/>
+            <StaticResource x:Key="AccentButtonBackgroundPressed" ResourceKey="AccentPressedBrush"/>
+            <StaticResource x:Key="AccentButtonBackgroundDisabled" ResourceKey="ControlFillBrush"/>
+            <StaticResource x:Key="AccentButtonForeground" ResourceKey="TextOnAccentBrush"/>
+            <StaticResource x:Key="AccentButtonForegroundPointerOver" ResourceKey="TextOnAccentBrush"/>
+            <StaticResource x:Key="AccentButtonForegroundPressed" ResourceKey="TextOnAccentBrush"/>
+            <StaticResource x:Key="AccentButtonForegroundDisabled" ResourceKey="TextDisabledBrush"/>
+            <StaticResource x:Key="AccentButtonBorderBrush" ResourceKey="AccentBrush"/>
+            <StaticResource x:Key="AccentButtonBorderBrushPointerOver" ResourceKey="AccentHoverBrush"/>
+            <StaticResource x:Key="AccentButtonBorderBrushPressed" ResourceKey="AccentPressedBrush"/>
+            <StaticResource x:Key="AccentButtonBorderBrushDisabled" ResourceKey="ControlStrokeBrush"/>
+            <StaticResource x:Key="SubtleButtonBackgroundPointerOver" ResourceKey="SubtleFillHoverBrush"/>
+            <StaticResource x:Key="SubtleButtonBackgroundPressed" ResourceKey="SubtleFillPressedBrush"/>
+            <StaticResource x:Key="SubtleButtonForeground" ResourceKey="TextPrimaryBrush"/>
+            <StaticResource x:Key="SubtleButtonForegroundPointerOver" ResourceKey="TextPrimaryBrush"/>
+            <StaticResource x:Key="SubtleButtonForegroundPressed" ResourceKey="TextPrimaryBrush"/>
+            <StaticResource x:Key="TextControlBackground" ResourceKey="InputFillBrush"/>
+            <StaticResource x:Key="TextControlBackgroundPointerOver" ResourceKey="InputFillHoverBrush"/>
+            <StaticResource x:Key="TextControlBackgroundFocused" ResourceKey="InputFillFocusedBrush"/>
+            <StaticResource x:Key="TextControlBorderBrush" ResourceKey="InputStrokeBrush"/>
+            <StaticResource x:Key="TextControlBorderBrushPointerOver" ResourceKey="InputStrokeBrush"/>
+            <StaticResource x:Key="TextControlBorderBrushFocused" ResourceKey="InputStrokeFocusedBrush"/>
+            <StaticResource x:Key="TextControlForeground" ResourceKey="TextPrimaryBrush"/>
+            <StaticResource x:Key="TextControlForegroundPointerOver" ResourceKey="TextPrimaryBrush"/>
+            <StaticResource x:Key="TextControlForegroundFocused" ResourceKey="TextPrimaryBrush"/>
+            <StaticResource x:Key="TextControlPlaceholderForeground" ResourceKey="TextTertiaryBrush"/>
+            <StaticResource x:Key="TextControlPlaceholderForegroundPointerOver" ResourceKey="TextTertiaryBrush"/>
+            <StaticResource x:Key="TextControlPlaceholderForegroundFocused" ResourceKey="TextTertiaryBrush"/>
+            <StaticResource x:Key="ToggleSwitchFillOn" ResourceKey="AccentBrush"/>
+            <StaticResource x:Key="ToggleSwitchFillOnPointerOver" ResourceKey="AccentHoverBrush"/>
+            <StaticResource x:Key="ToggleSwitchFillOnPressed" ResourceKey="AccentPressedBrush"/>
+            <StaticResource x:Key="ToggleSwitchStrokeOn" ResourceKey="AccentBrush"/>
+            <StaticResource x:Key="ToggleSwitchStrokeOnPointerOver" ResourceKey="AccentHoverBrush"/>
+            <StaticResource x:Key="ToggleSwitchStrokeOnPressed" ResourceKey="AccentPressedBrush"/>
+            <StaticResource x:Key="ToggleSwitchFillOff" ResourceKey="SwitchOffBrush"/>
+            <StaticResource x:Key="ToggleSwitchFillOffPointerOver" ResourceKey="SwitchOffBrush"/>
+            <StaticResource x:Key="ToggleSwitchFillOffPressed" ResourceKey="SwitchOffBrush"/>
+            <StaticResource x:Key="ToggleSwitchStrokeOff" ResourceKey="SwitchOffBrush"/>
+            <StaticResource x:Key="ToggleSwitchStrokeOffPointerOver" ResourceKey="SwitchOffBrush"/>
+            <StaticResource x:Key="ToggleSwitchStrokeOffPressed" ResourceKey="SwitchOffBrush"/>
+            <SolidColorBrush x:Key="ToggleSwitchKnobFillOff" Color="#FFFFFFFF"/>
+            <SolidColorBrush x:Key="ToggleSwitchKnobFillOffPointerOver" Color="#FFFFFFFF"/>
+            <SolidColorBrush x:Key="ToggleSwitchKnobFillOffPressed" Color="#FFFFFFFF"/>
+            <SolidColorBrush x:Key="ToggleSwitchKnobFillOn" Color="#FFFFFFFF"/>
+            <SolidColorBrush x:Key="ToggleSwitchKnobFillOnPointerOver" Color="#FFFFFFFF"/>
+            <SolidColorBrush x:Key="ToggleSwitchKnobFillOnPressed" Color="#FFFFFFFF"/>
+            <StaticResource x:Key="MenuFlyoutPresenterBackground" ResourceKey="PopupBackgroundBrush"/>
+            <StaticResource x:Key="MenuFlyoutPresenterBorderBrush" ResourceKey="PopupStrokeBrush"/>
+            <StaticResource x:Key="MenuFlyoutItemBackgroundPointerOver" ResourceKey="SubtleFillHoverBrush"/>
+            <StaticResource x:Key="MenuFlyoutItemBackgroundPressed" ResourceKey="SubtleFillPressedBrush"/>
+            <StaticResource x:Key="FocusStrokeColorOuterBrush" ResourceKey="FocusStrokeBrush"/>
         </ResourceDictionary>
         <ResourceDictionary x:Key="Default">
             <SolidColorBrush x:Key="TextPrimaryBrush" Color="#F0FFFFFF"/>
@@ -102,6 +167,71 @@
             <SolidColorBrush x:Key="ScrollBarThumbBrush" Color="#3DFFFFFF"/>
             <AcrylicBrush x:Key="PopupBackgroundBrush" TintColor="#2C2E34" TintOpacity="0.86" FallbackColor="#FF2C2E34"/>
             <Color x:Key="PopupShadowColor">#73000000</Color>
+            <!-- WinUI 轻量样式覆盖：别名必须与被引用的画刷在同一个主题字典里，否则深色会解析成浅色 -->
+            <StaticResource x:Key="ButtonBackground" ResourceKey="ControlFillBrush"/>
+            <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="ControlFillHoverBrush"/>
+            <StaticResource x:Key="ButtonBackgroundPressed" ResourceKey="ControlFillPressedBrush"/>
+            <StaticResource x:Key="ButtonBackgroundDisabled" ResourceKey="ControlFillBrush"/>
+            <StaticResource x:Key="ButtonForeground" ResourceKey="TextSecondaryBrush"/>
+            <StaticResource x:Key="ButtonForegroundPointerOver" ResourceKey="TextPrimaryBrush"/>
+            <StaticResource x:Key="ButtonForegroundPressed" ResourceKey="TextPrimaryBrush"/>
+            <StaticResource x:Key="ButtonForegroundDisabled" ResourceKey="TextDisabledBrush"/>
+            <StaticResource x:Key="ButtonBorderBrush" ResourceKey="ControlStrokeBrush"/>
+            <StaticResource x:Key="ButtonBorderBrushPointerOver" ResourceKey="ControlStrokeBrush"/>
+            <StaticResource x:Key="ButtonBorderBrushPressed" ResourceKey="ControlStrokeBrush"/>
+            <StaticResource x:Key="ButtonBorderBrushDisabled" ResourceKey="ControlStrokeBrush"/>
+            <StaticResource x:Key="AccentButtonBackground" ResourceKey="AccentBrush"/>
+            <StaticResource x:Key="AccentButtonBackgroundPointerOver" ResourceKey="AccentHoverBrush"/>
+            <StaticResource x:Key="AccentButtonBackgroundPressed" ResourceKey="AccentPressedBrush"/>
+            <StaticResource x:Key="AccentButtonBackgroundDisabled" ResourceKey="ControlFillBrush"/>
+            <StaticResource x:Key="AccentButtonForeground" ResourceKey="TextOnAccentBrush"/>
+            <StaticResource x:Key="AccentButtonForegroundPointerOver" ResourceKey="TextOnAccentBrush"/>
+            <StaticResource x:Key="AccentButtonForegroundPressed" ResourceKey="TextOnAccentBrush"/>
+            <StaticResource x:Key="AccentButtonForegroundDisabled" ResourceKey="TextDisabledBrush"/>
+            <StaticResource x:Key="AccentButtonBorderBrush" ResourceKey="AccentBrush"/>
+            <StaticResource x:Key="AccentButtonBorderBrushPointerOver" ResourceKey="AccentHoverBrush"/>
+            <StaticResource x:Key="AccentButtonBorderBrushPressed" ResourceKey="AccentPressedBrush"/>
+            <StaticResource x:Key="AccentButtonBorderBrushDisabled" ResourceKey="ControlStrokeBrush"/>
+            <StaticResource x:Key="SubtleButtonBackgroundPointerOver" ResourceKey="SubtleFillHoverBrush"/>
+            <StaticResource x:Key="SubtleButtonBackgroundPressed" ResourceKey="SubtleFillPressedBrush"/>
+            <StaticResource x:Key="SubtleButtonForeground" ResourceKey="TextPrimaryBrush"/>
+            <StaticResource x:Key="SubtleButtonForegroundPointerOver" ResourceKey="TextPrimaryBrush"/>
+            <StaticResource x:Key="SubtleButtonForegroundPressed" ResourceKey="TextPrimaryBrush"/>
+            <StaticResource x:Key="TextControlBackground" ResourceKey="InputFillBrush"/>
+            <StaticResource x:Key="TextControlBackgroundPointerOver" ResourceKey="InputFillHoverBrush"/>
+            <StaticResource x:Key="TextControlBackgroundFocused" ResourceKey="InputFillFocusedBrush"/>
+            <StaticResource x:Key="TextControlBorderBrush" ResourceKey="InputStrokeBrush"/>
+            <StaticResource x:Key="TextControlBorderBrushPointerOver" ResourceKey="InputStrokeBrush"/>
+            <StaticResource x:Key="TextControlBorderBrushFocused" ResourceKey="InputStrokeFocusedBrush"/>
+            <StaticResource x:Key="TextControlForeground" ResourceKey="TextPrimaryBrush"/>
+            <StaticResource x:Key="TextControlForegroundPointerOver" ResourceKey="TextPrimaryBrush"/>
+            <StaticResource x:Key="TextControlForegroundFocused" ResourceKey="TextPrimaryBrush"/>
+            <StaticResource x:Key="TextControlPlaceholderForeground" ResourceKey="TextTertiaryBrush"/>
+            <StaticResource x:Key="TextControlPlaceholderForegroundPointerOver" ResourceKey="TextTertiaryBrush"/>
+            <StaticResource x:Key="TextControlPlaceholderForegroundFocused" ResourceKey="TextTertiaryBrush"/>
+            <StaticResource x:Key="ToggleSwitchFillOn" ResourceKey="AccentBrush"/>
+            <StaticResource x:Key="ToggleSwitchFillOnPointerOver" ResourceKey="AccentHoverBrush"/>
+            <StaticResource x:Key="ToggleSwitchFillOnPressed" ResourceKey="AccentPressedBrush"/>
+            <StaticResource x:Key="ToggleSwitchStrokeOn" ResourceKey="AccentBrush"/>
+            <StaticResource x:Key="ToggleSwitchStrokeOnPointerOver" ResourceKey="AccentHoverBrush"/>
+            <StaticResource x:Key="ToggleSwitchStrokeOnPressed" ResourceKey="AccentPressedBrush"/>
+            <StaticResource x:Key="ToggleSwitchFillOff" ResourceKey="SwitchOffBrush"/>
+            <StaticResource x:Key="ToggleSwitchFillOffPointerOver" ResourceKey="SwitchOffBrush"/>
+            <StaticResource x:Key="ToggleSwitchFillOffPressed" ResourceKey="SwitchOffBrush"/>
+            <StaticResource x:Key="ToggleSwitchStrokeOff" ResourceKey="SwitchOffBrush"/>
+            <StaticResource x:Key="ToggleSwitchStrokeOffPointerOver" ResourceKey="SwitchOffBrush"/>
+            <StaticResource x:Key="ToggleSwitchStrokeOffPressed" ResourceKey="SwitchOffBrush"/>
+            <SolidColorBrush x:Key="ToggleSwitchKnobFillOff" Color="#FFFFFFFF"/>
+            <SolidColorBrush x:Key="ToggleSwitchKnobFillOffPointerOver" Color="#FFFFFFFF"/>
+            <SolidColorBrush x:Key="ToggleSwitchKnobFillOffPressed" Color="#FFFFFFFF"/>
+            <SolidColorBrush x:Key="ToggleSwitchKnobFillOn" Color="#FFFFFFFF"/>
+            <SolidColorBrush x:Key="ToggleSwitchKnobFillOnPointerOver" Color="#FFFFFFFF"/>
+            <SolidColorBrush x:Key="ToggleSwitchKnobFillOnPressed" Color="#FFFFFFFF"/>
+            <StaticResource x:Key="MenuFlyoutPresenterBackground" ResourceKey="PopupBackgroundBrush"/>
+            <StaticResource x:Key="MenuFlyoutPresenterBorderBrush" ResourceKey="PopupStrokeBrush"/>
+            <StaticResource x:Key="MenuFlyoutItemBackgroundPointerOver" ResourceKey="SubtleFillHoverBrush"/>
+            <StaticResource x:Key="MenuFlyoutItemBackgroundPressed" ResourceKey="SubtleFillPressedBrush"/>
+            <StaticResource x:Key="FocusStrokeColorOuterBrush" ResourceKey="FocusStrokeBrush"/>
         </ResourceDictionary>
     </ResourceDictionary.ThemeDictionaries>
 
@@ -174,6 +304,9 @@
     <x:Double x:Key="TitleBarHeight">40</x:Double>
     <x:Double x:Key="SidebarWidth">208</x:Double>
     <x:Double x:Key="CaptionButtonWidth">46</x:Double>
+    <GridLength x:Key="TitleBarHeightGridLength">40</GridLength>
+    <GridLength x:Key="SidebarGridLength">208</GridLength>
+    <GridLength x:Key="LandscapeHeightGridLength">169</GridLength>
     <Thickness x:Key="ContentMargin">0,12,0,0</Thickness>
     <Thickness x:Key="ContentBorderThickness">1,1,0,0</Thickness>
     <Thickness x:Key="PagePadding">40,32,40,56</Thickness>

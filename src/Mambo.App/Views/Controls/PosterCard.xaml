@@ -1,0 +1,47 @@
+<controls:CardBase
+    x:Class="Mambo.App.Views.Controls.PosterCard"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:images="using:Mambo.App.Images"
+    xmlns:controls="using:Mambo.App.Views.Controls"
+    Width="{StaticResource PosterWidth}">
+    <Button x:Name="Root" Style="{StaticResource CardButtonStyle}" Click="OnClick" AutomationProperties.Name="{x:Bind Item.Title, Mode=OneWay}"
+            PointerEntered="OnPointerEntered" PointerExited="OnPointerExited" PointerCanceled="OnPointerExited">
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup x:Name="HoverStates">
+                <VisualState x:Name="Rest"/>
+                <VisualState x:Name="Hover">
+                    <VisualState.Setters><Setter Target="Stroke.BorderBrush" Value="{ThemeResource CardStrokeHoverBrush}"/></VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+        <StackPanel Spacing="8">
+            <Grid x:Name="Art" Height="{StaticResource PosterHeight}" CornerRadius="{StaticResource PosterCornerRadius}" Background="{ThemeResource ImagePlaceholderBrush}">
+                <images:RemoteImage Source="{x:Bind Item.Image, Mode=OneWay}" DecodeWidth="{StaticResource PosterWidth}" CornerRadius="{StaticResource PosterCornerRadius}"/>
+                <Border x:Name="Stroke" CornerRadius="{StaticResource PosterCornerRadius}" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeBrush}"/>
+                <Border Margin="8" Height="20" Padding="6,0" HorizontalAlignment="Left" VerticalAlignment="Top" CornerRadius="{StaticResource CornerRadiusXS}"
+                        Background="#9E000000" Visibility="{x:Bind Item.HasRating, Mode=OneWay}">
+                    <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
+                        <FontIcon Glyph="&#xE735;" FontSize="10" Foreground="{ThemeResource RatingBrush}"/>
+                        <TextBlock Style="{StaticResource BadgeTextStyle}" Text="{x:Bind Item.RatingText, Mode=OneWay}"/>
+                    </StackPanel>
+                </Border>
+                <Border Margin="8" Width="22" Height="22" CornerRadius="11" HorizontalAlignment="Right" VerticalAlignment="Top"
+                        Background="#9E000000" Visibility="{x:Bind Item.Played, Mode=OneWay}">
+                    <FontIcon Glyph="&#xE73E;" FontSize="11" Foreground="#FFFFFFFF"/>
+                </Border>
+                <Grid Margin="8" Height="4" VerticalAlignment="Bottom" CornerRadius="2" Background="#52FFFFFF" Visibility="{x:Bind Item.HasProgress, Mode=OneWay}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="{x:Bind Item.ProgressDone, Mode=OneWay}"/>
+                        <ColumnDefinition Width="{x:Bind Item.ProgressRest, Mode=OneWay}"/>
+                    </Grid.ColumnDefinitions>
+                    <Border CornerRadius="2" Background="#FFFFFFFF"/>
+                </Grid>
+            </Grid>
+            <StackPanel Spacing="2" Padding="2,0">
+                <TextBlock Style="{StaticResource CardTitleTextStyle}" Text="{x:Bind Item.Title, Mode=OneWay}"/>
+                <TextBlock Style="{StaticResource CardSubtitleTextStyle}" Text="{x:Bind Item.Subtitle, Mode=OneWay}"/>
+            </StackPanel>
+        </StackPanel>
+    </Button>
+</controls:CardBase>

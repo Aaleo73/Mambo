@@ -2,7 +2,5 @@
     x:Class="Mambo.App.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:debug="using:Mambo.App.Debug"
-    Title="Mambo · 视频技术验证">
-    <debug:VideoLab x:Name="Lab" />
+    Title="Mambo">
 </Window>

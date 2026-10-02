@@ -1,0 +1,48 @@
+<UserControl
+    x:Class="Mambo.App.Shell.ToastHost"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:shell="using:Mambo.App.Shell">
+    <ItemsControl ItemsSource="{x:Bind Toasts.Items}" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,20,20">
+        <ItemsControl.ItemContainerTransitions>
+            <TransitionCollection>
+                <AddDeleteThemeTransition/>
+            </TransitionCollection>
+        </ItemsControl.ItemContainerTransitions>
+        <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+                <StackPanel Spacing="10"/>
+            </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="shell:ToastItem">
+                <Border Style="{StaticResource PopupSurfaceStyle}" Width="360" Padding="16,14,12,14" Tag="{x:Bind}"
+                        PointerEntered="OnPointerEntered" PointerExited="OnPointerExited">
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid Margin="0,1,0,0" VerticalAlignment="Top">
+                            <FontIcon Glyph="{x:Bind Glyph}" FontSize="18" Foreground="{ThemeResource AccentBrush}" Visibility="{x:Bind IsInfo}"/>
+                            <FontIcon Glyph="{x:Bind Glyph}" FontSize="18" Foreground="{ThemeResource SuccessBrush}" Visibility="{x:Bind IsSuccess}"/>
+                            <FontIcon Glyph="{x:Bind Glyph}" FontSize="18" Foreground="{ThemeResource WarningBrush}" Visibility="{x:Bind IsWarning}"/>
+                            <FontIcon Glyph="{x:Bind Glyph}" FontSize="18" Foreground="{ThemeResource DangerBrush}" Visibility="{x:Bind IsError}"/>
+                        </Grid>
+                        <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center">
+                            <TextBlock Style="{StaticResource BodyTextStyle}" Text="{x:Bind Text}" TextWrapping="Wrap" TextTrimming="None"/>
+                            <Button Style="{StaticResource SoftButtonStyle}" Height="{StaticResource ControlHeightSmall}" Padding="12,0"
+                                    HorizontalAlignment="Left" Content="{x:Bind ActionText}" Visibility="{x:Bind HasAction}"
+                                    Tag="{x:Bind}" Click="OnActionClick"/>
+                        </StackPanel>
+                        <Button Grid.Column="2" Style="{StaticResource IconButtonStyle}" Width="24" Height="24" VerticalAlignment="Top"
+                                Foreground="{ThemeResource TextSecondaryBrush}" AutomationProperties.Name="关闭" Tag="{x:Bind}" Click="OnCloseClick">
+                            <FontIcon Glyph="&#xE711;" FontSize="10"/>
+                        </Button>
+                    </Grid>
+                </Border>
+            </DataTemplate>
+        </ItemsControl.ItemTemplate>
+    </ItemsControl>
+</UserControl>

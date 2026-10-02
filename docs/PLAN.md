@@ -1576,7 +1576,7 @@ Claude: P2（P0 期间即可开始）──► 评审契约 ──► P4（假�
 - [x] P1a 契约与假实现（Codex；2026-10-02 Claude 条件通过，R-004–R-009 已修正并测试，契约 v1 冻结；增量 R-010–R-014 完成）
 - [x] P1 Core 平台层（Codex；2026-10-02 平台实现与 174 项测试完成；Debug/AOT 组合验证通过，用户确认真实登录、列库、重启恢复与凭据检查通过）
 - [x] P2 设计稿（Claude；关卡 ②：2026-10-02 用户确认定稿；应用图标按用户决定暂缓；结论见 `docs/decisions/P2-design.md`）
-- [ ] P3 播放引擎与会话（Codex；2026-10-02 实现、237 项测试与 Debug/AOT composition 冒烟完成；真实服务器人工验收待用户，见 `docs/decisions/P3-playback.md`）
+- [x] P3 播放引擎与会话（Codex；2026-10-02 实现、237 项测试与 Debug/AOT composition 冒烟完成；用户确认真实服务器验收通过，见 `docs/decisions/P3-playback.md`）
 - [ ] P4 外壳与浏览页面（Claude）
 - [ ] P5 播放页 UI（Claude）
 - [ ] P6 打磨与加固（双方）
