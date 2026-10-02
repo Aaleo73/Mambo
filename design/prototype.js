@@ -402,11 +402,10 @@ function renderTitlebar() {
     <div class="tb-center">${center}</div>
     <div class="tb-right">
       <button class="cap-btn" data-act="noop" title="最小化">${capGlyph('min')}</button>
-      <button class="cap-btn anno-host" data-act="snap" data-d="D1" title="最大化（悬停出现贴靠布局）">${capGlyph('max')}</button>
+      <button class="cap-btn anno-host" data-act="snap" data-d="D1" title="最大化">${capGlyph('max')}</button>
       <button class="cap-btn cap-close" data-act="win-close" title="关闭">${capGlyph('close')}</button>
       ${S.snapOpen ? `<div class="snap-flyout">${[['1fr 1fr', 2], ['2fr 1fr', 2], ['1fr 1fr 1fr', 3]].map(([cols, n]) =>
-        `<div class="snap-cell" style="grid-template-columns:${cols}">${'<i></i>'.repeat(n)}</div>`).join('')}
-        <div class="snap-note">贴靠布局由系统提供，最大化按钮登记为非客户区后自动出现。</div></div>` : ''}
+        `<div class="snap-cell" style="grid-template-columns:${cols}">${'<i></i>'.repeat(n)}</div>`).join('')}</div>` : ''}
     </div>`;
 }
 
@@ -509,16 +508,14 @@ function homeSkeleton() {
     <section class="rail"><div class="rail-head"><div class="skel skel-line" style="width:120px;height:18px"></div></div><div class="rail-track">${posters(8)}</div></section></div></div>`;
 }
 function homeError() {
-  return `<div class="banner">${icon('warning')}<span class="banner-text">无法连接服务器，正在显示上次缓存的内容。</span><button class="btn btn-sm" data-act="retry-home">重试</button></div>
-    <div class="state">${stateIcon('server')}<h3 class="state-title">无法连接服务器</h3><p class="state-text">请检查网络连接，或在设置里确认服务器地址。登录凭据会保留，恢复连接后自动同步。</p>
-      <div style="display:flex;gap:8px"><button class="btn btn-accent" data-act="retry-home">${icon('refresh')}重试</button><button class="btn" data-act="go-settings">打开设置</button></div></div>`;
+  return `<div class="state">${stateIcon('server')}<h3 class="state-title">无法连接服务器</h3>
+      <div class="state-actions"><button class="btn btn-accent" data-act="retry-home">${icon('refresh')}重试</button><button class="btn" data-act="go-settings">打开设置</button></div></div>`;
 }
 const stateIcon = name => `<div class="state-icon">${icon(name)}</div>`;
 function pageOnboard() {
   const chars = (s, cls = '') => [...s].map(c => `<span class="ch ${cls}">${c === ' ' ? '&nbsp;' : esc(c)}</span>`).join('');
   return `<div class="onboard">
-    <h1 class="onboard-title" data-act="go-settings"><span class="line">${chars('前往连接你的')}</span><span class="line">${chars('Emby', 'accent')}${chars(' 服务器')}</span></h1>
-    <div class="onboard-sub">${icon('info')}连接后即可浏览媒体库、继续上次的播放。</div></div>`;
+    <h1 class="onboard-title" data-act="go-settings"><span class="line">${chars('前往连接你的')}</span><span class="line">${chars('Emby', 'accent')}${chars(' 服务器')}</span></h1></div>`;
 }
 
 /* ================= 页面：最近播放、资料库、搜索 ================= */
@@ -557,24 +554,24 @@ function pageLibrary() {
       <div class="filter-row"><span class="filter-label">类型</span><div class="chips">${chipGroup('genre', genres)}</div></div>
       <div class="filter-row"><span class="filter-label">年份</span><div class="chips">${chipGroup('decade', decades, d => `${d} 年代`)}</div></div>
       <div class="filter-row"><span class="filter-label">分级</span><div class="chips">${chipGroup('cert', certs)}</div></div>
-      <div class="filter-foot"><span>同一组内满足任一即可，不同组需同时满足。</span>${fc ? `<button class="link-btn" data-act="filter-reset">重置筛选</button>` : '<span></span>'}</div></div>` : '';
+      ${fc ? `<div class="filter-foot"><button class="link-btn" data-act="filter-reset">重置筛选</button></div>` : ''}</div>` : '';
   const count = S.libVariant === 'empty' ? '0 项' : fc ? `${items.length} 项` : `${lib.count.toLocaleString('zh-CN')} 项`;
   const grid = items.length ? `<div class="grid grid-poster">${items.map((i, k) => posterCard(i, S._enter && k < 24, k)).join('')}</div>
-      <div class="load-more">${lib.id === 'movies' && !fc ? `<span class="p-spinner" style="width:14px;height:14px;border-width:2px;border-color:var(--skeleton);border-top-color:var(--text-2)"></span>正在加载更多（已加载 ${items.length} / 5,000）` : '已经到底了'}</div>`
-    : `<div class="state">${stateIcon('filter')}<h3 class="state-title">当前筛选没有内容</h3><p class="state-text">换一个类型或年代试试，或者清除全部筛选条件。</p><button class="btn btn-accent" data-act="filter-reset">重置筛选</button></div>`;
+      ${lib.id === 'movies' && !fc ? `<div class="load-more"><span class="p-spinner" style="width:14px;height:14px;border-width:2px;border-color:var(--skeleton);border-top-color:var(--text-2)"></span></div>` : ''}`
+    : `<div class="state">${stateIcon('filter')}<h3 class="state-title">当前筛选没有内容</h3><div class="state-actions"><button class="btn btn-accent" data-act="filter-reset">重置筛选</button></div></div>`;
   return `<div class="page">${pageHead('LIBRARY', lib.name, count, actions)}${panel}${grid}</div>`;
 }
 function pageSearch() {
   const q = S.searchText.trim();
-  if (!q) return `<div class="page">${pageHead('SEARCH', '搜索')}<div class="state">${stateIcon('search')}<h3 class="state-title">输入片名开始搜索</h3><p class="state-text">在左侧搜索框输入关键词后按 Enter。也可以按 Ctrl+F 或 / 快速聚焦搜索框。</p></div></div>`;
+  if (!q) return `<div class="page">${pageHead('SEARCH', '搜索')}<div class="state">${stateIcon('search')}<h3 class="state-title">输入片名开始搜索</h3></div></div>`;
   const groups = LIBS.map(l => ({ lib: l, items: l.items().filter(i => i.title.includes(q)) })).filter(g => g.items.length);
   const body = groups.length ? groups.map(g => {
     const shown = S.searchMore[g.lib.id] ? g.items : g.items.slice(0, 4);
     return `<section class="search-group"><div class="group-head"><h2 class="group-title">${g.lib.name}</h2><span class="group-count">${g.items.length} 项</span></div>
       <div class="grid grid-landscape">${shown.map(i => landscapeCard(i, { mark: q })).join('')}</div>
       ${g.items.length > shown.length ? `<div class="more-row"><button class="btn" data-act="search-more" data-lib="${g.lib.id}">加载更多</button></div>` : ''}</section>`;
-  }).join('') : `<div class="state">${stateIcon('search')}<h3 class="state-title">没有找到“${esc(q)}”</h3><p class="state-text">检查一下错别字，或换个关键词。单集会按所属剧集显示。</p></div>`;
-  return `<div class="page">${pageHead('SEARCH', '搜索')}<p class="page-sub" style="margin-top:-12px;margin-bottom:22px">“${esc(q)}”的搜索结果 · 单集已合并到所属剧集</p>${body}</div>`;
+  }).join('') : `<div class="state">${stateIcon('search')}<h3 class="state-title">没有找到“${esc(q)}”</h3></div>`;
+  return `<div class="page">${pageHead('SEARCH', '搜索')}<p class="page-sub" style="margin-top:-12px;margin-bottom:22px">“${esc(q)}”的搜索结果</p>${body}</div>`;
 }
 S.searchMore = {};
 
@@ -623,39 +620,33 @@ function pageDetail() {
 
 /* ================= 页面：设置 ================= */
 function pageSettings() {
-  // 内容与分组沿用第 1 版（每行：图标 + 标题 + 说明，控件在右），样式按原项目。
   const server = S.loggedIn
-    ? `<div class="set-card"><div class="avatar">演</div><div class="set-text"><div class="set-title">演示用户</div><div class="set-desc">已连接到 demo.example · Emby 4.9</div></div>
+    ? `<div class="set-card"><div class="avatar">演</div><div class="set-text"><div class="set-title">演示用户</div><div class="set-desc">demo.example</div></div>
         <div class="set-control"><button class="btn btn-danger-text" data-act="logout">${icon('logout', 'ico-14')}断开连接</button></div></div>`
-    : `<div class="set-card col"><div class="set-row">${icon('server', 'set-icon')}<div class="set-text"><div class="set-title">连接 Emby 服务器</div><div class="set-desc">未填写协议时将使用 HTTPS。仅在可信网络中明确填写 http://。</div></div></div>
+    : `<div class="set-card col"><div class="set-row">${icon('server', 'set-icon')}<div class="set-text"><div class="set-title">连接 Emby 服务器</div></div></div>
         <div class="form-grid"><label class="field"><span class="field-label">服务器地址</span><input class="input" placeholder="https://your-emby-server" value="https://demo.example"></label>
           <label class="field"><span class="field-label">用户名</span><input class="input" placeholder="用户名" value="演示用户"></label>
           <label class="field"><span class="field-label">密码</span><input class="input" type="password" placeholder="可以为空"></label>
           <button class="btn btn-accent" data-act="login" ${S.connecting ? 'disabled' : ''} style="min-width:96px">${S.connecting ? '连接中…' : '连接'}</button></div></div>`;
-  const mpvStatus = { none: ['', '留空表示只使用内置播放器。'], ok: ['ok', '已批准使用此 mpv（外部窗口可用）'], bad: ['warn', '未找到该路径下的 mpv 可执行文件，将使用内置播放器'], checking: ['', '正在校验…'] }[S.mpvStatus];
+  const mpvStatus = { ok: ['ok', 'success', '已验证'], bad: ['warn', 'warning', '未找到 mpv.exe'], checking: ['', 'info', '正在验证…'] }[S.mpvStatus];
   const hdrLabel = { auto: '自动', always: '始终 HDR', off: '关闭' }[S.hdr];
   const seg = (act, key, value, label, disabled = false) => `<button class="seg ${value === key ? 'on' : ''}" data-act="${act}" data-mode="${key}" ${disabled ? 'disabled' : ''}>${label}</button>`;
-  const row = (ico, title, desc, control) => `<div class="set-card">${icon(ico, 'set-icon')}<div class="set-text"><div class="set-title">${title}</div><div class="set-desc">${desc}</div></div><div class="set-control">${control}</div></div>`;
+  const row = (ico, title, control, sub = '') => `<div class="set-card">${icon(ico, 'set-icon')}<div class="set-text"><div class="set-title">${title}</div>${sub}</div><div class="set-control">${control}</div></div>`;
   return `<div class="page"><div class="set-wrap">${pageHead('SETTINGS', '设置')}
     <div class="set-group"><h2 class="set-group-title">服务器</h2>${server}</div>
     <div class="set-group"><h2 class="set-group-title">播放</h2>
-      ${row('display', '播放方式', '默认使用内置播放器，不必另外安装 mpv。想用独立窗口播放，请先在下面指定自己的 mpv。',
-        `<div class="segmented">${seg('mode', 'embedded', S.playbackMode, '内置播放器')}${seg('mode', 'external', S.playbackMode, '外部窗口', S.mpvStatus !== 'ok')}</div>`)}
-      <div class="set-card col"><div class="set-row">${icon('file', 'set-icon')}<div class="set-text"><div class="set-title">外部 mpv 路径</div><div class="set-desc">应用不附带 mpv 程序；只有在这里指定后才能选择"外部窗口"。</div></div>
-          <div class="set-control"><div class="path-row"><input class="input" id="mpv-path" placeholder="例如 C:\\Program Files\\mpv\\mpv.exe" value="${esc(S.mpvPath)}"><button class="btn" data-act="pick-mpv">选择文件</button></div></div></div>
-        <div class="status-line ${mpvStatus[0]}">${mpvStatus[0] === 'ok' ? icon('success', 'ico-14') : mpvStatus[0] === 'warn' ? icon('warning', 'ico-14') : icon('info', 'ico-14')}${mpvStatus[1]}</div></div>
-      ${row('sun', 'HDR', '自动：显示器开启 HDR 时直通 HDR 片源，否则映射为 SDR。',
-        `<div class="menu-anchor"><button class="select" data-act="hdr-menu"><span>${hdrLabel}</span>${icon('chevD', 'ico-14')}</button>
+      ${row('display', '播放方式', `<div class="segmented">${seg('mode', 'embedded', S.playbackMode, '内置播放器')}${seg('mode', 'external', S.playbackMode, '外部窗口', S.mpvStatus !== 'ok')}</div>`)}
+      ${row('file', '外部 mpv 路径', `<div class="path-row"><input class="input" id="mpv-path" placeholder="C:\\Program Files\\mpv\\mpv.exe" value="${esc(S.mpvPath)}"><button class="btn" data-act="pick-mpv">选择文件</button></div>`,
+        mpvStatus ? `<div class="status-line ${mpvStatus[0]}">${icon(mpvStatus[1], 'ico-14')}${mpvStatus[2]}</div>` : '')}
+      ${row('sun', 'HDR', `<div class="menu-anchor"><button class="select" data-act="hdr-menu"><span>${hdrLabel}</span>${icon('chevD', 'ico-14')}</button>
           ${S.hdrMenu ? `<div class="menu">${[['auto', '自动'], ['always', '始终 HDR'], ['off', '关闭']].map(([k, l]) => `<button class="menu-item" data-act="set-hdr" data-v="${k}"><span class="menu-check">${k === S.hdr ? icon('check') : ''}</span>${l}</button>`).join('')}</div>` : ''}</div>`)}
-      ${row('chip', '硬件解码', '使用显卡解码（d3d11va），4K 与 HEVC 播放更省电。遇到花屏可以关闭。',
-        `<button class="toggle" data-act="hwdec"><span>${S.hwdec ? '开' : '关'}</span><span class="switch ${S.hwdec ? 'on' : ''}"></span></button>`)}
-      ${row('play', '预览播放页', '用演示数据打开播放页，查看画面控制与选集的样子。', `<button class="btn" data-act="preview-player">打开预览</button>`)}</div>
+      ${row('chip', '硬件解码', `<button class="toggle" data-act="hwdec"><span>${S.hwdec ? '开' : '关'}</span><span class="switch ${S.hwdec ? 'on' : ''}"></span></button>`)}
+      ${row('play', '预览播放页', `<button class="btn" data-act="preview-player">打开</button>`)}</div>
     <div class="set-group"><h2 class="set-group-title">外观</h2>
-      ${row('theme', '主题', '跟随系统时，Windows 切换深浅色后应用会随之切换。',
-        `<div class="segmented">${seg('theme-mode', 'system', S.themeMode, '跟随系统')}${seg('theme-mode', 'light', S.themeMode, '浅色')}${seg('theme-mode', 'dark', S.themeMode, '深色')}</div>`)}</div>
+      ${row('theme', '主题', `<div class="segmented">${seg('theme-mode', 'system', S.themeMode, '跟随系统')}${seg('theme-mode', 'light', S.themeMode, '浅色')}${seg('theme-mode', 'dark', S.themeMode, '深色')}</div>`)}</div>
     <div class="set-group"><h2 class="set-group-title">关于</h2>
-      ${row('info', 'Mambo <span class="version-badge">v0.3.0</span>', '版本 0.3.0（设计稿）· Windows 上的 Emby 媒体客户端', `<button class="btn">${icon('book', 'ico-14')}第三方许可</button>`)}
-      ${row('trash', '缓存', '图片与媒体库缓存共占用 312 MB，清除后会重新下载。', `<button class="btn">${icon('folder', 'ico-14')}打开日志目录</button><button class="btn" data-act="clear-cache">清除缓存</button>`)}</div>
+      ${row('info', 'Mambo <span class="version-badge">v0.3.0</span>', `<button class="btn">${icon('book', 'ico-14')}第三方许可</button>`)}
+      ${row('trash', '缓存 <span class="set-value">312 MB</span>', `<button class="btn">${icon('folder', 'ico-14')}打开日志目录</button><button class="btn" data-act="clear-cache">清除缓存</button>`)}</div>
   </div></div>`;
 }
 
@@ -693,7 +684,7 @@ function buildEntries(id) {
 function requestPlay(id) {
   const current = S.player?.entries[S.player.index];
   if (S.player && current && current.id !== id) {
-    return openDialog({ title: '切换播放？', text: '正在播放其他项目。切换播放会结束当前播放并保存进度，是否继续？', confirm: '切换', danger: true, onConfirm: () => openPlayer(id) });
+    return openDialog({ title: '切换播放？', text: '当前播放将结束并保存进度。', confirm: '切换', danger: true, onConfirm: () => openPlayer(id) });
   }
   openPlayer(id);
 }
@@ -704,7 +695,7 @@ function openPlayer(id, state = {}) {
     chrome: true, menu: null, drawer: false, drawerStyle: S.player?.drawerStyle || 'list', upNext: false, fullscreen: false, sub: 's1', audio: 'a1', pinned: false, lastMove: Date.now(), ...state };
   S.dialog = null; S._closing = false; S._entering = true;
   render({ page: false });
-  requestAnimationFrame(() => requestAnimationFrame(() => { S._entering = false; $('#player').classList.add('open'); }));
+  requestAnimationFrame(() => requestAnimationFrame(() => { S._entering = false; if (S.player && !S._closing) $('#player').classList.add('open'); }));
   clearTimeout(openPlayer.timer);
   if (!S.player.pinned) openPlayer.timer = setTimeout(() => { if (S.player?.phase === 'opening' && !S.player.pinned) { S.player.phase = 'playing'; renderPlayer(); renderTitlebar(); } }, 1400);
 }
@@ -724,8 +715,8 @@ function renderPlayer() {
   if (!p) { el.className = 'player'; el.innerHTML = ''; return; }
   const e = p.entries[p.index], canPrev = p.index > 0, canNext = p.index < p.entries.length - 1, hasEps = p.entries.length > 1;
   let center = '';
-  if (p.phase === 'opening') center = `<div class="p-stack"><div class="p-spinner"></div><div class="p-status">正在打开</div>${p.slow ? `<div class="p-hint">片源响应较慢，仍在等待画面…</div><button class="btn btn-glass" data-act="close-player">关闭播放</button>` : ''}</div>`;
-  else if (p.phase === 'failed') center = `<div class="p-error"><div class="err-icon">${icon('error', 'ico-24')}</div><h3>这部片子暂时打不开</h3><p>无法连接到媒体服务器（服务器返回 503）。播放进度已保存。</p>
+  if (p.phase === 'opening') center = `<div class="p-stack"><div class="p-spinner"></div><div class="p-status">正在打开</div>${p.slow ? `<div class="p-hint">片源响应较慢</div><button class="btn btn-glass" data-act="close-player">关闭播放</button>` : ''}</div>`;
+  else if (p.phase === 'failed') center = `<div class="p-error"><div class="err-icon">${icon('error', 'ico-24')}</div><h3>这部片子暂时打不开</h3><p>服务器返回 503</p>
       <div class="p-error-actions"><button class="btn btn-white" data-act="p-retry">${icon('refresh')}从断点重试</button><button class="btn btn-glass" data-act="close-player">关闭</button></div></div>`;
   else if (p.buffering) center = `<div class="p-pill"><span class="p-spinner"></span>缓冲中…</div>`;
   else if (p.paused && p.chrome) center = `<button class="p-bigplay" data-act="p-toggle" aria-label="播放">${icon('play')}</button>`;
@@ -739,7 +730,7 @@ function renderPlayer() {
       : '';
   const next = canNext ? p.entries[p.index + 1] : null;
   const upnext = p.upNext && next && !p.drawer && p.phase === 'playing' ? `<div class="p-upnext anno-host" data-d="D5"><div class="p-upnext-thumb" style='background-image:${art(next.id, 'wide', next.motif)}'></div>
-      <div class="p-upnext-body"><div class="p-upnext-label">即将播放 · 本集剩余 <span class="t-left">0:15</span></div><div class="p-upnext-title">第 ${next.number} 集 · ${esc(next.title)}</div>
+      <div class="p-upnext-body"><div class="p-upnext-label">即将播放 · <span class="t-left">0:15</span></div><div class="p-upnext-title">第 ${next.number} 集 · ${esc(next.title)}</div>
         <div class="p-upnext-actions"><button class="btn btn-white btn-sm" data-act="p-next">${icon('play', 'ico-14')}立即播放</button><button class="btn btn-glass btn-sm" data-act="p-upnext-dismiss">取消</button></div></div></div>` : '';
   const drawerBody = p.drawerStyle === 'grid'
     ? `<div class="p-ep-grid">${p.entries.map((x, i) => `<button class="p-ep-num ${i === p.index ? 'current' : ''} ${x.played ? 'watched' : ''}" data-act="p-pick" data-i="${i}" title="${esc(x.title)}">${x.number}</button>`).join('')}</div>`
@@ -763,7 +754,7 @@ function renderPlayer() {
           <button class="p-btn ${p.menu === 'tracks' ? 'on' : ''}" data-act="p-menu" data-menu="tracks" title="字幕与音轨（C / V）">${icon('cc')}</button>
           <div class="vol"><button class="p-btn" data-act="p-mute" title="静音（M）">${icon(p.muted ? 'mute' : 'volume')}</button><div class="vol-slider"><i style="width:${p.muted ? 0 : p.volume}%"></i></div></div>
           ${hasEps ? `<button class="p-btn anno-host ${p.drawer ? 'on' : ''}" data-act="p-drawer" data-d="D5" title="选集">${icon('list')}<span>选集</span></button>` : ''}
-          <button class="p-btn" data-act="p-fullscreen" title="全屏（F11 或双击画面）">${icon(p.fullscreen ? 'unfullscreen' : 'fullscreen')}</button>
+          <button class="p-btn" data-act="p-fullscreen" title="全屏（F11）">${icon(p.fullscreen ? 'unfullscreen' : 'fullscreen')}</button>
         </div>
       </div>
       ${menu}
@@ -772,7 +763,7 @@ function renderPlayer() {
     ${upnext}
     <aside class="p-drawer ${p.drawer ? 'open' : ''}"><div class="p-drawer-head"><h3>选集</h3>
         <button class="p-btn ${p.drawerStyle === 'list' ? 'on' : ''}" data-act="p-drawer-style" data-v="list" title="列表">${icon('list')}</button>
-        <button class="p-btn ${p.drawerStyle === 'grid' ? 'on' : ''}" data-act="p-drawer-style" data-v="grid" title="集号方块（原版样式）">${icon('grid')}</button>
+        <button class="p-btn ${p.drawerStyle === 'grid' ? 'on' : ''}" data-act="p-drawer-style" data-v="grid" title="集号">${icon('grid')}</button>
         <button class="p-btn" data-act="p-drawer" title="关闭">${icon('close')}</button></div>
       ${e.seriesTitle ? `<div class="p-tabs"><button class="p-tab on">第 ${e.season} 季</button></div>` : ''}${drawerBody}</aside>`;
   el.className = `player${S._entering || S._closing ? '' : ' open'}${p.phase === 'failed' ? ' failed' : ''}`;
@@ -925,7 +916,7 @@ const ACT = {
   login() { S.connecting = true; renderPage(); setTimeout(() => { S.connecting = false; S.loggedIn = true; toast('success', '已连接到 demo.example。'); nav('home'); }, 1100); },
   logout() {
     const doLogout = () => { closePlayer(); S.loggedIn = false; S.back = []; S.fwd = []; toast('info', '已断开连接。'); render({ enter: true }); };
-    if (S.player) openDialog({ title: '注销并结束播放？', text: '正在播放。注销会结束当前播放并保存进度，是否继续？', confirm: '注销', danger: true, onConfirm: doLogout });
+    if (S.player) openDialog({ title: '注销并结束播放？', text: '当前播放将结束并保存进度。', confirm: '注销', danger: true, onConfirm: doLogout });
     else doLogout();
   },
   mode(el) { S.playbackMode = el.dataset.mode; renderPage(); },
@@ -935,14 +926,13 @@ const ACT = {
   'set-hdr'(el) { S.hdr = el.dataset.v; S.hdrMenu = false; renderPage(); },
   hwdec() { S.hwdec = !S.hwdec; renderPage(); },
   'preview-player'() { requestPlay('s1e1x3'); },
-  'clear-cache'() { openDialog({ title: '清除缓存？', text: '图片和媒体库缓存会被删除，下次打开时重新下载。登录信息和设置不受影响。', confirm: '清除', onConfirm: () => toast('success', '已清除 312 MB 缓存。') }); },
+  'clear-cache'() { openDialog({ title: '清除缓存？', text: '登录信息和设置不受影响。', confirm: '清除', onConfirm: () => toast('success', '已清除 312 MB 缓存。') }); },
   'dialog-ok'() { const d = S.dialog; closeDialog(); d?.onConfirm?.(); },
   'dialog-cancel'() { closeDialog(); },
   'toast-dismiss'(el) { S.toasts = S.toasts.filter(t => t.id !== +el.dataset.id); renderToasts(); },
   'close-player'() { closePlayer(); },
   'win-close'() {
-    if (S.player) openDialog({ title: '退出应用？', text: '正在播放。关闭应用会结束播放并保存进度，是否退出？', confirm: '退出', danger: true, onConfirm: () => { closePlayer(); toast('info', '（原型）应用已关闭的示意。'); } });
-    else toast('info', '（原型）关闭按钮：悬停为红色，按 Windows 规范放在最右侧。');
+    if (S.player) openDialog({ title: '退出应用？', text: '当前播放将结束并保存进度。', confirm: '退出', danger: true, onConfirm: () => closePlayer() });
   },
   snap() { S.snapOpen = !S.snapOpen; renderTitlebar(); },
 };
@@ -984,7 +974,7 @@ document.addEventListener('pointermove', e => {
 document.addEventListener('pointerdown', e => { lastPointer = { x: e.clientX, y: e.clientY }; });
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-act]');
-  if (S.snapOpen && !e.target.closest('.snap-flyout') && el?.dataset.act !== 'snap') { S.snapOpen = false; renderTitlebar(); }
+  if (S.snapOpen && !e.target.closest('.snap-flyout, [data-rv="common:snap"]') && el?.dataset.act !== 'snap') { S.snapOpen = false; renderTitlebar(); }
   if (S.sortOpen && !e.target.closest('.menu-anchor')) { S.sortOpen = false; if (S.route.name === 'library') renderPage(); }
   if (S.hdrMenu && !e.target.closest('.menu-anchor')) { S.hdrMenu = false; if (S.route.name === 'settings') renderPage(); }
   if (!el || el.closest('#review')) return;
@@ -1049,27 +1039,27 @@ window.addEventListener('resize', fit);
 /* ================= 审阅面板 ================= */
 // 第 1 轮审阅的结论（2026-10-02）。
 const DECISIONS = [
-  ['D1', '标题栏', '同意', 'Windows 11 窗口按钮（46×40），最大化按钮悬停出现贴靠布局。', 'common:snap'],
-  ['D2', '控件风格', '按原版优化', '本版已改：恢复原版的中性柔和底、细边框、12 圆角、半粗体文字；统一尺寸，补齐悬停 / 按下 / 焦点 / 禁用状态。', 'page:library-filter'],
-  ['D3', '内容层', '不加', '本版已改：内容区与外壳同一层玻璃，只保留左、上细线和 12px 上间距。', 'page:home'],
-  ['D4', '首页 hero 按钮', '不加', '本版已改：整块点击进入详情。', 'page:home'],
-  ['D5', '播放页全屏优先', '同意', '隐藏侧栏、画面铺满；选集抽屉；片尾"即将播放"卡；双击画面切换全屏。', 'player:drawer'],
-  ['D6', '转场', '同意', '浏览 ↔ 播放缩放 + 淡入；卡片 → 详情 ConnectedAnimation。', 'player:open'],
-  ['D7', '设置页', '内容按第 1 版，样式按原项目', '本版已改：沿用第 1 版的分组与行（图标 + 标题 + 说明，控件在右），外观换成原项目的柔和底、细边框、12 圆角与半粗体；新增"外观 · 主题"一行。', 'page:settings-in'],
-  ['D8', '详情页播放按钮', '同意', '圆钮旁加"继续播放 · 剩余时间"；海报圆角 12。', 'page:detail-series'],
-  ['D9', '深色模式', '同意', 'v1 提供深色主题，设置 → 外观可选跟随系统 / 浅色 / 深色。', 'page:settings-in'],
-  ['D10', '应用图标', '暂缓', '以后再设计，本版已移除图标草稿。', null],
+  ['D1', '标题栏', '同意', 'common:snap'],
+  ['D2', '控件风格', '按原版优化', 'page:library-filter'],
+  ['D3', '内容层', '不加', 'page:home'],
+  ['D4', '首页 hero 按钮', '不加', 'page:home'],
+  ['D5', '播放页全屏优先', '同意', 'player:drawer'],
+  ['D6', '转场', '同意', 'player:open'],
+  ['D7', '设置页', '内容第 1 版，样式原版', 'page:settings-in'],
+  ['D8', '详情页播放按钮', '同意', 'page:detail-series'],
+  ['D9', '深色模式', '同意', 'page:settings-in'],
+  ['D10', '应用图标', '暂缓', null],
+  ['R1', '最近播放', '更紧凑', 'page:recent'],
+  ['R2', '界面文案', '去掉说明文字', 'page:settings-out'],
 ];
 const OPEN_QUESTIONS = [
-  ['Q1', '第 2 版控件', '按钮、输入框、下拉、开关、菜单、对话框、通知都已按原版风格重做，请再看一眼是否满意。', 'page:settings-out'],
-  ['Q2', '选集抽屉', '目前"列表"和"集号方块"两种都保留，可在抽屉右上角切换（默认列表，记住上次选择）。是否两种都留？', 'player:drawer'],
-  ['Q3', '主题默认值', '默认"跟随系统"，可在设置里固定为浅色或深色。这样可以吗？', 'page:settings-in'],
+  ['Q2', '选集抽屉两种样式都保留', 'player:drawer'],
+  ['Q3', '主题默认跟随系统', 'page:settings-in'],
 ];
 function rvBtn(label, act, active = false) { return `<button class="rv-btn ${active ? 'active' : ''}" data-rv="${act}">${label}</button>`; }
 function renderReview() {
-  const p = S.player;
   $('#review').innerHTML = `
-    <div class="rv-head"><h1>Mambo 设计稿 · P2 第 2 版</h1>${rvBtn('收起', 'collapse')}<p>左侧是可点击的原型（1:1 按 DIP 绘制），这里用来切换页面、状态与选项。第 1 轮结论已应用，最下方是还需确认的 3 个问题。</p></div>
+    <div class="rv-head"><h1>Mambo 设计稿 · P2 第 3 版</h1>${rvBtn('收起', 'collapse')}</div>
     <div class="rv-sec"><h2 class="rv-title">视图</h2>
       <div class="rv-row">${rvBtn('1500×860', 'size:large', S.size === 'large')}${rvBtn('1100×720（最小）', 'size:small', S.size === 'small')}</div>
       <div class="rv-row" style="margin-top:6px">${rvBtn('适应窗口', 'fit:on', S.fit)}${rvBtn('100%', 'fit:off', !S.fit)}${rvBtn('跟随系统', 'theme:system', S.themeMode === 'system')}${rvBtn('浅色', 'theme:light', S.themeMode === 'light')}${rvBtn('深色', 'theme:dark', S.themeMode === 'dark')}</div>
@@ -1084,11 +1074,10 @@ function renderReview() {
       ${rvBtn('选集·列表', 'player:drawer')}${rvBtn('选集·集号', 'player:drawer-grid')}${rvBtn('片尾即将播放', 'player:upnext')}${rvBtn('播放失败', 'player:failed')}${rvBtn('全屏', 'player:fullscreen')}${rvBtn('关闭播放', 'player:close')}</div>
       <p class="rv-note">快捷键：<span class="rv-kbd">空格</span> 播放/暂停 · <span class="rv-kbd">←/→</span> ±5 秒 · <span class="rv-kbd">↑/↓</span> 音量 · <span class="rv-kbd">[ ]</span> 倍速 · <span class="rv-kbd">C</span> 字幕 · <span class="rv-kbd">V</span> 音轨 · <span class="rv-kbd">F</span> 全屏 · <span class="rv-kbd">Esc</span> 退出全屏/关闭</p></div>
     <div class="rv-sec"><h2 class="rv-title">通用</h2><div class="rv-row">${rvBtn('确认对话框', 'common:dialog')}${rvBtn('通知示例', 'common:toasts')}${rvBtn('错误通知', 'common:toast-error')}${rvBtn('贴靠布局', 'common:snap')}</div></div>
-    <div class="rv-sec"><h2 class="rv-title">还需确认（请回复 Q1–Q3）</h2>
-      ${OPEN_QUESTIONS.map(([id, title, text, go]) => `<div class="rv-prop"><b>${id}</b><strong>${title}</strong><p>${text}</p><div class="rv-go">${rvBtn('查看', go)}</div></div>`).join('')}</div>
-    <div class="rv-sec"><h2 class="rv-title">第 1 轮结论</h2>
-      ${DECISIONS.map(([id, title, verdict, text, go]) => `<div class="rv-prop"><b>${id}</b><strong>${title}</strong><span class="rv-verdict">${verdict}</span><p>${text}</p>${go ? `<div class="rv-go">${rvBtn('查看', go)}</div>` : ''}</div>`).join('')}</div>
-    <p class="rv-note">保持不变：亚克力浅色外壳、40px 标题栏、208px 侧栏、MiSans、主色 #0c68b8、海报 150×220 / 横版 300×169、首页 hero + 卡片行、详情 hero + 季/集 + 演职人员。<br>当前播放：${p ? '进行中' : '无'}</p>`;
+    <div class="rv-sec"><h2 class="rv-title">待确认</h2>
+      ${OPEN_QUESTIONS.map(([id, title, go]) => `<div class="rv-prop"><b>${id}</b><strong>${title}</strong><span class="rv-go">${rvBtn('查看', go)}</span></div>`).join('')}</div>
+    <div class="rv-sec"><h2 class="rv-title">已定</h2>
+      ${DECISIONS.map(([id, title, verdict, go]) => `<div class="rv-prop"><b>${id}</b><strong>${title}</strong><span class="rv-verdict">${verdict}</span>${go ? `<span class="rv-go">${rvBtn('查看', go)}</span>` : ''}</div>`).join('')}</div>`;
 }
 function playerState(kind) {
   const base = id => { if (!S.player) openPlayer(id || 's1e1x3', { pinned: true }); S.player.pinned = true; return S.player; };
@@ -1115,6 +1104,7 @@ function playerState(kind) {
 function pageState(kind) {
   if (S.player) { S.player = null; }
   S.homeVariant = 'normal'; S.libVariant = 'normal';
+  const setFilters = (genre, decade) => { Object.values(S.filters).forEach(s => s.clear()); if (genre) S.filters.genre.add(genre); if (decade) S.filters.decade.add(decade); };
   const go = (name, params) => { S.route = { name, params: params || {} }; S.back = S.route.name === 'home' ? [] : [{ name: 'home', params: {}, scroll: 0 }]; S.fwd = []; };
   switch (kind) {
     case 'home': S.loggedIn = true; go('home'); break;
@@ -1122,9 +1112,9 @@ function pageState(kind) {
     case 'home-error': S.loggedIn = true; S.homeVariant = 'error'; go('home'); break;
     case 'onboard': S.loggedIn = false; S.searchText = ''; go('home'); break;
     case 'recent': S.loggedIn = true; go('recent'); break;
-    case 'library': S.loggedIn = true; S.filtersOpen = false; go('library', { lib: 'movies' }); break;
-    case 'library-filter': S.loggedIn = true; S.filtersOpen = true; Object.values(S.filters).forEach(s => s.clear()); S.filters.genre.add('科幻'); S.filters.decade.add('2020'); go('library', { lib: 'movies' }); break;
-    case 'library-empty': S.loggedIn = true; S.filtersOpen = true; S.libVariant = 'empty'; go('library', { lib: 'movies' }); break;
+    case 'library': S.loggedIn = true; S.filtersOpen = false; setFilters(); go('library', { lib: 'movies' }); break;
+    case 'library-filter': S.loggedIn = true; S.filtersOpen = true; setFilters('科幻', '2020'); go('library', { lib: 'movies' }); break;
+    case 'library-empty': S.loggedIn = true; S.filtersOpen = true; S.libVariant = 'empty'; setFilters('纪录', '2020'); go('library', { lib: 'movies' }); break;
     case 'detail-movie': S.loggedIn = true; go('detail', { id: 'm2' }); break;
     case 'detail-series': S.loggedIn = true; go('detail', { id: 's1' }); break;
     case 'search': S.loggedIn = true; S.searchText = '星'; S.searchMore = {}; go('search', { q: '星' }); break;
@@ -1147,7 +1137,7 @@ $('#review').addEventListener('click', e => {
     case 'page': pageState(arg); return;
     case 'player': playerState(arg); return;
     case 'common':
-      if (arg === 'dialog') openDialog({ title: '切换播放？', text: '正在播放其他项目。切换播放会结束当前播放并保存进度，是否继续？', confirm: '切换', danger: true });
+      if (arg === 'dialog') openDialog({ title: '切换播放？', text: '当前播放将结束并保存进度。', confirm: '切换', danger: true });
       if (arg === 'toasts') { toast('warning', '有一集无法加入连播，已跳过。'); setTimeout(() => toast('success', '已连接到 demo.example。'), 250); setTimeout(() => toast('info', '字幕：简体中文'), 500); }
       if (arg === 'toast-error') toast('error', '播放失败：无法连接服务器。', '重试');
       if (arg === 'snap') { S.snapOpen = true; renderTitlebar(); }
