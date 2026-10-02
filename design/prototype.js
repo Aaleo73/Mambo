@@ -68,6 +68,7 @@ const ICON = {
   logout: '<path d="M14 4.5h4a1.5 1.5 0 0 1 1.5 1.5v12a1.5 1.5 0 0 1-1.5 1.5h-4M10 16l-4-4 4-4M6 12h9"/>',
   audio: '<path d="M9 18V6.5l10-2V16"/><circle cx="6.8" cy="18" r="2.2"/><circle cx="16.8" cy="16" r="2.2"/>',
   layers: '<path d="m12 4 8.5 4.5L12 13 3.5 8.5z"/><path d="m3.5 12.5 8.5 4.5 8.5-4.5"/>',
+  theme: '<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" stroke="none"/>',
   book: '<path d="M5 4.5h10.5a2 2 0 0 1 2 2V20H7a2 2 0 0 1-2-2z"/><path d="M5 17.5a2 2 0 0 1 2-2h10.5"/>',
 };
 ICON.settings = (() => {
@@ -622,48 +623,39 @@ function pageDetail() {
 
 /* ================= 页面：设置 ================= */
 function pageSettings() {
+  // 内容与分组沿用第 1 版（每行：图标 + 标题 + 说明，控件在右），样式按原项目。
   const server = S.loggedIn
-    ? `<div class="account"><div class="avatar">演</div><div><div class="account-name">演示用户</div><div class="account-sub">demo.example · Emby 4.9</div></div>
-        <button class="btn btn-connected" data-act="logout" title="断开连接"><span class="rest-text">${icon('check')}已连接</span><span class="hover-text">${icon('logout')}断开连接</span></button></div>`
-    : `<form class="login-form" onsubmit="return false">
-        <label class="field"><span class="field-label">服务器地址</span><input class="input" placeholder="https://your-emby-server" value="https://demo.example">
-          <span class="helper">未填写协议时将使用 HTTPS。仅在可信网络中明确填写 http://。</span></label>
-        <label class="field"><span class="field-label">用户名</span><input class="input" placeholder="用户名" value="演示用户"></label>
-        <label class="field"><span class="field-label">密码</span><input class="input" type="password" placeholder="可以为空"></label>
-        <div><button class="btn btn-accent" data-act="login" ${S.connecting ? 'disabled' : ''} style="min-width:120px">${S.connecting ? '连接中…' : '连接'}</button></div></form>`;
-  const mpvStatus = { none: ['', '留空表示只使用内置播放器。'], ok: ['ok', '已批准使用此 mpv，外部窗口可用。'], bad: ['warn', '未找到该路径下的 mpv 可执行文件，将使用内置播放器。'], checking: ['', '正在校验…'] }[S.mpvStatus];
+    ? `<div class="set-card"><div class="avatar">演</div><div class="set-text"><div class="set-title">演示用户</div><div class="set-desc">已连接到 demo.example · Emby 4.9</div></div>
+        <div class="set-control"><button class="btn btn-danger-text" data-act="logout">${icon('logout', 'ico-14')}断开连接</button></div></div>`
+    : `<div class="set-card col"><div class="set-row">${icon('server', 'set-icon')}<div class="set-text"><div class="set-title">连接 Emby 服务器</div><div class="set-desc">未填写协议时将使用 HTTPS。仅在可信网络中明确填写 http://。</div></div></div>
+        <div class="form-grid"><label class="field"><span class="field-label">服务器地址</span><input class="input" placeholder="https://your-emby-server" value="https://demo.example"></label>
+          <label class="field"><span class="field-label">用户名</span><input class="input" placeholder="用户名" value="演示用户"></label>
+          <label class="field"><span class="field-label">密码</span><input class="input" type="password" placeholder="可以为空"></label>
+          <button class="btn btn-accent" data-act="login" ${S.connecting ? 'disabled' : ''} style="min-width:96px">${S.connecting ? '连接中…' : '连接'}</button></div></div>`;
+  const mpvStatus = { none: ['', '留空表示只使用内置播放器。'], ok: ['ok', '已批准使用此 mpv（外部窗口可用）'], bad: ['warn', '未找到该路径下的 mpv 可执行文件，将使用内置播放器'], checking: ['', '正在校验…'] }[S.mpvStatus];
   const hdrLabel = { auto: '自动', always: '始终 HDR', off: '关闭' }[S.hdr];
   const seg = (act, key, value, label, disabled = false) => `<button class="seg ${value === key ? 'on' : ''}" data-act="${act}" data-mode="${key}" ${disabled ? 'disabled' : ''}>${label}</button>`;
+  const row = (ico, title, desc, control) => `<div class="set-card">${icon(ico, 'set-icon')}<div class="set-text"><div class="set-title">${title}</div><div class="set-desc">${desc}</div></div><div class="set-control">${control}</div></div>`;
   return `<div class="page"><div class="set-wrap">${pageHead('SETTINGS', '设置')}
-    <section class="set-section"><div class="set-label">服务器配置</div><div class="set-body">${server}</div></section>
-    <section class="set-section"><div class="set-label">播放器设置</div><div class="set-body">
-      <div class="set-item"><div class="set-item-title">播放方式</div>
-        <div class="segmented">${seg('mode', 'embedded', S.playbackMode, '内置播放器')}${seg('mode', 'external', S.playbackMode, '外部窗口', S.mpvStatus !== 'ok')}</div>
-        <div class="helper">默认使用内置播放器，不必另外安装 mpv。想在独立窗口播放，请先在下面指定自己的 mpv 可执行文件。</div></div>
-      <div class="set-item" style="align-self:stretch"><div class="set-item-title">MPV 路径</div>
-        <div class="path-row"><input class="input" id="mpv-path" placeholder="例如 C:\\Program Files\\mpv\\mpv.exe" value="${esc(S.mpvPath)}"><button class="btn" data-act="pick-mpv">选择文件</button></div>
+    <div class="set-group"><h2 class="set-group-title">服务器</h2>${server}</div>
+    <div class="set-group"><h2 class="set-group-title">播放</h2>
+      ${row('display', '播放方式', '默认使用内置播放器，不必另外安装 mpv。想用独立窗口播放，请先在下面指定自己的 mpv。',
+        `<div class="segmented">${seg('mode', 'embedded', S.playbackMode, '内置播放器')}${seg('mode', 'external', S.playbackMode, '外部窗口', S.mpvStatus !== 'ok')}</div>`)}
+      <div class="set-card col"><div class="set-row">${icon('file', 'set-icon')}<div class="set-text"><div class="set-title">外部 mpv 路径</div><div class="set-desc">应用不附带 mpv 程序；只有在这里指定后才能选择"外部窗口"。</div></div>
+          <div class="set-control"><div class="path-row"><input class="input" id="mpv-path" placeholder="例如 C:\\Program Files\\mpv\\mpv.exe" value="${esc(S.mpvPath)}"><button class="btn" data-act="pick-mpv">选择文件</button></div></div></div>
         <div class="status-line ${mpvStatus[0]}">${mpvStatus[0] === 'ok' ? icon('success', 'ico-14') : mpvStatus[0] === 'warn' ? icon('warning', 'ico-14') : icon('info', 'ico-14')}${mpvStatus[1]}</div></div>
-      <div class="set-item"><div class="set-item-title">HDR</div>
-        <div class="menu-anchor"><button class="select" data-act="hdr-menu"><span>${hdrLabel}</span>${icon('chevD', 'ico-14')}</button>
-          ${S.hdrMenu ? `<div class="menu" style="left:0;right:auto">${[['auto', '自动'], ['always', '始终 HDR'], ['off', '关闭']].map(([k, l]) => `<button class="menu-item" data-act="set-hdr" data-v="${k}"><span class="menu-check">${k === S.hdr ? icon('check') : ''}</span>${l}</button>`).join('')}</div>` : ''}</div>
-        <div class="helper">自动：显示器开启 HDR 时直通 HDR 片源，否则映射为 SDR。</div></div>
-      <div class="set-item"><div class="set-item-title">硬件解码</div>
-        <button class="toggle" data-act="hwdec"><span class="switch ${S.hwdec ? 'on' : ''}"></span><span>${S.hwdec ? '已开启' : '已关闭'}</span></button>
-        <div class="helper">使用显卡解码（d3d11va），4K 与 HEVC 更省电。遇到花屏可以关闭。</div></div>
-      <div class="set-item"><div class="set-item-title">预览播放页</div>
-        <button class="btn" data-act="preview-player">${icon('play', 'ico-14')}打开预览</button>
-        <div class="helper">用演示数据打开播放页，查看画面控制与选集的样子。</div></div>
-    </div></section>
-    <section class="set-section"><div class="set-label">外观</div><div class="set-body">
-      <div class="set-item"><div class="set-item-title">主题</div>
-        <div class="segmented">${seg('theme-mode', 'system', S.themeMode, '跟随系统')}${seg('theme-mode', 'light', S.themeMode, '浅色')}${seg('theme-mode', 'dark', S.themeMode, '深色')}</div>
-        <div class="helper">跟随系统时，Windows 切换深浅色后应用会随之切换。</div></div>
-    </div></section>
-    <section class="set-section"><div class="set-label">关于</div><div class="set-body">
-      <div class="set-item"><div class="about-title">Mambo<span class="version-badge">v0.3.0</span></div>
-        <div class="helper">Windows 上的 Emby 媒体客户端，内置 mpv 播放器。</div>
-        <div class="set-row" style="margin-top:6px"><button class="btn">${icon('book', 'ico-14')}第三方许可</button><button class="btn">${icon('folder', 'ico-14')}打开日志目录</button><button class="btn" data-act="clear-cache">${icon('trash', 'ico-14')}清除缓存 · 312 MB</button></div></div>
-    </div></section>
+      ${row('sun', 'HDR', '自动：显示器开启 HDR 时直通 HDR 片源，否则映射为 SDR。',
+        `<div class="menu-anchor"><button class="select" data-act="hdr-menu"><span>${hdrLabel}</span>${icon('chevD', 'ico-14')}</button>
+          ${S.hdrMenu ? `<div class="menu">${[['auto', '自动'], ['always', '始终 HDR'], ['off', '关闭']].map(([k, l]) => `<button class="menu-item" data-act="set-hdr" data-v="${k}"><span class="menu-check">${k === S.hdr ? icon('check') : ''}</span>${l}</button>`).join('')}</div>` : ''}</div>`)}
+      ${row('chip', '硬件解码', '使用显卡解码（d3d11va），4K 与 HEVC 播放更省电。遇到花屏可以关闭。',
+        `<button class="toggle" data-act="hwdec"><span>${S.hwdec ? '开' : '关'}</span><span class="switch ${S.hwdec ? 'on' : ''}"></span></button>`)}
+      ${row('play', '预览播放页', '用演示数据打开播放页，查看画面控制与选集的样子。', `<button class="btn" data-act="preview-player">打开预览</button>`)}</div>
+    <div class="set-group"><h2 class="set-group-title">外观</h2>
+      ${row('theme', '主题', '跟随系统时，Windows 切换深浅色后应用会随之切换。',
+        `<div class="segmented">${seg('theme-mode', 'system', S.themeMode, '跟随系统')}${seg('theme-mode', 'light', S.themeMode, '浅色')}${seg('theme-mode', 'dark', S.themeMode, '深色')}</div>`)}</div>
+    <div class="set-group"><h2 class="set-group-title">关于</h2>
+      ${row('info', 'Mambo <span class="version-badge">v0.3.0</span>', '版本 0.3.0（设计稿）· Windows 上的 Emby 媒体客户端', `<button class="btn">${icon('book', 'ico-14')}第三方许可</button>`)}
+      ${row('trash', '缓存', '图片与媒体库缓存共占用 312 MB，清除后会重新下载。', `<button class="btn">${icon('folder', 'ico-14')}打开日志目录</button><button class="btn" data-act="clear-cache">清除缓存</button>`)}</div>
   </div></div>`;
 }
 
@@ -1063,7 +1055,7 @@ const DECISIONS = [
   ['D4', '首页 hero 按钮', '不加', '本版已改：整块点击进入详情。', 'page:home'],
   ['D5', '播放页全屏优先', '同意', '隐藏侧栏、画面铺满；选集抽屉；片尾"即将播放"卡；双击画面切换全屏。', 'player:drawer'],
   ['D6', '转场', '同意', '浏览 ↔ 播放缩放 + 淡入；卡片 → 详情 ConnectedAnimation。', 'player:open'],
-  ['D7', '设置页', '按原版', '本版已改：恢复原版两栏布局；计划中的 HDR、硬件解码、缓存、日志保留，新增"外观"。', 'page:settings-in'],
+  ['D7', '设置页', '内容按第 1 版，样式按原项目', '本版已改：沿用第 1 版的分组与行（图标 + 标题 + 说明，控件在右），外观换成原项目的柔和底、细边框、12 圆角与半粗体；新增"外观 · 主题"一行。', 'page:settings-in'],
   ['D8', '详情页播放按钮', '同意', '圆钮旁加"继续播放 · 剩余时间"；海报圆角 12。', 'page:detail-series'],
   ['D9', '深色模式', '同意', 'v1 提供深色主题，设置 → 外观可选跟随系统 / 浅色 / 深色。', 'page:settings-in'],
   ['D10', '应用图标', '暂缓', '以后再设计，本版已移除图标草稿。', null],

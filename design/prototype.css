@@ -289,30 +289,25 @@ body.desk-dark .desk-bg {
 .more-row { display: flex; justify-content: center; margin-top: 18px; }
 mark { background: var(--accent-subtle); color: inherit; border-radius: 3px; padding: 0 1px; }
 
-/* ---------------- 设置（原版两栏布局） ---------------- */
-.set-wrap { max-width: 1024px; }
-.set-section { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 24px; padding: 28px 0; border-top: 1px solid var(--rule); }
-.set-section:first-of-type { border-top: 0; padding-top: 4px; }
-.set-label { font: var(--fw-semibold) var(--type-body-lg) var(--font-ui); color: var(--text-1); }
-.set-body { display: flex; flex-direction: column; gap: 24px; max-width: 620px; }
-.set-item { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
-.set-item-title { font: var(--fw-semibold) var(--type-body-sm) var(--font-ui); color: var(--text-1); }
-.set-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.login-form { display: grid; gap: 14px; width: 100%; max-width: 420px; }
-.account { display: flex; align-items: center; gap: 14px; width: 100%; }
-.account-name { font: var(--fw-semibold) var(--type-body-lg) var(--font-ui); }
-.account-sub { font: var(--type-caption) var(--font-ui); color: var(--text-2); }
-.btn-connected { margin-left: auto; min-width: 116px; }
-.btn-connected .hover-text, .btn-connected .rest-text { display: inline-flex; align-items: center; gap: 6px; }
-.btn-connected .hover-text { display: none; }
-.btn-connected:hover { color: var(--danger); background: var(--danger-subtle); }
-.btn-connected:hover .rest-text { display: none; }
-.btn-connected:hover .hover-text { display: inline-flex; }
-.status-line { display: flex; align-items: center; gap: 6px; font: var(--type-caption) var(--font-ui); color: var(--text-2); }
+/* ---------------- 设置（内容沿用第 1 版的分组与行，样式按原项目） ---------------- */
+.set-wrap { max-width: 1000px; }
+.set-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 30px; }
+.set-group-title { margin: 0 0 4px 2px; font: var(--fw-semibold) var(--type-body-lg) var(--font-ui); color: var(--text-1); }
+.set-card { display: flex; align-items: center; gap: 16px; min-height: 72px; padding: 16px 20px; border-radius: var(--r-control);
+  background: var(--fill-control); box-shadow: inset 0 0 0 1px var(--stroke-control); }
+.set-card.col { flex-direction: column; align-items: stretch; gap: 14px; }
+.set-row { display: flex; align-items: center; gap: 16px; }
+.set-icon { width: 20px; height: 20px; color: var(--text-2); flex: none; }
+.set-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.set-title { display: flex; align-items: center; gap: 8px; font: var(--fw-semibold) var(--type-body) var(--font-ui); color: var(--text-1); }
+.set-desc { font: var(--type-caption) var(--font-ui); color: var(--text-2); }
+.set-control { display: flex; align-items: center; gap: 8px; flex: none; }
+.form-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr auto; gap: 12px; align-items: end; padding-left: 36px; }
+.path-row { display: flex; gap: 8px; width: 420px; }
+.status-line { display: flex; align-items: center; gap: 6px; padding-left: 36px; font: var(--type-caption) var(--font-ui); color: var(--text-2); }
 .status-line.ok .ico { color: var(--success); }
 .status-line.warn .ico { color: var(--warning); }
 .avatar { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: #fff; font: var(--fw-semibold) 16px/1 var(--font-ui); flex: none; }
-.about-title { display: flex; align-items: center; gap: 8px; font: var(--fw-semibold) var(--type-body-lg) var(--font-ui); }
 .version-badge { height: 20px; padding: 0 8px; border-radius: var(--r-pill); background: var(--chip); color: var(--text-2); font: var(--fw-medium) 12px/20px var(--font-ui); }
 .segmented { display: inline-flex; gap: 4px; }
 .seg { height: var(--control-h); padding: 0 16px; border-radius: var(--r-control); font: var(--fw-semibold) var(--type-body-sm) var(--font-ui); color: var(--text-2);
@@ -320,7 +315,7 @@ mark { background: var(--accent-subtle); color: inherit; border-radius: 3px; pad
 .seg:hover { background: var(--fill-control-hover); color: var(--text-1); }
 .seg.on { background: var(--accent); color: #fff; box-shadow: none; }
 .seg:disabled { opacity: .45; background: var(--fill-control); color: var(--text-2); }
-.select { display: inline-flex; align-items: center; justify-content: space-between; gap: 10px; height: var(--control-h); min-width: 160px; padding: 0 12px 0 14px; border-radius: var(--r-control);
+.select { display: inline-flex; align-items: center; justify-content: space-between; gap: 10px; height: var(--control-h); min-width: 150px; padding: 0 12px 0 14px; border-radius: var(--r-control);
   background: var(--fill-control); box-shadow: inset 0 0 0 1px var(--stroke-control); font: var(--fw-semibold) var(--type-body-sm) var(--font-ui); color: var(--text-1); transition: background var(--dur-fast); }
 .select:hover { background: var(--fill-control-hover); }
 .switch { position: relative; width: 42px; height: 24px; border-radius: 12px; background: var(--switch-off); transition: background var(--dur-fast); flex: none; }
@@ -328,7 +323,6 @@ mark { background: var(--accent-subtle); color: inherit; border-radius: 3px; pad
 .switch.on { background: var(--accent); }
 .switch.on::after { transform: translateX(18px); }
 .toggle { display: inline-flex; align-items: center; gap: 12px; font: var(--fw-semibold) var(--type-body-sm) var(--font-ui); color: var(--text-1); }
-.path-row { display: flex; gap: 8px; width: 100%; }
 
 /* ---------------- 未登录引导 ---------------- */
 .onboard { min-height: 100%; display: flex; flex-direction: column; justify-content: center; padding: 0 64px 40px; container-type: inline-size; }
