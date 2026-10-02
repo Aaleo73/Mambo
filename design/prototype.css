@@ -64,7 +64,6 @@ body.desk-dark .desk-bg {
 .snap-cell { height: 48px; border-radius: 6px; display: grid; gap: 3px; padding: 3px; background: var(--fill-subtle-hover); }
 .snap-cell i { border-radius: 3px; background: var(--chip-hover); }
 .snap-cell i:hover { background: var(--accent); }
-.snap-note { grid-column: 1 / -1; font: var(--type-caption) var(--font-ui); color: var(--text-2); }
 
 /* 播放时标题栏切到深色，和画面融为一体 */
 .window.playing .titlebar { background: #0b0b0d; color: rgba(255, 255, 255, .92); }
@@ -254,7 +253,7 @@ body.desk-dark .desk-bg {
 .filter-row { display: grid; grid-template-columns: 44px 1fr; gap: 10px; align-items: start; }
 .filter-label { font: var(--type-body-sm) var(--font-ui); line-height: 28px; color: var(--text-2); }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.filter-foot { display: flex; justify-content: space-between; align-items: center; padding-top: 2px; color: var(--text-2); font: var(--type-caption) var(--font-ui); }
+.filter-foot { display: flex; justify-content: flex-end; align-items: center; padding-top: 2px; color: var(--text-2); font: var(--type-caption) var(--font-ui); }
 
 /* ---------------- 详情页 ---------------- */
 .detail-ep-line { font: var(--fw-medium) var(--type-body) var(--font-ui); color: rgba(255, 255, 255, .9); }
@@ -293,7 +292,7 @@ mark { background: var(--accent-subtle); color: inherit; border-radius: 3px; pad
 .set-wrap { max-width: 1000px; }
 .set-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 30px; }
 .set-group-title { margin: 0 0 4px 2px; font: var(--fw-semibold) var(--type-body-lg) var(--font-ui); color: var(--text-1); }
-.set-card { display: flex; align-items: center; gap: 16px; min-height: 72px; padding: 16px 20px; border-radius: var(--r-control);
+.set-card { display: flex; align-items: center; gap: 16px; min-height: 60px; padding: 12px 20px; border-radius: var(--r-control);
   background: var(--fill-control); box-shadow: inset 0 0 0 1px var(--stroke-control); }
 .set-card.col { flex-direction: column; align-items: stretch; gap: 14px; }
 .set-row { display: flex; align-items: center; gap: 16px; }
@@ -304,7 +303,8 @@ mark { background: var(--accent-subtle); color: inherit; border-radius: 3px; pad
 .set-control { display: flex; align-items: center; gap: 8px; flex: none; }
 .form-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr auto; gap: 12px; align-items: end; padding-left: 36px; }
 .path-row { display: flex; gap: 8px; width: 420px; }
-.status-line { display: flex; align-items: center; gap: 6px; padding-left: 36px; font: var(--type-caption) var(--font-ui); color: var(--text-2); }
+.set-value { font: var(--fw-regular) var(--type-body-sm) var(--font-ui); color: var(--text-2); }
+.status-line { display: flex; align-items: center; gap: 6px; font: var(--type-caption) var(--font-ui); color: var(--text-2); }
 .status-line.ok .ico { color: var(--success); }
 .status-line.warn .ico { color: var(--warning); }
 .avatar { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: #fff; font: var(--fw-semibold) 16px/1 var(--font-ui); flex: none; }
@@ -331,7 +331,6 @@ mark { background: var(--accent-subtle); color: inherit; border-radius: 3px; pad
 .onboard-title .ch { display: inline-block; transition: transform 420ms var(--ease-settle), color var(--dur-normal) var(--ease-fluid); }
 .onboard-title .ch:hover { transform: translateY(-.08em) rotate(-3deg); color: var(--accent); }
 .onboard-title .accent { color: var(--accent); }
-.onboard-sub { margin-top: 28px; display: flex; align-items: center; gap: 10px; color: var(--text-2); font: var(--type-body-lg) var(--font-ui); }
 
 /* ---------------- 加载 / 空 / 错误 ---------------- */
 .skel { position: relative; overflow: hidden; background: var(--skeleton); border-radius: var(--r-lg); }
@@ -341,12 +340,7 @@ mark { background: var(--accent-subtle); color: inherit; border-radius: 3px; pad
 .state-icon { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; background: var(--chip); color: var(--text-2); margin-bottom: 6px; }
 .state-icon .ico { width: 26px; height: 26px; }
 .state-title { margin: 0; font: var(--fw-semibold) var(--type-body-lg) var(--font-ui); color: var(--text-1); }
-.state-text { margin: 0 0 8px; max-width: 420px; font: var(--type-body) var(--font-ui); }
-.banner { display: flex; align-items: center; gap: 12px; margin: 16px var(--page-pad-x) 0; padding: 10px 10px 10px 16px; border-radius: var(--r-md);
-  background: rgba(255, 244, 206, .86); box-shadow: inset 0 0 0 1px rgba(157, 93, 0, .2); color: rgba(22, 22, 26, .9); }
-[data-theme="dark"] .banner { background: rgba(67, 53, 25, .85); box-shadow: inset 0 0 0 1px rgba(242, 177, 76, .25); color: rgba(255, 255, 255, .92); }
-.banner .ico { color: var(--warning); }
-.banner-text { flex: 1; font: var(--type-body-sm) var(--font-ui); }
+.state-actions { display: flex; gap: 8px; margin-top: 6px; }
 
 /* ---------------- 播放层 ---------------- */
 .player { position: absolute; left: 0; right: 0; top: var(--titlebar-h); bottom: 0; z-index: 20; overflow: hidden; background: #000; color: var(--p-text-1);
@@ -502,28 +496,22 @@ mark { background: var(--accent-subtle); color: inherit; border-radius: 3px; pad
 .review { position: fixed; top: 0; right: 0; bottom: 0; width: var(--review-w); overflow-y: auto; background: #f4f5f7; border-left: 1px solid #dadde3; color: #1f2329;
   font: 13px/18px "MiSans", "Segoe UI", sans-serif; padding: 18px 16px 40px; z-index: 100; }
 .rv-head { display: grid; grid-template-columns: 1fr auto; gap: 4px 8px; align-items: start; }
-.rv-head p { grid-column: 1 / -1; }
 .rv-head h1 { margin: 0; font: 600 17px/24px "MiSans", "Segoe UI", sans-serif; }
 .rv-toggle { position: fixed; top: 12px; right: 12px; z-index: 101; display: none; height: 30px; padding: 0 12px; border-radius: 15px; background: #fff; color: #1f2329;
   box-shadow: 0 2px 10px rgba(0, 0, 0, .18), inset 0 0 0 1px #d9dce2; font: 12px/30px "MiSans", "Segoe UI", sans-serif; }
 body.rv-collapsed { --review-w: 0px; }
 body.rv-collapsed .review { display: none; }
 body.rv-collapsed .rv-toggle { display: block; }
-.rv-head p { margin: 4px 0 0; color: #5d6470; font-size: 12px; }
 .rv-sec { margin-top: 18px; }
 .rv-title { margin: 0 0 8px; font: 600 12px/16px "MiSans", "Segoe UI", sans-serif; color: #5d6470; letter-spacing: .06em; }
 .rv-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .rv-btn { height: 28px; padding: 0 10px; border-radius: 6px; background: #fff; color: #1f2329; box-shadow: inset 0 0 0 1px #d9dce2; font-size: 12px; }
 .rv-btn:hover { background: #eef3fb; box-shadow: inset 0 0 0 1px #b9cbe6; }
 .rv-btn.active { background: #0c68b8; color: #fff; box-shadow: none; }
-.rv-prop { padding: 10px 12px; border-radius: 8px; background: #fff; box-shadow: inset 0 0 0 1px #e1e4e9; margin-bottom: 8px; }
-.rv-prop b { display: inline-block; min-width: 30px; color: #ff5c26; }
-.rv-verdict { display: inline-block; margin-left: 8px; padding: 0 8px; border-radius: 10px; background: #e9f1fb; color: #0c68b8; font-size: 11px; line-height: 18px; }
-.rv-prop p { margin: 4px 0 0; color: #4b525d; font-size: 12px; }
-.rv-prop .rv-go { margin-top: 6px; }
-.rv-icons { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
-.rv-icon-tile { display: flex; align-items: flex-end; justify-content: center; gap: 10px; padding: 14px 8px; border-radius: 8px; }
-.rv-icon-tile.light { background: #fff; box-shadow: inset 0 0 0 1px #e1e4e9; }
-.rv-icon-tile.dark { background: #1d1f24; }
+.rv-prop { display: flex; align-items: center; gap: 6px; padding: 8px 10px 8px 12px; border-radius: 8px; background: #fff; box-shadow: inset 0 0 0 1px #e1e4e9; margin-bottom: 8px; }
+.rv-prop b { flex: none; min-width: 30px; color: #ff5c26; }
+.rv-prop strong { min-width: 0; }
+.rv-verdict { flex: none; padding: 0 8px; border-radius: 10px; background: #e9f1fb; color: #0c68b8; font-size: 11px; line-height: 18px; }
+.rv-prop .rv-go { flex: none; margin-left: auto; }
 .rv-note { margin-top: 8px; color: #6b7280; font-size: 12px; }
 .rv-kbd { display: inline-block; padding: 0 5px; border-radius: 4px; background: #fff; box-shadow: inset 0 0 0 1px #d9dce2; font-size: 11px; line-height: 18px; }
