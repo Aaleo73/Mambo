@@ -1,5 +1,7 @@
 # Mambo 设计稿（P2 定稿）
 
+> 当前界面以原版应用为视觉基准，P2 中被取代的结论和已选优化见 [P9：界面对齐原版](../docs/decisions/P9-visual-parity.md)。本目录保留历史原型；公共 token 继续与 WinUI 同步。
+
 可点击的 HTML 原型，按 1 DIP = 1 CSS px 绘制。2026-10-02 用户确认定稿：`tokens.css` 已转换为 `src/Mambo.App/Themes/Tokens.xaml`，结论见 `docs/decisions/P2-design.md`。之后改 token 时两边同步。
 
 ## 查看方式

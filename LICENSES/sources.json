@@ -687,6 +687,12 @@
     "retrieved": "2026-10-03"
   },
   {
+    "path": "Feather-4.29.2-LICENSE.txt",
+    "source": "https://raw.githubusercontent.com/feathericons/feather/v4.29.2/LICENSE",
+    "sha256": "308028e93fcf84972523cdf6e616f73168546b4953895f516d01287f16fe7bee",
+    "retrieved": "2026-10-03"
+  },
+  {
     "path": "Inno-Setup-license.txt",
     "source": "https://raw.githubusercontent.com/jrsoftware/issrc/is-6_7_3/license.txt",
     "sha256": "2e5346868c2a18434489824e11d65c3031620f792fefc415d05f19cd441abf5c",

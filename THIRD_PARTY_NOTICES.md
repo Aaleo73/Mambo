@@ -16,6 +16,7 @@ Mambo 使用下列第三方组件。本应用使用 **MiSans 字体**。各组�
 | Serilog | 4.3.0；[官方项目](https://github.com/serilog/serilog)；NuGet 源修订 `726e29c5b172aa8813285be1ad8cc728fd531eab` | Apache-2.0，© Serilog Contributors；`Apache-2.0.txt` |
 | Serilog.Sinks.File | 7.0.0；[官方项目](https://github.com/serilog/serilog-sinks-file)；NuGet 源修订 `23c732a8658a0df2a5434fe69b0011800b14f0da` | Apache-2.0，© Serilog Contributors；`Apache-2.0.txt` |
 | MiSans Regular / Medium / Semibold / Bold | 本仓库 `src/Mambo.App/Assets/Fonts/`；[小米官方许可](https://hyperos.mi.com/font-download/MiSans%E5%AD%97%E4%BD%93%E7%9F%A5%E8%AF%86%E4%BA%A7%E6%9D%83%E8%AE%B8%E5%8F%AF%E5%8D%8F%E8%AE%AE.pdf) | 小米科技有限责任公司 MiSans 字体知识产权许可协议；完整官方 PDF 为 `MiSans-license.pdf`。字体随应用分发，未修改或独立销售 |
+| Feather Icons | 4.29.2；[上游图标库](https://github.com/feathericons/feather/tree/v4.29.2)；`Themes/Icons.xaml` 中的线性路径适配为 WinUI Geometry | MIT，© 2013–2023 Cole Bemis；完整许可 `Feather-4.29.2-LICENSE.txt` |
 
 Microsoft.Windows.CsWin32、xUnit、测试 SDK 等开发/测试工具不作为独立程序集随 Native AOT 应用分发。最终文件清单及哈希见发布目录 `release-manifest.json`。
 
@@ -55,4 +56,4 @@ Mambo 源代码是本仓库；此检出尚未配置公开 Git 远端，不编造
 
 ## 许可原文来源
 
-GNU 文本从 [gnu.org](https://www.gnu.org/licenses/) 下载；Apache-2.0 从 [apache.org](https://www.apache.org/licenses/LICENSE-2.0.txt) 下载；Microsoft/.NET/Toolkit 文本原样取自本机已锁定并还原的官方 NuGet 包；MiSans PDF 从小米官方网站下载。文件 SHA-256 与来源在 `LICENSES/sources.json` 中记录。
+GNU 文本从 [gnu.org](https://www.gnu.org/licenses/) 下载；Apache-2.0 从 [apache.org](https://www.apache.org/licenses/LICENSE-2.0.txt) 下载；Microsoft/.NET/Toolkit 文本原样取自本机已锁定并还原的官方 NuGet 包；MiSans PDF 从小米官方网站下载；Feather 文本取自 [v4.29.2 上游许可](https://raw.githubusercontent.com/feathericons/feather/v4.29.2/LICENSE)。文件 SHA-256 与来源在 `LICENSES/sources.json` 中记录。
