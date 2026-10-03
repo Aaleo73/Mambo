@@ -4,7 +4,6 @@ using Mambo.App.Shell;
 using Mambo.App.Themes;
 using Mambo.App.ViewModels;
 using Mambo.Core.Contracts;
-using Microsoft.UI;
 using Microsoft.UI.Composition;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
@@ -13,6 +12,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Hosting;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Animation;
 using Windows.Foundation;
 
 namespace Mambo.App.Views.Controls;
@@ -24,20 +24,21 @@ namespace Mambo.App.Views.Controls;
 /// </summary>
 public sealed partial class HeroCarousel : UserControl, IDisposable
 {
-    public const double FadeExtent = 96;
     private static readonly TimeSpan Interval = TimeSpan.FromSeconds(7);
     private readonly DispatcherQueueTimer timer;
     private readonly List<HeroSlideViewModel> slides = [];
     private ContainerVisual? container;
     private ContainerVisual? images;
-    private SpriteVisual? scrimLinear;
-    private SpriteVisual? scrimRadial;
+    private SpriteVisual? scrim;
     private SpriteVisual? front;
     private SpriteVisual? back;
     private CompositionLinearGradientBrush? mask;
     private CancellationTokenSource? loading;
     private WindowContext? window;
     private WindowContrastObserver? contrastObserver;
+    private HeroSlideViewModel? shownSlide;
+    private (string Id, ImageSource? Bitmap)? loadedLogo;
+    private int infoVersion;
     private int index = -1;
     private bool hovering;
     private bool focused;
@@ -50,8 +51,13 @@ public sealed partial class HeroCarousel : UserControl, IDisposable
     public HeroCarousel()
     {
         InitializeComponent();
+        // 原版的文字阴影：标题 0 2px 10px .65，评分信息 0 1px 3px .65，简介 0 1px 4px .6。
+        SoftShadow.AttachDrop(TitleShadow, TitleText, 10, 2, 0.65f);
+        SoftShadow.AttachDrop(MetaShadow, MetaRow, 3, 1, 0.65f);
+        SoftShadow.AttachDrop(OverviewShadow, OverviewText, 4, 1, 0.6f);
         Dots = new HeroDots();
         Dots.DotClicked += (_, i) => GoTo(i);
+        Dots.StepRequested += (_, step) => { if (slides.Count > 1) GoTo((index + step + slides.Count) % slides.Count); };
         Dots.HoverChanged += (_, hover) => { dotsHovering = hover; UpdateTimer(); };
         timer = DispatcherQueue.CreateTimer();
         timer.Interval = Interval;
@@ -110,6 +116,7 @@ public sealed partial class HeroCarousel : UserControl, IDisposable
     {
         if (disposed) return;
         disposed = true;
+        infoVersion++;
         timer.Stop();
         timer.Tick -= OnTimer;
         Loaded -= OnLoaded;
@@ -120,7 +127,7 @@ public sealed partial class HeroCarousel : UserControl, IDisposable
         if (window is not null) window.ActiveChanged -= OnWindowActiveChanged;
         if (front?.Brush is CompositionMaskBrush frontMask) ((frontMask.Source as CompositionSurfaceBrush)?.Surface as LoadedImageSurface)?.Dispose();
         if (back?.Brush is CompositionMaskBrush backMask) ((backMask.Source as CompositionSurfaceBrush)?.Surface as LoadedImageSurface)?.Dispose();
-        front?.Dispose(); back?.Dispose(); container?.Dispose();
+        front?.Dispose(); back?.Dispose(); scrim?.Dispose(); container?.Dispose();
     }
 
     private void CancelLoading()
@@ -143,15 +150,8 @@ public sealed partial class HeroCarousel : UserControl, IDisposable
         if (disposed) return;
         AttachContrastObserver();
         if (container is not null) { UpdateTimer(); if (index >= 0) _ = ShowAsync(index, animate: false); return; }
-        var host = ElementCompositionPreview.GetElementVisual(ArtHost);
-        var compositor = host.Compositor;
-        mask = compositor.CreateLinearGradientBrush();
-        mask.StartPoint = new Vector2(0, 0);
-        mask.EndPoint = new Vector2(0, 1);
-        mask.ColorStops.Add(compositor.CreateColorGradientStop(0f, Colors.White));
-        mask.ColorStops.Add(compositor.CreateColorGradientStop(0.56f, Colors.White));
-        mask.ColorStops.Add(compositor.CreateColorGradientStop(0.76f, Windows.UI.Color.FromArgb(140, 255, 255, 255)));
-        mask.ColorStops.Add(compositor.CreateColorGradientStop(1f, Windows.UI.Color.FromArgb(0, 255, 255, 255)));
+        var compositor = ElementCompositionPreview.GetElementVisual(ArtHost).Compositor;
+        mask = HeroArt.CreateEdgeFade(compositor);
         container = compositor.CreateContainerVisual();
         images = compositor.CreateContainerVisual();
         back = CreateLayer(compositor);
@@ -159,28 +159,8 @@ public sealed partial class HeroCarousel : UserControl, IDisposable
         images.Children.InsertAtTop(back);
         images.Children.InsertAtTop(front);
         container.Children.InsertAtTop(images);
-        // 左侧压暗让文字可读；与图片一样向下渐隐，避免在 hero 底边留下一道硬边。
-        var scrimMask = compositor.CreateLinearGradientBrush();
-        scrimMask.StartPoint = new Vector2(0, 0);
-        scrimMask.EndPoint = new Vector2(0, 1);
-        scrimMask.ColorStops.Add(compositor.CreateColorGradientStop(0f, Colors.White));
-        scrimMask.ColorStops.Add(compositor.CreateColorGradientStop(0.56f, Colors.White));
-        scrimMask.ColorStops.Add(compositor.CreateColorGradientStop(1f, Windows.UI.Color.FromArgb(0, 255, 255, 255)));
-        var linear = compositor.CreateLinearGradientBrush();
-        linear.StartPoint = new Vector2(0, 0);
-        linear.EndPoint = new Vector2(1, 0);
-        linear.ColorStops.Add(compositor.CreateColorGradientStop(0f, Windows.UI.Color.FromArgb(158, 0, 0, 0)));
-        linear.ColorStops.Add(compositor.CreateColorGradientStop(0.34f, Windows.UI.Color.FromArgb(87, 0, 0, 0)));
-        linear.ColorStops.Add(compositor.CreateColorGradientStop(0.62f, Windows.UI.Color.FromArgb(0, 0, 0, 0)));
-        var radial = compositor.CreateRadialGradientBrush();
-        radial.EllipseCenter = new Vector2(0.1f, 0.78f);
-        radial.EllipseRadius = new Vector2(0.7f, 0.6f);
-        radial.ColorStops.Add(compositor.CreateColorGradientStop(0f, Windows.UI.Color.FromArgb(115, 0, 0, 0)));
-        radial.ColorStops.Add(compositor.CreateColorGradientStop(1f, Windows.UI.Color.FromArgb(0, 0, 0, 0)));
-        scrimLinear = CreateScrim(compositor, linear, scrimMask);
-        scrimRadial = CreateScrim(compositor, radial, scrimMask);
-        container.Children.InsertAtTop(scrimLinear);
-        container.Children.InsertAtTop(scrimRadial);
+        scrim = HeroArt.CreateCopyScrim(compositor, mask);
+        container.Children.InsertAtTop(scrim);
         ElementCompositionPreview.SetElementChildVisual(ArtHost, container);
         UpdateLayerSize();
         if (index >= 0) _ = ShowAsync(index, animate: false);
@@ -245,24 +225,13 @@ public sealed partial class HeroCarousel : UserControl, IDisposable
         return layer;
     }
 
-    private static SpriteVisual CreateScrim(Compositor compositor, CompositionBrush source, CompositionBrush mask)
-    {
-        var brush = compositor.CreateMaskBrush();
-        brush.Source = source;
-        brush.Mask = mask;
-        var visual = compositor.CreateSpriteVisual();
-        visual.Brush = brush;
-        return visual;
-    }
-
     private void UpdateLayerSize()
     {
-        if (front is null || back is null || scrimLinear is null || scrimRadial is null) return;
-        var size = new Vector2((float)ActualWidth, (float)(ActualHeight + FadeExtent));
+        if (front is null || back is null || scrim is null) return;
+        var size = new Vector2((float)ActualWidth, (float)(ActualHeight + HeroArt.FadeExtent));
         front.Size = size;
         back.Size = size;
-        scrimLinear.Size = size;
-        scrimRadial.Size = size;
+        scrim.Size = size;
         front.CenterPoint = back.CenterPoint = new Vector3(size / 2, 0);
     }
 
@@ -277,48 +246,81 @@ public sealed partial class HeroCarousel : UserControl, IDisposable
         if (timer.IsRunning) { timer.Stop(); timer.Start(); }
     }
 
+    /// <summary>换幻灯片时，旧文字先上移淡出（180ms），再换成新内容入场。</summary>
     private void ShowInfo(HeroSlideViewModel slide, bool animate)
     {
+        var version = ++infoVersion;
         AutomationProperties.SetName(Root, slide.Title);
+        var visual = ElementCompositionPreview.GetElementVisual(Info);
+        if (!animate || !Motion.AnimationsEnabled || highContrast)
+        {
+            ApplyInfo(slide);
+            visual.StopAnimation("Opacity");
+            visual.Opacity = 1;
+            return;
+        }
+        ElementCompositionPreview.SetIsTranslationEnabled(Info, true);
+        var compositor = visual.Compositor;
+        var easing = Motion.CreateEasing(compositor, Motion.Exit);
+        var batch = compositor.CreateScopedBatch(CompositionBatchTypes.Animation);
+        var fade = compositor.CreateScalarKeyFrameAnimation();
+        fade.InsertKeyFrame(1, 0, easing);
+        fade.Duration = Motion.HeroExit;
+        var move = compositor.CreateVector3KeyFrameAnimation();
+        move.InsertKeyFrame(1, new Vector3(0, -4, 0), easing);
+        move.Duration = Motion.HeroExit;
+        visual.StartAnimation("Opacity", fade);
+        visual.StartAnimation("Translation", move);
+        batch.End();
+        batch.Completed += (_, _) =>
+        {
+            if (disposed || version != infoVersion) return;
+            ApplyInfo(slide);
+            Enter();
+        };
+    }
+
+    private void ApplyInfo(HeroSlideViewModel slide)
+    {
+        shownSlide = slide;
         TitleText.Text = slide.Title;
-        TitleText.Visibility = highContrast || slide.Logo is null ? Visibility.Visible : Visibility.Collapsed;
-        LogoImage.Source = null;
         OverviewText.Text = slide.Overview;
-        OverviewText.Visibility = slide.Overview.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         BuildMeta(slide);
-        if (animate) Rise();
+        ApplyLogo();
+    }
+
+    /// <summary>有 logo 时显示 logo；没有，或 logo 加载失败时显示文字标题。</summary>
+    private void ApplyLogo()
+    {
+        if (shownSlide is not { } slide) return;
+        var ready = loadedLogo is { } logo && logo.Id == slide.Id;
+        LogoImage.Source = ready && !highContrast ? loadedLogo!.Value.Bitmap : null;
+        var failed = ready && loadedLogo!.Value.Bitmap is null;
+        TitleText.Visibility = highContrast || slide.Logo is null || failed ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void BuildMeta(HeroSlideViewModel slide)
     {
+        var resources = Application.Current.Resources;
         MetaRow.Children.Clear();
-        void Separator()
-        {
-            if (MetaRow.Children.Count > 0)
-                MetaRow.Children.Add(new Border { Style = XamlResources.Style(Application.Current.Resources, "HeroSeparatorStyle") });
-        }
         if (slide.RatingText.Length > 0)
         {
-            var star = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
-            star.Children.Add(new FontIcon { Glyph = "", Style = XamlResources.Style(Application.Current.Resources, "HeroRatingIconStyle") });
-            star.Children.Add(MetaText(slide.RatingText));
-            MetaRow.Children.Add(star);
+            var rating = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
+            rating.Children.Add(new TextBlock { Text = "★", Style = XamlResources.Style(resources, "HeroStarTextStyle") });
+            rating.Children.Add(MetaText(slide.RatingText));
+            MetaRow.Children.Add(rating);
         }
         foreach (var text in new[] { slide.Year, slide.Genres })
-        {
-            if (text.Length == 0) continue;
-            Separator();
-            MetaRow.Children.Add(MetaText(text));
-        }
+            if (text.Length > 0) MetaRow.Children.Add(MetaText(text));
         if (slide.OfficialRating.Length > 0)
         {
-            Separator();
             MetaRow.Children.Add(new Border
             {
-                Style = XamlResources.Style(Resources, "ContrastHeroBadgeStyle"),
-                Child = new TextBlock { Text = slide.OfficialRating, Style = XamlResources.Style(Application.Current.Resources, "HeroBadgeTextStyle") },
+                Style = XamlResources.Style(resources, "HeroBadgeStyle"),
+                Child = new TextBlock { Text = slide.OfficialRating, Style = XamlResources.Style(resources, "HeroBadgeTextStyle") },
             });
         }
+        MetaArea.Visibility = MetaRow.Children.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private static TextBlock MetaText(string text) => new() { Text = text, Style = XamlResources.Style(Application.Current.Resources, "HeroMetaTextStyle") };
@@ -336,10 +338,11 @@ public sealed partial class HeroCarousel : UserControl, IDisposable
         {
             if (slide.Logo is { } logo)
             {
-                var bitmap = await loader.LoadAsync(logo, 400, scale, ImagePriority.Hero, token);
+                var bitmap = await loader.LoadAsync(logo, 360, scale, ImagePriority.Hero, token);
                 if (cts.IsCancellationRequested || highContrast) return;
-                LogoImage.Source = bitmap;
-                TitleText.Visibility = bitmap is null ? Visibility.Visible : Visibility.Collapsed;
+                loadedLogo = (slide.Id, bitmap);
+                // 文字还在退场时先不换；退场结束后 ApplyInfo 会用到这张图。
+                if (shownSlide?.Id == slide.Id) ApplyLogo();
             }
             var surface = slide.Backdrop is { } backdrop ? await LoadSurfaceAsync(loader, backdrop, scale, ImagePriority.Hero, token) : null;
             if (token.IsCancellationRequested || highContrast) { surface?.Dispose(); return; }
@@ -376,13 +379,13 @@ public sealed partial class HeroCarousel : UserControl, IDisposable
         catch { surface.Dispose(); throw; }
     }
 
+    /// <summary>新图一边淡入一边从 1.04 落回 1（500ms，settle 缓动），旧图只淡出（300ms）。</summary>
     private void Present(LoadedImageSurface? surface, bool animate)
     {
         if (front is null || back is null) return;
         var compositor = back.Compositor;
         var brush = compositor.CreateSurfaceBrush(surface);
         brush.Stretch = CompositionStretch.UniformToFill;
-        brush.VerticalAlignmentRatio = 0.25f;
         var old = ((CompositionMaskBrush)back.Brush).Source as CompositionSurfaceBrush;
         ((CompositionMaskBrush)back.Brush).Source = brush;
         (old?.Surface as LoadedImageSurface)?.Dispose();
@@ -401,47 +404,54 @@ public sealed partial class HeroCarousel : UserControl, IDisposable
         var fadeIn = compositor.CreateScalarKeyFrameAnimation();
         fadeIn.InsertKeyFrame(0, 0);
         fadeIn.InsertKeyFrame(1, 1, settle);
-        fadeIn.Duration = Motion.Hero;
+        fadeIn.Duration = Motion.Settling;
         var zoom = compositor.CreateVector3KeyFrameAnimation();
         zoom.InsertKeyFrame(0, new Vector3(1.04f, 1.04f, 1));
         zoom.InsertKeyFrame(1, Vector3.One, settle);
-        zoom.Duration = TimeSpan.FromMilliseconds(500);
+        zoom.Duration = Motion.Settling;
         var fadeOut = compositor.CreateScalarKeyFrameAnimation();
-        fadeOut.InsertKeyFrame(1, 0, settle);
-        fadeOut.Duration = Motion.Hero;
+        fadeOut.InsertKeyFrame(1, 0, Motion.CreateEasing(compositor, Motion.Fluid));
+        fadeOut.Duration = TimeSpan.FromMilliseconds(300);
         front.StartAnimation("Opacity", fadeIn);
         front.StartAnimation("Scale", zoom);
         back.StartAnimation("Opacity", fadeOut);
     }
 
-    /// <summary>文字区各行依次上浮淡入，间隔 40ms。</summary>
-    private void Rise()
+    /// <summary>入场：整块从下方 8px 淡入（320ms），里面三块再各自上浮 5px（240ms），依次错开 40ms。</summary>
+    private void Enter()
     {
-        if (!Motion.AnimationsEnabled || highContrast) return;
+        var visual = ElementCompositionPreview.GetElementVisual(Info);
+        var compositor = visual.Compositor;
+        var easing = Motion.CreateEasing(compositor, Motion.Fluid);
+        Animate(Info, 8, Motion.HeroContent, TimeSpan.Zero, easing);
         var delay = TimeSpan.Zero;
-        foreach (var child in Info.Children)
+        foreach (var block in new FrameworkElement[] { LogoArea, MetaArea, OverviewArea })
         {
-            if (child.Visibility != Visibility.Visible) continue;
-            ElementCompositionPreview.SetIsTranslationEnabled(child, true);
-            var visual = ElementCompositionPreview.GetElementVisual(child);
-            var compositor = visual.Compositor;
-            var easing = Motion.CreateEasing(compositor, Motion.Settle);
-            var opacity = compositor.CreateScalarKeyFrameAnimation();
-            opacity.InsertKeyFrame(0, 0);
-            opacity.InsertKeyFrame(1, 1, easing);
-            opacity.Duration = Motion.Hero;
-            opacity.DelayTime = delay;
-            opacity.DelayBehavior = AnimationDelayBehavior.SetInitialValueBeforeDelay;
-            var offset = compositor.CreateVector3KeyFrameAnimation();
-            offset.InsertKeyFrame(0, new Vector3(0, 10, 0));
-            offset.InsertKeyFrame(1, Vector3.Zero, easing);
-            offset.Duration = Motion.Hero;
-            offset.DelayTime = delay;
-            offset.DelayBehavior = AnimationDelayBehavior.SetInitialValueBeforeDelay;
-            visual.StartAnimation("Opacity", opacity);
-            visual.StartAnimation("Translation", offset);
+            if (block.Visibility != Visibility.Visible) continue;
+            Animate(block, 5, Motion.Normal, delay, easing);
             delay += TimeSpan.FromMilliseconds(40);
         }
+    }
+
+    private static void Animate(UIElement element, float fromY, TimeSpan duration, TimeSpan delay, CompositionEasingFunction easing)
+    {
+        ElementCompositionPreview.SetIsTranslationEnabled(element, true);
+        var visual = ElementCompositionPreview.GetElementVisual(element);
+        var compositor = visual.Compositor;
+        var opacity = compositor.CreateScalarKeyFrameAnimation();
+        opacity.InsertKeyFrame(0, 0);
+        opacity.InsertKeyFrame(1, 1, easing);
+        opacity.Duration = duration;
+        opacity.DelayTime = delay;
+        opacity.DelayBehavior = AnimationDelayBehavior.SetInitialValueBeforeDelay;
+        var offset = compositor.CreateVector3KeyFrameAnimation();
+        offset.InsertKeyFrame(0, new Vector3(0, fromY, 0));
+        offset.InsertKeyFrame(1, Vector3.Zero, easing);
+        offset.Duration = duration;
+        offset.DelayTime = delay;
+        offset.DelayBehavior = AnimationDelayBehavior.SetInitialValueBeforeDelay;
+        visual.StartAnimation("Opacity", opacity);
+        visual.StartAnimation("Translation", offset);
     }
 
     private void UpdateTimer()
@@ -478,43 +488,102 @@ public sealed partial class HeroCarousel : UserControl, IDisposable
     }
 }
 
-/// <summary>标题栏中间的 hero 分页点：6px 圆点，当前项拉长到 22px。</summary>
+/// <summary>
+/// 标题栏中间的 hero 分页：两侧是上一张、下一张箭头，中间是 6px 圆点，当前项拉长到 22px 并加深（240ms）。
+/// </summary>
 public sealed partial class HeroDots : StackPanel
 {
+    private const double DotWidth = 6;
+    private const double ActiveWidth = 22;
+    private readonly List<(Grid Pill, Border Active)> dots = [];
+    private readonly Button previous;
+    private readonly Button next;
+
     public HeroDots()
     {
         Orientation = Orientation.Horizontal;
-        Spacing = 4;
+        Spacing = 6;
         VerticalAlignment = VerticalAlignment.Center;
+        previous = Arrow("IconChevronLeft", "上一张推荐", -1);
+        next = Arrow("IconChevronRight", "下一张推荐", 1);
         PointerEntered += (_, _) => HoverChanged?.Invoke(this, true);
         PointerExited += (_, _) => HoverChanged?.Invoke(this, false);
     }
 
     public event EventHandler<int>? DotClicked;
+    public event EventHandler<int>? StepRequested;
     public event EventHandler<bool>? HoverChanged;
+
+    private Button Arrow(string icon, string name, int step)
+    {
+        var resources = Application.Current.Resources;
+        var button = new Button
+        {
+            Style = XamlResources.Style(resources, "IconButtonStyle"),
+            Width = 24,
+            Height = 24,
+            CornerRadius = new CornerRadius(12),
+            IsTabStop = false,
+            Content = new LineIcon { Glyph = (string)resources[icon], Width = 13, Height = 13, StrokeWidth = 2.45 },
+        };
+        AutomationProperties.SetName(button, name);
+        button.Click += (_, _) => StepRequested?.Invoke(this, step);
+        return button;
+    }
 
     public void Build(int count)
     {
+        var resources = Application.Current.Resources;
         Children.Clear();
+        dots.Clear();
+        Children.Add(previous);
         for (var i = 0; i < count; i++)
         {
             var number = i;
-            var button = new Button
-            {
-                Style = XamlResources.Style(Application.Current.Resources, "HeroDotButtonStyle"),
-                Content = new Border { Style = XamlResources.Style(Application.Current.Resources, "HeroDotStyle") },
-            };
-            AutomationProperties.SetName(button, $"第 {i + 1} 张");
+            var active = new Border { Style = XamlResources.Style(resources, "HeroDotActiveStyle") };
+            var pill = new Grid { Width = DotWidth, Height = 6, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+            pill.Children.Add(new Border { Style = XamlResources.Style(resources, "HeroDotStyle") });
+            pill.Children.Add(active);
+            var button = new Button { Style = XamlResources.Style(resources, "HeroDotButtonStyle"), Content = pill };
+            AutomationProperties.SetName(button, $"切换到第 {i + 1} 个推荐");
             button.Click += (_, _) => DotClicked?.Invoke(this, number);
             Children.Add(button);
+            dots.Add((pill, active));
         }
+        Children.Add(next);
         Visibility = count >= 2 ? Visibility.Visible : Visibility.Collapsed;
     }
 
     public void SetActive(int index)
     {
-        for (var i = 0; i < Children.Count; i++)
-            if (Children[i] is Button { Content: Border dot })
-                dot.Style = XamlResources.Style(Application.Current.Resources, i == index ? "HeroDotActiveStyle" : "HeroDotStyle");
+        for (var i = 0; i < dots.Count; i++)
+        {
+            var (pill, active) = dots[i];
+            var on = i == index;
+            var width = on ? ActiveWidth : DotWidth;
+            if (!Motion.AnimationsEnabled || !pill.IsLoaded)
+            {
+                active.OpacityTransition = null;
+                active.Opacity = on ? 1 : 0;
+                pill.Width = width;
+                continue;
+            }
+            active.OpacityTransition = new ScalarTransition { Duration = Motion.Normal };
+            active.Opacity = on ? 1 : 0;
+            if (pill.Width == width) continue;
+            // 宽度参与布局，只能用依赖动画；一共不超过 8 个点，开销可以忽略。
+            var frames = new DoubleAnimationUsingKeyFrames { EnableDependentAnimation = true };
+            frames.KeyFrames.Add(new SplineDoubleKeyFrame
+            {
+                KeyTime = KeyTime.FromTimeSpan(Motion.Normal),
+                Value = width,
+                KeySpline = new KeySpline { ControlPoint1 = new Point(0.2, 0.8), ControlPoint2 = new Point(0.2, 1) },
+            });
+            Storyboard.SetTarget(frames, pill);
+            Storyboard.SetTargetProperty(frames, "Width");
+            var storyboard = new Storyboard();
+            storyboard.Children.Add(frames);
+            storyboard.Begin();
+        }
     }
 }

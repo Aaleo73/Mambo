@@ -2,22 +2,24 @@
     x:Class="Mambo.App.Shell.SidebarView"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:shell="using:Mambo.App.Shell"
+    xmlns:themes="using:Mambo.App.Themes"
     xmlns:vm="using:Mambo.App.ViewModels">
-    <Grid Padding="8,4,8,10" RowSpacing="2">
+    <Grid Padding="8,12,8,12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        <Grid Margin="0,2,0,10" Background="Transparent" ToolTipService.ToolTip="{x:Bind ViewModel.SearchTip, Mode=OneWay}">
-            <TextBox x:Name="SearchBox" Style="{StaticResource SoftInputStyle}" Padding="36,7,8,7" PlaceholderText="搜索电影、剧集"
+        <Grid Margin="0,0,0,8" Background="Transparent" ToolTipService.ToolTip="{x:Bind ViewModel.SearchTip, Mode=OneWay}">
+            <TextBox x:Name="SearchBox" Style="{StaticResource SoftInputStyle}" Padding="36,9,8,9"
                      Text="{x:Bind ViewModel.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                      IsEnabled="{x:Bind ViewModel.IsLoggedIn, Mode=OneWay}" MaxLength="256"
                      KeyDown="OnSearchKeyDown" AutomationProperties.Name="搜索"/>
-            <Button Style="{StaticResource IconButtonStyle}" Width="28" Height="28" Margin="4,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center"
-                    Foreground="{ThemeResource TextSecondaryBrush}" IsEnabled="{x:Bind ViewModel.IsLoggedIn, Mode=OneWay}" IsTabStop="False"
+            <Button Style="{StaticResource QuietIconButtonStyle}" Margin="5,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center"
+                    IsEnabled="{x:Bind ViewModel.IsLoggedIn, Mode=OneWay}" IsTabStop="False"
                     Click="OnSearchClick" AutomationProperties.Name="开始搜索">
-                <FontIcon Glyph="&#xE721;" FontSize="14"/>
+                <themes:LineIcon Glyph="{StaticResource IconSearch}" Width="15" Height="15" StrokeWidth="2"/>
             </Button>
         </Grid>
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled">
@@ -25,20 +27,19 @@
                 <RadioButton x:Name="HomeItem" Style="{StaticResource NavItemStyle}" GroupName="SidebarNav" IsChecked="{x:Bind ViewModel.IsHomeActive, Mode=OneWay}"
                              Checked="OnHomeChecked" AutomationProperties.Name="首页">
                     <StackPanel Orientation="Horizontal" Spacing="12">
-                        <FontIcon Glyph="&#xE80F;" FontSize="16"/>
+                        <themes:LineIcon Glyph="{StaticResource IconHome}"/>
                         <TextBlock Style="{StaticResource BodyStrongTextStyle}" Text="首页"/>
                     </StackPanel>
                 </RadioButton>
                 <RadioButton Style="{StaticResource NavItemStyle}" GroupName="SidebarNav" IsChecked="{x:Bind ViewModel.IsRecentActive, Mode=OneWay}"
                              IsEnabled="{x:Bind ViewModel.IsLoggedIn, Mode=OneWay}" Checked="OnRecentChecked" AutomationProperties.Name="最近播放">
                     <StackPanel Orientation="Horizontal" Spacing="12">
-                        <FontIcon Glyph="&#xE823;" FontSize="16"/>
+                        <themes:LineIcon Glyph="{StaticResource IconClock}"/>
                         <TextBlock Style="{StaticResource BodyStrongTextStyle}" Text="最近播放"/>
                     </StackPanel>
                 </RadioButton>
-                <TextBlock Style="{StaticResource EyebrowTextStyle}" CharacterSpacing="0" Margin="12,14,12,4" Text="媒体库"
-                           Visibility="{x:Bind ViewModel.HasLibraries, Mode=OneWay}"/>
-                <ItemsRepeater ItemsSource="{x:Bind ViewModel.Libraries}">
+                <!-- 固定项与媒体库之间只留 8px 间隔（含上面的 2px 行距），不加分组标题 -->
+                <ItemsRepeater ItemsSource="{x:Bind ViewModel.Libraries}" Margin="0,6,0,0">
                     <ItemsRepeater.Layout>
                         <StackLayout Spacing="2"/>
                     </ItemsRepeater.Layout>
@@ -47,7 +48,7 @@
                             <RadioButton Style="{StaticResource NavItemStyle}" GroupName="SidebarNav" IsChecked="{x:Bind IsActive, Mode=OneWay}"
                                          Tag="{x:Bind Id}" Checked="OnLibraryChecked" AutomationProperties.Name="{x:Bind Name}">
                                 <StackPanel Orientation="Horizontal" Spacing="12">
-                                    <FontIcon Glyph="{x:Bind Glyph}" FontSize="16"/>
+                                    <themes:LineIcon Glyph="{x:Bind shell:SidebarView.Icon(IconKey)}"/>
                                     <TextBlock Style="{StaticResource BodyStrongTextStyle}" Text="{x:Bind Name}"/>
                                 </StackPanel>
                             </RadioButton>
@@ -59,7 +60,7 @@
         <RadioButton Grid.Row="2" Style="{StaticResource NavItemStyle}" GroupName="SidebarNav" IsChecked="{x:Bind ViewModel.IsSettingsActive, Mode=OneWay}"
                      Checked="OnSettingsChecked" AutomationProperties.Name="设置">
             <StackPanel Orientation="Horizontal" Spacing="12">
-                <FontIcon Glyph="&#xE713;" FontSize="16"/>
+                <themes:LineIcon Glyph="{StaticResource IconSettings}"/>
                 <TextBlock Style="{StaticResource BodyStrongTextStyle}" Text="设置"/>
             </StackPanel>
         </RadioButton>

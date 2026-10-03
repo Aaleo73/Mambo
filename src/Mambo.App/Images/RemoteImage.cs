@@ -44,6 +44,10 @@ public sealed partial class RemoteImage : Grid
 
     /// <summary>图片已显示（用于需要在图片到位后再开始的动画）。</summary>
     public event EventHandler? ImageOpened;
+    /// <summary>开始换图：叠在图上的文字应先藏起来。</summary>
+    public event EventHandler? Pending;
+    /// <summary>这张图有了结果（显示出来、没有图或加载失败）；参数表示是否需要淡入。</summary>
+    public event EventHandler<bool>? Settled;
 
     private void Cancel()
     {
@@ -58,7 +62,13 @@ public sealed partial class RemoteImage : Grid
         picture.OpacityTransition = null;
         picture.Opacity = 0;
         brush.ImageSource = null;
-        if (Source is not ImageRef image || !IsLoaded || XamlRoot is null || ImageLoader.Current is not { } loader) return;
+        Pending?.Invoke(this, EventArgs.Empty);
+        if (!IsLoaded || XamlRoot is null) return;
+        if (Source is not ImageRef image || ImageLoader.Current is not { } loader)
+        {
+            Settled?.Invoke(this, false);
+            return;
+        }
         var width = DecodeWidth > 0 ? DecodeWidth : ActualWidth;
         if (width <= 0) return;
         var decodeWidth = (int)Math.Ceiling(width);
@@ -72,7 +82,9 @@ public sealed partial class RemoteImage : Grid
         try
         {
             var bitmap = await loader.LoadAsync(image, width, XamlRoot?.RasterizationScale ?? 1, Priority, cts.Token);
-            if (!cts.IsCancellationRequested && bitmap is not null) Show(bitmap, animate: true);
+            if (cts.IsCancellationRequested) return;
+            if (bitmap is not null) Show(bitmap, animate: true);
+            else Settled?.Invoke(this, true);
         }
         catch (OperationCanceledException)
         {
@@ -89,5 +101,6 @@ public sealed partial class RemoteImage : Grid
         }
         picture.Opacity = 1;
         ImageOpened?.Invoke(this, EventArgs.Empty);
+        Settled?.Invoke(this, animate);
     }
 }

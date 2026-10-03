@@ -98,7 +98,7 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
             if (!latest.TryGetValue(item.Id, out var rail))
             {
                 var id = item.Id;
-                rail = new RailViewModel($"最新 · {item.Name}", library.ObserveLatest(id, scope.Token), CardContext.Latest, landscape: false,
+                rail = new RailViewModel(item.Name, library.ObserveLatest(id, scope.Token), CardContext.Latest, landscape: false,
                     "查看全部", () => navigator.Navigate(Route.Library(id)));
                 latest[id] = rail;
                 Rails.Insert(Math.Min(position, Rails.Count), rail);

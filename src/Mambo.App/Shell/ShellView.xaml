@@ -2,7 +2,8 @@
     x:Class="Mambo.App.Shell.ShellView"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:shell="using:Mambo.App.Shell">
+    xmlns:shell="using:Mambo.App.Shell"
+    xmlns:themes="using:Mambo.App.Themes">
     <UserControl.Resources>
         <ResourceDictionary>
             <ResourceDictionary.ThemeDictionaries>
@@ -28,6 +29,12 @@
         <Border x:Name="BackdropFallback" Grid.RowSpan="2" Grid.ColumnSpan="2"
                 Background="{ThemeResource WindowOpaqueFallbackBrush}" IsHitTestVisible="False"
                 AutomationProperties.AccessibilityView="Raw"/>
+        <!-- 玻璃面板：亚克力之上的白色渐变、1px 细边和顶部内高光 -->
+        <Border Grid.RowSpan="2" Grid.ColumnSpan="2" Background="{ThemeResource GlassWashBrush}"
+                BorderBrush="{ThemeResource GlassStrokeBrush}" BorderThickness="1" IsHitTestVisible="False"
+                AutomationProperties.AccessibilityView="Raw"/>
+        <Border Grid.ColumnSpan="2" Height="1" Margin="1,1,1,0" VerticalAlignment="Top" Background="{ThemeResource GlassHighlightBrush}"
+                IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw"/>
         <Border x:Name="PlayerCaptionBackground" Grid.ColumnSpan="2" Background="{ThemeResource PlayerCaptionBackgroundBrush}" Visibility="Collapsed"/>
         <Grid x:Name="TitleBar" Grid.ColumnSpan="2" Background="Transparent">
             <Grid.ColumnDefinitions>
@@ -38,36 +45,38 @@
             <StackPanel x:Name="NavButtons" Orientation="Horizontal" Spacing="2" Margin="8,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center">
                 <Button x:Name="BackButton" Style="{StaticResource TitleBarButtonStyle}" IsEnabled="{x:Bind ViewModel.CanGoBack, Mode=OneWay}"
                         Click="OnBackClick" ToolTipService.ToolTip="后退（Alt+←）" AutomationProperties.Name="后退">
-                    <FontIcon Glyph="&#xE72B;" FontSize="14"/>
+                    <themes:LineIcon Glyph="{StaticResource IconChevronLeft}" Width="16" Height="16" StrokeWidth="2.2"/>
                 </Button>
                 <Button x:Name="ForwardButton" Style="{StaticResource TitleBarButtonStyle}" IsEnabled="{x:Bind ViewModel.CanGoForward, Mode=OneWay}"
                         Click="OnForwardClick" ToolTipService.ToolTip="前进（Alt+→）" AutomationProperties.Name="前进">
-                    <FontIcon Glyph="&#xE72A;" FontSize="14"/>
+                    <themes:LineIcon Glyph="{StaticResource IconChevronRight}" Width="16" Height="16" StrokeWidth="2.2"/>
                 </Button>
             </StackPanel>
-            <Grid x:Name="CenterArea" Grid.Column="1" Padding="16,0">
-                <TextBlock Style="{StaticResource BodySmallTextStyle}" FontFamily="{StaticResource MiSansMediumFontFamily}" FontWeight="Medium"
-                           Foreground="{ThemeResource TextSecondaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"
+            <!-- 标题和首页分页点都居中在侧栏右侧的整段区域里；两侧各留 140，避开窗口按钮 -->
+            <Grid x:Name="CenterArea" Grid.Column="1" Grid.ColumnSpan="2" Padding="140,0">
+                <TextBlock x:Name="TitleLabel" Style="{StaticResource BodyStrongTextStyle}" CharacterSpacing="-10"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"
                            Text="{x:Bind ViewModel.TitleText, Mode=OneWay}"/>
                 <ContentPresenter x:Name="CenterContent" HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Grid>
             <StackPanel Grid.Column="2" Orientation="Horizontal">
                 <Button x:Name="MinimizeButton" Style="{StaticResource CaptionButtonStyle}" Click="OnMinimizeClick" IsTabStop="True" UseSystemFocusVisuals="True"
                         ToolTipService.ToolTip="最小化" AutomationProperties.Name="最小化">
-                    <FontIcon Glyph="&#xE921;" FontSize="10"/>
+                    <themes:LineIcon Glyph="{StaticResource CaptionMinimize}" Box="10" StrokeWidth="1" Width="10" Height="10"/>
                 </Button>
                 <Button x:Name="MaximizeButton" Style="{StaticResource CaptionButtonStyle}" Click="OnMaximizeClick" IsTabStop="True" UseSystemFocusVisuals="True"
                         ToolTipService.ToolTip="最大化或还原" AutomationProperties.Name="最大化或还原" Padding="0">
                   <Grid Width="{StaticResource CaptionButtonWidth}" Height="{StaticResource TitleBarHeight}">
-                    <Border x:Name="MaximizeHover" Background="{ThemeResource SubtleFillHoverBrush}" Opacity="0"/>
-                    <Border x:Name="MaximizePressed" Background="{ThemeResource SubtleFillPressedBrush}" Opacity="0"/>
-                    <FontIcon x:Name="MaximizeGlyph" Glyph="&#xE922;" FontSize="10" Foreground="{ThemeResource TextPrimaryBrush}"
-                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    <Border x:Name="MaximizeHover" Background="{ThemeResource WashBrush}" Opacity="0"/>
+                    <Border x:Name="MaximizePressed" Background="{ThemeResource WashPressedBrush}" Opacity="0"/>
+                    <!-- 最大化按钮登记为非客户区，收不到指针状态；用透明度在次要色与主要色之间切换 -->
+                    <themes:LineIcon x:Name="MaximizeGlyph" Glyph="{StaticResource CaptionMaximize}" Box="10" StrokeWidth="1" Width="10" Height="10"
+                                     Foreground="{ThemeResource TextPrimaryBrush}" Opacity="0.8" HorizontalAlignment="Center"/>
                   </Grid>
                 </Button>
                 <Button x:Name="CloseButton" Style="{ThemeResource ShellCloseCaptionStyle}" Click="OnCloseClick" IsTabStop="True" UseSystemFocusVisuals="True"
                         ToolTipService.ToolTip="关闭" AutomationProperties.Name="关闭">
-                    <FontIcon Glyph="&#xE8BB;" FontSize="10"/>
+                    <themes:LineIcon Glyph="{StaticResource CaptionClose}" Box="10" StrokeWidth="1.2" Width="10" Height="10"/>
                 </Button>
             </StackPanel>
         </Grid>

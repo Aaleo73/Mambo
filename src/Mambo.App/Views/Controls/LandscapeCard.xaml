@@ -3,7 +3,8 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:images="using:Mambo.App.Images"
-    xmlns:controls="using:Mambo.App.Views.Controls">
+    xmlns:controls="using:Mambo.App.Views.Controls"
+    xmlns:themes="using:Mambo.App.Themes">
     <Grid x:Name="Layout" Background="Transparent"
           GotFocus="OnFocusChanged" LostFocus="OnFocusChanged"
           PointerEntered="OnPointerEntered" PointerExited="OnPointerExited" PointerCanceled="OnPointerExited">
@@ -17,35 +18,40 @@
                 <VisualState x:Name="Hover">
                     <VisualState.Setters>
                         <Setter Target="Stroke.BorderBrush" Value="{ThemeResource CardStrokeHoverBrush}"/>
-                        <Setter Target="PlayButton.Opacity" Value="1"/>
+                        <Setter Target="InnerStroke.Opacity" Value="1"/>
                     </VisualState.Setters>
                 </VisualState>
             </VisualStateGroup>
         </VisualStateManager.VisualStateGroups>
         <Button x:Name="Root" Grid.RowSpan="2" Style="{StaticResource CardButtonStyle}" Click="OnClick" AutomationProperties.Name="{x:Bind Item.Title, Mode=OneWay}">
-            <Grid RowSpacing="8">
+            <!-- 整张卡（图和文字）一起上浮；播放钮是按钮的兄弟元素，由代码一起带上去 -->
+            <Grid x:Name="Visual">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="{x:Bind ArtRow.Height, Mode=OneWay}"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
                 <Grid x:Name="Art" CornerRadius="{StaticResource LandscapeCornerRadius}" Background="{ThemeResource ImagePlaceholderBrush}">
                     <images:RemoteImage x:Name="Picture" Source="{x:Bind Item.Image, Mode=OneWay}" CornerRadius="{StaticResource LandscapeCornerRadius}"/>
-                    <Border x:Name="Stroke" CornerRadius="{StaticResource LandscapeCornerRadius}" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeBrush}"/>
-                    <Grid Margin="8" Height="4" VerticalAlignment="Bottom" CornerRadius="2" Background="#52FFFFFF" Visibility="{x:Bind Item.HasProgress, Mode=OneWay}">
+                    <!-- 进度：只画已看的一段，没有轨道。容器高 4、两列按比例，填充条高 3 贴底 -->
+                    <Grid x:Name="Progress" Margin="8" Height="4" VerticalAlignment="Bottom" Visibility="{x:Bind Item.HasProgress, Mode=OneWay}">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="{x:Bind Item.ProgressDone, Mode=OneWay}"/>
                             <ColumnDefinition Width="{x:Bind Item.ProgressRest, Mode=OneWay}"/>
                         </Grid.ColumnDefinitions>
-                        <Border CornerRadius="2" Background="#FFFFFFFF"/>
+                        <Border Height="3" VerticalAlignment="Bottom" CornerRadius="1.5" themes:SoftShadow.Kind="Progress"/>
+                        <Border Height="3" VerticalAlignment="Bottom" CornerRadius="1.5" Background="#F5FFFFFF"/>
                     </Grid>
+                    <Border x:Name="Stroke" CornerRadius="{StaticResource LandscapeCornerRadius}" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeBrush}"/>
+                    <Border x:Name="InnerStroke" Margin="1" CornerRadius="9" BorderThickness="1" BorderBrush="#1AFFFFFF" Opacity="0"/>
                 </Grid>
-                <StackPanel Grid.Row="1" Spacing="2" Padding="2,0">
+                <StackPanel x:Name="Copy" Grid.Row="1" Height="47" Margin="0,6,0,0" Spacing="6">
                     <TextBlock Style="{StaticResource CardTitleTextStyle}" Text="{x:Bind Item.Title, Mode=OneWay}"/>
                     <TextBlock Style="{StaticResource CardSubtitleTextStyle}" Text="{x:Bind Item.Subtitle, Mode=OneWay}"/>
                 </StackPanel>
             </Grid>
         </Button>
-        <Button x:Name="PlayButton" Grid.RowSpan="2" Style="{StaticResource CardPlayButtonStyle}" Margin="0,115,10,0" Opacity="0"
+        <!-- 常显：距图片底边 16、右边 8 -->
+        <Button x:Name="PlayButton" Grid.RowSpan="2" Style="{StaticResource CardPlayButtonStyle}" Margin="0,117,8,0"
                 HorizontalAlignment="Right" VerticalAlignment="Top" Click="OnPlayClick"
                 Visibility="{x:Bind ShowPlayButton, Mode=OneWay}" AutomationProperties.Name="从这里播放"
                 ToolTipService.ToolTip="从这里播放"/>

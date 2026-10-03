@@ -21,11 +21,18 @@ public static class Motion
     public static TimeSpan Route => Duration("MotionRouteDuration");
     public static TimeSpan Player => Duration("MotionPlayerDuration");
     public static TimeSpan Hero => Duration("MotionHeroDuration");
+    public static TimeSpan ImageReady => Duration("MotionImageReadyDuration");
+    public static TimeSpan HeroExit => Duration("MotionHeroExitDuration");
+    public static TimeSpan HeroContent => Duration("MotionHeroContentDuration");
+    public static TimeSpan Cover => Duration("MotionCoverDuration");
+    public static TimeSpan Fold => Duration("MotionFoldDuration");
+    public static TimeSpan Settling => Duration("MotionSettleDuration");
 
     public static (Vector2 P1, Vector2 P2) Standard => Spline("MotionStandardKeySpline");
     public static (Vector2 P1, Vector2 P2) Enter => Spline("MotionEnterKeySpline");
     public static (Vector2 P1, Vector2 P2) Fluid => Spline("MotionFluidKeySpline");
     public static (Vector2 P1, Vector2 P2) Settle => Spline("MotionSettleKeySpline");
+    public static (Vector2 P1, Vector2 P2) Exit => Spline("MotionExitKeySpline");
 
     public static CubicBezierEasingFunction CreateEasing(Compositor compositor, (Vector2 P1, Vector2 P2) spline)
     {

@@ -339,7 +339,8 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
     {
         MaximizeHover.Opacity = hover && !pressed ? 1 : 0;
         MaximizePressed.Opacity = pressed ? 1 : 0;
-        MaximizeGlyph.Glyph = maximized ? "" : "";
+        MaximizeGlyph.Opacity = hover || pressed ? 1 : 0.8;
+        MaximizeGlyph.Glyph = (string)Application.Current.Resources[maximized ? "CaptionRestore" : "CaptionMaximize"];
         ToolTipService.SetToolTip(MaximizeButton, maximized ? "还原" : "最大化");
     }
 
@@ -368,15 +369,8 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
 
     private void UpdatePageTitle()
     {
-        pageTitle = Pages.CurrentPage switch
-        {
-            DetailPage detail => detail.ViewModel.Title,
-            LibraryPage library => library.ViewModel.Title,
-            SettingsPage => "设置",
-            RecentPage => "最近播放",
-            SearchPage => "搜索",
-            _ => "",
-        };
+        // 页面自己有大标题，标题栏只在详情页显示片名。
+        pageTitle = Pages.CurrentPage is DetailPage detail ? detail.ViewModel.Title : "";
         if (!CanHandle) ViewModel.TitleText = pageTitle;
     }
 

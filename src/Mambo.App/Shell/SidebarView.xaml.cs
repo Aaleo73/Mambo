@@ -31,6 +31,9 @@ public sealed partial class SidebarView : UserControl
     public static bool IsSearchable(string text) =>
         (text ?? "").Normalize(NormalizationForm.FormKC).Any(c => char.IsLetterOrDigit(c));
 
+    /// <summary>媒体库图标的路径数据；键来自 Icons.xaml。</summary>
+    public static string Icon(string key) => (string)Application.Current.Resources[key];
+
     /// <summary>启动时把焦点放在导航上，避免搜索框一开始就处于输入状态。</summary>
     public bool FocusNavigation() => HomeItem.Focus(FocusState.Programmatic);
 

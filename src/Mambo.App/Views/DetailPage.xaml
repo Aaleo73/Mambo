@@ -146,9 +146,9 @@
                     </Grid>
                     <ProgressRing Width="20" Height="20" IsActive="{x:Bind ViewModel.IsEpisodesLoading, Mode=OneWay}" Visibility="{x:Bind ViewModel.IsEpisodesLoading, Mode=OneWay}"/>
                     <ProgressRing Width="20" Height="20" IsActive="{x:Bind ViewModel.IsLoadingMore, Mode=OneWay}" Visibility="{x:Bind ViewModel.IsLoadingMore, Mode=OneWay}"/>
-                    <controls:StateView Glyph="&#xE783;" Title="剧集加载失败" Visibility="{x:Bind ViewModel.HasEpisodesError, Mode=OneWay}"><controls:StateView.Actions><Button Style="{StaticResource SoftAccentButtonStyle}" Content="重试" Click="OnRetryClick"/></controls:StateView.Actions></controls:StateView>
+                    <controls:StateView Title="剧集加载失败" Visibility="{x:Bind ViewModel.HasEpisodesError, Mode=OneWay}"><controls:StateView.Actions><Button Style="{StaticResource SoftAccentButtonStyle}" Content="重试" Click="OnRetryClick"/></controls:StateView.Actions></controls:StateView>
                     <Button Style="{StaticResource SoftButtonStyle}" Content="重试加载" HorizontalAlignment="Center" Click="OnLoadMoreClick" Visibility="{x:Bind ViewModel.HasEpisodeMoreError, Mode=OneWay}"/>
-                    <controls:StateView Glyph="&#xE714;" Title="暂无剧集" Visibility="{x:Bind ViewModel.IsEpisodesEmpty, Mode=OneWay}"/>
+                    <controls:StateView Title="暂无剧集" Visibility="{x:Bind ViewModel.IsEpisodesEmpty, Mode=OneWay}"/>
                 </StackPanel>
                 <StackPanel Margin="0,28,0,0" Spacing="10" Visibility="{x:Bind ViewModel.HasPeople, Mode=OneWay}">
                     <TextBlock Style="{StaticResource SubtitleTextStyle}" Text="演职人员" Margin="40,0"/>
@@ -161,6 +161,6 @@
             </StackPanel>
         </ScrollViewer>
         <Border Style="{StaticResource SkeletonBlockStyle}" Height="560" VerticalAlignment="Top" CornerRadius="0" Visibility="{x:Bind ViewModel.IsLoading, Mode=OneWay}"/>
-        <controls:StateView Glyph="&#xE783;" Title="详情加载失败" Visibility="{x:Bind ViewModel.HasError, Mode=OneWay}"><controls:StateView.Actions><Button Style="{StaticResource SoftAccentButtonStyle}" Content="重试" Click="OnRetryClick"/></controls:StateView.Actions></controls:StateView>
+        <controls:StateView Title="详情加载失败" Visibility="{x:Bind ViewModel.HasError, Mode=OneWay}"><controls:StateView.Actions><Button Style="{StaticResource SoftAccentButtonStyle}" Content="重试" Click="OnRetryClick"/></controls:StateView.Actions></controls:StateView>
     </Grid>
 </UserControl>

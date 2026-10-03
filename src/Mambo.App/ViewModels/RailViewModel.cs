@@ -36,6 +36,11 @@ public sealed partial class RailViewModel : ObservableObject, IDisposable
     public string Title { get; }
     public string LinkText { get; }
     public bool HasLink => openLink is not null && LinkText.Length > 0;
+    public bool HasNoLink => !HasLink;
+    /// <summary>标题本身就是链接，读屏时把动作一并念出来。</summary>
+    public string LinkName => $"{Title}，{LinkText}";
+    public string ScrollLeftName => $"向左滚动 {Title}";
+    public string ScrollRightName => $"向右滚动 {Title}";
     public bool IsLandscape { get; }
     public ObservableCollection<MediaCardViewModel> Items { get; } = [];
 

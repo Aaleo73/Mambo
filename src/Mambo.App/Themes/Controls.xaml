@@ -623,17 +623,17 @@
     </Style>
 
     <!-- 标题栏里的 hero 分页点：6×6，当前项拉长到 22 -->
+    <!-- 宽度由代码在 6 与 22 之间做动画；两层叠放，当前项把深色那层淡入 -->
     <Style x:Key="HeroDotStyle" TargetType="Border">
         <Setter Property="Height" Value="6"/>
-        <Setter Property="Width" Value="6"/>
         <Setter Property="CornerRadius" Value="3"/>
         <Setter Property="Background" Value="{ThemeResource DotBrush}"/>
     </Style>
     <Style x:Key="HeroDotActiveStyle" TargetType="Border">
         <Setter Property="Height" Value="6"/>
-        <Setter Property="Width" Value="22"/>
         <Setter Property="CornerRadius" Value="3"/>
         <Setter Property="Background" Value="{ThemeResource DotActiveBrush}"/>
+        <Setter Property="Opacity" Value="0"/>
     </Style>
     <Style x:Key="HeroDotButtonStyle" TargetType="Button">
         <Setter Property="MinWidth" Value="28"/>
@@ -711,9 +711,40 @@
             </Setter.Value>
         </Setter>
     </Style>
+    <!-- 只变色、不出底的图标按钮：侧栏搜索框里的放大镜 -->
+    <Style x:Key="QuietIconButtonStyle" TargetType="Button">
+        <Setter Property="Width" Value="28"/>
+        <Setter Property="Height" Value="28"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{ThemeResource TextTertiaryBrush}"/>
+        <Setter Property="UseSystemFocusVisuals" Value="True"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid x:Name="Root" Background="{TemplateBinding Background}" CornerRadius="14">
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CommonStates">
+                                <VisualState x:Name="Normal"/>
+                                <VisualState x:Name="PointerOver">
+                                    <VisualState.Setters><Setter Target="Content.Foreground" Value="{ThemeResource TextSecondaryBrush}"/></VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Pressed">
+                                    <VisualState.Setters><Setter Target="Content.Foreground" Value="{ThemeResource TextSecondaryBrush}"/></VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Disabled">
+                                    <VisualState.Setters><Setter Target="Root.Opacity" Value="0.45"/></VisualState.Setters>
+                                </VisualState>
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+                        <ContentPresenter x:Name="Content" Content="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}"
+                                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
     <!-- 卡片行的翻页箭头：标题行右侧常显的 28px 圆钮 -->
     <Style x:Key="RailArrowButtonStyle" TargetType="Button" BasedOn="{StaticResource IconButtonStyle}">
-        <Setter Property="Foreground" Value="{ThemeResource TextPrimaryBrush}"/>
         <Setter Property="IsTabStop" Value="False"/>
     </Style>
 

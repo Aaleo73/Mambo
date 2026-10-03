@@ -7,7 +7,7 @@ namespace Mambo.App.Views.Controls;
 
 /// <summary>
 /// 横版卡：卡片行里固定 300×169；网格里由外部给宽度，图片保持 16:9。
-/// 悬停时显示"从这里播放"。
+/// 右下角常显"从这里播放"。
 /// </summary>
 public sealed partial class LandscapeCard : CardBase
 {
@@ -21,6 +21,10 @@ public sealed partial class LandscapeCard : CardBase
     {
         InitializeComponent();
         ApplySizing();
+        TrackReveal(Picture, Copy, Progress);
+        Root.AddHandler(PointerPressedEvent, new PointerEventHandler(OnPressed), true);
+        Root.AddHandler(PointerReleasedEvent, new PointerEventHandler(OnReleased), true);
+        Root.AddHandler(PointerCaptureLostEvent, new PointerEventHandler(OnReleased), true);
     }
 
     public bool ShowPlayButton { get => (bool)GetValue(ShowPlayButtonProperty); set => SetValue(ShowPlayButtonProperty, value); }
@@ -42,14 +46,14 @@ public sealed partial class LandscapeCard : CardBase
         return base.MeasureOverride(availableSize);
     }
 
-    /// <summary>播放钮放在图片右下角（距右 10、距底 18），按图片高度直接定位。</summary>
+    /// <summary>播放钮放在图片右下角（距右 8、距底 16），按图片高度直接定位。</summary>
     private void UpdateArtHeight(double width)
     {
         var height = double.IsFinite(width) && width > 0 ? Math.Round(width * (9d / 16))
             : (double)Application.Current.Resources["LandscapeHeight"];
         if (ArtRow.Height.GridUnitType != GridUnitType.Pixel || ArtRow.Height.Value != height)
             ArtRow.Height = new GridLength(height);
-        var margin = new Thickness(0, height - 18 - PlayButton.Height, 10, 0);
+        var margin = new Thickness(0, height - 16 - PlayButton.Height, 8, 0);
         if (PlayButton.Margin != margin) PlayButton.Margin = margin;
     }
 
@@ -63,8 +67,7 @@ public sealed partial class LandscapeCard : CardBase
     private void OnPointerEntered(object sender, PointerRoutedEventArgs e)
     {
         hovering = true;
-        HandleHover(true, Art);
-        CardMotion.Lift(PlayButton, true);
+        HandleHover(true, Visual, PlayButton);
     }
 
     private void OnPointerExited(object sender, PointerRoutedEventArgs e)
@@ -73,11 +76,12 @@ public sealed partial class LandscapeCard : CardBase
         var point = e.GetCurrentPoint(Layout).Position;
         if (point.X >= 0 && point.Y >= 0 && point.X < Layout.ActualWidth && point.Y < Layout.ActualHeight) return;
         hovering = false;
-        HandleHover(IsCardFocused(), Art);
-        CardMotion.Lift(PlayButton, false);
+        HandleHover(IsCardFocused(), Visual, PlayButton);
     }
 
-    private bool IsCardFocused() => Root.FocusState != FocusState.Unfocused || PlayButton.FocusState != FocusState.Unfocused;
+    private bool IsCardFocused() => Root.FocusState == FocusState.Keyboard || PlayButton.FocusState == FocusState.Keyboard;
     private void OnFocusChanged(object sender, RoutedEventArgs e) =>
-        DispatcherQueue.TryEnqueue(() => HandleHover(hovering || IsCardFocused(), Art));
+        DispatcherQueue.TryEnqueue(() => HandleHover(hovering || IsCardFocused(), Visual, PlayButton));
+    private void OnPressed(object sender, PointerRoutedEventArgs e) => HandlePress(true, Visual, PlayButton);
+    private void OnReleased(object sender, PointerRoutedEventArgs e) => HandlePress(false, Visual, PlayButton);
 }

@@ -2,6 +2,7 @@ using System.ComponentModel;
 using Mambo.App.Shell;
 using Mambo.App.Themes;
 using Mambo.App.ViewModels;
+using Mambo.App.Views.Controls;
 using Mambo.Core.Contracts;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -38,8 +39,7 @@ public sealed partial class HomePage : UserControl, INavigablePage, IDisposable
         try
         {
             Hero.Initialize(window);
-            for (var i = 0; i < 8; i++)
-                SkeletonCards.Children.Add(new Border { Style = XamlResources.Style(Application.Current.Resources, "SkeletonBlockStyle"), Width = 300, Height = 169 });
+            for (var i = 0; i < 6; i++) SkeletonCards.Children.Add(CardSkeleton.Create(landscape: true));
             shell.PropertyChanged += OnShellPropertyChanged;
             SizeChanged += (_, _) => UpdateHeroHeight();
             ApplyState();
@@ -160,7 +160,7 @@ public sealed partial class HomePage : UserControl, INavigablePage, IDisposable
     {
         Hero.SetSlides(content?.Slides ?? []);
         Hero.Visibility = Hero.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-        RailList.Margin = new Thickness(0, Hero.Count > 0 ? -36 : 24, 0, 0);
+        RailList.Margin = new Thickness(0, Hero.Count > 0 ? 0 : 20, 0, 0);
         UpdateDots();
     }
 
@@ -170,12 +170,9 @@ public sealed partial class HomePage : UserControl, INavigablePage, IDisposable
         else titleBar.Hide(Hero.Dots);
     }
 
-    /// <summary>hero 高度为窗口高度的 62%，限制在 500–600 之间。</summary>
     private void UpdateHeroHeight()
     {
-        var windowHeight = XamlRoot?.Size.Height ?? ActualHeight;
-        var height = Math.Clamp(Math.Round(windowHeight * (double)Application.Current.Resources["HeroHeightRatio"]),
-            (double)Application.Current.Resources["HeroMinHeight"], (double)Application.Current.Resources["HeroMaxHeight"]);
+        var height = HeroArt.Height(XamlRoot?.Size.Height ?? ActualHeight, ActualWidth);
         Hero.Height = height;
         HeroSkeleton.Height = height;
     }
@@ -185,16 +182,8 @@ public sealed partial class HomePage : UserControl, INavigablePage, IDisposable
         if (Hero.Height > 0) Hero.SetVisibleFraction(Math.Max(0, (Hero.Height - Scroller.VerticalOffset) / Hero.Height));
     }
 
-    /// <summary>引导标题字号随内容区宽度变化：12% 宽度，限制在 64–150 之间。</summary>
-    private void OnOnboardingSizeChanged(object sender, SizeChangedEventArgs e)
-    {
-        var size = Math.Clamp((e.NewSize.Width - 128) * 0.12, 64, 150);
-        foreach (var line in new[] { OnboardingLine1, OnboardingLine2 })
-        {
-            line.FontSize = size;
-            line.LineHeight = Math.Round(size * 1.04);
-        }
-    }
+    /// <summary>引导标题按内容宽度（去掉左右各 40 的留白）定字号。</summary>
+    private void OnOnboardingSizeChanged(object sender, SizeChangedEventArgs e) => OnboardingTitle.Fit(e.NewSize.Width - 80);
 
     private void OnOpenSettingsClick(object sender, RoutedEventArgs e) => navigator.Navigate(Route.Settings);
     private void OnReloadClick(object sender, RoutedEventArgs e) => content?.Retry();

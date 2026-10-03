@@ -4,44 +4,53 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:images="using:Mambo.App.Images"
     xmlns:controls="using:Mambo.App.Views.Controls"
+    xmlns:themes="using:Mambo.App.Themes"
     Width="{StaticResource PosterWidth}">
     <Button x:Name="Root" Style="{StaticResource CardButtonStyle}" Click="OnClick" AutomationProperties.Name="{x:Bind Item.Title, Mode=OneWay}"
-            PointerEntered="OnPointerEntered" PointerExited="OnPointerExited" PointerCanceled="OnPointerExited">
+            PointerEntered="OnPointerEntered" PointerExited="OnPointerExited" PointerCanceled="OnPointerExited"
+            GotFocus="OnFocusChanged" LostFocus="OnFocusChanged">
         <VisualStateManager.VisualStateGroups>
             <VisualStateGroup x:Name="HoverStates">
                 <VisualState x:Name="Rest"/>
                 <VisualState x:Name="Hover">
-                    <VisualState.Setters><Setter Target="Stroke.BorderBrush" Value="{ThemeResource CardStrokeHoverBrush}"/></VisualState.Setters>
+                    <VisualState.Setters>
+                        <Setter Target="Stroke.BorderBrush" Value="{ThemeResource CardStrokeHoverBrush}"/>
+                        <Setter Target="InnerStroke.Opacity" Value="1"/>
+                    </VisualState.Setters>
                 </VisualState>
             </VisualStateGroup>
         </VisualStateManager.VisualStateGroups>
-        <StackPanel Spacing="8">
-            <Grid x:Name="Art" Height="{StaticResource PosterHeight}" CornerRadius="{StaticResource PosterCornerRadius}" Background="{ThemeResource ImagePlaceholderBrush}">
-                <images:RemoteImage Source="{x:Bind Item.Image, Mode=OneWay}" DecodeWidth="{StaticResource PosterWidth}" CornerRadius="{StaticResource PosterCornerRadius}"/>
-                <Border x:Name="Stroke" CornerRadius="{StaticResource PosterCornerRadius}" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeBrush}"/>
-                <Border Margin="8" Height="20" Padding="6,0" HorizontalAlignment="Left" VerticalAlignment="Top" CornerRadius="{StaticResource CornerRadiusXS}"
-                        Background="#9E000000" Visibility="{x:Bind Item.HasRating, Mode=OneWay}">
-                    <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
-                        <FontIcon Glyph="&#xE735;" FontSize="10" Foreground="{ThemeResource RatingBrush}"/>
-                        <TextBlock Style="{StaticResource BadgeTextStyle}" Text="{x:Bind Item.RatingText, Mode=OneWay}"/>
-                    </StackPanel>
+        <!-- 整张卡（图和文字）一起上浮 -->
+        <Grid x:Name="Visual">
+            <Grid.RowDefinitions>
+                <RowDefinition x:Name="ArtRow" Height="{StaticResource PosterHeightGridLength}"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Grid x:Name="Art" CornerRadius="{StaticResource PosterCornerRadius}" Background="{ThemeResource ImagePlaceholderBrush}">
+                <images:RemoteImage x:Name="Picture" Source="{x:Bind Item.Image, Mode=OneWay}" DecodeWidth="{StaticResource PosterWidth}" CornerRadius="{StaticResource PosterCornerRadius}"/>
+                <!-- 评分：贴着右下角的角标，只有数字 -->
+                <Border x:Name="RatingTab" Height="20" Padding="6,0" HorizontalAlignment="Right" VerticalAlignment="Bottom" CornerRadius="6,0,14,0"
+                        Background="#BF000000" Visibility="{x:Bind Item.HasRating, Mode=OneWay}">
+                    <TextBlock Style="{StaticResource BadgeTextStyle}" Text="{x:Bind Item.RatingText, Mode=OneWay}"/>
                 </Border>
-                <Border Margin="8" Width="22" Height="22" CornerRadius="11" HorizontalAlignment="Right" VerticalAlignment="Top"
-                        Background="#9E000000" Visibility="{x:Bind Item.Played, Mode=OneWay}">
-                    <FontIcon Glyph="&#xE73E;" FontSize="11" Foreground="#FFFFFFFF"/>
-                </Border>
-                <Grid Margin="8" Height="4" VerticalAlignment="Bottom" CornerRadius="2" Background="#52FFFFFF" Visibility="{x:Bind Item.HasProgress, Mode=OneWay}">
+                <!-- 进度：只画已看的一段，没有轨道。容器高 4、两列按比例，填充条高 3 贴底 -->
+                <Grid x:Name="Progress" Margin="8" Height="4" VerticalAlignment="Bottom" Visibility="{x:Bind Item.HasProgress, Mode=OneWay}">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="{x:Bind Item.ProgressDone, Mode=OneWay}"/>
                         <ColumnDefinition Width="{x:Bind Item.ProgressRest, Mode=OneWay}"/>
                     </Grid.ColumnDefinitions>
-                    <Border CornerRadius="2" Background="#FFFFFFFF"/>
+                    <Border Height="3" VerticalAlignment="Bottom" CornerRadius="1.5" themes:SoftShadow.Kind="Progress"/>
+                    <Border Height="3" VerticalAlignment="Bottom" CornerRadius="1.5" Background="#F5FFFFFF"/>
                 </Grid>
+                <Border x:Name="Stroke" CornerRadius="{StaticResource PosterCornerRadius}" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeBrush}">
+                    <Border.BackgroundTransition><BrushTransition Duration="0:0:0.16"/></Border.BackgroundTransition>
+                </Border>
+                <Border x:Name="InnerStroke" Margin="1" CornerRadius="13" BorderThickness="1" BorderBrush="#1AFFFFFF" Opacity="0"/>
             </Grid>
-            <StackPanel Spacing="2" Padding="2,0">
+            <StackPanel x:Name="Copy" Grid.Row="1" Height="50" Margin="4,6,4,0" Spacing="6">
                 <TextBlock Style="{StaticResource CardTitleTextStyle}" Text="{x:Bind Item.Title, Mode=OneWay}"/>
                 <TextBlock Style="{StaticResource CardSubtitleTextStyle}" Text="{x:Bind Item.Subtitle, Mode=OneWay}"/>
             </StackPanel>
-        </StackPanel>
+        </Grid>
     </Button>
 </controls:CardBase>

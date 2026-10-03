@@ -586,6 +586,7 @@
     <GridLength x:Key="TitleBarHeightGridLength">40</GridLength>
     <GridLength x:Key="SidebarGridLength">208</GridLength>
     <GridLength x:Key="LandscapeHeightGridLength">169</GridLength>
+    <GridLength x:Key="PosterHeightGridLength">220</GridLength>
     <Thickness x:Key="ContentMargin">0,12,0,0</Thickness>
     <Thickness x:Key="ContentBorderThickness">1,1,0,0</Thickness>
     <Thickness x:Key="PagePadding">24,20,24,32</Thickness>

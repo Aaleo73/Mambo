@@ -24,8 +24,8 @@
                     Visibility="{x:Bind ViewModel.Cards.HasMoreError, Mode=OneWay}"/>
             <ProgressRing Margin="0,96,0,0" Width="28" Height="28" IsActive="{x:Bind ViewModel.Cards.IsLoadingFirst, Mode=OneWay}"
                           Visibility="{x:Bind ViewModel.Cards.IsLoadingFirst, Mode=OneWay}"/>
-            <controls:StateView Glyph="&#xE823;" Title="暂无内容" Visibility="{x:Bind ViewModel.Cards.IsEmpty, Mode=OneWay}"/>
-            <controls:StateView Glyph="&#xE783;" Title="最近播放加载失败" Visibility="{x:Bind ViewModel.Cards.HasError, Mode=OneWay}">
+            <controls:StateView Title="暂无内容" Visibility="{x:Bind ViewModel.Cards.IsEmpty, Mode=OneWay}"/>
+            <controls:StateView Title="最近播放加载失败" Visibility="{x:Bind ViewModel.Cards.HasError, Mode=OneWay}">
                 <controls:StateView.Actions>
                     <Button Style="{StaticResource SoftAccentButtonStyle}" Content="重试" Click="OnRetryClick"/>
                 </controls:StateView.Actions>

@@ -14,7 +14,7 @@ namespace Mambo.App.Themes;
 /// <list type="bullet">
 /// <item>控件投影（<c>SoftShadow.Kind</c>）：只画在圆角矩形外侧，相当于 CSS 的 box-shadow。
 /// 半透明的按钮底下不会被阴影压暗。宿主是模板里排在表面之前的一个空元素。</item>
-/// <item>文字阴影（<see cref="AttachText"/>）：按字形轮廓投影，相当于 CSS 的 drop-shadow。</item>
+/// <item>轮廓阴影（<see cref="AttachDrop"/>）：按元素实际画出来的形状投影，相当于 CSS 的 drop-shadow，用在 hero 的文字上。</item>
 /// </list>
 /// 系统关闭透明效果或处于高对比度时不画阴影。
 /// </summary>
@@ -49,6 +49,8 @@ public static partial class SoftShadow
         "Solid" => new Spec(16, 4, Color.FromArgb(89, 0, 0, 0), Color.FromArgb(89, 0, 0, 0)),
         // 0 2px 8px rgba(0,0,0,.45)：进度条滑块
         "Thumb" => new Spec(8, 2, Color.FromArgb(115, 0, 0, 0), Color.FromArgb(115, 0, 0, 0)),
+        // 0 1px 3px rgba(0,0,0,.55)：卡片上的进度条
+        "Progress" => new Spec(3, 1, Color.FromArgb(140, 0, 0, 0), Color.FromArgb(140, 0, 0, 0)),
         _ => null,
     };
 
@@ -210,42 +212,58 @@ public static partial class SoftShadow
     private static readonly Windows.UI.ViewManagement.AccessibilitySettings Accessibility = new();
     private static bool Enabled => !Accessibility.HighContrast;
 
+    private static readonly ConditionalWeakTable<FrameworkElement, ContainerVisual> DropHosts = [];
+
     /// <summary>
-    /// 给文字加阴影。<paramref name="host"/> 必须排在 <paramref name="text"/> 之前（画在它下面），
-    /// 并与它处于同一个父容器。<paramref name="blur"/>、<paramref name="offsetY"/> 按 CSS 的取值填写。
+    /// 给任意元素加轮廓阴影。<paramref name="host"/> 必须排在 <paramref name="source"/> 之前（画在它下面），
+    /// 并与它处于同一个父容器；同一个宿主可以挂多个来源。<paramref name="blur"/>、<paramref name="offsetY"/> 按 CSS 的取值填写。
+    /// 做入场动画时请动它们共同的父容器，阴影才会跟着走。
     /// </summary>
-    public static void AttachText(FrameworkElement host, TextBlock text, float blur, float offsetY, float opacity)
+    public static void AttachDrop(FrameworkElement host, FrameworkElement source, float blur, float offsetY, float opacity)
     {
         ArgumentNullException.ThrowIfNull(host);
-        ArgumentNullException.ThrowIfNull(text);
+        ArgumentNullException.ThrowIfNull(source);
         var compositor = ElementCompositionPreview.GetElementVisual(host).Compositor;
+        if (!DropHosts.TryGetValue(host, out var root))
+        {
+            root = compositor.CreateContainerVisual();
+            ElementCompositionPreview.SetElementChildVisual(host, root);
+            DropHosts.Add(host, root);
+        }
+        // 把来源元素画进一张离屏表面，用它的透明度当阴影的形状。
+        var surface = compositor.CreateVisualSurface();
+        surface.SourceVisual = ElementCompositionPreview.GetElementVisual(source);
         var shadow = compositor.CreateDropShadow();
         shadow.BlurRadius = blur * CssBlurToRadius;
         shadow.Offset = new Vector3(0, offsetY, 0);
         shadow.Color = Color.FromArgb((byte)Math.Round(opacity * 255), 0, 0, 0);
+        shadow.Mask = compositor.CreateSurfaceBrush(surface);
         var visual = compositor.CreateSpriteVisual();
         visual.Shadow = shadow;
-        ElementCompositionPreview.SetElementChildVisual(host, visual);
+        visual.IsVisible = false;
+        root.Children.InsertAtTop(visual);
 
         void Sync()
         {
-            if (!text.IsLoaded || !host.IsLoaded || text.ActualWidth <= 0 || text.Visibility != Visibility.Visible || !Enabled)
+            if (!source.IsLoaded || !host.IsLoaded || source.ActualWidth <= 0 || source.ActualHeight <= 0 ||
+                source.Visibility != Visibility.Visible || !Enabled)
             {
                 visual.IsVisible = false;
                 return;
             }
-            var origin = text.TransformToVisual(host).TransformPoint(default);
+            var size = new Vector2((float)source.ActualWidth, (float)source.ActualHeight);
+            var origin = source.TransformToVisual(host).TransformPoint(default);
+            surface.SourceSize = size;
+            visual.Size = size;
             visual.Offset = new Vector3((float)origin.X, (float)origin.Y, 0);
-            visual.Size = new Vector2((float)text.ActualWidth, (float)text.ActualHeight);
-            shadow.Mask = text.GetAlphaMask();
             visual.IsVisible = true;
         }
 
-        text.SizeChanged += (_, _) => Sync();
-        text.Loaded += (_, _) => Sync();
+        source.SizeChanged += (_, _) => Sync();
+        source.Loaded += (_, _) => Sync();
         host.SizeChanged += (_, _) => Sync();
-        text.RegisterPropertyChangedCallback(TextBlock.TextProperty, (_, _) => Sync());
-        text.RegisterPropertyChangedCallback(UIElement.VisibilityProperty, (_, _) => Sync());
+        host.Loaded += (_, _) => Sync();
+        source.RegisterPropertyChangedCallback(UIElement.VisibilityProperty, (_, _) => Sync());
         Sync();
     }
 }

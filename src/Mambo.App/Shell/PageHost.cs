@@ -184,22 +184,16 @@ public sealed partial class PageHost : Grid
         }
     }
 
+    /// <summary>页面切换只做透明度（160ms），不带位移。</summary>
     private static void PlayEnter(FrameworkElement page)
     {
         if (!Motion.AnimationsEnabled) return;
-        ElementCompositionPreview.SetIsTranslationEnabled(page, true);
         var visual = ElementCompositionPreview.GetElementVisual(page);
         var compositor = visual.Compositor;
-        var easing = Motion.CreateEasing(compositor, Motion.Settle);
         var opacity = compositor.CreateScalarKeyFrameAnimation();
         opacity.InsertKeyFrame(0, 0);
-        opacity.InsertKeyFrame(1, 1, easing);
-        opacity.Duration = Motion.Route;
-        var offset = compositor.CreateVector3KeyFrameAnimation();
-        offset.InsertKeyFrame(0, new Vector3(0, 8, 0));
-        offset.InsertKeyFrame(1, Vector3.Zero, easing);
-        offset.Duration = Motion.Route;
+        opacity.InsertKeyFrame(1, 1, Motion.CreateEasing(compositor, Motion.Enter));
+        opacity.Duration = Motion.Fast;
         visual.StartAnimation("Opacity", opacity);
-        visual.StartAnimation("Translation", offset);
     }
 }

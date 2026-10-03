@@ -47,8 +47,8 @@
             </ItemsRepeater>
             <ProgressRing Margin="0,96,0,0" Width="28" Height="28" IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}"
                           Visibility="{x:Bind ViewModel.IsLoading, Mode=OneWay}"/>
-            <controls:StateView Glyph="&#xE721;" Title="{x:Bind ViewModel.NoResultsTitle}" Visibility="{x:Bind ViewModel.HasNoResults, Mode=OneWay}"/>
-            <controls:StateView Glyph="&#xE783;" Title="搜索失败" Visibility="{x:Bind ViewModel.HasError, Mode=OneWay}">
+            <controls:StateView Title="{x:Bind ViewModel.NoResultsTitle}" Visibility="{x:Bind ViewModel.HasNoResults, Mode=OneWay}"/>
+            <controls:StateView Title="搜索失败" Visibility="{x:Bind ViewModel.HasError, Mode=OneWay}">
                 <controls:StateView.Actions>
                     <Button Style="{StaticResource SoftAccentButtonStyle}" Content="重试" Click="OnRetryClick"/>
                 </controls:StateView.Actions>

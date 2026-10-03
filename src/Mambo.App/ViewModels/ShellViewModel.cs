@@ -13,17 +13,18 @@ public sealed partial class SidebarLibraryItem : ObservableObject
         Id = library.Id;
         Name = library.Name;
         Kind = library.Kind;
-        Glyph = library.Kind switch
+        IconKey = library.Kind switch
         {
-            LibraryKind.Movies => "",
-            LibraryKind.TvShows => "",
-            _ => "",
+            LibraryKind.Movies => "IconFilm",
+            LibraryKind.TvShows => "IconTv",
+            _ => "IconFolder",
         };
     }
 
     public string Id { get; }
     public string Name { get; }
-    public string Glyph { get; }
+    /// <summary>Icons.xaml 里的图标键。</summary>
+    public string IconKey { get; }
     internal LibraryKind Kind { get; }
 
     [ObservableProperty]

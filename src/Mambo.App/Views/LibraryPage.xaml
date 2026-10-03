@@ -113,13 +113,13 @@
             <Button Style="{StaticResource SoftButtonStyle}" Margin="0,28,0,8" HorizontalAlignment="Center" Content="重试加载" Click="OnLoadMoreClick"
                     Visibility="{x:Bind ViewModel.Cards.HasMoreError, Mode=OneWay}"/>
 
-            <controls:StateView Glyph="&#xE71C;" Title="当前筛选没有内容" Visibility="{x:Bind ViewModel.ShowFilteredEmpty, Mode=OneWay}">
+            <controls:StateView Title="当前筛选没有内容" Visibility="{x:Bind ViewModel.ShowFilteredEmpty, Mode=OneWay}">
                 <controls:StateView.Actions>
                     <Button Style="{StaticResource SoftAccentButtonStyle}" Content="重置筛选" Click="OnResetClick"/>
                 </controls:StateView.Actions>
             </controls:StateView>
-            <controls:StateView Glyph="&#xE8B7;" Title="暂无内容" Visibility="{x:Bind ViewModel.ShowEmpty, Mode=OneWay}"/>
-            <controls:StateView Glyph="&#xE783;" Title="资料库加载失败" Visibility="{x:Bind ViewModel.Cards.HasError, Mode=OneWay}">
+            <controls:StateView Title="暂无内容" Visibility="{x:Bind ViewModel.ShowEmpty, Mode=OneWay}"/>
+            <controls:StateView Title="资料库加载失败" Visibility="{x:Bind ViewModel.Cards.HasError, Mode=OneWay}">
                 <controls:StateView.Actions>
                     <Button Style="{StaticResource SoftAccentButtonStyle}" Content="重试" Click="OnRetryClick"/>
                 </controls:StateView.Actions>

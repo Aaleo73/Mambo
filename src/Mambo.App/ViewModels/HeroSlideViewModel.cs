@@ -13,7 +13,7 @@ public sealed class HeroSlideViewModel
         Overview = item.Overview ?? "";
         RatingText = item.CommunityRating is > 0 and var rating ? rating.ToString("0.0", CultureInfo.InvariantCulture) : "";
         Year = item.ProductionYear?.ToString(CultureInfo.InvariantCulture) ?? "";
-        Genres = string.Join(" / ", item.Genres.Take(3));
+        Genres = string.Join("/", item.Genres.Take(3));
         OfficialRating = item.OfficialRating ?? "";
         Backdrop = ImagePicker.Backdrop(item);
         Logo = ImagePicker.First(item, ImageKind.Logo);
