@@ -2,23 +2,9 @@
 
 这个仓库正在把 Mambo（Windows 上的 Emby 媒体客户端）重写为 **WinUI 3 + C#/.NET 10 + libmpv**，画面通过 mpv 的 d3d11 composition 交换链挂到 SwapChainPanel 上。
 
-## 分工（两个 agent 协作）
-
-- **Codex（GPT）负责后端**：
-  - 构建基础设施、`scripts/`、`third_party/`、`installer/`；
-  - `src/Mambo.Core`（含 `Contracts/`、`Fakes/`）、`src/Mambo.Player`、`tests/`；
-  - `src/Mambo.App` 中的 `Video/`、`Platform/`、`Debug/`，以及 `Composition/` 下的 `BackendServices.cs`、`UiScheduler.cs`、`AppShutdownCoordinator.cs`。
-  - 阶段：P0、P1（最先做 P1a 契约与假实现）、P3、P7 的引擎部分、P8 的脚本部分。
-- **Claude 负责前端**：`design/` 和 `src/Mambo.App` 的其余部分。
-  - 阶段：P2、P4、P5，以及 P7、P8 的界面部分。
-- **规则**：
-  - 只修改自己拥有的路径；需要对方改动时，写进 `docs/handoff/requests.md`。
-  - 完整的所有权表、契约和协作流程见 `docs/PLAN.md` §14。
-
 ## 必读
 
 - `docs/PLAN.md` 是完整的实施计划。按阶段执行，每个阶段跑完验收后，在文末"进度"打勾。
-- **每次开工**：先合并对方的分支（见 PLAN §14.4），再读 `docs/handoff/` 下的文件。
 - **关卡**：P0 结束（视频技术验证）和 P2 结束（设计稿）时，必须停下来等用户确认。
 - **【需用户】**：计划里标了这个记号的步骤要请用户参与，不要擅自代办，例如安装软件、提供 Emby 服务器、人工检查显示效果。
 
@@ -45,6 +31,6 @@
 - **语言**：界面和错误文案用简体中文，代码标识符用英文。
 - **C#**：启用 Nullable，使用文件范围命名空间；ViewModel 用 CommunityToolkit.Mvvm 的 partial 属性。
 - **提交**：
-  - 提交信息用中文 conventional commits，scope 要能看出是前端还是后端，例如 `feat(core): …`、`feat(player): …`、`feat(ui): …`；
+  - 提交信息用中文 conventional commits，scope 标明模块，例如 `feat(core): …`、`feat(player): …`、`feat(ui): …`；
   - 不推送远端。
 - **决策记录**：重要的技术决定记在 `docs/decisions/` 下。

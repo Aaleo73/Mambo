@@ -20,7 +20,7 @@ public interface IQuery<out T> : IDisposable
 {
     T? Current { get; }
     bool IsInitialized { get; }
-    [SuppressMessage("Naming", "CA1716:Identifiers should not match keywords", Justification = "Error 是 PLAN §14.3 明确约定的 C# 契约成员名。")]
+    [SuppressMessage("Naming", "CA1716:Identifiers should not match keywords", Justification = "Error 是 PLAN §14 明确约定的 C# 契约成员名。")]
     AppError? Error { get; }
     bool IsRefreshing { get; }
     event EventHandler? Updated;
@@ -42,7 +42,7 @@ public interface IPagedQuery<T> : IDisposable
     bool HasMore { get; }
     bool IsLoading { get; }
     bool IsRefreshing { get; }
-    [SuppressMessage("Naming", "CA1716:Identifiers should not match keywords", Justification = "Error 是 PLAN §14.3 明确约定的 C# 契约成员名。")]
+    [SuppressMessage("Naming", "CA1716:Identifiers should not match keywords", Justification = "Error 是 PLAN §14 明确约定的 C# 契约成员名。")]
     AppError? Error { get; }
     event EventHandler? Updated;
     Task RefreshAsync(CancellationToken cancellationToken = default);

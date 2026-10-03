@@ -10,11 +10,11 @@
 
 ## 安装器
 
-`-Installer` 使用已安装的 ISCC.exe，可显式给出 `-IsccPath`；找不到编译器时保留已生成便携包并给出中文失败原因。用户随后明确授权所有后续步骤，包括安装打包工具；root 负责工具安装与集中编译，脚本本身不暗中安装软件。
+`-Installer` 使用已安装的 ISCC.exe，可显式给出 `-IsccPath`；找不到编译器时保留已生成便携包并给出中文失败原因。用户已授权安装打包工具；脚本本身不暗中安装软件。
 
 `installer/Mambo.iss` 使用 `PrivilegesRequired=lowest`，安装到当前用户 `%LOCALAPPDATA%/Programs/Mambo`，最低 Windows 10 22H2、Windows x64，中文界面。升级通过 Inno Setup Restart Manager 请求关闭被安装目录下的 Mambo.exe，不使用 `force`，不扫描/终止其他进程或外部 mpv。应用的有序退出负责停止播放和保存进度。默认提供开始菜单快捷方式，桌面快捷方式由用户勾选。
 
-已安装的 Inno Setup 6.7.3 位于当前用户 `Programs/Inno Setup 6`。root 从[官方 issrc 标签 is-6_7_3 的语言文件](https://github.com/jrsoftware/issrc/blob/is-6_7_3/Files/Languages/Unofficial/ChineseSimplified.isl)取得 `installer/ChineseSimplified.isl`；安装器用此仓库相对路径，避免依赖当前编译器是否附带简体中文翻译。原文件保留维护者归属；Inno Setup 官方许可已由 root 收录到 `LICENSES/Inno-Setup-license.txt`，不覆盖这两份原文。
+已安装的 Inno Setup 6.7.3 位于当前用户 `Programs/Inno Setup 6`。`installer/ChineseSimplified.isl` 取自[官方 issrc 标签 is-6_7_3 的语言文件](https://github.com/jrsoftware/issrc/blob/is-6_7_3/Files/Languages/Unofficial/ChineseSimplified.isl)；安装器用此仓库相对路径，避免依赖当前编译器是否附带简体中文翻译。原文件保留维护者归属；Inno Setup 官方许可已收录到 `LICENSES/Inno-Setup-license.txt`，不覆盖这两份原文。
 
 卸载仅由 Inno 的安装文件记录清理程序文件；没有 UninstallDelete 用户数据规则，保留 `%LOCALAPPDATA%/Mambo`。不加入应用图标设计，沿用用户已确定的暂缓决定。
 

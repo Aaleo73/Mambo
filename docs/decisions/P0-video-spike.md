@@ -127,4 +127,4 @@ pwsh scripts/test-video-lab.ps1 -Aot -RequireStableResources
 - [ ] 解决当前 DXGI composition 的句柄增长；若继续受环境阻挡，由用户决定后续验证环境与验收安排。
 - [x] 用户确认 P0 关卡，批准携下述遗留项进入 P1a 契约与假实现（2026-10-02：“提交，进入P1”）。
 
-PLAN 的 P0 进度按用户明确批准推进，并注明遗留项。进入 P1 时，`VideoSurface` 仍只有 P0 的 internal 指针绑定入口，不能作为前端依赖；公开 `Attach(IPlaybackSession)` 接口将在 P1a 形成。Program / App / MainWindow 的后续修改移交给 Claude。资源增长及尚未完成的人工检查继续跟踪，进入 P1 不代表这些检查已经通过。
+PLAN 的 P0 进度按用户明确批准推进，并注明遗留项。进入 P1 时，`VideoSurface` 仍只有 P0 的 internal 指针绑定入口，不能作为前端依赖；公开 `Attach(IPlaybackSession)` 接口将在 P1a 形成。资源增长及尚未完成的人工检查继续跟踪，进入 P1 不代表这些检查已经通过。

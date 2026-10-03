@@ -1,6 +1,6 @@
 # P7 外部 MPV 后端
 
-日期：2026-10-02（初版），2026-10-03（统一接手更新）。后端、设置页及外部播放面板已实现；Debug / Native AOT 的真实外部进程终止、停止补报与指纹重批自动验收通过，详情见 `P7-external-process-smoke.md`。下文保留初版实施与人工验收记录；其中 Claude 接入待办已由用户授权 Codex 完成，真实 Emby 后台观察未冒充人工通过。
+日期：2026-10-02（初版），2026-10-03（集成更新）。后端、设置页及外部播放面板已实现；Debug / Native AOT 的真实外部进程终止、停止补报与指纹重批自动验收通过，详情见 `P7-external-process-smoke.md`。下文保留初版实施与人工验收记录；界面接入已完成，真实 Emby 后台观察未冒充人工通过。
 
 ## 批准与复验
 
@@ -26,9 +26,9 @@
 
 同批修复既有 P3 会话的手动选集问题：Replace 已清空 mpv 播放列表，不能依据历史 `loaded` 记录执行 `playlist-remove 0`。现在只在追加条目接入时移除上一项，并且每次接入最多一次；内置与外部播放都受益。
 
-## 设置增量与前端交接
+## 设置增量与界面接入
 
-R-017：新增 `AppSettings.ThemeMode`，类型为 `SettingsThemeMode`（System / Light / Dark），旧 v1 文件默认 System。与 Claude 的 `Shell.ThemeMode` 分开命名，避免前端同时导入两个命名空间时歧义。前端映射值后用 Func 原子 Update 持久化。`GetCacheSizeAsync` 统计查询缓存与 mpv shader-cache 的文件字节数，跳过 reparse point；`LogDirectory` 返回本机日志目录。假实现返回 312 MiB 和空日志路径，不做磁盘 I/O。应用版本按 R-017 原请求放在 P8 版本方案处理。
+R-017：新增 `AppSettings.ThemeMode`，类型为 `SettingsThemeMode`（System / Light / Dark），旧 v1 文件默认 System。与 `Shell.ThemeMode` 分开命名，避免前端同时导入两个命名空间时歧义。前端映射值后用 Func 原子 Update 持久化。`GetCacheSizeAsync` 统计查询缓存与 mpv shader-cache 的文件字节数，跳过 reparse point；`LogDirectory` 返回本机日志目录。假实现返回 312 MiB 和空日志路径，不做磁盘 I/O。应用版本按 R-017 原请求放在 P8 版本方案处理。
 
 R-018：`AddBackendServices(fake: true)` 未显式传 options 时读取 `MAMBO_FAKE_DELAY_MS` / `MAMBO_FAKE_FAILURE_RATE`，与 FakeLab 共用解析函数。延迟限制 0–10000 ms，失败率限制 0–1；非法输入沿用默认值，显式 options 优先。
 
@@ -47,6 +47,6 @@ R-018：`AddBackendServices(fake: true)` 未显式传 options 时读取 `MAMBO_F
 
 PLAN P7 明确要求：【需用户】播放中杀掉 mpv.exe，仍然会上报 Stopped；替换 mpv.exe 后会要求重新批准。本次没有代办或标记这些步骤已通过。
 
-可在当前发布包提前验收后端：运行 `publish/aot/Mambo.exe --video-lab`，点击“选择并批准外部 MPV”选择自己的本地 mpv.exe（0.38.0+），恢复 Emby 会话后按 itemId 播放。确认诊断显示外部 MPV，手动结束该外部进程，检查 Emby 活跃播放结束。关闭播放后替换该 exe，再次发起播放应提示重新批准并切到内置；重新选择验证后才恢复外部播放。服务器信息只在本机工具输入。最终设置页与“正在外部播放”面板仍由 Claude 接入后共同验收。
+可在当前发布包验收后端：运行 `publish/aot/Mambo.exe --video-lab`，点击“选择并批准外部 MPV”选择自己的本地 mpv.exe（0.38.0+），恢复 Emby 会话后按 itemId 播放。确认诊断显示外部 MPV，手动结束该外部进程，检查 Emby 活跃播放结束。关闭播放后替换该 exe，再次发起播放应提示重新批准并切到内置；重新选择验证后才恢复外部播放。服务器信息只在本机工具输入。最终设置页与“正在外部播放”面板的接入已完成；真实 Emby 后台观察仍待人工验收。
 
 P0 的 GPU composition Section/Mutant 增长及 DPI/多显示器/按钮/光标/抓包遗留项保持原结论；本次 P7 自动验收不覆盖它们。

@@ -5,7 +5,7 @@ using Windows.Graphics;
 
 namespace Mambo.App.Windowing;
 
-/// <summary>Codex 的 Video Lab / 假数据冒烟入口，供 scripts/test-*.ps1 使用。</summary>
+/// <summary>Video Lab / 假数据冒烟入口，供 scripts/test-*.ps1 使用。</summary>
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1001", Justification = "WinUI 窗口的 Closed 事件释放 resizeHook。")]
 public sealed partial class LabWindow : Window
 {

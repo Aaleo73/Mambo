@@ -98,7 +98,7 @@ public sealed class LibraryPreferenceChangedEventArgs(string libraryId, LibraryQ
 /// <summary>偏好自动归属当前账号作用域，UI 不构造账号键；Changed 经 IUiScheduler 触发。</summary>
 public interface ILibraryPreferences
 {
-    [SuppressMessage("Naming", "CA1716:Identifiers should not match keywords", Justification = "Get 是已交接的 C# 资料库偏好接口名称，不用于跨语言调用。")]
+    [SuppressMessage("Naming", "CA1716:Identifiers should not match keywords", Justification = "Get 是 C# 资料库偏好接口名称，不用于跨语言调用。")]
     LibraryQuery Get(string libraryId);
     event EventHandler<LibraryPreferenceChangedEventArgs>? Changed;
     Task SetAsync(string libraryId, LibraryQuery query, CancellationToken cancellationToken = default);

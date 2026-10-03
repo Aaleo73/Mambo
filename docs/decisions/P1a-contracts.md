@@ -1,14 +1,14 @@
 # P1a 契约 v1 与假实现
 
-日期：2026-10-02。状态：**契约 v1 冻结**。用户转达 Claude 已审阅；条件通过所要求的 R-004–R-009 已实现并通过测试，R-010–R-014 增量同时完成。
+日期：2026-10-02。状态：**契约 v1 冻结**。条件通过所要求的 R-004–R-009 已实现并通过测试，R-010–R-014 增量同时完成。
 
-用户已批准 P0 提交并进入 P1。按 PLAN §14.3，先交付契约和全套假服务，供前端并行开发。真实平台实现与本地验收工具见 [P1 Core 平台层](P1-core-platform.md)，P1 真实 Emby 登录、列库、重启恢复及凭据检查已由用户确认通过；原生播放会话桥接现已实现，见 [P3 播放引擎与会话](P3-playback.md)，真实服务器播放验收待用户。
+用户已批准 P0 提交并进入 P1。PLAN §14 定义服务契约，假服务支持独立运行界面。真实平台实现与本地验收工具见 [P1 Core 平台层](P1-core-platform.md)，P1 真实 Emby 登录、列库、重启恢复及凭据检查已由用户确认通过；原生播放会话桥接现已实现，见 [P3 播放引擎与会话](P3-playback.md)，真实服务器播放验收待用户。
 
 ## 前端接入边界
 
 - 业务类型集中在 `src/Mambo.Core/Contracts/`，命名空间为 `Mambo.Core.Contracts`。领域数据使用不可变 record 和 `ImmutableArray`，不暴露 DTO、播放 URL、令牌或原生句柄。
 - 服务在 `BackendServices.AddBackendServices(fake: true, scheduler: …)` 注册。前端通过 Contracts 接口解析服务，不构造假实现。容器使用显式工厂，避免 AOT 反射激活。
-- App 的 `Debug/VideoLab` 已支持 `--fake` 和 `MAMBO_FAKE=1`，启动 `FakeLab`。Program / App / MainWindow 仍由 Claude 拥有，最终外壳入口的 DI 接入见 R-003。
+- App 的 `Debug/VideoLab` 已支持 `--fake` 和 `MAMBO_FAKE=1`，启动 `FakeLab`。最终外壳入口的 DI 接入见 R-003。
 - `VideoSurface.Attach(IPlaybackSession)` / `Detach()` 必须在 UI 线程调用。公开入口支持 `EngineKind.Demo` 的 Composition 纯色和 P3 的真实 libmpv 会话。前端不调用 P0 的内部交换链入口。
 - 不把 Contracts record 直接声明为 XAML 的 `x:DataType`：当前 WinUI 编译器会为 `init` 属性生成普通 setter，导致 CS8852。使用 getter-only 的 partial ViewModel 或投影对象，再通过 `{x:Bind}` 绑定。可参考 `Debug/DemoRows.cs`；其原始 `MediaItem` 保持 internal，避免进入生成的 XAML 类型元数据。
 
@@ -64,6 +64,6 @@ pwsh scripts/test-fake-lab.ps1 -Aot -EnvironmentMode
 
 ## 评审与后续
 
-R-002 条件通过的六项阻塞修订已完成，契约 v1 冻结，PLAN 的 P1a 已勾选。R-003 仍由 Claude 在 P4 接入最终外壳与 DI：启动时解析 AppShutdownCoordinator 并调用一次 RestoreAsync，退出先 await CloseAsync 再销毁服务容器。
+R-002 条件通过的六项阻塞修订已完成，契约 v1 冻结，PLAN 的 P1a 已勾选。R-003 要求最终外壳与 DI 接入时，启动解析 AppShutdownCoordinator 并调用一次 RestoreAsync，退出先 await CloseAsync 再销毁服务容器。
 
 P1 真实平台层已实现，自动验证见 P1 平台记录；真实登录、列库、重启恢复及凭据检查已于 2026-10-02 经用户确认通过。P3 原生播放、媒体源和状态上报的实现与自动验证也已完成，真实服务器播放验收尚待用户。

@@ -1,8 +1,8 @@
-# 后端状态（Codex 维护）
+# 后端状态
 
-前端根据这张表决定何时从假实现切换到真实服务。契约定义见 `docs/PLAN.md` §14.3。
+服务实现与接入状态如下。契约定义见 `docs/PLAN.md` §14。
 
-2026-10-03：用户明确把 Claude 的后续工作也交给 Codex，并授权持续推进。外壳和播放器的接入请求 R-003/R-016/R-017/R-019/R-020 已处理；阶段验收仍按实际证据更新。统一接手记录见 [P4–P6 集成](../decisions/P4-P6-integration.md)。AppSettings.UseEpisodeGrid 为选集布局跨重启记忆的兼容增量，旧文件默认列表。
+2026-10-03：外壳和播放器的接入请求 R-003/R-016/R-017/R-019/R-020 已处理；阶段验收仍按实际证据更新。集成记录见 [P4–P6 集成](../decisions/P4-P6-integration.md)。AppSettings.UseEpisodeGrid 为选集布局跨重启记忆的兼容增量，旧文件默认列表。
 
 当前本地播放及音频修复候选为 `publish/releases/0.1.0/20261003-144025-553/app`，安装包为同目录上一层的 `Mambo-0.1.0-win-x64-setup.exe`。发布路径和完整校验值见 `artifacts/release-candidate-audio-fix.json`；提交后源码归档单独放在该发布目录的 `sources-final/`。旧入口 `publish/aot` 同步本次文件，避免运行旧二进制。不推送远端，不将当前 libmpv 组合包公开分发。
 
@@ -28,7 +28,7 @@
 
 2026-10-02：契约草案、全部假服务与 `AddBackendServices(fake: true)` 已实现。`--fake` / `MAMBO_FAKE=1` 当前在 Debug/VideoLab 启动假数据演示。构建零警告零错误、61 项测试通过；Debug / AOT 的两种入口均通过分页、生成图片解码、12 集切集、画面挂接与关闭冒烟，且未加载 libmpv。
 
-**契约 v1 冻结**：用户转达 Claude 已审阅，条件通过所要求的 R-004–R-009 已修正并通过回归，R-010–R-014 增量也已完成；requests 无未处理的阻塞请求，PLAN 的 P1a 已勾选。API、取消与生命周期、运行命令及 XAML 限制见 [P1a 契约 v1](../decisions/P1a-contracts.md)。前端通过 Contracts 接口开发，不依赖实现类或 DTO。
+**契约 v1 冻结**：评审有条件通过所要求的 R-004–R-009 已修正并通过回归，R-010–R-014 增量也已完成；requests 无未处理的阻塞请求，PLAN 的 P1a 已勾选。API、取消与生命周期、运行命令及 XAML 限制见 [P1a 契约 v1](../decisions/P1a-contracts.md)。前端通过 Contracts 接口开发，不依赖实现类或 DTO。
 
 ## P1 平台实现
 
@@ -36,7 +36,7 @@
 
 **P1 人工验收通过**（2026-10-02）：用户在真实登录、列库、重启恢复及凭据检查步骤后回复“好了”，PLAN 的 P1 已勾选。验收工具为 publish/core-smoke/Mambo.CoreSmoke.exe --login，退出后运行 --restore；凭据目标为 Mambo:emby-session:v1，敏感输入仅在本机。自动测试仍只用内存凭据，不读取或修改用户的 Windows 凭据。本次确认不扩展到 P0 遗留项或 P3 真实播放验收。
 
-R-003 外壳交接：启动解析 AppShutdownCoordinator（安装 WinUI 异常记录），再调用一次 RestoreAsync；关闭时 await coordinator.CloseAsync 后再销毁 DI，并在 Window.Closing 返回后排队调用最终 Window.Close（R-016）。真实服务均可接入；前端也可继续以假模式开发页面。
+R-003 外壳接入：启动解析 AppShutdownCoordinator（安装 WinUI 异常记录），再调用一次 RestoreAsync；关闭时 await coordinator.CloseAsync 后再销毁 DI，并在 Window.Closing 返回后排队调用最终 Window.Close（R-016）。真实服务均可接入；假模式仍可用于页面开发。
 
 ## P3 播放实现
 
@@ -56,12 +56,12 @@ R-017 后端设置增量已完成：AppSettings.ThemeMode 的类型为 SettingsT
 
 2026-10-02：WinUI 3 / .NET 10 四项目骨架、libmpv 下载锁、Video Lab、HDR / DPI / 交换链互操作、认证 URL 预解析及 AOT 配置已实现。`dotnet build -p:Platform=x64` 零警告零错误，`dotnet test` 13 项通过；Debug 与 AOT 的 4K HEVC `d3d11va` 播放、缓冲区尺寸同步、最大化 / 全屏及 AOT DLL 缺失中文错误已验证。
 
-**用户批准携遗留项进入 P1**（2026-10-02：“提交，进入P1”）：硬件渲染每次创建 / 销毁约增加一个 Section 和一个 Mutant；不加载 WinUI / libmpv、直接调用 DXGI composition 的独立工具也复现，详见 `scripts/diagnostics/Mambo.CompositionProbe`。用户已确认 HDR 高光及播放中关闭 Windows HDR 切回 SDR 通过。DPI / 多显示器、按钮 / 光标 / 闪烁和真实 Emby 抓包仍需人工验收。详见 [P0 视频技术验证](../decisions/P0-video-spike.md)。这些验收结果不变；Program / App / MainWindow 的后续修改现移交 Claude。
+**用户批准携遗留项进入 P1**（2026-10-02：“提交，进入P1”）：硬件渲染每次创建 / 销毁约增加一个 Section 和一个 Mutant；不加载 WinUI / libmpv、直接调用 DXGI composition 的独立工具也复现，详见 `scripts/diagnostics/Mambo.CompositionProbe`。用户已确认 HDR 高光及播放中关闭 Windows HDR 切回 SDR 通过。DPI / 多显示器、按钮 / 光标 / 闪烁和真实 Emby 抓包仍需人工验收。详见 [P0 视频技术验证](../decisions/P0-video-spike.md)。
 
 复测：`pwsh scripts/fetch-libmpv.ps1`、`pwsh scripts/fetch-video-sample.ps1`，构建后执行 `pwsh scripts/test-video-lab.ps1`。AOT 先用 `dotnet publish src/Mambo.App -p:Platform=x64 -p:PublishProfile=Aot -o publish/aot`，再执行 `pwsh scripts/test-video-lab.ps1 -Aot`；加 `-RequireStableResources` 才将资源检查作为脚本失败条件，当前会失败。
 
 ## 契约变更记录
 
-2026-10-02：初始草案经 Claude 有条件通过，R-004–R-009 完成后冻结 v1。破坏性变更在冻结前收敛：LogoutResult 返回值、结束原因/关闭重载、Preview 替换重载；同批完成稳定错误码、图片回退、异步通知、预取、分页刷新状态和原子设置更新。
+2026-10-02：初始草案评审有条件通过，R-004–R-009 完成后冻结 v1。破坏性变更在冻结前收敛：LogoutResult 返回值、结束原因/关闭重载、Preview 替换重载；同批完成稳定错误码、图片回退、异步通知、预取、分页刷新状态和原子设置更新。
 
 2026-10-02 P7：新增 SettingsThemeMode/ThemeMode、ExternalMpvApproval，以及 ISettingsService 的缓存统计/日志目录默认成员；外部批准仍使用既有 ValidateExternalPlayerAsync。旧设置及旧接口实现兼容，指纹记录由后端维护。

@@ -6,7 +6,7 @@
 
 `BackendServices.AddBackendServices(fake: false, scheduler: …)` 以显式工厂注册会话、资料库、图片、设置和账号偏好。P1 交付时的真实播放为 Preparing → Failed 的准备会话；P3 已接入真实 libmpv 播放，见 [P3 播放引擎与会话](P3-playback.md)。离线 Preview 保持相同替换确认契约。
 
-外壳在启动时解析 `AppShutdownCoordinator`（同时挂接 WinUI 异常日志），再调用一次 `ISessionService.RestoreAsync`。退出时先 await coordinator.CloseAsync，再销毁 DI 容器；关闭包含播放、停止发件箱预算、查询快照和音量写入，以及图片/发件箱 I/O 的异步释放。Program / App / MainWindow 接入由 Claude 在 P4 完成。
+外壳在启动时解析 `AppShutdownCoordinator`（同时挂接 WinUI 异常日志），再调用一次 `ISessionService.RestoreAsync`。退出时先 await coordinator.CloseAsync，再销毁 DI 容器；关闭包含播放、停止发件箱预算、查询快照和音量写入，以及图片/发件箱 I/O 的异步释放。Program / App / MainWindow 接入在 P4 完成。
 
 认证与图片使用独立 HttpClient/handler，禁止自动重定向和 Cookie，HTTP/2 可降级。API 不跟随重定向；图片手动限制同主机、同端口及允许的协议升级，认证只放请求头。JSON 使用 `EmbyJsonContext` 源生成，读取限制 16MB，Filters 同时兼容字符串和 Name 对象。继续观看与 Latest 分别按 PLAN 的字段集请求。
 
@@ -46,12 +46,12 @@ pwsh scripts/test-core-platform.ps1 -Aot
 
 2026-10-02：用户在上述人工验收步骤后回复“好了”，确认真实登录、列出视频库、重启恢复及凭据管理器目标检查通过，PLAN 的 P1 已勾选。目标解析、媒体源、连播及真实播放上报的测试随 P3 实现；自动隐藏和导航规则随前端阶段实现，不把它们计入本阶段已完成的验证。P0 的未通过与待测遗留项不因本次确认改变。
 
-本阶段 `dotnet test` 为 174/174 通过、无跳过。回归覆盖队列截止时间、共享取消、SWR 精确过期、新旧请求代际、退出删除屏障、停止记录故障分类、备份恢复、缺图和重定向，以及 Claude 要求的契约修订。
+本阶段 `dotnet test` 为 174/174 通过、无跳过。回归覆盖队列截止时间、共享取消、SWR 精确过期、新旧请求代际、退出删除屏障、停止记录故障分类、备份恢复、缺图和重定向，以及契约修订。
 
 最终 Debug 构建、App 与 CoreSmoke 的 Native AOT 发布均为 0 警告、0 错误。Debug/AOT 的 Core 组合自测，以及 App 命令行/环境变量两种假模式入口全部通过；报告位于忽略的 artifacts/p1-core-debug.json、p1-core-aot.json 与 p1a-fake-*.json。Debug/Release 的 locked-mode 还原均通过，锁文件不漂移。自动验收只覆盖合成服务器和内存凭据；真实 Emby 登录与恢复、Windows 凭据检查由用户按上述步骤确认。
 
 验证中曾出现一次停止记录本地写入失败，原始异常没有 HRESULT，未确认该次的直接成因。新增边界测试在本机明确复现：File.Move(overwrite) 在旧读者允许 Delete 共享时仍返回 80070005，而 File.Replace 成功；行为与 [.NET runtime issue 114230](https://github.com/dotnet/runtime/issues/114230) 一致。现已用原子替换修复，并验证旧读者快照、短暂锁重试、长期锁失败保留原数据。Win32 错误分类参考 [Microsoft 系统错误码](https://learn.microsoft.com/en-us/windows/win32/debug/system-error-codes--0-499-)。
 
-R-015 修复前，`dotnet test -p:Platform=x64 --no-build` 曾运行零个测试（退出码 5），Claude 进一步复现普通 dotnet test 同样发现不到测试。P3 同批修复在中央 Directory.Build.props 显式启用 xUnit v3 的 MTP 入口，干净原 P1 基线真正执行 174 项测试；增加取消测试后 175 项通过，带 Platform 的命令也已可用。标准命令仍按 AGENTS 使用 dotnet test。中央 PublishAot 属性继续保证 Debug/Release 锁文件图一致；`.gitattributes` 固定 libmpv 头文件 LF，避免重新获取后的行尾漂移。
+R-015 修复前，`dotnet test -p:Platform=x64 --no-build` 曾运行零个测试（退出码 5），进一步复现发现普通 dotnet test 同样发现不到测试。P3 同批修复在中央 Directory.Build.props 显式启用 xUnit v3 的 MTP 入口，干净原 P1 基线真正执行 174 项测试；增加取消测试后 175 项通过，带 Platform 的命令也已可用。标准命令仍按 AGENTS 使用 dotnet test。中央 PublishAot 属性继续保证 Debug/Release 锁文件图一致；`.gitattributes` 固定 libmpv 头文件 LF，避免重新获取后的行尾漂移。
 
 P3 回归又捕获 File.Replace 的 80070497 / Win32 1175，按 ReplaceFileW 保持文件名称的错误语义补充有界重试，并验证取消后原件仍在、临时文件删除；原 P1 没有 HRESULT 的失败不追溯断言为此原因。详情见 P3 记录。

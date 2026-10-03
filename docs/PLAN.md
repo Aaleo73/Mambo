@@ -1,10 +1,10 @@
 # Mambo 实施计划：WinUI 3 + C# + libmpv（composition 交换链）
 
-> 这是一份可以独立执行的完整计划。执行者有两个：Codex（GPT）负责后端，Claude 负责前端（见 §14）。动手前请先读第 0、10、14 节；附录 A 是功能与交互的依据。
+> 这是一份可以独立执行的完整计划。动手前请先读第 0、10、14 节；附录 A 是功能与交互的依据。
 
 ## 0. 执行约定
 
-1. **按阶段推进，按分工执行**：P0 → P8。**后端由 Codex（GPT）负责，前端由 Claude 负责**，各自只修改自己拥有的路径；所有权、契约和协作流程见 §14。P2 设计稿可以与 P0、P1、P3 并行。每个阶段做完都要逐条跑完验收，全部通过后在文末"进度"打勾，再进入下一阶段。
+1. **按阶段推进**：P0 → P8。P2 设计稿可以与 P0、P1、P3 并行。每个阶段做完都要逐条跑完验收，全部通过后在文末"进度"打勾，再进入下一阶段。
 2. **两个关卡必须停下等用户确认**：
    - ① P0 结束：汇报视频技术验证的结果；
    - ② P2 结束：交付设计稿。
@@ -77,13 +77,13 @@
   - 建议用 release `20260610`（git-304426c）：已核实这个修订的文档包含上面三项。若该 release 已下架，就用最新的包，并在 P0 重新验证。
   - 包内文件：`libmpv-2.dll`（约 117MB）、`include/mpv/*.h`、`libmpv.dll.a`（MSVC 用不上）。
   - C# 用 P/Invoke 动态加载，不需要导入库。
+  - 下载脚本支持用环境变量 `MAMBO_LIBMPV_CACHE` 指定下载缓存目录，避免重复下载。
 - **许可**：libmpv 是 GPL-2.0-or-later，shinchiro 构建还带有 Apache-2.0 组件，两者只能在 GPLv3 下共存。因此 Mambo 采用 **GPL-3.0-or-later**。NOTICES 在 P8 自行撰写，GPL 文本从 gnu.org 获取。
 
 ## 3. 仓库约定
 
 - **当前状态**：`D:\MAKISEV\qt-mambo`，master 分支只有一个提交 808d4dd（Qt 雏形）。
-- **分支与工作区**：前后端各用一个 git worktree 并行开发，准备步骤见 §14.4。
-- **P0 第一步**（Codex 在 `backend` 工作区执行）：
+- **P0 第一步**：
   1. 删除 `CMakeLists.txt`、`qml/`、`src/app/`
   2. 把 `assets/fonts/MiSans-*.ttf` 移到 `src/Mambo.App/Assets/Fonts/`
   3. 把 `.gitignore` 换成 .NET 版本，至少包含 `bin/ obj/ .vs/ *.user publish/ artifacts/ third_party/libmpv/bin/ third_party/libmpv/download/`
@@ -101,7 +101,7 @@ qt-mambo/
 ├─ installer/Mambo.iss   design/（HTML 原型 + tokens.css）  docs/（PLAN.md、decisions/、handoff/）
 ├─ src/
 │  ├─ Mambo.Core/    net10.0，不依赖 WinUI
-│  │  ├─ Contracts/   前后端契约：服务接口、领域模型、读取模型、消息（§14.3）
+│  │  ├─ Contracts/   前后端契约：服务接口、领域模型、读取模型、消息（§14）
 │  │  ├─ Emby/        EmbyHttp、EmbyApi、AuthHeader、ServerAddress、DeviceProfileFactory、ImageUrlBuilder、Dto/*、EmbyJsonContext
 │  │  ├─ Session/     SessionManager、StoredSession、ISecretStore、AccountScope
 │  │  ├─ Errors/      AppError、AppErrorKind、ErrorCodes、ErrorText（中文）、AppException、HttpErrorMapper
@@ -114,13 +114,13 @@ qt-mambo/
 │  │  ├─ Reporting/   PlaybackReporter、ReportPayloads、StopOutbox、StopReportRecord、ReportFailureClassifier
 │  │  ├─ Settings/    AppSettings、SettingsStore、AppPaths、AtomicFile
 │  │  ├─ Diagnostics/ UrlRedactor、StartupTimeline
-│  │  └─ Fakes/       契约的假实现，供演示模式和前端开发使用（§14.3）
+│  │  └─ Fakes/       契约的假实现，供演示模式和前端开发使用（§14）
 │  ├─ Mambo.Player/  net10.0
 │  │  ├─ LibMpv/      LibMpvNative（LibraryImport）、MpvStructs、MpvHandle（SafeHandle）、MpvNodeReader/Builder、MpvRuntime、MpvCore、LibMpvEngine
 │  │  └─ External/    ExternalMpvEngine、MpvIpcClient、MpvExecutableApproval（P7）
 │  └─ Mambo.App/     net10.0-windows10.0.26100.0，WinUI 3，全部 XAML 都在这里
 │     ├─ Program.cs、App.xaml、MainWindow.xaml、app.manifest（PerMonitorV2）、NativeMethods.txt（CsWin32）
-│     ├─ Composition/ BackendServices（Codex）、UiServices（Claude）、AppShutdownCoordinator、UiScheduler
+│     ├─ Composition/ BackendServices、UiServices、AppShutdownCoordinator、UiScheduler
 │     ├─ Shell/       ShellPage、TitleBar、Sidebar、PageHost、Navigator、NavEntry、ToastHost、DialogService、ShortcutService
 │     ├─ Window/      WindowChrome（非客户区、窗口按钮）、MamboBackdrop、FullscreenController、PowerRequest、EmptyCursor
 │     ├─ Video/       VideoSurface（SwapChainPanel 子类）、SwapChainPanelInterop、HdrController
@@ -128,7 +128,7 @@ qt-mambo/
 │     ├─ Platform/    WindowsCredentialStore（CredWrite）、Pickers
 │     ├─ Views/ 与 Views/Controls/   各页面、PlayerOverlay、MediaCard、LandscapeCard、CardRail、HeroCarousel、FilterBar、
 │     │                              SeasonPills、EpisodeRail、PeopleRail、Skeleton
-│     ├─ Debug/       VideoLab 调试页（Codex）
+│     ├─ Debug/       VideoLab 调试页
 │     ├─ ViewModels/
 │     ├─ Themes/      Tokens.xaml、Typography.xaml、Controls.xaml、Player.xaml（深色）
 │     └─ Assets/      Fonts/MiSans-*.ttf、AppIcon.ico（P2 新设计）
@@ -674,8 +674,8 @@ PlayerOverlay（Grid，RequestedTheme=Dark，IsTabStop=True，持有焦点）
 
 ## 9. 设计稿（P2，与 P0、P1、P3 并行；用户确认后才写页面）
 
-- **负责**：Claude。可以在 P0 进行期间就开始，因为它只依赖本计划，不依赖代码。
-- **交付形式**：`design/` 目录下的 HTML 交互原型，基于 `design/tokens.css`，用户用浏览器打开查看（Claude 也可以另外发布为私有 Artifact，方便预览）。
+- **前置条件**：只依赖本计划，不依赖代码，可以在 P0 进行期间开始。
+- **交付形式**：`design/` 目录下的 HTML 交互原型，基于 `design/tokens.css`，用户用浏览器打开查看。
 - **覆盖范围**：
   - 外壳：1500×860 与最小尺寸 1100×720 两种；
   - 页面：引导/登录、首页、最近播放、资料库（筛选/排序）、详情（电影、剧集）、搜索、设置；
@@ -702,11 +702,9 @@ PlayerOverlay（Grid，RequestedTheme=Dark，IsTabStop=True，持有焦点）
 
 ### P0 工具链、骨架与视频技术验证（关卡 ①）
 
-**负责**：Codex（GPT），在 `backend` 工作区完成。P0 结束后，`Program.cs`、`App.xaml`、`MainWindow` 移交给 Claude；`Video/`、`Debug/` 仍归 Codex（见 §14.1）。
-
 **任务**
 1. `dotnet --list-sdks` 检查 SDK；没有就请用户安装（或经用户同意执行 winget）【需用户】。
-2. 仓库整理（§3；工作区准备见 §14.4）。
+2. 仓库整理（§3）。
 3. 解决方案骨架：
    - `global.json`
    - `Directory.Build.props`：LangVersion latest、Nullable、ImplicitUsings、Deterministic、AnalysisLevel latest-recommended
@@ -721,7 +719,7 @@ PlayerOverlay（Grid，RequestedTheme=Dark，IsTabStop=True，持有焦点）
 5. Player：`LibMpvNative`、结构体、`MpvHandle`、`MpvRuntime`、`MpvCore`（选项、事件线程、观察属性、node 读写、用 `command_node` 执行 `loadfile`）。
 6. App：
    - `Program.Main`；
-   - `MainWindow`：最小宿主窗口，用系统标题栏即可（自绘标题栏、非客户区、亚克力在 P4 由 Claude 实现）；
+   - `MainWindow`：最小宿主窗口，用系统标题栏即可（自绘标题栏、非客户区、亚克力在 P4 实现）；
    - `VideoSurface`：SwapChainPanel、互操作、DPI 与尺寸处理；
    - `HdrController`；
    - 调试页 **Video Lab**（放在 `Debug/` 下）：
@@ -752,12 +750,10 @@ PlayerOverlay（Grid，RequestedTheme=Dark，IsTabStop=True，持有焦点）
 
 ### P1 Core 平台层
 
-**负责**：Codex（GPT）。
-
 **P1a 契约与假实现（最先做）**
-- 按 §14.3 编写 `src/Mambo.Core/Contracts/` 和 `src/Mambo.Core/Fakes/`，并让 App 支持 `--fake` 启动（`AddBackendServices(fake: true)`）。
+- 按 §14 编写 `src/Mambo.Core/Contracts/` 和 `src/Mambo.Core/Fakes/`，并让 App 支持 `--fake` 启动（`AddBackendServices(fake: true)`）。
 - 建立 `docs/handoff/backend-status.md`，全部服务先标为"假"。
-- 完成后按里程碑合并（§14.4），请 Claude 评审；评审通过即冻结为契约 v1。
+- 完成并评审通过后冻结为契约 v1。
 
 **任务**
 - `ServerAddress`、`AuthHeader`、`SessionManager` + `WindowsCredentialStore`
@@ -769,21 +765,17 @@ PlayerOverlay（Grid，RequestedTheme=Dark，IsTabStop=True，持有焦点）
 - Serilog + `UrlRedactor`、`StopOutbox`
 
 **验收**
-- 契约 v1 已经过 Claude 评审并冻结，`docs/handoff/requests.md` 里没有未处理的阻塞请求。
+- 契约 v1 已经评审并冻结，没有未处理的阻塞问题。
 - §11 列出的 Core 测试全部通过。
 - 【需用户】命令行冒烟测试（一个临时的 console 或测试工具）：登录 → 列出媒体库 → 重启后会话仍在（凭据管理器里能看到 `Mambo:emby-session:v1`）。
 
 ### P2 设计稿（关卡 ②）
-
-**负责**：Claude。
 
 **任务**：见 §9。
 
 **验收**：【需用户】确认设计稿；token 落成 `Tokens.xaml`。
 
 ### P3 播放引擎与会话
-
-**负责**：Codex（GPT）。
 
 **任务**
 - `PlaybackCoordinator`、`PlaybackTargetResolver`、`SeasonPlan`（预取下一集）、`EntryPreparer`
@@ -806,7 +798,7 @@ PlayerOverlay（Grid，RequestedTheme=Dark，IsTabStop=True，持有焦点）
 
 ### P4 外壳与浏览页面（设计稿确认后）
 
-**负责**：Claude。先基于假实现开发；`backend-status.md` 把某项服务标为"真"后，切换到真实服务验证。
+先基于假实现开发，真实服务可用后切换验证；服务状态见 `docs/handoff/backend-status.md`。
 
 **任务**
 - 外壳：`WindowChrome`（从 P0 移来：自绘 40px 标题栏、非客户区与 Snap Layouts、亚克力背景）、`Navigator` / `PageHost`、侧栏
@@ -823,8 +815,6 @@ PlayerOverlay（Grid，RequestedTheme=Dark，IsTabStop=True，持有焦点）
 
 ### P5 播放页 UI
 
-**负责**：Claude。会话或引擎层面的问题通过 `requests.md` 交给 Codex。
-
 **任务**
 - `PlayerOverlay` 的内容区和全屏两种模式
 - 控件、按键、自动隐藏、光标
@@ -838,8 +828,6 @@ PlayerOverlay（Grid，RequestedTheme=Dark，IsTabStop=True，持有焦点）
 - 关闭播放后，详情、最近播放、资料库的进度已刷新。
 
 ### P6 打磨与加固
-
-**负责**：双方各自打磨自己的部分。Claude：动效、无障碍、界面性能；Codex：启动、内存、日志、AOT。
 
 **任务**
 - ConnectedAnimation、hero 预取、悬停预取
@@ -856,8 +844,6 @@ PlayerOverlay（Grid，RequestedTheme=Dark，IsTabStop=True，持有焦点）
 
 ### P7 外部播放器
 
-**负责**：Codex（引擎、校验、进程管理）；Claude（设置页切换、「正在外部播放」面板）。
-
 **任务**
 - `ExternalMpvEngine`：带超时的 JSON IPC
 - mpv.exe 选择与校验：用 `Microsoft.Windows.Storage.Pickers.FileOpenPicker(AppWindow.Id)` 选择，用 `--version` 校验（3 秒超时），记录路径、SHA-256、大小、修改时间；文件变化后需要重新批准
@@ -870,8 +856,6 @@ PlayerOverlay（Grid，RequestedTheme=Dark，IsTabStop=True，持有焦点）
 - 【需用户】播放中杀掉 mpv.exe，仍然会上报 Stopped；替换 mpv.exe 后会要求重新批准。
 
 ### P8 打包发布
-
-**负责**：Codex（发布脚本、安装器、NOTICES）；Claude（应用图标资源、关于页内容）。
 
 **任务**
 - `publish.ps1`：AOT、自包含、带版本号，libmpv 放在 `mpv\` 下
@@ -944,53 +928,10 @@ PlayerOverlay（Grid，RequestedTheme=Dark，IsTabStop=True，持有焦点）
 | 不同 Emby 服务器的行为差异 | DTO 宽松解析；候选阶梯 + END_FILE 回退；P3 至少在直链、302、强制转码三种服务器上实测 |
 | mpv 关闭时卡死或竞态 | SafeHandle；quit → 等待线程 → destroy 的顺序；看门狗超时就放弃句柄，不崩溃 |
 
-## 14. 分工与协作（Codex 写后端，Claude 写前端）
-
-### 14.1 所有权
-
-各自只修改自己拥有的路径。需要对方改动时不要直接改，而是在 `docs/handoff/requests.md` 写请求（背景、期望的接口或行为、是否阻塞）。唯一的例外：对方的改动导致整个解决方案编译失败，而修复只是一两行的明显小错（例如类型改名后的引用），可以直接修，并在 requests.md 记一笔。
-
-| 路径 | 负责 |
-|---|---|
-| 构建基础设施：`global.json`、`Directory.Build.props`、`Directory.Packages.props`、`Mambo.slnx`、`.gitignore` | Codex |
-| `scripts/`、`third_party/`、`installer/` | Codex |
-| `src/Mambo.Core/**`（含 `Contracts/`、`Fakes/`）、`src/Mambo.Player/**`、`tests/**` | Codex |
-| `src/Mambo.App/Video/**`（VideoSurface、SwapChainPanelInterop、HdrController） | Codex |
-| `src/Mambo.App/Platform/**`（凭据存储等 Win32 实现）、`src/Mambo.App/Debug/**`（Video Lab） | Codex |
-| `src/Mambo.App/Composition/BackendServices.cs`、`UiScheduler.cs`、`AppShutdownCoordinator.cs` | Codex |
-| `design/**` | Claude |
-| `src/Mambo.App/**` 的其余部分：`Program.cs`、`App.xaml`、`MainWindow`、`Shell/`、`Window/`、`Images/`、`Views/`、`ViewModels/`、`Themes/`、`Assets/`、`Composition/UiServices.cs` | Claude（P0 期间由 Codex 搭建，P0 结束后移交） |
-| `docs/handoff/backend-status.md` | Codex |
-| `docs/handoff/requests.md`、`docs/decisions/` | 双方 |
-| `docs/PLAN.md`、`AGENTS.md`、`CLAUDE.md` | 用户；agent 只在用户要求时修改（勾选"进度"除外） |
-
-- 共享热点文件（`Mambo.slnx`、`Directory.Packages.props`、`Directory.Build.props`）只由 Codex 修改。Claude 需要新的 NuGet 包或项目设置时，在 requests.md 提出。
-- `Program.cs` 只做组装：调用 `AddBackendServices(fake)`（Codex）和 `AddUiServices()`（Claude）。Codex 新增后端服务时只改 `BackendServices.cs`。
-
-### 14.2 阶段分工与并行
-
-| 阶段 | 负责 |
-|---|---|
-| P0 工具链、骨架与视频技术验证 | Codex（含最小宿主窗口和 Video Lab） |
-| P1a 契约与假实现 | Codex 编写，Claude 评审 |
-| P1 Core 平台层 | Codex |
-| P2 设计稿 | Claude（可与 P0 同时开始） |
-| P3 播放引擎与会话 | Codex |
-| P4 外壳与浏览页面 | Claude（先用假实现） |
-| P5 播放页 UI | Claude；会话和引擎的问题由 Codex 修复 |
-| P6 打磨与加固 | 各自负责自己的部分 |
-| P7 外部播放器 | Codex（引擎、校验）+ Claude（设置、面板） |
-| P8 打包发布 | Codex（脚本、安装器、NOTICES）+ Claude（图标、关于页） |
-
-```
-Codex : P0 ──► P1a ──► P1 ──► P3 ──► P7 ──► P8
-Claude: P2（P0 期间即可开始）──► 评审契约 ──► P4（假实现 → 真实服务）──► P5 ──► P7/P8 界面部分
-双方  : P6 在各自的线上收尾
-```
-
-### 14.3 契约（P1a，前后端之间唯一的接口）
+## 14. 服务契约与集成
 
 - **位置**：`src/Mambo.Core/Contracts/`。前端代码只能依赖这里的类型和 `VideoSurface` 的公开 API，不得引用 Core 的实现类、DTO 或 Player 的内部类型。
+- **组装**：`Program.cs` 调用 `AddBackendServices(fake)` 和 `AddUiServices()` 完成服务注册。
 - **领域模型**（不可变 record）：`MediaItem`、`ImageRef`、`MediaLibrary`、`UserDataState`、`SeasonInfo`、`PersonInfo`、`FilterOptions`、`LibraryQuery`（排序与筛选）、`SearchGroup`、`PlaybackEntry`、`TrackInfo`、`SessionSnapshot`（含 `PlayerPhase`）、`AppError`。
 - **读取模型**：
   - 可缓存的读取返回 `IQuery<T>`：`Current`、`Error`、`IsRefreshing`、`Updated` 事件、`RefreshAsync()`；
@@ -1018,30 +959,8 @@ Claude: P2（P0 期间即可开始）──► 评审契约 ──► P4（假�
   - 可配置延迟和错误率，用来调试加载态和错误态。
 - **演示模式**：用 `Mambo.exe --fake`（或环境变量 `MAMBO_FAKE=1`）启动时注册全部假实现。设置页的「预览播放页」也使用假播放会话。
 - **变更规则**：
-  - 契约 v1 经 Claude 评审后冻结，之后的变更走 `requests.md`；
-  - 只做向后兼容的修改（新增成员或类型）；破坏性修改必须在 requests.md 标明，并由双方同步完成；
-  - Codex 每完成一项真实实现，就在 `backend-status.md` 把对应服务从"假"改为"真"，并注明已知限制。
-
-### 14.4 Git 与工作区
-
-- **准备**（由用户执行，或经用户同意后由 agent 执行）：
-  1. 把 `docs/`、`AGENTS.md`、`CLAUDE.md` 提交到 master；
-  2. `git tag qt-prototype 808d4dd`；
-  3. `git worktree add D:\MAKISEV\mambo-backend -b backend master`：Codex 在这个目录工作，从 P0 开始；
-  4. 在 `D:\MAKISEV\qt-mambo` 执行 `git switch -c frontend`：Claude 在这里工作，可以立即开始 P2 设计稿。
-- **同步**：
-  - 开工前先合并对方分支：Claude 执行 `git merge backend`；Codex 在需要时（读取 requests.md、联调）执行 `git merge frontend`。两边路径不重叠，合并一般不会冲突；
-  - 合并后先阅读 `docs/handoff/` 下的文件；
-  - P0 骨架建好之后，每次提交前都要保证 `dotnet build -p:Platform=x64` 和 `dotnet test` 通过。
-- **集成分支** `winui3`：在里程碑（P0、P1a、P3、P4、P5……）处，由 Claude 合并 `backend` 并验证构建后，执行 `git branch -f winui3 frontend` 推进；也可以由用户执行。最终以 `winui3` 为准。
-- **libmpv**：两个工作区都要各自运行一次 `scripts/fetch-libmpv.ps1`。脚本支持用环境变量 `MAMBO_LIBMPV_CACHE` 指定共享的下载缓存目录，避免重复下载。
-
-### 14.5 交接文件（`docs/handoff/`）
-
-- `backend-status.md`（Codex 维护）：每个契约服务的状态（假 / 真 / 已测试）、已知限制、最近的契约变更。
-- `requests.md`（双方）：每条请求包含编号、提出方、日期、内容、是否阻塞、状态（待处理 / 已完成 / 已拒绝及理由）。
-- 无法在 requests.md 中达成一致时，交给用户决定。
-- 用户的角色是在两个会话之间传话，例如告诉 Codex"Claude 在 requests.md 提了新请求"，或告诉 Claude"后端某项服务已完成，可以切到真实服务"。
+  - 契约 v1 经评审后冻结，优先采用向后兼容的修改（新增成员或类型）；破坏性修改必须同步更新所有调用方与测试。
+  - 真实实现完成后，在 `docs/handoff/backend-status.md` 更新对应服务状态，并注明已知限制。
 
 ---
 
@@ -1573,13 +1492,13 @@ Claude: P2（P0 期间即可开始）──► 评审契约 ──► P4（假�
 
 ## 进度
 
-- [x] P0 工具链、骨架与视频技术验证（Codex；关卡 ①：2026-10-02 用户批准携遗留项进入 P1；未通过与待测项见 `docs/decisions/P0-video-spike.md`）
-- [x] P1a 契约与假实现（Codex；2026-10-02 Claude 条件通过，R-004–R-009 已修正并测试，契约 v1 冻结；增量 R-010–R-014 完成）
-- [x] P1 Core 平台层（Codex；2026-10-02 平台实现与 174 项测试完成；Debug/AOT 组合验证通过，用户确认真实登录、列库、重启恢复与凭据检查通过）
-- [x] P2 设计稿（Claude；关卡 ②：2026-10-02 用户确认定稿；应用图标按用户决定暂缓；结论见 `docs/decisions/P2-design.md`）
-- [x] P3 播放引擎与会话（Codex；2026-10-02 实现、237 项测试与 Debug/AOT composition 冒烟完成；用户确认真实服务器验收通过，见 `docs/decisions/P3-playback.md`）
-- [ ] P4 外壳与浏览页面（Codex 统一接手；实现、345 项单元测试、Debug/AOT 界面与深滚动恢复通过；最新交付候选实际缓存首页 972/919/827 ms，800 ms 目标未通过；GPU 呈现 60fps 尚未验收，当前令牌没有实时跟踪权限，见 `docs/decisions/P4-P6-integration.md`）
+- [x] P0 工具链、骨架与视频技术验证（关卡 ①：2026-10-02 用户批准携遗留项进入 P1；未通过与待测项见 `docs/decisions/P0-video-spike.md`）
+- [x] P1a 契约与假实现（2026-10-02 评审条件通过，R-004–R-009 已修正并测试，契约 v1 冻结；增量 R-010–R-014 完成）
+- [x] P1 Core 平台层（2026-10-02 平台实现与 174 项测试完成；Debug/AOT 组合验证通过，用户确认真实登录、列库、重启恢复与凭据检查通过）
+- [x] P2 设计稿（关卡 ②：2026-10-02 用户确认定稿；应用图标按用户决定暂缓；结论见 `docs/decisions/P2-design.md`）
+- [x] P3 播放引擎与会话（2026-10-02 实现、237 项测试与 Debug/AOT composition 冒烟完成；用户确认真实服务器验收通过，见 `docs/decisions/P3-playback.md`）
+- [ ] P4 外壳与浏览页面（实现、345 项单元测试、Debug/AOT 界面与深滚动恢复通过；最新交付候选实际缓存首页 972/919/827 ms，800 ms 目标未通过；GPU 呈现 60fps 尚未验收，当前令牌没有实时跟踪权限，见 `docs/decisions/P4-P6-integration.md`）
 - [ ] P5 播放页 UI（实现及附录 A.10 共享事件/真实按钮自动回归通过；停止播放后详情/最近/资料库实际 XAML 进度刷新在 Debug/AOT/安装目录通过；真实键鼠、光标与系统效果尚未人工确认，不将自动化当作人工观察）
 - [ ] P6 打磨与加固（程序化关闭绕过清理的原生崩溃与自绘关闭按钮已修复；Debug/AOT/安装目录完整界面回归、实际关闭按钮四项、五项原生 UIA、50 次假播放关闭零留存通过；最新窗口 Loaded 为 881/865/774 ms，600 ms 目标未通过；讲述人实际朗读及 P0 原生硬件资源遗留保留）
-- [x] P7 外部播放器（后端、设置与面板接入完成；Debug/AOT IPC、真实外部进程终止/停止补报/文件替换重新批准及界面自动回归通过；按用户统一接手和后续全授权采用本机真实进程自动验证，未把先前暂缓的人工 Emby 后台观察记成通过，见 `docs/decisions/P7-external-process-smoke.md`）
+- [x] P7 外部播放器（后端、设置与面板接入完成；Debug/AOT IPC、真实外部进程终止/停止补报/文件替换重新批准及界面自动回归通过；经用户授权采用本机真实进程自动验证，未把先前暂缓的人工 Emby 后台观察记成通过，见 `docs/decisions/P7-external-process-smoke.md`）
 - [x] P8 本地打包交付（Native AOT、自包含便携/安装/源码包与许可记录完成；最终候选首次安装、安装 UI、升级正常关闭及卸载保留全部用户文件通过；专用 VM 已按用户要求取消。此项不代表已公开发布；完整原生对应源码缺口及清理受阻见 `docs/decisions/P8-packaging.md`）

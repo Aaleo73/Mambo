@@ -39,7 +39,7 @@ dotnet publish src/Mambo.App -p:Platform=x64 -p:PublishProfile=Aot -p:TrimmerSin
 pwsh scripts/test-playback-lab.ps1 -Aot
 ```
 
-Claude 的 R-015 同批修复：中央启用 `UseMicrosoftTestingPlatformRunner`，使 xUnit v3 生成的入口与 global.json 的 MTP 运行器一致；干净原 P1 基线的 174 项测试及加上持久化取消测试后的 175 项均被真正发现并执行。`dotnet test -p:Platform=x64 --no-build` 也已验证可用。入口约定见 [xUnit v3 的 Microsoft.Testing.Platform 文档](https://xunit.net/docs/getting-started/v3/microsoft-testing-platform)。
+R-015 同批修复：中央启用 `UseMicrosoftTestingPlatformRunner`，使 xUnit v3 生成的入口与 global.json 的 MTP 运行器一致；干净原 P1 基线的 174 项测试及加上持久化取消测试后的 175 项均被真正发现并执行。`dotnet test -p:Platform=x64 --no-build` 也已验证可用。入口约定见 [xUnit v3 的 Microsoft.Testing.Platform 文档](https://xunit.net/docs/getting-started/v3/microsoft-testing-platform)。
 
 同批调查捕获 Windows File.Replace 的 80070497 / ERROR_UNABLE_TO_REMOVE_REPLACED（1175）；此错误保持原文件与替换文件的名称，可做 25/50/100ms 有界、可取消重试。1176 / 1177 不按此处理。AtomicFile / Outbox 边界测试额外重复 20 轮、共 380 次通过；取消测试确认原件保留、临时文件删除。原 P1 未记录 HRESULT 的写入失败仍不能追溯断言为同一原因。错误语义见 [Microsoft ReplaceFileW 文档](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-replacefilew)。
 
@@ -47,9 +47,9 @@ Claude 的 R-015 同批修复：中央启用 `UseMicrosoftTestingPlatformRunner`
 
 2026-10-02：用户确认以下 P3 验收通过，包括位置/倍速上报、强制转码及停止清理、整季连播、断网后停止补发。P0 原有未通过与待测遗留项不因本次确认改变。以下步骤保留供复验。
 
-1. 运行 `publish/aot/Mambo.exe --video-lab`，在 Video Lab 点“恢复 Emby 会话”，输入本机 Emby 条目的 itemId，再点“按 itemId 播放”。沿用 P1 保存的 Windows 凭据；恢复失败时用 P1 的本地登录工具重新登录。P4 合并后默认启动前端外壳，诊断窗口需带 --video-lab。
+1. 运行 `publish/aot/Mambo.exe --video-lab`，在 Video Lab 点“恢复 Emby 会话”，输入本机 Emby 条目的 itemId，再点“按 itemId 播放”。沿用 P1 保存的 Windows 凭据；恢复失败时用 P1 的本地登录工具重新登录。P4 外壳接入后默认启动前端外壳，诊断窗口需带 --video-lab。
 2. 选择电影或单集，暂停、拖动进度、切换 1.5 倍速，再停止；在 Emby 后台核对 Playing / Progress / Stopped 的位置及倍速。
 3. 验证强制转码片源可播，停止后服务器转码会话已清理。按一个季或其中一集的 itemId 启动，让同季连续播放至末集结束。
 4. 断网后停止播放，再恢复网络，等待发件箱的五分钟重试，核对停止进度补发成功。需要时可重启并恢复账号触发重新处理；无须删除数据或凭据。
 
-PLAN §12 的真实服务器回归还需要直链、302 与强制转码场景；若服务器暂不具备某项条件，记录未测项即可，不将合成测试写成人工通过。只回复通过项或安全错误文案，勿把地址、令牌、密码或抓包原文发进聊天或仓库。P0 仍保留原有资源增长与待验收项，P3 自动回归不改变那些结论。最终播放页面、导航和控制层视觉由 Claude 在 P4 / P5 接入；外部播放器属 P7。
+PLAN §12 的真实服务器回归还需要直链、302 与强制转码场景；若服务器暂不具备某项条件，记录未测项即可，不将合成测试写成人工通过。只回复通过项或安全错误文案，勿把地址、令牌、密码或抓包原文发进聊天或仓库。P0 仍保留原有资源增长与待验收项，P3 自动回归不改变那些结论。最终播放页面、导航和控制层视觉在 P4 / P5 接入；外部播放器见 P7。
