@@ -88,6 +88,8 @@
             <shell:PageHost x:Name="Pages"/>
         </Border>
 
+        <!-- 卡片进详情时的封面快照画在这一层 -->
+        <Canvas x:Name="TransitionLayer" Grid.RowSpan="2" Grid.ColumnSpan="2" IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw"/>
         <Grid x:Name="PlayerSlot" Grid.Row="1" Grid.ColumnSpan="2" Visibility="Collapsed"/>
         <Grid x:Name="OverlayLayer" Grid.RowSpan="2" Grid.ColumnSpan="2"/>
         <shell:DialogHost x:Name="Dialogs" Grid.RowSpan="2" Grid.ColumnSpan="2"/>

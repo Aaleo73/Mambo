@@ -243,18 +243,10 @@ internal static class PlaybackRefreshSmoke
     private static bool DetailAt(DetailPage page, double fraction)
     {
         if (!page.ViewModel.HasContent || Math.Abs(page.ViewModel.ProgressFraction - fraction) > 0.000001) return false;
-        var button = page.FindName("PlayButton").As<Button>();
-        var container = VisualTreeHelper.GetParent(button).As<Grid>();
-        var ring = container.Children.Select(TryRing).FirstOrDefault(item => item is { IsIndeterminate: false });
-        return ring is { IsLoaded: true, Visibility: Visibility.Visible } && ring.ActualWidth > 0 &&
-            Math.Abs(ring.Value - fraction) <= 0.000001 &&
+        // 进度环是播放钮里自绘的一段圆弧（原版样式），页面公开它实际画出的比例。
+        return page.FindName("PlayButton").As<Button>().IsLoaded && page.PlayProgressVisible &&
+            Math.Abs(page.ShownPlayProgress - fraction) <= 0.000001 &&
             Descendants(page).OfType<TextBlock>().Any(text => text.IsLoaded && text.Text == page.ViewModel.PlayHint);
-    }
-
-    private static ProgressRing? TryRing(UIElement item)
-    {
-        try { return item.As<ProgressRing>(); }
-        catch (InvalidCastException) { return null; }
     }
 
     private static bool CardAt(FrameworkElement page, double fraction, long position)

@@ -1,7 +1,9 @@
 using System.Numerics;
 using Microsoft.UI;
 using Microsoft.UI.Composition;
+using Mambo.App.Themes;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using Windows.UI;
 
 namespace Mambo.App.Views.Controls;
@@ -49,6 +51,36 @@ internal static class HeroArt
         var visual = compositor.CreateSpriteVisual();
         visual.Brush = masked;
         return visual;
+    }
+
+    /// <summary>
+    /// 评分信息行：★ 评分、年份、类型、分级徽标，项之间只靠间距分开，没有圆点。
+    /// 返回是否有内容。
+    /// </summary>
+    public static bool BuildMeta(Panel row, string rating, string year, string genres, string officialRating)
+    {
+        ArgumentNullException.ThrowIfNull(row);
+        var resources = Application.Current.Resources;
+        TextBlock Text(string value) => new() { Text = value, Style = XamlResources.Style(resources, "HeroMetaTextStyle") };
+        row.Children.Clear();
+        if (!string.IsNullOrEmpty(rating))
+        {
+            var star = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
+            star.Children.Add(new TextBlock { Text = "★", Style = XamlResources.Style(resources, "HeroStarTextStyle") });
+            star.Children.Add(Text(rating));
+            row.Children.Add(star);
+        }
+        foreach (var value in new[] { year, genres })
+            if (!string.IsNullOrEmpty(value)) row.Children.Add(Text(value));
+        if (!string.IsNullOrEmpty(officialRating))
+        {
+            row.Children.Add(new Border
+            {
+                Style = XamlResources.Style(resources, "HeroBadgeStyle"),
+                Child = new TextBlock { Text = officialRating, Style = XamlResources.Style(resources, "HeroBadgeTextStyle") },
+            });
+        }
+        return row.Children.Count > 0;
     }
 
     /// <summary>

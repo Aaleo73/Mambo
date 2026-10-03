@@ -74,8 +74,8 @@ public sealed partial class DetailViewModel : ObservableObject, IDisposable
     [ObservableProperty] public partial string ErrorText { get; private set; } = "";
     [ObservableProperty] public partial string Title { get; private set; } = "";
     [ObservableProperty] public partial string Overview { get; private set; } = "";
-    [ObservableProperty] public partial string RatingStar { get; private set; } = "";
-    [ObservableProperty] public partial string Metadata { get; private set; } = "";
+    /// <summary>hero 上的评分信息；页面按原版的样式逐项排出来。</summary>
+    [ObservableProperty] public partial HeroMetaInfo Meta { get; private set; } = new("", "", "", "");
     [ObservableProperty] public partial string EpisodeLine { get; private set; } = "";
     [ObservableProperty] public partial string PlayLabel { get; private set; } = "播放";
     [ObservableProperty] public partial string PlayHint { get; private set; } = "";
@@ -338,9 +338,8 @@ public sealed partial class DetailViewModel : ObservableObject, IDisposable
         Backdrop = ImagePicker.First(item, ImageKind.Backdrop) ?? ImagePicker.First(heading, ImageKind.Backdrop, ImageKind.Primary) ?? ImagePicker.First(item, ImageKind.Primary);
         Logo = ImagePicker.First(heading, ImageKind.Logo) ?? ImagePicker.First(item, ImageKind.Logo);
         Overview = target?.Overview ?? heading.Overview ?? "";
-        RatingStar = heading.CommunityRating is > 0 ? "★ " : "";
-        Metadata = MediaCardViewModel.JoinParts(heading.CommunityRating is > 0 and var rating ? rating.ToString("0.0", CultureInfo.InvariantCulture) : "",
-            MediaCardViewModel.Year(heading), string.Join(" / ", heading.Genres.Take(3)), heading.OfficialRating ?? "");
+        Meta = new HeroMetaInfo(heading.CommunityRating is > 0 and var rating ? rating.ToString("0.0", CultureInfo.InvariantCulture) : "",
+            MediaCardViewModel.Year(heading), string.Join("/", heading.Genres.Take(3)), heading.OfficialRating ?? "");
         EpisodeLine = target?.Kind == MediaKind.Episode
             ? MediaCardViewModel.JoinParts(target.ParentIndexNumber is { } season ? $"第 {season} 季" : "",
                 target.IndexNumber is { } episode ? $"第 {episode} 集" : "", target.Name) : "";
@@ -374,6 +373,9 @@ public sealed partial class DetailViewModel : ObservableObject, IDisposable
 
     internal static string Duration(long? ticks) => ticks is > 0 ? $"{Math.Max(1, (int)Math.Round(TimeSpan.FromTicks(ticks.Value).TotalMinutes))} 分钟" : "";
 }
+
+/// <summary>评分、年份、类型（用 / 连接）、分级；没有的项为空字符串。</summary>
+public sealed record HeroMetaInfo(string Rating, string Year, string Genres, string OfficialRating);
 
 public sealed partial class DetailSeasonViewModel(SeasonInfo season) : ObservableObject
 {

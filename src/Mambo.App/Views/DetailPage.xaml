@@ -4,50 +4,148 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:Mambo.App.Views.Controls"
     xmlns:images="using:Mambo.App.Images"
+    xmlns:themes="using:Mambo.App.Themes"
     xmlns:vm="using:Mambo.App.ViewModels">
     <UserControl.Resources>
+        <!-- hero 播放钮：72px 深色圆，白色圆角三角，带投影；悬停加深，按下缩到 .95 -->
         <Style x:Key="DetailPlayButtonStyle" TargetType="Button">
             <Setter Property="Width" Value="72"/>
             <Setter Property="Height" Value="72"/>
             <Setter Property="Background" Value="{ThemeResource HeroPlayBackgroundBrush}"/>
             <Setter Property="Foreground" Value="{ThemeResource HeroPlayForegroundBrush}"/>
+            <Setter Property="CornerRadius" Value="36"/>
+            <Setter Property="UseSystemFocusVisuals" Value="True"/>
+            <Setter Property="FocusVisualMargin" Value="-3"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Grid x:Name="Root" CornerRadius="36" Background="{TemplateBinding Background}" BorderBrush="{ThemeResource HeroPlayStrokeBrush}" BorderThickness="1">
+                        <Grid x:Name="Root" Background="Transparent" RenderTransformOrigin="0.5,0.5">
+                            <Grid.RenderTransform><ScaleTransform x:Name="Press"/></Grid.RenderTransform>
                             <VisualStateManager.VisualStateGroups>
                                 <VisualStateGroup x:Name="CommonStates">
+                                    <VisualStateGroup.Transitions><VisualTransition GeneratedDuration="0:0:0.16"/></VisualStateGroup.Transitions>
                                     <VisualState x:Name="Normal"/>
-                                    <VisualState x:Name="PointerOver"><VisualState.Setters><Setter Target="Root.Background" Value="{ThemeResource AccentBrush}"/><Setter Target="PlayGlyph.Foreground" Value="{ThemeResource TextOnAccentBrush}"/></VisualState.Setters></VisualState>
-                                    <VisualState x:Name="Pressed"><VisualState.Setters><Setter Target="Root.Background" Value="{ThemeResource AccentPressedBrush}"/><Setter Target="PlayGlyph.Foreground" Value="{ThemeResource TextOnAccentBrush}"/></VisualState.Setters></VisualState>
-                                    <VisualState x:Name="Disabled"><VisualState.Setters><Setter Target="Root.Opacity" Value="0.55"/></VisualState.Setters></VisualState>
+                                    <VisualState x:Name="PointerOver">
+                                        <VisualState.Setters><Setter Target="Surface.Background" Value="{ThemeResource HeroPlayHoverBackgroundBrush}"/></VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Pressed">
+                                        <VisualState.Setters><Setter Target="Surface.Background" Value="{ThemeResource HeroPlayHoverBackgroundBrush}"/></VisualState.Setters>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="Press" Storyboard.TargetProperty="ScaleX" To="0.95" Duration="0:0:0.08"/>
+                                            <DoubleAnimation Storyboard.TargetName="Press" Storyboard.TargetProperty="ScaleY" To="0.95" Duration="0:0:0.08"/>
+                                        </Storyboard>
+                                    </VisualState>
+                                    <VisualState x:Name="Disabled"/>
                                 </VisualStateGroup>
                             </VisualStateManager.VisualStateGroups>
-                            <FontIcon x:Name="PlayGlyph" Glyph="&#xF5B0;" FontSize="24" Margin="3,0,0,0" Foreground="{TemplateBinding Foreground}"/>
+                            <Border CornerRadius="{TemplateBinding CornerRadius}" themes:SoftShadow.Kind="Play"/>
+                            <Border x:Name="Surface" CornerRadius="{TemplateBinding CornerRadius}" Background="{TemplateBinding Background}">
+                                <Border.BackgroundTransition><BrushTransition Duration="0:0:0.16"/></Border.BackgroundTransition>
+                                <!-- 填充加同色的圆角描边，三角的三个角就是圆的 -->
+                                <Viewbox Width="30" Height="30" Margin="1,0,0,0">
+                                    <Grid Width="24" Height="24">
+                                        <Path Data="M5 3 L19 12 L5 21 Z" Fill="{TemplateBinding Foreground}" Stroke="{TemplateBinding Foreground}"
+                                              StrokeThickness="3.5" StrokeLineJoin="Round"/>
+                                    </Grid>
+                                </Viewbox>
+                            </Border>
                         </Grid>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
-        <Style x:Key="DetailReplayButtonStyle" TargetType="Button" BasedOn="{StaticResource SoftButtonStyle}">
-            <Setter Property="Background" Value="{ThemeResource HeroActionBackgroundBrush}"/>
-            <Setter Property="Foreground" Value="{ThemeResource HeroActionForegroundBrush}"/>
-            <Setter Property="BorderBrush" Value="{ThemeResource HeroActionStrokeBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
+        <!-- hero 上的文字链接：白色、带下划线 -->
+        <Style x:Key="HeroLinkButtonStyle" TargetType="Button">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{ThemeResource HeroHintForegroundBrush}"/>
             <Setter Property="UseSystemFocusVisuals" Value="True"/>
+            <Setter Property="FocusVisualMargin" Value="-3"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Grid x:Name="ReplayRoot" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{TemplateBinding CornerRadius}">
+                        <Grid x:Name="Root" Background="{TemplateBinding Background}">
                             <VisualStateManager.VisualStateGroups>
                                 <VisualStateGroup x:Name="CommonStates">
                                     <VisualState x:Name="Normal"/>
-                                    <VisualState x:Name="PointerOver"><VisualState.Setters><Setter Target="ReplayRoot.Background" Value="{ThemeResource HeroActionHoverBackgroundBrush}"/><Setter Target="ReplayContent.Foreground" Value="{ThemeResource HeroActionHoverForegroundBrush}"/></VisualState.Setters></VisualState>
-                                    <VisualState x:Name="Pressed"><VisualState.Setters><Setter Target="ReplayRoot.Background" Value="{ThemeResource HeroActionPressedBackgroundBrush}"/><Setter Target="ReplayContent.Foreground" Value="{ThemeResource HeroActionHoverForegroundBrush}"/></VisualState.Setters></VisualState>
-                                    <VisualState x:Name="Disabled"><VisualState.Setters><Setter Target="ReplayRoot.Opacity" Value="0.55"/></VisualState.Setters></VisualState>
+                                    <VisualState x:Name="PointerOver">
+                                        <VisualState.Setters><Setter Target="Content.Foreground" Value="{ThemeResource HeroTitleForegroundBrush}"/></VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Pressed">
+                                        <VisualState.Setters><Setter Target="Content.Foreground" Value="{ThemeResource HeroTitleForegroundBrush}"/></VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Disabled">
+                                        <VisualState.Setters><Setter Target="Root.Opacity" Value="0.45"/></VisualState.Setters>
+                                    </VisualState>
                                 </VisualStateGroup>
                             </VisualStateManager.VisualStateGroups>
-                            <ContentPresenter x:Name="ReplayContent" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" Padding="{TemplateBinding Padding}" Foreground="{TemplateBinding Foreground}" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
+                            <ContentPresenter x:Name="Content" Content="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}"/>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <!-- 季胶囊：没选中时没有底，选中是黑 12% 底加半粗体 -->
+        <Style x:Key="SeasonPillStyle" TargetType="ToggleButton">
+            <Setter Property="MinWidth" Value="0"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Padding" Value="14,0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{ThemeResource TextSecondaryBrush}"/>
+            <Setter Property="FontFamily" Value="{StaticResource MiSansMediumFontFamily}"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="FontSize" Value="{StaticResource CaptionFontSize}"/>
+            <Setter Property="CornerRadius" Value="14"/>
+            <Setter Property="UseSystemFocusVisuals" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Grid x:Name="Root" Background="{TemplateBinding Background}" CornerRadius="{TemplateBinding CornerRadius}" Padding="{TemplateBinding Padding}">
+                            <Grid.BackgroundTransition><BrushTransition Duration="0:0:0.16"/></Grid.BackgroundTransition>
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroup x:Name="CommonStates">
+                                    <VisualState x:Name="Normal"/>
+                                    <VisualState x:Name="PointerOver">
+                                        <VisualState.Setters>
+                                            <Setter Target="Root.Background" Value="{ThemeResource NavHoverBrush}"/>
+                                            <Setter Target="Content.Foreground" Value="{ThemeResource TextPrimaryBrush}"/>
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Pressed">
+                                        <VisualState.Setters>
+                                            <Setter Target="Root.Background" Value="{ThemeResource NavPressedBrush}"/>
+                                            <Setter Target="Content.Foreground" Value="{ThemeResource TextPrimaryBrush}"/>
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Checked">
+                                        <VisualState.Setters>
+                                            <Setter Target="Root.Background" Value="{ThemeResource NavActiveBrush}"/>
+                                            <Setter Target="Content.Foreground" Value="{ThemeResource TextPrimaryBrush}"/>
+                                            <Setter Target="Content.FontFamily" Value="{StaticResource MiSansSemiboldFontFamily}"/>
+                                            <Setter Target="Content.FontWeight" Value="SemiBold"/>
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="CheckedPointerOver">
+                                        <VisualState.Setters>
+                                            <Setter Target="Root.Background" Value="{ThemeResource NavActiveBrush}"/>
+                                            <Setter Target="Content.Foreground" Value="{ThemeResource TextPrimaryBrush}"/>
+                                            <Setter Target="Content.FontFamily" Value="{StaticResource MiSansSemiboldFontFamily}"/>
+                                            <Setter Target="Content.FontWeight" Value="SemiBold"/>
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="CheckedPressed">
+                                        <VisualState.Setters>
+                                            <Setter Target="Root.Background" Value="{ThemeResource NavActiveBrush}"/>
+                                            <Setter Target="Content.Foreground" Value="{ThemeResource TextPrimaryBrush}"/>
+                                            <Setter Target="Content.FontFamily" Value="{StaticResource MiSansSemiboldFontFamily}"/>
+                                            <Setter Target="Content.FontWeight" Value="SemiBold"/>
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                </VisualStateGroup>
+                            </VisualStateManager.VisualStateGroups>
+                            <ContentPresenter x:Name="Content" Content="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}"
+                                              FontFamily="{TemplateBinding FontFamily}" FontWeight="{TemplateBinding FontWeight}"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Grid>
                     </ControlTemplate>
                 </Setter.Value>
@@ -55,112 +153,205 @@
         </Style>
         <Style x:Key="RailItemStyle" TargetType="ListViewItem">
             <Setter Property="Padding" Value="0"/>
-            <Setter Property="Margin" Value="0,0,16,0"/>
+            <Setter Property="Margin" Value="0,0,12,0"/>
+            <Setter Property="MinWidth" Value="0"/>
+            <Setter Property="MinHeight" Value="0"/>
             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
             <Setter Property="VerticalContentAlignment" Value="Stretch"/>
             <Setter Property="Template">
                 <Setter.Value><ControlTemplate TargetType="ListViewItem"><ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"/></ControlTemplate></Setter.Value>
             </Setter>
         </Style>
+        <Style x:Key="PersonItemStyle" TargetType="ListViewItem" BasedOn="{StaticResource RailItemStyle}">
+            <Setter Property="Margin" Value="0,0,16,0"/>
+        </Style>
+        <Style x:Key="HeroShadowedTextStyle" TargetType="TextBlock" BasedOn="{StaticResource HeroMetaTextStyle}">
+            <Setter Property="FontFamily" Value="{StaticResource MiSansSemiboldFontFamily}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+        </Style>
     </UserControl.Resources>
     <Grid>
-        <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Auto" Visibility="{x:Bind ViewModel.HasContent, Mode=OneWay}">
-            <StackPanel Padding="0,0,0,48">
+        <!-- 详情页的滚动条不显示，和原版一样 -->
+        <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Hidden" Visibility="{x:Bind ViewModel.HasContent, Mode=OneWay}">
+            <StackPanel Padding="0,0,0,32">
                 <Grid x:Name="Hero" Height="560" Background="{ThemeResource HeroBackgroundBrush}">
                     <Grid x:Name="ArtHost" IsHitTestVisible="False"/>
-                    <StackPanel HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="40,0,40,56" MaxWidth="600" Spacing="14">
-                        <Grid HorizontalAlignment="Left" Width="360" Height="130" Margin="0,0,0,4">
-                            <images:RemoteImage x:Name="LogoArt" Source="{x:Bind ViewModel.Logo, Mode=OneWay}" Priority="Hero" DecodeWidth="360" Stretch="Uniform" Visibility="{x:Bind ViewModel.HasLogo, Mode=OneWay}" ImageOpened="OnLogoOpened"/>
-                            <TextBlock x:Name="Heading" Style="{StaticResource HeroTitleTextStyle}" Text="{x:Bind ViewModel.Title, Mode=OneWay}"/>
-                        </Grid>
-                        <TextBlock Style="{StaticResource HeroMetaTextStyle}">
-                            <Run Foreground="{ThemeResource RatingBrush}" Text="{x:Bind ViewModel.RatingStar, Mode=OneWay}"/>
-                            <Run Text="{x:Bind ViewModel.Metadata, Mode=OneWay}"/>
-                        </TextBlock>
-                        <TextBlock Style="{StaticResource HeroMetaTextStyle}" Text="{x:Bind ViewModel.EpisodeLine, Mode=OneWay}" Visibility="{x:Bind ViewModel.HasEpisodeLine, Mode=OneWay}"/>
-                        <TextBlock Style="{StaticResource HeroOverviewTextStyle}" Text="{x:Bind ViewModel.Overview, Mode=OneWay}"/>
-                        <StackPanel Orientation="Horizontal" Spacing="14" Margin="0,8,0,0">
-                            <Grid Width="78" Height="78">
-                                <Button x:Name="PlayButton" Style="{StaticResource DetailPlayButtonStyle}" Click="OnPlayClick" IsEnabled="{x:Bind ViewModel.CanPlay, Mode=OneWay}" AutomationProperties.Name="{x:Bind ViewModel.PlayLabel, Mode=OneWay}"/>
-                                <ProgressRing Width="78" Height="78" IsIndeterminate="False" Minimum="0" Maximum="1" Value="{x:Bind ViewModel.ProgressFraction, Mode=OneWay}" Foreground="{ThemeResource HeroTitleForegroundBrush}" Background="{ThemeResource HeroProgressBackgroundBrush}" IsHitTestVisible="False" Visibility="{x:Bind ViewModel.HasProgress, Mode=OneWay}"/>
-                                <ProgressRing Width="78" Height="78" IsActive="{x:Bind ViewModel.IsStarting, Mode=OneWay}" Foreground="{ThemeResource HeroTitleForegroundBrush}" IsHitTestVisible="False" Visibility="{x:Bind ViewModel.IsStarting, Mode=OneWay}"/>
+                    <!-- 文字块贴着 hero 底边；播放钮在右下角 -->
+                    <Grid x:Name="Info" VerticalAlignment="Bottom" Margin="32,0,32,12" MinHeight="72" ColumnSpacing="24">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid x:Name="Copy" HorizontalAlignment="Left" MaxWidth="764">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid ColumnSpacing="20">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid x:Name="LogoArea" Width="360" Height="130">
+                                    <Border x:Name="TitleShadow"/>
+                                    <images:RemoteImage x:Name="LogoArt" Source="{x:Bind ViewModel.Logo, Mode=OneWay}" Priority="Hero" DecodeWidth="360" Stretch="Uniform"
+                                                        ImageAlignmentX="Left" Visibility="{x:Bind ViewModel.HasLogo, Mode=OneWay}" ImageOpened="OnLogoOpened"/>
+                                    <TextBlock x:Name="Heading" Style="{StaticResource HeroTitleTextStyle}" Text="{x:Bind ViewModel.Title, Mode=OneWay}"/>
+                                </Grid>
+                                <Grid x:Name="MetaArea" Grid.Column="1" VerticalAlignment="Bottom" HorizontalAlignment="Left" Margin="0,0,0,8">
+                                    <Border x:Name="MetaShadow"/>
+                                    <StackPanel x:Name="MetaRow" Orientation="Horizontal" Spacing="12"/>
+                                </Grid>
                             </Grid>
-                            <StackPanel VerticalAlignment="Center" Spacing="2">
-                                <TextBlock Style="{StaticResource BodyLargeStrongTextStyle}" Foreground="{ThemeResource HeroTitleForegroundBrush}" Text="{x:Bind ViewModel.PlayLabel, Mode=OneWay}"/>
-                                <TextBlock Style="{StaticResource BodySmallTextStyle}" Foreground="{ThemeResource HeroHintForegroundBrush}" Text="{x:Bind ViewModel.PlayHint, Mode=OneWay}"/>
-                            </StackPanel>
-                            <Button x:Name="ReplayButton" Style="{StaticResource DetailReplayButtonStyle}" Content="从头播放" Click="OnReplayClick" Visibility="{x:Bind ViewModel.CanReplay, Mode=OneWay}" AutomationProperties.Name="从头播放"/>
+                            <Grid x:Name="EpisodeArea" Grid.Row="1" Margin="0,10,0,0" MaxWidth="672" HorizontalAlignment="Left"
+                                  Visibility="{x:Bind ViewModel.HasEpisodeLine, Mode=OneWay}">
+                                <Border x:Name="EpisodeShadow"/>
+                                <TextBlock x:Name="EpisodeText" Style="{StaticResource HeroShadowedTextStyle}" Text="{x:Bind ViewModel.EpisodeLine, Mode=OneWay}"/>
+                            </Grid>
+                            <Grid x:Name="OverviewArea" Grid.Row="2" Height="48" Margin="0,10,0,0" MaxWidth="672" HorizontalAlignment="Left">
+                                <Border x:Name="OverviewShadow"/>
+                                <TextBlock x:Name="OverviewText" Style="{StaticResource HeroOverviewTextStyle}" VerticalAlignment="Top" Text="{x:Bind ViewModel.Overview, Mode=OneWay}"/>
+                            </Grid>
+                        </Grid>
+                        <StackPanel x:Name="Actions" Grid.Column="1" Orientation="Horizontal" Spacing="14" VerticalAlignment="Bottom">
+                            <!-- 圆钮左侧：播放什么、还剩多久；有进度时可以从头播放 -->
+                            <Grid VerticalAlignment="Center">
+                                <Border x:Name="LabelShadow"/>
+                                <StackPanel x:Name="LabelBlock" Spacing="2">
+                                    <TextBlock Style="{StaticResource HeroShadowedTextStyle}" HorizontalAlignment="Right" Foreground="{ThemeResource HeroTitleForegroundBrush}"
+                                               Text="{x:Bind ViewModel.PlayLabel, Mode=OneWay}"/>
+                                    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                                        <TextBlock Style="{StaticResource CaptionTextStyle}" Foreground="{ThemeResource HeroHintForegroundBrush}" VerticalAlignment="Center"
+                                                   Text="{x:Bind ViewModel.PlayHint, Mode=OneWay}"/>
+                                        <Button x:Name="ReplayButton" Style="{StaticResource HeroLinkButtonStyle}" VerticalAlignment="Center" Click="OnReplayClick"
+                                                Visibility="{x:Bind ViewModel.CanReplay, Mode=OneWay}" AutomationProperties.Name="从头播放">
+                                            <TextBlock Style="{StaticResource CaptionTextStyle}" Foreground="{ThemeResource HeroHintForegroundBrush}" Text="从头播放" TextDecorations="Underline"/>
+                                        </Button>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Grid>
+                            <Grid Width="72" Height="72">
+                                <Button x:Name="PlayButton" Style="{StaticResource DetailPlayButtonStyle}" Click="OnPlayClick" IsEnabled="{x:Bind ViewModel.CanPlay, Mode=OneWay}"
+                                        AutomationProperties.Name="{x:Bind ViewModel.PlayLabel, Mode=OneWay}"/>
+                                <!-- 进度环画在圆钮里面：细线，底圈白 30%，已看部分白 90% -->
+                                <Grid x:Name="PlayProgress" Width="67" Height="67" IsHitTestVisible="False" Visibility="{x:Bind ViewModel.HasProgress, Mode=OneWay}"
+                                      RenderTransformOrigin="0.5,0.5">
+                                    <Grid.RenderTransform><RotateTransform Angle="-90"/></Grid.RenderTransform>
+                                    <Ellipse Stroke="{ThemeResource HeroProgressBackgroundBrush}" StrokeThickness="2.6"/>
+                                    <Ellipse x:Name="PlayProgressArc" Stroke="{ThemeResource HeroMetaForegroundBrush}" StrokeThickness="2.6"
+                                             StrokeDashCap="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                                </Grid>
+                            </Grid>
                         </StackPanel>
-                    </StackPanel>
+                    </Grid>
                 </Grid>
-                <StackPanel Orientation="Horizontal" Margin="40,16,40,0" Spacing="10" Visibility="{x:Bind ViewModel.HasRefreshError, Mode=OneWay}">
-                    <TextBlock Style="{StaticResource BodySmallTextStyle}" Text="内容更新失败" Foreground="{ThemeResource WarningBrush}" VerticalAlignment="Center"/>
+                <StackPanel Orientation="Horizontal" Margin="24,0,24,16" Spacing="12" Visibility="{x:Bind ViewModel.HasRefreshError, Mode=OneWay}">
+                    <TextBlock Style="{StaticResource BodySmallTextStyle}" Text="内容更新失败" Foreground="{ThemeResource TextSecondaryBrush}" VerticalAlignment="Center"/>
                     <Button Style="{StaticResource SoftButtonStyle}" Content="重试" Click="OnRetryClick"/>
                 </StackPanel>
-                <StackPanel Margin="0,28,0,0" Spacing="10" Visibility="{x:Bind ViewModel.ShowEpisodeSection, Mode=OneWay}">
-                    <Grid Margin="40,0" ColumnSpacing="12">
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                        <TextBlock Style="{StaticResource SubtitleTextStyle}" Text="剧集" VerticalAlignment="Center"/>
-                        <Button Grid.Column="1" Style="{StaticResource RailArrowButtonStyle}" Click="OnSeasonsLeftClick" AutomationProperties.Name="向左滚动季"><FontIcon Glyph="&#xE76B;" FontSize="10"/></Button>
-                        <ScrollViewer x:Name="SeasonScroller" Grid.Column="2" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" VerticalScrollMode="Disabled">
+
+                <!-- 季与集：左边是季胶囊，右边是翻页箭头，下面是剧集行 -->
+                <StackPanel Margin="0,0,0,28" Visibility="{x:Bind ViewModel.ShowEpisodeSection, Mode=OneWay}">
+                    <Grid Margin="24,0,24,12" MinHeight="28" ColumnSpacing="16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <ScrollViewer x:Name="SeasonScroller" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" VerticalScrollMode="Disabled">
                             <ItemsRepeater ItemsSource="{x:Bind ViewModel.Seasons}">
                                 <ItemsRepeater.Layout><StackLayout Orientation="Horizontal" Spacing="6"/></ItemsRepeater.Layout>
-                                <ItemsRepeater.ItemTemplate><DataTemplate x:DataType="vm:DetailSeasonViewModel"><ToggleButton Style="{StaticResource ChipStyle}" Content="{x:Bind Title}" IsChecked="{x:Bind IsSelected, Mode=OneWay}" Tag="{x:Bind Id}" Click="OnSeasonClick"/></DataTemplate></ItemsRepeater.ItemTemplate>
+                                <ItemsRepeater.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:DetailSeasonViewModel">
+                                        <ToggleButton Style="{StaticResource SeasonPillStyle}" Content="{x:Bind Title}" IsChecked="{x:Bind IsSelected, Mode=OneWay}" Tag="{x:Bind Id}" Click="OnSeasonClick"/>
+                                    </DataTemplate>
+                                </ItemsRepeater.ItemTemplate>
                             </ItemsRepeater>
                         </ScrollViewer>
-                        <Button Grid.Column="3" Style="{StaticResource RailArrowButtonStyle}" Click="OnSeasonsRightClick" AutomationProperties.Name="向右滚动季"><FontIcon Glyph="&#xE76C;" FontSize="10"/></Button>
+                        <StackPanel x:Name="EpisodeArrows" Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Visibility="Collapsed">
+                            <Button x:Name="EpisodesLeft" Style="{StaticResource RailArrowButtonStyle}" Click="OnEpisodesLeftClick" AutomationProperties.Name="向左滚动剧集">
+                                <themes:LineIcon Glyph="{StaticResource IconChevronLeft}" Width="15" Height="15" StrokeWidth="2.35"/>
+                            </Button>
+                            <Button x:Name="EpisodesRight" Style="{StaticResource RailArrowButtonStyle}" Click="OnEpisodesRightClick" AutomationProperties.Name="向右滚动剧集">
+                                <themes:LineIcon Glyph="{StaticResource IconChevronRight}" Width="15" Height="15" StrokeWidth="2.35"/>
+                            </Button>
+                        </StackPanel>
                     </Grid>
-                    <StackPanel Orientation="Horizontal" Margin="40,0" Spacing="10" Visibility="{x:Bind ViewModel.HasSeriesError, Mode=OneWay}">
-                        <TextBlock Style="{StaticResource BodySmallTextStyle}" Foreground="{ThemeResource WarningBrush}" Text="{x:Bind ViewModel.SeriesErrorText, Mode=OneWay}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                    <StackPanel Orientation="Horizontal" Margin="24,0,24,12" Spacing="12" Visibility="{x:Bind ViewModel.HasSeriesError, Mode=OneWay}">
+                        <TextBlock Style="{StaticResource BodySmallTextStyle}" Foreground="{ThemeResource TextSecondaryBrush}" Text="{x:Bind ViewModel.SeriesErrorText, Mode=OneWay}" VerticalAlignment="Center" TextWrapping="Wrap"/>
                         <Button Style="{StaticResource SoftButtonStyle}" Content="重试" Click="OnRetryClick"/>
                     </StackPanel>
-                    <ProgressRing Margin="40,10" HorizontalAlignment="Left" Width="20" Height="20" IsActive="{x:Bind ViewModel.IsSeriesLoading, Mode=OneWay}" Visibility="{x:Bind ViewModel.IsSeriesLoading, Mode=OneWay}"/>
-                    <Grid>
-                        <ListView x:Name="EpisodeList" Height="240" ItemsSource="{x:Bind ViewModel.Episodes}" SelectionMode="None" IsItemClickEnabled="False" ItemContainerStyle="{StaticResource RailItemStyle}"
-                                  ScrollViewer.HorizontalScrollBarVisibility="Hidden" ScrollViewer.VerticalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollMode="Disabled" ScrollViewer.HorizontalScrollMode="Enabled" Padding="40,8,24,10" Loaded="OnEpisodeListLoaded">
-                            <ListView.ItemsPanel><ItemsPanelTemplate><ItemsStackPanel Orientation="Horizontal"/></ItemsPanelTemplate></ListView.ItemsPanel>
-                            <ListView.ItemTemplate>
-                                <DataTemplate x:DataType="vm:DetailEpisodeViewModel">
-                                    <Grid Width="300" Height="218">
-                                        <Button Style="{StaticResource CardButtonStyle}" Click="OnEpisodeClick" Tag="{x:Bind Id}" AutomationProperties.Name="{x:Bind Title}">
-                                            <StackPanel Spacing="8">
-                                                <Grid Height="169" CornerRadius="{StaticResource LandscapeCornerRadius}" Background="{ThemeResource ImagePlaceholderBrush}">
-                                                    <images:RemoteImage Source="{x:Bind Image}" CornerRadius="{StaticResource LandscapeCornerRadius}" DecodeWidth="300"/>
-                                                    <Border CornerRadius="{StaticResource LandscapeCornerRadius}" BorderThickness="2" BorderBrush="{ThemeResource AccentBrush}" Visibility="{x:Bind IsSelected, Mode=OneWay}"/>
-                                                    <Border Margin="10" HorizontalAlignment="Right" VerticalAlignment="Top" CornerRadius="12" Background="#99000000" Padding="5" Visibility="{x:Bind Played}"><FontIcon Glyph="&#xE73E;" Foreground="White" FontSize="12"/></Border>
-                                                    <Grid Height="4" VerticalAlignment="Bottom" Margin="8" Background="#52FFFFFF" CornerRadius="2" Visibility="{x:Bind HasProgress}">
-                                                        <Grid.ColumnDefinitions><ColumnDefinition Width="{x:Bind ProgressDone}"/><ColumnDefinition Width="{x:Bind ProgressRest}"/></Grid.ColumnDefinitions>
-                                                        <Border Background="White" CornerRadius="2"/>
-                                                    </Grid>
-                                                </Grid>
-                                                <StackPanel Spacing="2" Padding="2,0"><TextBlock Style="{StaticResource CardTitleTextStyle}" Text="{x:Bind Title}"/><TextBlock Style="{StaticResource CardSubtitleTextStyle}" Text="{x:Bind Subtitle}"/></StackPanel>
-                                            </StackPanel>
-                                        </Button>
-                                        <Button Style="{StaticResource CardPlayButtonStyle}" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,123,10,0" Tag="{x:Bind Id}" Click="OnEpisodePlayClick" AutomationProperties.Name="播放这一集" ToolTipService.ToolTip="播放这一集"/>
-                                    </Grid>
-                                </DataTemplate>
-                            </ListView.ItemTemplate>
-                        </ListView>
-                        <Button Style="{StaticResource RailArrowButtonStyle}" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="16,0,0,42" Click="OnEpisodesLeftClick" AutomationProperties.Name="向左滚动剧集"><FontIcon Glyph="&#xE76B;" FontSize="12"/></Button>
-                        <Button Style="{StaticResource RailArrowButtonStyle}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,16,42" Click="OnEpisodesRightClick" AutomationProperties.Name="向右滚动剧集"><FontIcon Glyph="&#xE76C;" FontSize="12"/></Button>
-                    </Grid>
-                    <ProgressRing Width="20" Height="20" IsActive="{x:Bind ViewModel.IsEpisodesLoading, Mode=OneWay}" Visibility="{x:Bind ViewModel.IsEpisodesLoading, Mode=OneWay}"/>
-                    <ProgressRing Width="20" Height="20" IsActive="{x:Bind ViewModel.IsLoadingMore, Mode=OneWay}" Visibility="{x:Bind ViewModel.IsLoadingMore, Mode=OneWay}"/>
-                    <controls:StateView Title="剧集加载失败" Visibility="{x:Bind ViewModel.HasEpisodesError, Mode=OneWay}"><controls:StateView.Actions><Button Style="{StaticResource SoftAccentButtonStyle}" Content="重试" Click="OnRetryClick"/></controls:StateView.Actions></controls:StateView>
-                    <Button Style="{StaticResource SoftButtonStyle}" Content="重试加载" HorizontalAlignment="Center" Click="OnLoadMoreClick" Visibility="{x:Bind ViewModel.HasEpisodeMoreError, Mode=OneWay}"/>
+                    <ListView x:Name="EpisodeList" Height="238" Margin="4,-8,4,0" Padding="20,8,8,8" ItemsSource="{x:Bind ViewModel.Episodes}" SelectionMode="None" IsItemClickEnabled="False"
+                              ItemContainerStyle="{StaticResource RailItemStyle}" Loaded="OnEpisodeListLoaded"
+                              ScrollViewer.HorizontalScrollBarVisibility="Hidden" ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                              ScrollViewer.VerticalScrollMode="Disabled" ScrollViewer.HorizontalScrollMode="Enabled">
+                        <ListView.ItemsPanel><ItemsPanelTemplate><ItemsStackPanel Orientation="Horizontal"/></ItemsPanelTemplate></ListView.ItemsPanel>
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="vm:DetailEpisodeViewModel">
+                                <controls:EpisodeCard Episode="{x:Bind}" Click="OnEpisodeClick" PlayClick="OnEpisodePlayClick"/>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                    <!-- 季信息或这一季的剧集还在加载：一行骨架卡片 -->
+                    <StackPanel x:Name="EpisodeSkeleton" Orientation="Horizontal" Spacing="{StaticResource RailSpacing}" Padding="24,0" Visibility="{x:Bind ViewModel.IsEpisodesLoading, Mode=OneWay}"/>
+                    <controls:StateView Title="剧集加载失败" Visibility="{x:Bind ViewModel.HasEpisodesError, Mode=OneWay}">
+                        <controls:StateView.Actions><Button Style="{StaticResource SoftButtonStyle}" Content="重试" Click="OnRetryClick"/></controls:StateView.Actions>
+                    </controls:StateView>
+                    <Button Style="{StaticResource SoftButtonStyle}" Content="重试加载" Margin="24,12,0,0" HorizontalAlignment="Left" Click="OnLoadMoreClick"
+                            Visibility="{x:Bind ViewModel.HasEpisodeMoreError, Mode=OneWay}"/>
                     <controls:StateView Title="暂无剧集" Visibility="{x:Bind ViewModel.IsEpisodesEmpty, Mode=OneWay}"/>
                 </StackPanel>
-                <StackPanel Margin="0,28,0,0" Spacing="10" Visibility="{x:Bind ViewModel.HasPeople, Mode=OneWay}">
-                    <TextBlock Style="{StaticResource SubtitleTextStyle}" Text="演职人员" Margin="40,0"/>
-                    <ListView ItemsSource="{x:Bind ViewModel.People}" Height="242" SelectionMode="None" IsItemClickEnabled="False" ItemContainerStyle="{StaticResource RailItemStyle}" Padding="40,8,24,10"
-                              ScrollViewer.HorizontalScrollBarVisibility="Hidden" ScrollViewer.VerticalScrollBarVisibility="Disabled" ScrollViewer.HorizontalScrollMode="Enabled" ScrollViewer.VerticalScrollMode="Disabled">
+
+                <StackPanel Margin="0,12,0,0" Visibility="{x:Bind ViewModel.HasPeople, Mode=OneWay}">
+                    <Grid Margin="24,0,24,16" ColumnSpacing="16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Style="{StaticResource SubtitleTextStyle}" Text="演职人员" VerticalAlignment="Center"/>
+                        <StackPanel x:Name="PeopleArrows" Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Visibility="Collapsed">
+                            <Button x:Name="PeopleLeft" Style="{StaticResource RailArrowButtonStyle}" Click="OnPeopleLeftClick" AutomationProperties.Name="向左滚动演职人员">
+                                <themes:LineIcon Glyph="{StaticResource IconChevronLeft}" Width="15" Height="15" StrokeWidth="2.35"/>
+                            </Button>
+                            <Button x:Name="PeopleRight" Style="{StaticResource RailArrowButtonStyle}" Click="OnPeopleRightClick" AutomationProperties.Name="向右滚动演职人员">
+                                <themes:LineIcon Glyph="{StaticResource IconChevronRight}" Width="15" Height="15" StrokeWidth="2.35"/>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                    <ListView x:Name="PeopleList" Height="228" Padding="24,0,8,4" ItemsSource="{x:Bind ViewModel.People}" SelectionMode="None" IsItemClickEnabled="False"
+                              ItemContainerStyle="{StaticResource PersonItemStyle}" Loaded="OnPeopleListLoaded"
+                              ScrollViewer.HorizontalScrollBarVisibility="Hidden" ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                              ScrollViewer.HorizontalScrollMode="Enabled" ScrollViewer.VerticalScrollMode="Disabled">
                         <ListView.ItemsPanel><ItemsPanelTemplate><ItemsStackPanel Orientation="Horizontal"/></ItemsPanelTemplate></ListView.ItemsPanel>
-                        <ListView.ItemTemplate><DataTemplate x:DataType="vm:DetailPersonViewModel"><StackPanel Width="132" Spacing="8"><Grid Height="176" CornerRadius="{StaticResource LandscapeCornerRadius}" Background="{ThemeResource ImagePlaceholderBrush}"><FontIcon Glyph="&#xE77B;" FontSize="48" Foreground="{ThemeResource TextTertiaryBrush}"/><images:RemoteImage Source="{x:Bind Image}" DecodeWidth="132" CornerRadius="{StaticResource LandscapeCornerRadius}"/></Grid><StackPanel Spacing="2"><TextBlock Style="{StaticResource CardTitleTextStyle}" Text="{x:Bind Name}"/><TextBlock Style="{StaticResource CaptionTextStyle}" Text="{x:Bind Role}"/></StackPanel></StackPanel></DataTemplate></ListView.ItemTemplate>
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="vm:DetailPersonViewModel">
+                                <StackPanel Width="132">
+                                    <Grid Height="176" Margin="0,0,0,8" CornerRadius="{StaticResource PersonCornerRadius}" Background="{ThemeResource ControlFillBrush}">
+                                        <themes:LineIcon Glyph="{StaticResource IconUser}" Width="36" Height="36" Foreground="{ThemeResource TextTertiaryBrush}" Opacity="0.6"
+                                                         HorizontalAlignment="Center"/>
+                                        <images:RemoteImage Source="{x:Bind Image}" DecodeWidth="132" CornerRadius="{StaticResource PersonCornerRadius}"/>
+                                        <Border CornerRadius="{StaticResource PersonCornerRadius}" BorderThickness="1" BorderBrush="{ThemeResource PersonStrokeBrush}"/>
+                                    </Grid>
+                                    <TextBlock Style="{StaticResource CardTitleTextStyle}" LineHeight="20" Text="{x:Bind Name}"/>
+                                    <TextBlock Style="{StaticResource CardSubtitleTextStyle}" Margin="0,2,0,0" Text="{x:Bind Role}"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
                     </ListView>
                 </StackPanel>
             </StackPanel>
         </ScrollViewer>
-        <Border Style="{StaticResource SkeletonBlockStyle}" Height="560" VerticalAlignment="Top" CornerRadius="0" Visibility="{x:Bind ViewModel.IsLoading, Mode=OneWay}"/>
-        <controls:StateView Title="详情加载失败" Visibility="{x:Bind ViewModel.HasError, Mode=OneWay}"><controls:StateView.Actions><Button Style="{StaticResource SoftAccentButtonStyle}" Content="重试" Click="OnRetryClick"/></controls:StateView.Actions></controls:StateView>
+        <!-- 加载中：hero 位置上三条文字条 -->
+        <Grid x:Name="LoadingSkeleton" Height="560" VerticalAlignment="Top" Visibility="{x:Bind ViewModel.IsLoading, Mode=OneWay}">
+            <StackPanel VerticalAlignment="Bottom" Margin="32,0,32,12">
+                <Border Style="{StaticResource SkeletonBlockStyle}" Width="256" Height="40" CornerRadius="20" Margin="0,0,0,12" HorizontalAlignment="Left"/>
+                <Border Style="{StaticResource SkeletonBlockStyle}" Width="384" Height="16" CornerRadius="8" Margin="0,0,0,8" HorizontalAlignment="Left"/>
+                <Border Style="{StaticResource SkeletonBlockStyle}" Width="320" Height="16" CornerRadius="8" HorizontalAlignment="Left"/>
+            </StackPanel>
+        </Grid>
+        <controls:StateView Title="详情加载失败" Visibility="{x:Bind ViewModel.HasError, Mode=OneWay}">
+            <controls:StateView.Actions><Button Style="{StaticResource SoftButtonStyle}" Content="重试" Click="OnRetryClick"/></controls:StateView.Actions>
+        </controls:StateView>
     </Grid>
 </UserControl>

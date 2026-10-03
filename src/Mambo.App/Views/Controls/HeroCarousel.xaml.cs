@@ -299,32 +299,9 @@ public sealed partial class HeroCarousel : UserControl, IDisposable
         TitleText.Visibility = highContrast || slide.Logo is null || failed ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    private void BuildMeta(HeroSlideViewModel slide)
-    {
-        var resources = Application.Current.Resources;
-        MetaRow.Children.Clear();
-        if (slide.RatingText.Length > 0)
-        {
-            var rating = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
-            rating.Children.Add(new TextBlock { Text = "★", Style = XamlResources.Style(resources, "HeroStarTextStyle") });
-            rating.Children.Add(MetaText(slide.RatingText));
-            MetaRow.Children.Add(rating);
-        }
-        foreach (var text in new[] { slide.Year, slide.Genres })
-            if (text.Length > 0) MetaRow.Children.Add(MetaText(text));
-        if (slide.OfficialRating.Length > 0)
-        {
-            MetaRow.Children.Add(new Border
-            {
-                Style = XamlResources.Style(resources, "HeroBadgeStyle"),
-                Child = new TextBlock { Text = slide.OfficialRating, Style = XamlResources.Style(resources, "HeroBadgeTextStyle") },
-            });
-        }
-        MetaArea.Visibility = MetaRow.Children.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-    }
-
-    private static TextBlock MetaText(string text) => new() { Text = text, Style = XamlResources.Style(Application.Current.Resources, "HeroMetaTextStyle") };
-
+    private void BuildMeta(HeroSlideViewModel slide) =>
+        MetaArea.Visibility = HeroArt.BuildMeta(MetaRow, slide.RatingText, slide.Year, slide.Genres, slide.OfficialRating)
+            ? Visibility.Visible : Visibility.Collapsed;
     private async Task ShowAsync(int slideIndex, bool animate)
     {
         if (disposed || highContrast || !IsLoaded || !pageActive || front is null || back is null || ImageLoader.Current is not { } loader || XamlRoot is null) return;

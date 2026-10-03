@@ -4,27 +4,28 @@ using Mambo.App.Images;
 using Mambo.App.Shell;
 using Mambo.App.Themes;
 using Mambo.App.ViewModels;
+using Mambo.App.Views.Controls;
 using Mambo.Core.Contracts;
-using Microsoft.UI;
 using Microsoft.UI.Composition;
-using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
-using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Hosting;
 using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Media.Animation;
 using Windows.Foundation;
-using Windows.System;
 
 namespace Mambo.App.Views;
 
 public sealed partial class DetailPage : UserControl, INavigablePage, IDisposable
 {
+    // 进度环：直径 67、线宽 2.6。虚线长度以线宽为单位，一整圈是 π × (67 − 2.6) ÷ 2.6。
+    private const double RingDashUnits = Math.PI * (67 - 2.6) / 2.6;
     private readonly WindowContext window;
     private WindowContrastObserver? contrastObserver;
     private ScrollViewer? episodeScroller;
+    private ScrollViewer? peopleScroller;
+    private RailScroller? episodeRail;
+    private RailScroller? peopleRail;
     private bool disposed;
     private DetailViewState? pendingRestore;
     private ContainerVisual? heroVisual;
@@ -41,15 +42,27 @@ public sealed partial class DetailPage : UserControl, INavigablePage, IDisposabl
         this.window = window;
         ViewModel = viewModel;
         InitializeComponent();
+        // 原版的文字阴影：标题 0 2px 10px .65，评分信息 0 1px 3px .65，其余 0 1px 4px .6。
+        SoftShadow.AttachDrop(TitleShadow, Heading, 10, 2, 0.65f);
+        SoftShadow.AttachDrop(MetaShadow, MetaRow, 3, 1, 0.65f);
+        SoftShadow.AttachDrop(EpisodeShadow, EpisodeText, 4, 1, 0.6f);
+        SoftShadow.AttachDrop(OverviewShadow, OverviewText, 4, 1, 0.6f);
+        SoftShadow.AttachDrop(LabelShadow, LabelBlock, 4, 1, 0.6f);
+        for (var i = 0; i < 4; i++) EpisodeSkeleton.Children.Add(CardSkeleton.Create(landscape: true));
         ViewModel.TargetEpisodeAvailable += OnTargetEpisodeAvailable;
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
         SizeChanged += OnSizeChanged;
-        EpisodeList.AddHandler(PointerWheelChangedEvent, new PointerEventHandler(OnEpisodeWheel), true);
+        ApplyMeta();
+        ApplyProgress();
     }
 
     public DetailViewModel ViewModel { get; }
+
+    /// <summary>圆钮里的进度环当前是否可见，以及它画出的比例。</summary>
+    internal bool PlayProgressVisible => PlayProgress.Visibility == Visibility.Visible && PlayProgress.IsLoaded && PlayProgress.ActualWidth > 0;
+    internal double ShownPlayProgress { get; private set; }
 
     public void OnNavigatedTo(NavEntry entry, NavigationMode mode, bool created)
     {
@@ -82,7 +95,7 @@ public sealed partial class DetailPage : UserControl, INavigablePage, IDisposabl
         Loaded -= OnLoaded;
         Unloaded -= OnUnloaded;
         SizeChanged -= OnSizeChanged;
-        DetachScroller();
+        DetachScrollers();
         ViewModel.TargetEpisodeAvailable -= OnTargetEpisodeAvailable;
         ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
         ViewModel.Dispose();
@@ -98,14 +111,15 @@ public sealed partial class DetailPage : UserControl, INavigablePage, IDisposabl
         contrastObserver ??= new WindowContrastObserver(window, DispatcherQueue, ApplyContrast);
         ApplyContrast(contrastObserver.HighContrast);
         UpdateHeroHeight();
-        AttachScroller();
+        AttachEpisodeScroller();
+        AttachPeopleScroller();
         InitializeHeroArt();
         _ = LoadHeroArtAsync();
     }
 
     private void OnUnloaded(object sender, RoutedEventArgs e)
     {
-        DetachScroller();
+        DetachScrollers();
         CancelArt();
         contrastObserver?.Dispose();
         contrastObserver = null;
@@ -146,35 +160,79 @@ public sealed partial class DetailPage : UserControl, INavigablePage, IDisposabl
         currentSurface?.Dispose();
         currentSurface = null;
     }
+
     private void OnSizeChanged(object sender, SizeChangedEventArgs e) => UpdateHeroHeight();
+
     private void UpdateHeroHeight()
     {
-        Hero.Height = Math.Clamp(Math.Round((XamlRoot?.Size.Height ?? ActualHeight) * 0.62), 500, 600);
-        var size = new Vector2((float)ActualWidth, (float)(Hero.Height + 96));
-        if (imageVisual is not null) imageVisual.Size = size;
+        Hero.Height = HeroArt.Height(XamlRoot?.Size.Height ?? ActualHeight, ActualWidth);
+        LoadingSkeleton.Height = Hero.Height;
+        var size = new Vector2((float)ActualWidth, (float)(Hero.Height + HeroArt.FadeExtent));
+        if (imageVisual is not null)
+        {
+            imageVisual.Size = size;
+            imageVisual.CenterPoint = new Vector3(size / 2, 0);
+        }
         if (scrimVisual is not null) scrimVisual.Size = size;
     }
-    private void OnEpisodeListLoaded(object sender, RoutedEventArgs e) => AttachScroller();
 
-    private void AttachScroller()
+    private void OnEpisodeListLoaded(object sender, RoutedEventArgs e) => AttachEpisodeScroller();
+    private void OnPeopleListLoaded(object sender, RoutedEventArgs e) => AttachPeopleScroller();
+
+    private void AttachEpisodeScroller()
     {
         if (disposed || episodeScroller is not null) return;
         episodeScroller = FindScroller(EpisodeList);
-        if (episodeScroller is not null)
+        if (episodeScroller is { } scroller)
         {
-            episodeScroller.ViewChanged += OnEpisodeViewChanged;
-            episodeScroller.SizeChanged += OnEpisodeScrollerSizeChanged;
+            scroller.ViewChanged += OnEpisodeViewChanged;
+            scroller.SizeChanged += OnEpisodeScrollerSizeChanged;
+            if (scroller.Content is FrameworkElement content) content.SizeChanged += OnEpisodeScrollerSizeChanged;
+            episodeRail = new RailScroller(scroller, () => scroller.HorizontalOffset, () => scroller.ScrollableWidth, () => scroller.ViewportWidth,
+                (offset, animate) => scroller.ChangeView(offset, null, null, !animate || !Motion.AnimationsEnabled))
+            {
+                Pitch = (double)Application.Current.Resources["LandscapeWidth"] + (double)Application.Current.Resources["RailSpacing"],
+            };
         }
         ScrollToTarget();
         CheckLoadMore();
+        UpdateEpisodeArrows();
     }
 
-    private void DetachScroller()
+    private void AttachPeopleScroller()
     {
-        if (episodeScroller is null) return;
-        episodeScroller.ViewChanged -= OnEpisodeViewChanged;
-        episodeScroller.SizeChanged -= OnEpisodeScrollerSizeChanged;
-        episodeScroller = null;
+        if (disposed || peopleScroller is not null) return;
+        peopleScroller = FindScroller(PeopleList);
+        if (peopleScroller is not { } scroller) return;
+        scroller.ViewChanged += OnPeopleViewChanged;
+        scroller.SizeChanged += OnPeopleScrollerSizeChanged;
+        if (scroller.Content is FrameworkElement content) content.SizeChanged += OnPeopleScrollerSizeChanged;
+        peopleRail = new RailScroller(scroller, () => scroller.HorizontalOffset, () => scroller.ScrollableWidth, () => scroller.ViewportWidth,
+            (offset, animate) => scroller.ChangeView(offset, null, null, !animate || !Motion.AnimationsEnabled))
+        {
+            Pitch = (double)Application.Current.Resources["PersonCardWidth"] + 16,
+        };
+        UpdatePeopleArrows();
+    }
+
+    private void DetachScrollers()
+    {
+        if (episodeScroller is not null)
+        {
+            episodeScroller.ViewChanged -= OnEpisodeViewChanged;
+            episodeScroller.SizeChanged -= OnEpisodeScrollerSizeChanged;
+            if (episodeScroller.Content is FrameworkElement content) content.SizeChanged -= OnEpisodeScrollerSizeChanged;
+            episodeScroller = null;
+            episodeRail = null;
+        }
+        if (peopleScroller is not null)
+        {
+            peopleScroller.ViewChanged -= OnPeopleViewChanged;
+            peopleScroller.SizeChanged -= OnPeopleScrollerSizeChanged;
+            if (peopleScroller.Content is FrameworkElement people) people.SizeChanged -= OnPeopleScrollerSizeChanged;
+            peopleScroller = null;
+            peopleRail = null;
+        }
     }
 
     private static ScrollViewer? FindScroller(DependencyObject root)
@@ -188,8 +246,13 @@ public sealed partial class DetailPage : UserControl, INavigablePage, IDisposabl
         return null;
     }
 
-    private void OnEpisodeViewChanged(object? sender, ScrollViewerViewChangedEventArgs e) => CheckLoadMore();
-    private void OnEpisodeScrollerSizeChanged(object sender, SizeChangedEventArgs e) => CheckLoadMore();
+    private void OnEpisodeViewChanged(object? sender, ScrollViewerViewChangedEventArgs e) { CheckLoadMore(); UpdateEpisodeArrows(); }
+    private void OnEpisodeScrollerSizeChanged(object sender, SizeChangedEventArgs e) { CheckLoadMore(); UpdateEpisodeArrows(); }
+    private void OnPeopleViewChanged(object? sender, ScrollViewerViewChangedEventArgs e) => UpdatePeopleArrows();
+    private void OnPeopleScrollerSizeChanged(object sender, SizeChangedEventArgs e) => UpdatePeopleArrows();
+    private void UpdateEpisodeArrows() => episodeRail?.UpdateArrows(EpisodeArrows, EpisodesLeft, EpisodesRight);
+    private void UpdatePeopleArrows() => peopleRail?.UpdateArrows(PeopleArrows, PeopleLeft, PeopleRight);
+
     private void CheckLoadMore()
     {
         if (episodeScroller is not { } scroller || !IsLoaded || ViewModel.HasEpisodeMoreError) return;
@@ -209,8 +272,44 @@ public sealed partial class DetailPage : UserControl, INavigablePage, IDisposabl
         }
         if (e.PropertyName == nameof(DetailViewModel.HasLogo) && highContrast) ApplyContrast(true);
         if (e.PropertyName == nameof(DetailViewModel.Backdrop)) _ = LoadHeroArtAsync();
+        if (e.PropertyName == nameof(DetailViewModel.Meta)) ApplyMeta();
+        if (e.PropertyName == nameof(DetailViewModel.Overview)) ApplyOverview();
+        if (e.PropertyName == nameof(DetailViewModel.ProgressFraction)) ApplyProgress();
+        if (e.PropertyName == nameof(DetailViewModel.IsStarting)) ApplyStarting();
         if (e.PropertyName == nameof(DetailViewModel.IsLoadingMore) && !ViewModel.IsLoadingMore)
-            DispatcherQueue.TryEnqueue(CheckLoadMore);
+            DispatcherQueue.TryEnqueue(() => { CheckLoadMore(); UpdateEpisodeArrows(); });
+    }
+
+    private void ApplyMeta()
+    {
+        var meta = ViewModel.Meta;
+        MetaArea.Visibility = HeroArt.BuildMeta(MetaRow, meta.Rating, meta.Year, meta.Genres, meta.OfficialRating)
+            ? Visibility.Visible : Visibility.Collapsed;
+        ApplyOverview();
+    }
+
+    private void ApplyOverview() => OverviewArea.Visibility = ViewModel.Overview.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+    private void ApplyProgress()
+    {
+        ShownPlayProgress = ViewModel.ProgressFraction;
+        PlayProgressArc.StrokeDashArray = [Math.Max(ShownPlayProgress, 0) * RingDashUnits, 1000];
+    }
+
+    /// <summary>正在启动播放：圆钮轻轻呼吸，不换图标，也不加转圈。</summary>
+    private void ApplyStarting()
+    {
+        var visual = ElementCompositionPreview.GetElementVisual(PlayButton);
+        visual.StopAnimation("Opacity");
+        visual.Opacity = 1;
+        if (!ViewModel.IsStarting || !Motion.AnimationsEnabled) return;
+        var pulse = visual.Compositor.CreateScalarKeyFrameAnimation();
+        pulse.InsertKeyFrame(0, 1);
+        pulse.InsertKeyFrame(0.5f, 0.55f);
+        pulse.InsertKeyFrame(1, 1);
+        pulse.Duration = TimeSpan.FromSeconds(1.6);
+        pulse.IterationBehavior = AnimationIterationBehavior.Forever;
+        visual.StartAnimation("Opacity", pulse);
     }
 
     private void RestoreSelection()
@@ -228,39 +327,17 @@ public sealed partial class DetailPage : UserControl, INavigablePage, IDisposabl
         if (target is not null) EpisodeList.ScrollIntoView(target, ScrollIntoViewAlignment.Default);
     }
 
-    private void OnBackdropOpened()
-    {
-        if (highContrast || !Motion.AnimationsEnabled || !IsLoaded || Visibility != Visibility.Visible) return;
-        ConnectedAnimationService.GetForCurrentView().GetAnimation("poster")?.TryStart(ArtHost);
-    }
-
     private void InitializeHeroArt()
     {
         if (heroVisual is not null) return;
         var compositor = ElementCompositionPreview.GetElementVisual(ArtHost).Compositor;
         heroVisual = compositor.CreateContainerVisual();
-        var mask = compositor.CreateLinearGradientBrush();
-        mask.StartPoint = Vector2.Zero;
-        mask.EndPoint = new Vector2(0, 1);
-        mask.ColorStops.Add(compositor.CreateColorGradientStop(0, Colors.White));
-        mask.ColorStops.Add(compositor.CreateColorGradientStop(0.56f, Colors.White));
-        mask.ColorStops.Add(compositor.CreateColorGradientStop(0.76f, Windows.UI.Color.FromArgb(140, 255, 255, 255)));
-        mask.ColorStops.Add(compositor.CreateColorGradientStop(1, Colors.Transparent));
+        var mask = HeroArt.CreateEdgeFade(compositor);
         var imageMask = compositor.CreateMaskBrush();
         imageMask.Mask = mask;
         imageVisual = compositor.CreateSpriteVisual();
         imageVisual.Brush = imageMask;
-        var shade = compositor.CreateLinearGradientBrush();
-        shade.StartPoint = Vector2.Zero;
-        shade.EndPoint = new Vector2(1, 0);
-        shade.ColorStops.Add(compositor.CreateColorGradientStop(0, Windows.UI.Color.FromArgb(184, 0, 0, 0)));
-        shade.ColorStops.Add(compositor.CreateColorGradientStop(0.42f, Windows.UI.Color.FromArgb(112, 0, 0, 0)));
-        shade.ColorStops.Add(compositor.CreateColorGradientStop(1, Colors.Transparent));
-        var shadeMask = compositor.CreateMaskBrush();
-        shadeMask.Source = shade;
-        shadeMask.Mask = mask;
-        scrimVisual = compositor.CreateSpriteVisual();
-        scrimVisual.Brush = shadeMask;
+        scrimVisual = HeroArt.CreateCopyScrim(compositor, mask);
         heroVisual.Children.InsertAtTop(imageVisual);
         heroVisual.Children.InsertAtTop(scrimVisual);
         ElementCompositionPreview.SetElementChildVisual(ArtHost, heroVisual);
@@ -303,18 +380,36 @@ public sealed partial class DetailPage : UserControl, INavigablePage, IDisposabl
             if (!ready) return;
             var brush = imageVisual.Compositor.CreateSurfaceBrush(loaded);
             brush.Stretch = CompositionStretch.UniformToFill;
-            brush.VerticalAlignmentRatio = 0.25f;
             var masked = (CompositionMaskBrush)imageVisual.Brush;
             var previous = masked.Source as CompositionSurfaceBrush;
             masked.Source = brush;
             previous?.Dispose();
+            var first = currentSurface is null;
             currentSurface?.Dispose();
             currentSurface = loaded;
             loaded = null;
-            OnBackdropOpened();
+            if (first) SettleBackdrop();
         }
         catch (OperationCanceledException) { }
         finally { loaded?.Dispose(); }
+    }
+
+    /// <summary>背景图入场：一边淡入一边从 1.04 落回 1（500ms，settle 缓动）。</summary>
+    private void SettleBackdrop()
+    {
+        if (imageVisual is null || !Motion.AnimationsEnabled) return;
+        var compositor = imageVisual.Compositor;
+        var easing = Motion.CreateEasing(compositor, Motion.Settle);
+        var fade = compositor.CreateScalarKeyFrameAnimation();
+        fade.InsertKeyFrame(0, 0);
+        fade.InsertKeyFrame(1, 1, easing);
+        fade.Duration = Motion.Settling;
+        var zoom = compositor.CreateVector3KeyFrameAnimation();
+        zoom.InsertKeyFrame(0, new Vector3(1.04f, 1.04f, 1));
+        zoom.InsertKeyFrame(1, Vector3.One, easing);
+        zoom.Duration = Motion.Settling;
+        imageVisual.StartAnimation("Opacity", fade);
+        imageVisual.StartAnimation("Scale", zoom);
     }
 
     private void OnLogoOpened(object? sender, EventArgs e)
@@ -327,36 +422,29 @@ public sealed partial class DetailPage : UserControl, INavigablePage, IDisposabl
     private async void OnReplayClick(object sender, RoutedEventArgs e) => await ViewModel.PlayAsync(fromBeginning: true);
     private void OnRetryClick(object sender, RoutedEventArgs e) => _ = ViewModel.RefreshAsync();
     private void OnLoadMoreClick(object sender, RoutedEventArgs e) => _ = ViewModel.LoadMoreAsync();
+
     private void OnSeasonClick(object sender, RoutedEventArgs e)
     {
-        if (sender is FrameworkElement { Tag: string id })
-        {
-            ViewModel.SelectSeason(id);
-            if (sender is ToggleButton seasonButton) seasonButton.IsChecked = true;
-            episodeScroller?.ChangeView(0, null, null, true);
-        }
+        if (sender is not FrameworkElement { Tag: string id }) return;
+        ViewModel.SelectSeason(id);
+        if (sender is ToggleButton seasonButton) seasonButton.IsChecked = true;
+        episodeScroller?.ChangeView(0, null, null, true);
     }
-    private void OnEpisodeClick(object sender, RoutedEventArgs e) { if (sender is FrameworkElement { Tag: string id }) ViewModel.SelectEpisode(id); }
-    private async void OnEpisodePlayClick(object sender, RoutedEventArgs e) { if (sender is FrameworkElement { Tag: string id }) await ViewModel.PlayEpisodeAsync(id); }
-    private void OnEpisodesLeftClick(object sender, RoutedEventArgs e) => ScrollEpisodes(-1);
-    private void OnEpisodesRightClick(object sender, RoutedEventArgs e) => ScrollEpisodes(1);
-    private void OnSeasonsLeftClick(object sender, RoutedEventArgs e) => ScrollSeasons(-1);
-    private void OnSeasonsRightClick(object sender, RoutedEventArgs e) => ScrollSeasons(1);
-    private void ScrollSeasons(int direction) => SeasonScroller.ChangeView(Math.Clamp(SeasonScroller.HorizontalOffset + direction * SeasonScroller.ViewportWidth * 0.82, 0, SeasonScroller.ScrollableWidth), null, null, !Motion.AnimationsEnabled);
-    private void ScrollEpisodes(int direction)
+
+    private void OnEpisodeClick(object sender, RoutedEventArgs e)
     {
-        if (episodeScroller is { } scroller) scroller.ChangeView(Math.Clamp(scroller.HorizontalOffset + direction * scroller.ViewportWidth * 0.82, 0, scroller.ScrollableWidth), null, null, !Motion.AnimationsEnabled);
+        if (sender is EpisodeCard { Episode: { } episode }) ViewModel.SelectEpisode(episode.Id);
     }
-    private void OnEpisodeWheel(object sender, PointerRoutedEventArgs e)
+
+    private async void OnEpisodePlayClick(object sender, RoutedEventArgs e)
     {
-        if (episodeScroller is not { } scroller) return;
-        var point = e.GetCurrentPoint(EpisodeList).Properties;
-        var shift = (InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Shift) & Windows.UI.Core.CoreVirtualKeyStates.Down) != 0;
-        if (!point.IsHorizontalMouseWheel && !shift) return;
-        var delta = point.IsHorizontalMouseWheel ? point.MouseWheelDelta : -point.MouseWheelDelta;
-        scroller.ChangeView(Math.Clamp(scroller.HorizontalOffset + delta, 0, scroller.ScrollableWidth), null, null, !Motion.AnimationsEnabled);
-        e.Handled = true;
+        if (sender is EpisodeCard { Episode: { } episode }) await ViewModel.PlayEpisodeAsync(episode.Id);
     }
+
+    private void OnEpisodesLeftClick(object sender, RoutedEventArgs e) => episodeRail?.Page(-1);
+    private void OnEpisodesRightClick(object sender, RoutedEventArgs e) => episodeRail?.Page(1);
+    private void OnPeopleLeftClick(object sender, RoutedEventArgs e) => peopleRail?.Page(-1);
+    private void OnPeopleRightClick(object sender, RoutedEventArgs e) => peopleRail?.Page(1);
 
     private sealed record DetailViewState(string? SeasonId, string? EpisodeId);
 }

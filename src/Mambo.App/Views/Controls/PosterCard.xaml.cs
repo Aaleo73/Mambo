@@ -51,7 +51,7 @@ public sealed partial class PosterCard : CardBase
             ArtRow.Height = new GridLength(height);
     }
 
-    private void OnClick(object sender, RoutedEventArgs e) => HandleClick(Art);
+    private void OnClick(object sender, RoutedEventArgs e) => HandleClick(Art, Picture);
 
     private void OnPointerEntered(object sender, PointerRoutedEventArgs e)
     {

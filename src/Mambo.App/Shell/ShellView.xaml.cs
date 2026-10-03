@@ -54,6 +54,7 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
         toastHost = new ToastHost(toasts);
         OverlayLayer.Children.Add(toastHost);
         dialogs.Attach(Dialogs);
+        CoverTransition.Attach(TransitionLayer);
         Pages.Initialize(pageFactory, navigator, reportPageFailure);
         navigator.Navigated += OnNavigated;
         viewModel.AccountChanged += OnAccountChanged;
@@ -139,6 +140,7 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
         playerPresentationVersion++;
         startingSession = null;
         Bindings.StopTracking();
+        CoverTransition.Detach(TransitionLayer);
         playback.SessionStarted -= OnSessionStarted;
         playback.SessionEnded -= OnSessionEnded;
         playback.EntrySkipped -= OnEntrySkipped;

@@ -40,10 +40,11 @@ public partial class CardBase : UserControl
 
     public MediaCardViewModel? Item { get => (MediaCardViewModel?)GetValue(ItemProperty); set => SetValue(ItemProperty, value); }
 
-    protected void HandleClick(UIElement source)
+    /// <summary>进详情：被点的封面留在原位放大淡出，盖在换入的详情页上。</summary>
+    protected void HandleClick(FrameworkElement cover, RemoteImage picture)
     {
-        if (Motion.AnimationsEnabled && XamlRoot is not null)
-            ConnectedAnimationService.GetForCurrentView().PrepareToAnimate("poster", source);
+        ArgumentNullException.ThrowIfNull(picture);
+        CoverTransition.Play(cover, picture.CurrentImage);
         if (Item is { } item) CardActions.Current?.Open(item.Id);
     }
 

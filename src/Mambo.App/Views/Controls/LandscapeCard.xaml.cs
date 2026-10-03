@@ -57,7 +57,7 @@ public sealed partial class LandscapeCard : CardBase
         if (PlayButton.Margin != margin) PlayButton.Margin = margin;
     }
 
-    private void OnClick(object sender, RoutedEventArgs e) => HandleClick(Picture);
+    private void OnClick(object sender, RoutedEventArgs e) => HandleClick(Art, Picture);
 
     private async void OnPlayClick(object sender, RoutedEventArgs e)
     {

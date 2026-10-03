@@ -42,6 +42,12 @@ public sealed partial class RemoteImage : Grid
     public ImagePriority Priority { get => (ImagePriority)GetValue(PriorityProperty); set => SetValue(PriorityProperty, value); }
     public Stretch Stretch { get => (Stretch)GetValue(StretchProperty); set => SetValue(StretchProperty, value); }
 
+    /// <summary>图片不铺满时（Uniform）在水平方向靠哪边，默认居中。</summary>
+    public AlignmentX ImageAlignmentX { get => brush.AlignmentX; set => brush.AlignmentX = value; }
+
+    /// <summary>当前显示的位图；还没有图时为 null。</summary>
+    public ImageSource? CurrentImage => brush.ImageSource;
+
     /// <summary>图片已显示（用于需要在图片到位后再开始的动画）。</summary>
     public event EventHandler? ImageOpened;
     /// <summary>开始换图：叠在图上的文字应先藏起来。</summary>

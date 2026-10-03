@@ -29,6 +29,7 @@
     <x:String x:Key="IconMaximize">M15 3 H21 V9 M9 21 H3 V15 M21 3 L14 10 M3 21 L10 14</x:String>
     <x:String x:Key="IconFullscreen">M4 9 V4 H9 M20 15 V20 H15 M15 4 H20 V9 M9 20 H4 V15</x:String>
     <x:String x:Key="IconFullscreenExit">M9 4 V9 H4 M15 20 V15 H20 M20 9 H15 V4 M4 15 H9 V20</x:String>
+    <x:String x:Key="IconUser">M20 21 V19 A4 4 0 0 0 16 15 H8 A4 4 0 0 0 4 19 V21 M12 3 A4 4 0 1 1 12 11 A4 4 0 1 1 12 3 Z</x:String>
     <x:String x:Key="IconVolumeWaves">M16 9.5 A3.2 3.2 0 0 1 16 14.5 M18.2 7.2 A6.2 6.2 0 0 1 18.2 16.8</x:String>
     <x:String x:Key="IconVolumeMuted">M16 9 L21 15 M21 9 L16 15</x:String>
 

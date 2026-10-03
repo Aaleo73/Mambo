@@ -73,12 +73,25 @@ public sealed partial class DialogHost : UserControl, IDialogPresenter
         fade.InsertKeyFrame(1, 1, Motion.CreateEasing(compositor, Motion.Enter));
         fade.Duration = Motion.Fast;
         scrim.StartAnimation("Opacity", fade);
+        // 弹出面从上方 4px、.985 大小落到位，同时淡入。
         Panel.UpdateLayout();
+        ElementCompositionPreview.SetIsTranslationEnabled(Panel, true);
         panel.CenterPoint = new Vector3((float)Panel.ActualWidth / 2, (float)Panel.ActualHeight / 2, 0);
+        var settle = Motion.CreateEasing(compositor, Motion.Settle);
+        var appear = compositor.CreateScalarKeyFrameAnimation();
+        appear.InsertKeyFrame(0, 0);
+        appear.InsertKeyFrame(1, 1, settle);
+        appear.Duration = Motion.Fast;
+        var move = compositor.CreateVector3KeyFrameAnimation();
+        move.InsertKeyFrame(0, new Vector3(0, -4, 0));
+        move.InsertKeyFrame(1, Vector3.Zero, settle);
+        move.Duration = Motion.Normal;
         var scale = compositor.CreateVector3KeyFrameAnimation();
-        scale.InsertKeyFrame(0, new Vector3(1.04f, 1.04f, 1));
-        scale.InsertKeyFrame(1, Vector3.One, Motion.CreateEasing(compositor, Motion.Settle));
+        scale.InsertKeyFrame(0, new Vector3(0.985f, 0.985f, 1));
+        scale.InsertKeyFrame(1, Vector3.One, settle);
         scale.Duration = Motion.Normal;
+        panel.StartAnimation("Opacity", appear);
+        panel.StartAnimation("Translation", move);
         panel.StartAnimation("Scale", scale);
     }
 }

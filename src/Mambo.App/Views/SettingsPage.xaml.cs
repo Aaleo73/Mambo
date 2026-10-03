@@ -28,6 +28,7 @@ public sealed partial class SettingsPage : UserControl, INavigablePage, IDisposa
         this.toasts = toasts;
         this.dialogs = dialogs;
         InitializeComponent();
+        ViewModel.PropertyChanged += OnViewModelPropertyChanged;
     }
 
     public SettingsViewModel ViewModel { get; }
@@ -50,7 +51,28 @@ public sealed partial class SettingsPage : UserControl, INavigablePage, IDisposa
         _ = ViewModel.RefreshCacheSizeAsync();
     }
 
-    public void Dispose() => ViewModel.Dispose();
+    public void Dispose()
+    {
+        ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+        ViewModel.Dispose();
+    }
+
+    // 断开按钮平时显示"已连接"；指针移上去、键盘聚焦或正在断开时显示实际动作。
+    private bool disconnectHover;
+    private void OnDisconnectPointerEntered(object sender, PointerRoutedEventArgs e) { disconnectHover = true; ApplyDisconnectLabel(); }
+    private void OnDisconnectPointerExited(object sender, PointerRoutedEventArgs e) { disconnectHover = false; ApplyDisconnectLabel(); }
+    private void OnDisconnectFocusChanged(object sender, RoutedEventArgs e) => ApplyDisconnectLabel();
+
+    private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(SettingsViewModel.DisconnectText) or nameof(SettingsViewModel.CanDisconnect)) ApplyDisconnectLabel();
+    }
+
+    private void ApplyDisconnectLabel()
+    {
+        var acting = disconnectHover || DisconnectButton.FocusState == FocusState.Keyboard || !ViewModel.CanDisconnect;
+        DisconnectLabel.Text = acting ? ViewModel.DisconnectText : "已连接";
+    }
 
     private async void OnConnectClick(object sender, RoutedEventArgs e) => await ConnectAsync();
 
