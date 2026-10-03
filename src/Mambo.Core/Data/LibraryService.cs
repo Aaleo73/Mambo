@@ -69,8 +69,8 @@ public sealed class LibraryService : ILibraryService, IDisposable
         CancellationToken scopeToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
-        var defaultQuery = query.Sort == LibrarySort.DateCreated && query.Direction == SortDirection.Descending &&
-            query.Genres.IsDefaultOrEmpty && query.Years.IsDefaultOrEmpty && query.OfficialRatings.IsDefaultOrEmpty;
+        var filtered = !query.Genres.IsDefaultOrEmpty || !query.Years.IsDefaultOrEmpty || !query.OfficialRatings.IsDefaultOrEmpty;
+        var defaultQuery = query.Sort == LibrarySort.DateCreated && query.Direction == SortDirection.Descending && !filtered;
         return Paged(defaultQuery ? "library-first" : "library", QueryArgs(libraryId, query), pageSize,
             async (account, offset, count, token) =>
             {
@@ -88,7 +88,7 @@ public sealed class LibraryService : ILibraryService, IDisposable
                     ("Genres", string.Join('|', query.Genres)), ("Years", string.Join(',', query.Years)),
                     ("OfficialRatings", string.Join('|', query.OfficialRatings)),
                     ("StartIndex", Number(offset)), ("Limit", Number(count))).ConfigureAwait(false);
-            }, libraryId, scope: scopeToken);
+            }, libraryId, filters: filtered ? query : null, scope: scopeToken);
     }
 
     public IQuery<FilterOptions> ObserveFilters(string libraryId, CancellationToken scopeToken = default) =>
@@ -128,12 +128,13 @@ public sealed class LibraryService : ILibraryService, IDisposable
         if (searchText.Length > 256)
             throw new AppException(new AppError(AppErrorKind.Contract, ErrorCodes.InvalidArgument, "搜索词不能超过 256 个字符。", false));
         var normalized = NormalizeSearch(searchText);
+        var phrase = "\"" + normalized + "\"";
         return Paged("search", libraryId + "|" + EmbyApi.Escape(normalized), pageSize,
             (account, offset, count, token) =>
             {
                 ValidateId(libraryId);
                 return normalized.Length == 0 ? Task.FromResult(new EmbyItems { Items = [], TotalRecordCount = 0 }) :
-                    GetItemsAsync(account, RequestPriority.Foreground, token, ("ParentId", libraryId), ("SearchTerm", normalized),
+                    GetItemsAsync(account, RequestPriority.Foreground, token, ("ParentId", libraryId), ("SearchTerm", phrase),
                         ("Recursive", "true"), ("IncludeItemTypes", "Movie,Series,Video"), ("Fields", EmbyApi.ItemFields),
                         ("StartIndex", Number(offset)), ("Limit", Number(count)));
             }, libraryId, foldEpisodes: true, scope: scopeToken);
@@ -172,7 +173,7 @@ public sealed class LibraryService : ILibraryService, IDisposable
 
     private PageObservation Paged(string kind, string args, int pageSize,
         Func<AccountSession, int, int, CancellationToken, Task<EmbyItems>> fetch,
-        string? libraryId = null, bool foldEpisodes = false, CancellationToken scope = default)
+        string? libraryId = null, bool foldEpisodes = false, LibraryQuery? filters = null, CancellationToken scope = default)
     {
         if (pageSize is < 1 or > 500) throw new ArgumentOutOfRangeException(nameof(pageSize), "每页条数必须为 1 到 500。");
         var account = CaptureAccount();
@@ -180,11 +181,11 @@ public sealed class LibraryService : ILibraryService, IDisposable
         IQuery<QueryPage<MediaItem>> first = account is null ? new ObservableQuery<QueryPage<MediaItem>>(scheduler,
             _ => Task.FromException<QueryPage<MediaItem>>(NotLoggedIn()), cancellation.Token) :
             cache.Observe(new(account.Scope, kind, args + "|size=" + Number(pageSize)), account,
-                ct => PageAsync(account, fetch, 0, pageSize, libraryId, foldEpisodes, [], ct), scopeToken: cancellation.Token);
+                ct => PageAsync(account, fetch, 0, pageSize, libraryId, foldEpisodes, filters, [], ct), scopeToken: cancellation.Token);
         var initial = first.IsInitialized ? first.Current : null;
         var observation = new PageObservation(this, account, kind, args, cancellation, first, scheduler, pageSize, initial,
             (offset, seen, token) => account is null ? Task.FromException<QueryPage<MediaItem>>(NotLoggedIn()) :
-                PageAsync(account, fetch, offset, pageSize, libraryId, foldEpisodes, seen, token));
+                PageAsync(account, fetch, offset, pageSize, libraryId, foldEpisodes, filters, seen, token));
         Register(observation);
         if (initial is null) Start(() => observation.LoadMoreAsync(CancellationToken.None));
         return observation;
@@ -192,10 +193,10 @@ public sealed class LibraryService : ILibraryService, IDisposable
 
     private async Task<QueryPage<MediaItem>> PageAsync(AccountSession account,
         Func<AccountSession, int, int, CancellationToken, Task<EmbyItems>> fetch, int offset, int pageSize,
-        string? libraryId, bool foldEpisodes, ImmutableArray<string> seen, CancellationToken token)
+        string? libraryId, bool foldEpisodes, LibraryQuery? filters, ImmutableArray<string> seen, CancellationToken token)
     {
         var known = seen.ToHashSet(StringComparer.Ordinal);
-        var totalUnknown = foldEpisodes;
+        var totalUnknown = foldEpisodes || filters is not null;
         while (true)
         {
             token.ThrowIfCancellationRequested();
@@ -216,12 +217,23 @@ public sealed class LibraryService : ILibraryService, IDisposable
                         await CachedDetailAsync(account, seriesId, token).ConfigureAwait(false) : item);
                 mapped = folded.Where(item => item.Kind is MediaKind.Movie or MediaKind.Series or MediaKind.Video).ToImmutableArray();
             }
-            var distinct = mapped.Where(item => known.Add(item.Id)).ToImmutableArray();
+            var distinct = mapped.Where(item => (filters is null || MatchesFilters(item, filters)) && known.Add(item.Id)).ToImmutableArray();
             totalUnknown |= distinct.Length != raw.Length;
             if (!distinct.IsEmpty || !more)
                 return new(distinct, totalUnknown ? null : response.TotalRecordCount, more) { NextOffset = next };
             offset = next;
         }
+    }
+
+    private static bool MatchesFilters(MediaItem item, LibraryQuery filters)
+    {
+        if (!filters.Years.IsEmpty && (item.ProductionYear is not { } year || !filters.Years.Contains(year))) return false;
+        if (!filters.OfficialRatings.IsEmpty && (item.OfficialRating is not { } rating ||
+            !filters.OfficialRatings.Contains(rating, StringComparer.OrdinalIgnoreCase))) return false;
+        if (filters.Genres.IsEmpty) return true;
+        foreach (var genre in filters.Genres)
+            if (item.Genres.Contains(genre, StringComparer.OrdinalIgnoreCase)) return true;
+        return false;
     }
 
     private async Task<ImmutableArray<MediaLibrary>> FetchLibrariesAsync(AccountSession account, CancellationToken token)
