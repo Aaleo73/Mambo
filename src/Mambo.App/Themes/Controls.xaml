@@ -1,56 +1,170 @@
 <ResourceDictionary
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:themes="using:Mambo.App.Themes">
     <Thickness x:Key="TextControlBorderThemeThicknessFocused">1</Thickness>
-    <Thickness x:Key="TextControlThemePadding">12,7,12,7</Thickness>
+    <Thickness x:Key="TextControlThemePadding">12,9,12,9</Thickness>
 
-    <Style x:Key="SoftButtonStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
-        <Setter Property="Height" Value="{StaticResource ControlHeight}"/>
-        <Setter Property="Padding" Value="16,0"/>
-        <Setter Property="CornerRadius" Value="{StaticResource SoftControlCornerRadius}"/>
-        <Setter Property="FontFamily" Value="{StaticResource MiSansSemiboldFontFamily}"/>
-        <Setter Property="FontWeight" Value="SemiBold"/>
-        <Setter Property="FontSize" Value="{StaticResource BodySmallFontSize}"/>
+    <!-- 线条图标 -->
+    <Style TargetType="themes:LineIcon">
+        <Setter Property="Width" Value="18"/>
+        <Setter Property="Height" Value="18"/>
+        <Setter Property="IsHitTestVisible" Value="False"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
-    </Style>
-    <Style x:Key="SoftAccentButtonStyle" TargetType="Button" BasedOn="{StaticResource AccentButtonStyle}">
-        <Setter Property="Height" Value="{StaticResource ControlHeight}"/>
-        <Setter Property="Padding" Value="16,0"/>
-        <Setter Property="CornerRadius" Value="{StaticResource SoftControlCornerRadius}"/>
-        <Setter Property="FontFamily" Value="{StaticResource MiSansSemiboldFontFamily}"/>
-        <Setter Property="FontWeight" Value="SemiBold"/>
-        <Setter Property="FontSize" Value="{StaticResource BodySmallFontSize}"/>
-        <Setter Property="VerticalAlignment" Value="Center"/>
-    </Style>
-    <Style x:Key="SoftSubtleButtonStyle" TargetType="Button" BasedOn="{StaticResource SubtleButtonStyle}">
-        <Setter Property="Height" Value="{StaticResource ControlHeight}"/>
-        <Setter Property="Padding" Value="12,0"/>
-        <Setter Property="CornerRadius" Value="{StaticResource SoftControlCornerRadius}"/>
-        <Setter Property="FontFamily" Value="{StaticResource MiSansSemiboldFontFamily}"/>
-        <Setter Property="FontWeight" Value="SemiBold"/>
-        <Setter Property="FontSize" Value="{StaticResource BodySmallFontSize}"/>
-        <Setter Property="VerticalAlignment" Value="Center"/>
-    </Style>
-    <Style x:Key="SoftInputStyle" TargetType="TextBox" BasedOn="{StaticResource DefaultTextBoxStyle}">
-        <Setter Property="MinHeight" Value="{StaticResource ControlHeight}"/>
-        <Setter Property="CornerRadius" Value="{StaticResource SoftControlCornerRadius}"/>
-        <Setter Property="FontSize" Value="{StaticResource BodySmallFontSize}"/>
-        <Setter Property="VerticalContentAlignment" Value="Center"/>
-    </Style>
-    <Style x:Key="SoftPasswordStyle" TargetType="PasswordBox" BasedOn="{StaticResource DefaultPasswordBoxStyle}">
-        <Setter Property="MinHeight" Value="{StaticResource ControlHeight}"/>
-        <Setter Property="CornerRadius" Value="{StaticResource SoftControlCornerRadius}"/>
-        <Setter Property="FontSize" Value="{StaticResource BodySmallFontSize}"/>
-        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="themes:LineIcon">
+                    <Viewbox Stretch="Uniform">
+                        <Grid x:Name="Canvas" Width="24" Height="24">
+                            <Path x:Name="Stroke" Stroke="{TemplateBinding Foreground}" StrokeThickness="1.8"
+                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+                            <Path x:Name="Fill" Fill="{TemplateBinding Foreground}" Visibility="Collapsed"/>
+                        </Grid>
+                    </Viewbox>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
-    <!-- 危险操作：红色文字的柔和按钮 -->
-    <Style x:Key="DangerSoftButtonStyle" TargetType="Button">
+    <!--
+        应用里唯一的按钮外观（原版 app-button）：42 高、12 圆角、黑 3.5% 底、1px 黑 10% 边、
+        13 半粗体次要色文字、柔和投影；悬停加深并转主要色，按下缩到 .97，键盘焦点加深边框，禁用 45%。
+    -->
+    <ControlTemplate x:Key="SoftButtonTemplate" TargetType="Button">
+        <Grid x:Name="Root" Background="Transparent" RenderTransformOrigin="0.5,0.5">
+            <Grid.RenderTransform><ScaleTransform x:Name="Press"/></Grid.RenderTransform>
+            <VisualStateManager.VisualStateGroups>
+                <VisualStateGroup x:Name="CommonStates">
+                    <VisualStateGroup.Transitions><VisualTransition GeneratedDuration="0:0:0.16"/></VisualStateGroup.Transitions>
+                    <VisualState x:Name="Normal"/>
+                    <VisualState x:Name="PointerOver">
+                        <VisualState.Setters>
+                            <Setter Target="Surface.Background" Value="{ThemeResource ControlFillHoverBrush}"/>
+                            <Setter Target="Content.Foreground" Value="{ThemeResource TextPrimaryBrush}"/>
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Pressed">
+                        <VisualState.Setters>
+                            <Setter Target="Surface.Background" Value="{ThemeResource ControlFillPressedBrush}"/>
+                            <Setter Target="Content.Foreground" Value="{ThemeResource TextPrimaryBrush}"/>
+                        </VisualState.Setters>
+                        <Storyboard>
+                            <DoubleAnimation Storyboard.TargetName="Press" Storyboard.TargetProperty="ScaleX" To="0.97" Duration="0:0:0.08"/>
+                            <DoubleAnimation Storyboard.TargetName="Press" Storyboard.TargetProperty="ScaleY" To="0.97" Duration="0:0:0.08"/>
+                        </Storyboard>
+                    </VisualState>
+                    <VisualState x:Name="Disabled">
+                        <VisualState.Setters><Setter Target="Root.Opacity" Value="0.45"/></VisualState.Setters>
+                    </VisualState>
+                </VisualStateGroup>
+                <VisualStateGroup x:Name="FocusStates">
+                    <VisualState x:Name="Focused">
+                        <VisualState.Setters>
+                            <Setter Target="Surface.BorderBrush" Value="{ThemeResource ControlStrokeStrongBrush}"/>
+                            <Setter Target="Surface.Background" Value="{ThemeResource ControlFillFocusBrush}"/>
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Unfocused"/>
+                    <VisualState x:Name="PointerFocused"/>
+                </VisualStateGroup>
+            </VisualStateManager.VisualStateGroups>
+            <Border themes:SoftShadow.Kind="Control" CornerRadius="{TemplateBinding CornerRadius}"/>
+            <Border x:Name="Surface" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{TemplateBinding CornerRadius}" Padding="{TemplateBinding Padding}">
+                <Border.BackgroundTransition><BrushTransition Duration="0:0:0.16"/></Border.BackgroundTransition>
+                <ContentPresenter x:Name="Content" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"
+                                  Foreground="{TemplateBinding Foreground}"
+                                  HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                  VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+            </Border>
+        </Grid>
+    </ControlTemplate>
+    <!-- 同一外观，但文字颜色不随悬停改变（红字的危险操作、主要色的确认） -->
+    <ControlTemplate x:Key="SoftButtonFixedTextTemplate" TargetType="Button">
+        <Grid x:Name="Root" Background="Transparent" RenderTransformOrigin="0.5,0.5">
+            <Grid.RenderTransform><ScaleTransform x:Name="Press"/></Grid.RenderTransform>
+            <VisualStateManager.VisualStateGroups>
+                <VisualStateGroup x:Name="CommonStates">
+                    <VisualStateGroup.Transitions><VisualTransition GeneratedDuration="0:0:0.16"/></VisualStateGroup.Transitions>
+                    <VisualState x:Name="Normal"/>
+                    <VisualState x:Name="PointerOver">
+                        <VisualState.Setters><Setter Target="Surface.Background" Value="{ThemeResource ControlFillHoverBrush}"/></VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Pressed">
+                        <VisualState.Setters><Setter Target="Surface.Background" Value="{ThemeResource ControlFillPressedBrush}"/></VisualState.Setters>
+                        <Storyboard>
+                            <DoubleAnimation Storyboard.TargetName="Press" Storyboard.TargetProperty="ScaleX" To="0.97" Duration="0:0:0.08"/>
+                            <DoubleAnimation Storyboard.TargetName="Press" Storyboard.TargetProperty="ScaleY" To="0.97" Duration="0:0:0.08"/>
+                        </Storyboard>
+                    </VisualState>
+                    <VisualState x:Name="Disabled">
+                        <VisualState.Setters><Setter Target="Root.Opacity" Value="0.45"/></VisualState.Setters>
+                    </VisualState>
+                </VisualStateGroup>
+                <VisualStateGroup x:Name="FocusStates">
+                    <VisualState x:Name="Focused">
+                        <VisualState.Setters>
+                            <Setter Target="Surface.BorderBrush" Value="{ThemeResource ControlStrokeStrongBrush}"/>
+                            <Setter Target="Surface.Background" Value="{ThemeResource ControlFillFocusBrush}"/>
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Unfocused"/>
+                    <VisualState x:Name="PointerFocused"/>
+                </VisualStateGroup>
+            </VisualStateManager.VisualStateGroups>
+            <Border themes:SoftShadow.Kind="Control" CornerRadius="{TemplateBinding CornerRadius}"/>
+            <Border x:Name="Surface" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{TemplateBinding CornerRadius}" Padding="{TemplateBinding Padding}">
+                <Border.BackgroundTransition><BrushTransition Duration="0:0:0.16"/></Border.BackgroundTransition>
+                <ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"
+                                  Foreground="{TemplateBinding Foreground}"
+                                  HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                  VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+            </Border>
+        </Grid>
+    </ControlTemplate>
+
+    <Style x:Key="SoftButtonStyle" TargetType="Button">
         <Setter Property="Height" Value="{StaticResource ControlHeight}"/>
-        <Setter Property="Padding" Value="16,0"/>
+        <Setter Property="Padding" Value="15,0"/>
         <Setter Property="Background" Value="{ThemeResource ControlFillBrush}"/>
         <Setter Property="BorderBrush" Value="{ThemeResource ControlStrokeBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Foreground" Value="{ThemeResource TextSecondaryBrush}"/>
+        <Setter Property="CornerRadius" Value="{StaticResource SoftControlCornerRadius}"/>
+        <Setter Property="FontFamily" Value="{StaticResource MiSansSemiboldFontFamily}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="FontSize" Value="{StaticResource BodySmallFontSize}"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="UseSystemFocusVisuals" Value="False"/>
+        <Setter Property="Template" Value="{StaticResource SoftButtonTemplate}"/>
+    </Style>
+    <!-- 确认类操作：原版没有实心主色按钮，只是把文字换成主要色 -->
+    <Style x:Key="SoftAccentButtonStyle" TargetType="Button" BasedOn="{StaticResource SoftButtonStyle}">
+        <Setter Property="Foreground" Value="{ThemeResource TextPrimaryBrush}"/>
+        <Setter Property="Template" Value="{StaticResource SoftButtonFixedTextTemplate}"/>
+    </Style>
+    <!-- 危险操作：同一按钮，红色文字 -->
+    <Style x:Key="DangerSoftButtonStyle" TargetType="Button" BasedOn="{StaticResource SoftButtonStyle}">
         <Setter Property="Foreground" Value="{ThemeResource DangerBrush}"/>
+        <Setter Property="Template" Value="{StaticResource SoftButtonFixedTextTemplate}"/>
+    </Style>
+    <!-- 胶囊按钮：排序 -->
+    <Style x:Key="PillButtonStyle" TargetType="Button" BasedOn="{StaticResource SoftButtonStyle}">
+        <Setter Property="Height" Value="{StaticResource PillHeight}"/>
+        <Setter Property="Padding" Value="11,0"/>
+        <Setter Property="CornerRadius" Value="18"/>
+    </Style>
+
+    <!-- 无底的文字按钮 -->
+    <Style x:Key="SoftSubtleButtonStyle" TargetType="Button">
+        <Setter Property="Height" Value="{StaticResource ControlHeight}"/>
+        <Setter Property="Padding" Value="12,0"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{ThemeResource TextSecondaryBrush}"/>
+        <Setter Property="CornerRadius" Value="{StaticResource SoftControlCornerRadius}"/>
         <Setter Property="FontFamily" Value="{StaticResource MiSansSemiboldFontFamily}"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="FontSize" Value="{StaticResource BodySmallFontSize}"/>
@@ -59,16 +173,79 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Grid x:Name="Root" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"
-                          CornerRadius="{StaticResource SoftControlCornerRadius}" Padding="{TemplateBinding Padding}">
+                    <Grid x:Name="Root" Background="{TemplateBinding Background}" CornerRadius="{TemplateBinding CornerRadius}" Padding="{TemplateBinding Padding}">
+                        <Grid.BackgroundTransition><BrushTransition Duration="0:0:0.16"/></Grid.BackgroundTransition>
                         <VisualStateManager.VisualStateGroups>
                             <VisualStateGroup x:Name="CommonStates">
                                 <VisualState x:Name="Normal"/>
                                 <VisualState x:Name="PointerOver">
-                                    <VisualState.Setters><Setter Target="Root.Background" Value="{ThemeResource DangerSubtleBrush}"/></VisualState.Setters>
+                                    <VisualState.Setters>
+                                        <Setter Target="Root.Background" Value="{ThemeResource SubtleFillHoverBrush}"/>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextPrimaryBrush}"/>
+                                    </VisualState.Setters>
                                 </VisualState>
                                 <VisualState x:Name="Pressed">
-                                    <VisualState.Setters><Setter Target="Root.Background" Value="{ThemeResource DangerSubtleBrush}"/></VisualState.Setters>
+                                    <VisualState.Setters>
+                                        <Setter Target="Root.Background" Value="{ThemeResource SubtleFillPressedBrush}"/>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextPrimaryBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Disabled">
+                                    <VisualState.Setters><Setter Target="Root.Opacity" Value="0.45"/></VisualState.Setters>
+                                </VisualState>
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+                        <ContentPresenter x:Name="Content" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"
+                                          Foreground="{TemplateBinding Foreground}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 输入框：12 圆角、黑 2.5% 底、1px 黑 20% 边；聚焦时主色 60% 边、底略深 -->
+    <Style x:Key="SoftInputStyle" TargetType="TextBox" BasedOn="{StaticResource DefaultTextBoxStyle}">
+        <Setter Property="MinHeight" Value="{StaticResource InputHeight}"/>
+        <Setter Property="Padding" Value="{StaticResource TextControlThemePadding}"/>
+        <Setter Property="CornerRadius" Value="{StaticResource SoftControlCornerRadius}"/>
+        <Setter Property="FontSize" Value="{StaticResource BodySmallFontSize}"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <Style x:Key="SoftPasswordStyle" TargetType="PasswordBox" BasedOn="{StaticResource DefaultPasswordBoxStyle}">
+        <Setter Property="MinHeight" Value="{StaticResource InputHeight}"/>
+        <Setter Property="Padding" Value="{StaticResource TextControlThemePadding}"/>
+        <Setter Property="CornerRadius" Value="{StaticResource SoftControlCornerRadius}"/>
+        <Setter Property="FontSize" Value="{StaticResource BodySmallFontSize}"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+
+    <!-- 标题栏的后退 / 前进：28×28，圆角 6 -->
+    <Style x:Key="TitleBarButtonStyle" TargetType="Button">
+        <Setter Property="Width" Value="28"/>
+        <Setter Property="Height" Value="28"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{ThemeResource TextPrimaryBrush}"/>
+        <Setter Property="UseSystemFocusVisuals" Value="True"/>
+        <Setter Property="CornerRadius" Value="{StaticResource CornerRadiusS}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid x:Name="Root" Background="{TemplateBinding Background}" CornerRadius="{TemplateBinding CornerRadius}" RenderTransformOrigin="0.5,0.5">
+                        <Grid.RenderTransform><ScaleTransform x:Name="Press"/></Grid.RenderTransform>
+                        <Grid.BackgroundTransition><BrushTransition Duration="0:0:0.16"/></Grid.BackgroundTransition>
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CommonStates">
+                                <VisualStateGroup.Transitions><VisualTransition GeneratedDuration="0:0:0.16"/></VisualStateGroup.Transitions>
+                                <VisualState x:Name="Normal"/>
+                                <VisualState x:Name="PointerOver">
+                                    <VisualState.Setters><Setter Target="Root.Background" Value="{ThemeResource WashBrush}"/></VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Pressed">
+                                    <VisualState.Setters><Setter Target="Root.Background" Value="{ThemeResource WashPressedBrush}"/></VisualState.Setters>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Press" Storyboard.TargetProperty="ScaleX" To="0.96" Duration="0:0:0.08"/>
+                                        <DoubleAnimation Storyboard.TargetName="Press" Storyboard.TargetProperty="ScaleY" To="0.96" Duration="0:0:0.08"/>
+                                    </Storyboard>
                                 </VisualState>
                                 <VisualState x:Name="Disabled">
                                     <VisualState.Setters><Setter Target="Root.Opacity" Value="0.45"/></VisualState.Setters>
@@ -83,45 +260,12 @@
         </Setter>
     </Style>
 
-    <!-- 标题栏按钮：后退 / 前进 -->
-    <Style x:Key="TitleBarButtonStyle" TargetType="Button">
-        <Setter Property="Width" Value="32"/>
-        <Setter Property="Height" Value="28"/>
-        <Setter Property="Background" Value="Transparent"/>
-        <Setter Property="Foreground" Value="{ThemeResource TextPrimaryBrush}"/>
-        <Setter Property="UseSystemFocusVisuals" Value="True"/>
-        <Setter Property="Template">
-            <Setter.Value>
-                <ControlTemplate TargetType="Button">
-                    <Grid x:Name="Root" Background="{TemplateBinding Background}" CornerRadius="{StaticResource CornerRadiusS}">
-                        <VisualStateManager.VisualStateGroups>
-                            <VisualStateGroup x:Name="CommonStates">
-                                <VisualState x:Name="Normal"/>
-                                <VisualState x:Name="PointerOver">
-                                    <VisualState.Setters><Setter Target="Root.Background" Value="{ThemeResource NavHoverBrush}"/></VisualState.Setters>
-                                </VisualState>
-                                <VisualState x:Name="Pressed">
-                                    <VisualState.Setters><Setter Target="Root.Background" Value="{ThemeResource SubtleFillPressedBrush}"/></VisualState.Setters>
-                                </VisualState>
-                                <VisualState x:Name="Disabled">
-                                    <VisualState.Setters><Setter Target="Content.Opacity" Value="0.32"/></VisualState.Setters>
-                                </VisualState>
-                            </VisualStateGroup>
-                        </VisualStateManager.VisualStateGroups>
-                        <ContentPresenter x:Name="Content" Content="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}"
-                                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                    </Grid>
-                </ControlTemplate>
-            </Setter.Value>
-        </Setter>
-    </Style>
-
-    <!-- 窗口按钮：46×40；关闭按钮悬停为红色 -->
+    <!-- 窗口按钮：46×40，次要色图形；悬停整块加底，关闭按钮悬停为危险色 -->
     <Style x:Key="CaptionButtonStyle" TargetType="Button">
         <Setter Property="Width" Value="{StaticResource CaptionButtonWidth}"/>
         <Setter Property="Height" Value="{StaticResource TitleBarHeight}"/>
         <Setter Property="Background" Value="Transparent"/>
-        <Setter Property="Foreground" Value="{ThemeResource TextPrimaryBrush}"/>
+        <Setter Property="Foreground" Value="{ThemeResource TextSecondaryBrush}"/>
         <Setter Property="IsTabStop" Value="False"/>
         <Setter Property="Template">
             <Setter.Value>
@@ -131,14 +275,20 @@
                             <VisualStateGroup x:Name="CommonStates">
                                 <VisualState x:Name="Normal"/>
                                 <VisualState x:Name="PointerOver">
-                                    <VisualState.Setters><Setter Target="Root.Background" Value="{ThemeResource SubtleFillHoverBrush}"/></VisualState.Setters>
+                                    <VisualState.Setters>
+                                        <Setter Target="Root.Background" Value="{ThemeResource WashBrush}"/>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextPrimaryBrush}"/>
+                                    </VisualState.Setters>
                                 </VisualState>
                                 <VisualState x:Name="Pressed">
-                                    <VisualState.Setters><Setter Target="Root.Background" Value="{ThemeResource SubtleFillPressedBrush}"/></VisualState.Setters>
+                                    <VisualState.Setters>
+                                        <Setter Target="Root.Background" Value="{ThemeResource WashPressedBrush}"/>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextPrimaryBrush}"/>
+                                    </VisualState.Setters>
                                 </VisualState>
                             </VisualStateGroup>
                         </VisualStateManager.VisualStateGroups>
-                        <ContentPresenter Content="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}"
+                        <ContentPresenter x:Name="Content" Content="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}"
                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Grid>
                 </ControlTemplate>
@@ -161,8 +311,8 @@
                                 </VisualState>
                                 <VisualState x:Name="Pressed">
                                     <VisualState.Setters>
-                                        <Setter Target="Root.Background" Value="#FFC94D40"/>
-                                        <Setter Target="Content.Foreground" Value="#CCFFFFFF"/>
+                                        <Setter Target="Root.Background" Value="#FFA52315"/>
+                                        <Setter Target="Content.Foreground" Value="#FFFFFFFF"/>
                                     </VisualState.Setters>
                                 </VisualState>
                             </VisualStateGroup>
@@ -175,9 +325,10 @@
         </Setter>
     </Style>
 
-    <!-- 侧栏导航项：40px、半粗体，选中时左侧 3×16 主色条 -->
+    <!-- 侧栏导航项：40 高、圆角 8、半粗体；选中黑 12% 底加左侧 3×16 主色条；按下缩到 .98 -->
     <Style x:Key="NavItemStyle" TargetType="RadioButton">
         <Setter Property="Height" Value="{StaticResource NavItemHeight}"/>
+        <Setter Property="MinWidth" Value="0"/>
         <Setter Property="HorizontalAlignment" Value="Stretch"/>
         <Setter Property="HorizontalContentAlignment" Value="Left"/>
         <Setter Property="Padding" Value="12,0"/>
@@ -186,22 +337,29 @@
         <Setter Property="FontFamily" Value="{StaticResource MiSansSemiboldFontFamily}"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="FontSize" Value="{StaticResource BodyFontSize}"/>
+        <Setter Property="CornerRadius" Value="{StaticResource ItemCornerRadius}"/>
         <Setter Property="UseSystemFocusVisuals" Value="True"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="RadioButton">
-                    <Grid x:Name="Root" Background="{TemplateBinding Background}" CornerRadius="{StaticResource ItemCornerRadius}" Padding="{TemplateBinding Padding}">
+                    <Grid x:Name="Root" Background="Transparent" RenderTransformOrigin="0.5,0.5">
+                        <Grid.RenderTransform><ScaleTransform x:Name="Press"/></Grid.RenderTransform>
                         <VisualStateManager.VisualStateGroups>
                             <VisualStateGroup x:Name="CommonStates">
+                                <VisualStateGroup.Transitions><VisualTransition GeneratedDuration="0:0:0.16"/></VisualStateGroup.Transitions>
                                 <VisualState x:Name="Normal"/>
                                 <VisualState x:Name="PointerOver">
-                                    <VisualState.Setters><Setter Target="Root.Background" Value="{ThemeResource NavHoverBrush}"/></VisualState.Setters>
+                                    <VisualState.Setters><Setter Target="Hover.Background" Value="{ThemeResource NavHoverBrush}"/></VisualState.Setters>
                                 </VisualState>
                                 <VisualState x:Name="Pressed">
-                                    <VisualState.Setters><Setter Target="Root.Background" Value="{ThemeResource NavPressedBrush}"/></VisualState.Setters>
+                                    <VisualState.Setters><Setter Target="Hover.Background" Value="{ThemeResource NavPressedBrush}"/></VisualState.Setters>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Press" Storyboard.TargetProperty="ScaleX" To="0.98" Duration="0:0:0.08"/>
+                                        <DoubleAnimation Storyboard.TargetName="Press" Storyboard.TargetProperty="ScaleY" To="0.98" Duration="0:0:0.08"/>
+                                    </Storyboard>
                                 </VisualState>
                                 <VisualState x:Name="Disabled">
-                                    <VisualState.Setters><Setter Target="Root.Opacity" Value="0.42"/></VisualState.Setters>
+                                    <VisualState.Setters><Setter Target="Root.Opacity" Value="0.45"/></VisualState.Setters>
                                 </VisualState>
                             </VisualStateGroup>
                             <VisualStateGroup x:Name="CheckStates">
@@ -209,17 +367,21 @@
                                     <VisualState.Setters>
                                         <Setter Target="ActiveFill.Opacity" Value="1"/>
                                         <Setter Target="Pill.Opacity" Value="1"/>
+                                        <Setter Target="Hover.Opacity" Value="0"/>
                                     </VisualState.Setters>
                                 </VisualState>
                                 <VisualState x:Name="Unchecked"/>
                                 <VisualState x:Name="Indeterminate"/>
                             </VisualStateGroup>
                         </VisualStateManager.VisualStateGroups>
-                        <Border x:Name="ActiveFill" Margin="-12,0" Background="{ThemeResource NavActiveBrush}" Opacity="0"/>
-                        <Border x:Name="Pill" Margin="-12,0,0,0" Width="3" Height="16" CornerRadius="2" HorizontalAlignment="Left"
+                        <Border x:Name="Hover" Background="Transparent" CornerRadius="{TemplateBinding CornerRadius}">
+                            <Border.BackgroundTransition><BrushTransition Duration="0:0:0.24"/></Border.BackgroundTransition>
+                        </Border>
+                        <Border x:Name="ActiveFill" Background="{ThemeResource NavActiveBrush}" CornerRadius="{TemplateBinding CornerRadius}" Opacity="0"/>
+                        <Border x:Name="Pill" Width="3" Height="16" CornerRadius="0,2,2,0" HorizontalAlignment="Left"
                                 Background="{ThemeResource AccentBrush}" Opacity="0"/>
                         <ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"
-                                          Foreground="{TemplateBinding Foreground}" VerticalAlignment="Center"
+                                          Foreground="{TemplateBinding Foreground}" Margin="{TemplateBinding Padding}" VerticalAlignment="Center"
                                           HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/>
                     </Grid>
                 </ControlTemplate>
@@ -227,37 +389,43 @@
         </Setter>
     </Style>
 
-    <!-- 分段选择：与按钮同尺寸，选中为主色实心 -->
+    <!-- 分段选择：就是并排的按钮，选中的那个是黑 8% 底加主要色文字 -->
     <Style x:Key="SegmentStyle" TargetType="RadioButton">
         <Setter Property="Height" Value="{StaticResource ControlHeight}"/>
         <Setter Property="MinWidth" Value="0"/>
-        <Setter Property="Padding" Value="16,0"/>
+        <Setter Property="Padding" Value="15,0"/>
         <Setter Property="Background" Value="{ThemeResource ControlFillBrush}"/>
         <Setter Property="BorderBrush" Value="{ThemeResource ControlStrokeBrush}"/>
         <Setter Property="Foreground" Value="{ThemeResource TextSecondaryBrush}"/>
+        <Setter Property="CornerRadius" Value="{StaticResource SoftControlCornerRadius}"/>
         <Setter Property="FontFamily" Value="{StaticResource MiSansSemiboldFontFamily}"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="FontSize" Value="{StaticResource BodySmallFontSize}"/>
-        <Setter Property="UseSystemFocusVisuals" Value="True"/>
+        <Setter Property="UseSystemFocusVisuals" Value="False"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="RadioButton">
-                    <Grid x:Name="Root" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"
-                          CornerRadius="{StaticResource SoftControlCornerRadius}" Padding="{TemplateBinding Padding}">
+                    <Grid x:Name="Root" Background="Transparent" RenderTransformOrigin="0.5,0.5">
+                        <Grid.RenderTransform><ScaleTransform x:Name="Press"/></Grid.RenderTransform>
                         <VisualStateManager.VisualStateGroups>
                             <VisualStateGroup x:Name="CommonStates">
+                                <VisualStateGroup.Transitions><VisualTransition GeneratedDuration="0:0:0.16"/></VisualStateGroup.Transitions>
                                 <VisualState x:Name="Normal"/>
                                 <VisualState x:Name="PointerOver">
                                     <VisualState.Setters>
-                                        <Setter Target="Root.Background" Value="{ThemeResource ControlFillHoverBrush}"/>
+                                        <Setter Target="Surface.Background" Value="{ThemeResource ControlFillHoverBrush}"/>
                                         <Setter Target="Content.Foreground" Value="{ThemeResource TextPrimaryBrush}"/>
                                     </VisualState.Setters>
                                 </VisualState>
                                 <VisualState x:Name="Pressed">
                                     <VisualState.Setters>
-                                        <Setter Target="Root.Background" Value="{ThemeResource ControlFillPressedBrush}"/>
+                                        <Setter Target="Surface.Background" Value="{ThemeResource ControlFillPressedBrush}"/>
                                         <Setter Target="Content.Foreground" Value="{ThemeResource TextPrimaryBrush}"/>
                                     </VisualState.Setters>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Press" Storyboard.TargetProperty="ScaleX" To="0.97" Duration="0:0:0.08"/>
+                                        <DoubleAnimation Storyboard.TargetName="Press" Storyboard.TargetProperty="ScaleY" To="0.97" Duration="0:0:0.08"/>
+                                    </Storyboard>
                                 </VisualState>
                                 <VisualState x:Name="Disabled">
                                     <VisualState.Setters><Setter Target="Root.Opacity" Value="0.45"/></VisualState.Setters>
@@ -267,60 +435,107 @@
                                 <VisualState x:Name="Checked">
                                     <VisualState.Setters>
                                         <Setter Target="Selected.Opacity" Value="1"/>
-                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextOnAccentBrush}"/>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextPrimaryBrush}"/>
                                     </VisualState.Setters>
                                 </VisualState>
                                 <VisualState x:Name="Unchecked"/>
                                 <VisualState x:Name="Indeterminate"/>
                             </VisualStateGroup>
+                            <VisualStateGroup x:Name="FocusStates">
+                                <VisualState x:Name="Focused">
+                                    <VisualState.Setters><Setter Target="Surface.BorderBrush" Value="{ThemeResource ControlStrokeStrongBrush}"/></VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Unfocused"/>
+                                <VisualState x:Name="PointerFocused"/>
+                            </VisualStateGroup>
                         </VisualStateManager.VisualStateGroups>
-                        <Border x:Name="Selected" Margin="-17,-1" CornerRadius="{StaticResource SoftControlCornerRadius}" Background="{ThemeResource AccentBrush}" Opacity="0"/>
-                        <ContentPresenter x:Name="Content" Content="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}"
-                                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <Border themes:SoftShadow.Kind="Control" CornerRadius="{TemplateBinding CornerRadius}"/>
+                        <Border x:Name="Selected" Background="{ThemeResource SelectedFillBrush}" CornerRadius="{TemplateBinding CornerRadius}" Opacity="0"/>
+                        <Border x:Name="Surface" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"
+                                CornerRadius="{TemplateBinding CornerRadius}" Padding="{TemplateBinding Padding}">
+                            <Border.BackgroundTransition><BrushTransition Duration="0:0:0.16"/></Border.BackgroundTransition>
+                            <ContentPresenter x:Name="Content" Content="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
                     </Grid>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
     </Style>
 
-    <!-- 筛选胶囊 -->
+    <!-- 筛选片：28 高的胶囊，12 中等；选中为黑 9% 底、半粗体、带小投影；按下缩到 .95 -->
     <Style x:Key="ChipStyle" TargetType="ToggleButton">
-        <Setter Property="Height" Value="30"/>
-        <Setter Property="Padding" Value="13,0"/>
+        <Setter Property="MinHeight" Value="28"/>
+        <Setter Property="MinWidth" Value="0"/>
+        <Setter Property="Padding" Value="9,0"/>
         <Setter Property="Background" Value="{ThemeResource ChipFillBrush}"/>
-        <Setter Property="Foreground" Value="{ThemeResource TextPrimaryBrush}"/>
-        <Setter Property="FontSize" Value="{StaticResource BodySmallFontSize}"/>
+        <Setter Property="BorderBrush" Value="{ThemeResource ChipStrokeBrush}"/>
+        <Setter Property="Foreground" Value="{ThemeResource TextSecondaryBrush}"/>
+        <Setter Property="FontFamily" Value="{StaticResource MiSansMediumFontFamily}"/>
+        <Setter Property="FontWeight" Value="Medium"/>
+        <Setter Property="FontSize" Value="{StaticResource CaptionFontSize}"/>
+        <Setter Property="CornerRadius" Value="14"/>
         <Setter Property="UseSystemFocusVisuals" Value="True"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ToggleButton">
-                    <Grid x:Name="Root" Background="{TemplateBinding Background}" CornerRadius="{StaticResource CornerRadiusPill}" Padding="{TemplateBinding Padding}">
+                    <Grid x:Name="Root" Background="Transparent" RenderTransformOrigin="0.5,0.5">
+                        <Grid.RenderTransform><ScaleTransform x:Name="Press"/></Grid.RenderTransform>
                         <VisualStateManager.VisualStateGroups>
                             <VisualStateGroup x:Name="CommonStates">
+                                <VisualStateGroup.Transitions><VisualTransition GeneratedDuration="0:0:0.16"/></VisualStateGroup.Transitions>
                                 <VisualState x:Name="Normal"/>
                                 <VisualState x:Name="PointerOver">
-                                    <VisualState.Setters><Setter Target="Root.Background" Value="{ThemeResource ChipFillHoverBrush}"/></VisualState.Setters>
+                                    <VisualState.Setters>
+                                        <Setter Target="Surface.Background" Value="{ThemeResource ChipFillHoverBrush}"/>
+                                        <Setter Target="Surface.BorderBrush" Value="{ThemeResource ChipStrokeHoverBrush}"/>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextPrimaryBrush}"/>
+                                    </VisualState.Setters>
                                 </VisualState>
                                 <VisualState x:Name="Pressed">
-                                    <VisualState.Setters><Setter Target="Root.Background" Value="{ThemeResource ChipFillHoverBrush}"/></VisualState.Setters>
+                                    <VisualState.Setters>
+                                        <Setter Target="Surface.Background" Value="{ThemeResource ChipFillHoverBrush}"/>
+                                        <Setter Target="Surface.BorderBrush" Value="{ThemeResource ChipStrokeHoverBrush}"/>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextPrimaryBrush}"/>
+                                    </VisualState.Setters>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Press" Storyboard.TargetProperty="ScaleX" To="0.95" Duration="0:0:0.08"/>
+                                        <DoubleAnimation Storyboard.TargetName="Press" Storyboard.TargetProperty="ScaleY" To="0.95" Duration="0:0:0.08"/>
+                                    </Storyboard>
                                 </VisualState>
                                 <VisualState x:Name="Checked">
                                     <VisualState.Setters>
-                                        <Setter Target="Root.Background" Value="{ThemeResource AccentBrush}"/>
-                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextOnAccentBrush}"/>
+                                        <Setter Target="Surface.Background" Value="{ThemeResource ChipSelectedFillBrush}"/>
+                                        <Setter Target="Surface.BorderBrush" Value="{ThemeResource ChipSelectedStrokeBrush}"/>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextPrimaryBrush}"/>
+                                        <Setter Target="Content.FontFamily" Value="{StaticResource MiSansSemiboldFontFamily}"/>
+                                        <Setter Target="Content.FontWeight" Value="SemiBold"/>
+                                        <Setter Target="Shadow.Opacity" Value="1"/>
                                     </VisualState.Setters>
                                 </VisualState>
                                 <VisualState x:Name="CheckedPointerOver">
                                     <VisualState.Setters>
-                                        <Setter Target="Root.Background" Value="{ThemeResource AccentHoverBrush}"/>
-                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextOnAccentBrush}"/>
+                                        <Setter Target="Surface.Background" Value="{ThemeResource ChipSelectedFillBrush}"/>
+                                        <Setter Target="Surface.BorderBrush" Value="{ThemeResource ChipSelectedStrokeBrush}"/>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextPrimaryBrush}"/>
+                                        <Setter Target="Content.FontFamily" Value="{StaticResource MiSansSemiboldFontFamily}"/>
+                                        <Setter Target="Content.FontWeight" Value="SemiBold"/>
+                                        <Setter Target="Shadow.Opacity" Value="1"/>
                                     </VisualState.Setters>
                                 </VisualState>
                                 <VisualState x:Name="CheckedPressed">
                                     <VisualState.Setters>
-                                        <Setter Target="Root.Background" Value="{ThemeResource AccentPressedBrush}"/>
-                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextOnAccentBrush}"/>
+                                        <Setter Target="Surface.Background" Value="{ThemeResource ChipSelectedFillBrush}"/>
+                                        <Setter Target="Surface.BorderBrush" Value="{ThemeResource ChipSelectedStrokeBrush}"/>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextPrimaryBrush}"/>
+                                        <Setter Target="Content.FontFamily" Value="{StaticResource MiSansSemiboldFontFamily}"/>
+                                        <Setter Target="Content.FontWeight" Value="SemiBold"/>
+                                        <Setter Target="Shadow.Opacity" Value="1"/>
                                     </VisualState.Setters>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Press" Storyboard.TargetProperty="ScaleX" To="0.95" Duration="0:0:0.08"/>
+                                        <DoubleAnimation Storyboard.TargetName="Press" Storyboard.TargetProperty="ScaleY" To="0.95" Duration="0:0:0.08"/>
+                                    </Storyboard>
                                 </VisualState>
                                 <VisualState x:Name="Disabled">
                                     <VisualState.Setters><Setter Target="Root.Opacity" Value="0.45"/></VisualState.Setters>
@@ -330,70 +545,44 @@
                                 </VisualState>
                             </VisualStateGroup>
                         </VisualStateManager.VisualStateGroups>
-                        <ContentPresenter x:Name="Content" Content="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}"
-                                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <Border x:Name="Shadow" themes:SoftShadow.Kind="Chip" CornerRadius="{TemplateBinding CornerRadius}" Opacity="0"/>
+                        <Border x:Name="Surface" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"
+                                CornerRadius="{TemplateBinding CornerRadius}" Padding="{TemplateBinding Padding}">
+                            <Border.BackgroundTransition><BrushTransition Duration="0:0:0.16"/></Border.BackgroundTransition>
+                            <ContentPresenter x:Name="Content" Content="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}"
+                                              FontFamily="{TemplateBinding FontFamily}" FontWeight="{TemplateBinding FontWeight}"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
                     </Grid>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
     </Style>
 
-    <!-- 文字链接按钮 -->
+    <!-- 文字链接：12 中等次要色，带下划线，悬停转主要色 -->
     <Style x:Key="LinkButtonStyle" TargetType="Button">
-        <Setter Property="Padding" Value="6,4"/>
+        <Setter Property="Padding" Value="2,2"/>
         <Setter Property="Background" Value="Transparent"/>
-        <Setter Property="Foreground" Value="{ThemeResource AccentTextBrush}"/>
-        <Setter Property="FontSize" Value="{StaticResource BodySmallFontSize}"/>
+        <Setter Property="Foreground" Value="{ThemeResource TextSecondaryBrush}"/>
+        <Setter Property="FontFamily" Value="{StaticResource MiSansMediumFontFamily}"/>
+        <Setter Property="FontWeight" Value="Medium"/>
+        <Setter Property="FontSize" Value="{StaticResource CaptionFontSize}"/>
         <Setter Property="UseSystemFocusVisuals" Value="True"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Grid x:Name="Root" Background="{TemplateBinding Background}" CornerRadius="{StaticResource CornerRadiusS}" Padding="{TemplateBinding Padding}">
+                    <Grid x:Name="Root" Background="{TemplateBinding Background}" CornerRadius="{StaticResource CornerRadiusXS}" Padding="{TemplateBinding Padding}">
                         <VisualStateManager.VisualStateGroups>
                             <VisualStateGroup x:Name="CommonStates">
                                 <VisualState x:Name="Normal"/>
                                 <VisualState x:Name="PointerOver">
-                                    <VisualState.Setters><Setter Target="Root.Background" Value="{ThemeResource AccentSubtleBrush}"/></VisualState.Setters>
+                                    <VisualState.Setters><Setter Target="Content.Foreground" Value="{ThemeResource TextPrimaryBrush}"/></VisualState.Setters>
                                 </VisualState>
                                 <VisualState x:Name="Pressed">
-                                    <VisualState.Setters><Setter Target="Root.Background" Value="{ThemeResource AccentSubtleBrush}"/></VisualState.Setters>
+                                    <VisualState.Setters><Setter Target="Content.Foreground" Value="{ThemeResource TextPrimaryBrush}"/></VisualState.Setters>
                                 </VisualState>
                                 <VisualState x:Name="Disabled">
                                     <VisualState.Setters><Setter Target="Root.Opacity" Value="0.45"/></VisualState.Setters>
-                                </VisualState>
-                            </VisualStateGroup>
-                        </VisualStateManager.VisualStateGroups>
-                        <ContentPresenter Content="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}" VerticalAlignment="Center"/>
-                    </Grid>
-                </ControlTemplate>
-            </Setter.Value>
-        </Setter>
-    </Style>
-
-    <!-- 卡片行标题旁的"查看全部 ›" -->
-    <Style x:Key="RailLinkButtonStyle" TargetType="Button">
-        <Setter Property="Padding" Value="8,4,6,4"/>
-        <Setter Property="Background" Value="Transparent"/>
-        <Setter Property="Foreground" Value="{ThemeResource TextSecondaryBrush}"/>
-        <Setter Property="UseSystemFocusVisuals" Value="True"/>
-        <Setter Property="Template">
-            <Setter.Value>
-                <ControlTemplate TargetType="Button">
-                    <Grid x:Name="Root" Background="{TemplateBinding Background}" CornerRadius="{StaticResource CornerRadiusS}" Padding="{TemplateBinding Padding}">
-                        <VisualStateManager.VisualStateGroups>
-                            <VisualStateGroup x:Name="CommonStates">
-                                <VisualState x:Name="Normal"/>
-                                <VisualState x:Name="PointerOver">
-                                    <VisualState.Setters>
-                                        <Setter Target="Root.Background" Value="{ThemeResource SubtleFillHoverBrush}"/>
-                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextPrimaryBrush}"/>
-                                    </VisualState.Setters>
-                                </VisualState>
-                                <VisualState x:Name="Pressed">
-                                    <VisualState.Setters>
-                                        <Setter Target="Root.Background" Value="{ThemeResource SubtleFillPressedBrush}"/>
-                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextPrimaryBrush}"/>
-                                    </VisualState.Setters>
                                 </VisualState>
                             </VisualStateGroup>
                         </VisualStateManager.VisualStateGroups>
@@ -404,37 +593,70 @@
         </Setter>
     </Style>
 
+    <!-- 分区标题本身就是"查看全部"按钮：文字加一个小箭头，没有底 -->
+    <Style x:Key="RailLinkButtonStyle" TargetType="Button">
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{ThemeResource TextPrimaryBrush}"/>
+        <Setter Property="UseSystemFocusVisuals" Value="True"/>
+        <Setter Property="FocusVisualMargin" Value="-4"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid x:Name="Root" Background="{TemplateBinding Background}" CornerRadius="{StaticResource CornerRadiusS}" Padding="{TemplateBinding Padding}">
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CommonStates">
+                                <VisualState x:Name="Normal"/>
+                                <VisualState x:Name="PointerOver">
+                                    <VisualState.Setters><Setter Target="Root.Opacity" Value="0.82"/></VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Pressed">
+                                    <VisualState.Setters><Setter Target="Root.Opacity" Value="0.7"/></VisualState.Setters>
+                                </VisualState>
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+                        <ContentPresenter x:Name="Content" Content="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}" VerticalAlignment="Center"/>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 标题栏里的 hero 分页点：6×6，当前项拉长到 22 -->
     <Style x:Key="HeroDotStyle" TargetType="Border">
         <Setter Property="Height" Value="6"/>
         <Setter Property="Width" Value="6"/>
         <Setter Property="CornerRadius" Value="3"/>
-        <Setter Property="Background" Value="{ThemeResource TextTertiaryBrush}"/>
-        <Setter Property="Opacity" Value="0.5"/>
+        <Setter Property="Background" Value="{ThemeResource DotBrush}"/>
     </Style>
     <Style x:Key="HeroDotActiveStyle" TargetType="Border">
         <Setter Property="Height" Value="6"/>
         <Setter Property="Width" Value="22"/>
         <Setter Property="CornerRadius" Value="3"/>
-        <Setter Property="Background" Value="{ThemeResource TextPrimaryBrush}"/>
+        <Setter Property="Background" Value="{ThemeResource DotActiveBrush}"/>
     </Style>
     <Style x:Key="HeroDotButtonStyle" TargetType="Button">
-        <Setter Property="Padding" Value="3,9"/>
+        <Setter Property="MinWidth" Value="28"/>
+        <Setter Property="Height" Value="24"/>
+        <Setter Property="Padding" Value="0"/>
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="IsTabStop" Value="False"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <ContentPresenter Background="Transparent" Padding="{TemplateBinding Padding}" Content="{TemplateBinding Content}"/>
+                    <ContentPresenter Background="Transparent" Padding="{TemplateBinding Padding}" Content="{TemplateBinding Content}"
+                                      HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
     </Style>
+    <!-- hero 上的分级徽标 -->
     <Style x:Key="HeroBadgeStyle" TargetType="Border">
-        <Setter Property="Height" Value="18"/>
-        <Setter Property="Padding" Value="5,0"/>
+        <Setter Property="Padding" Value="5,1,5,2"/>
         <Setter Property="CornerRadius" Value="{StaticResource CornerRadiusXS}"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="BorderBrush" Value="#E6FFFFFF"/>
+        <Setter Property="BorderBrush" Value="{ThemeResource HeroBadgeStrokeBrush}"/>
+        <Setter Property="Background" Value="{ThemeResource HeroBadgeFillBrush}"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
 
@@ -443,40 +665,141 @@
         <Setter Property="CornerRadius" Value="{StaticResource CornerRadiusL}"/>
     </Style>
 
-    <!-- 小图标按钮：通知关闭、清除等 -->
+    <!-- 圆形图标按钮：没有底，悬停出现 6% 的底，按下缩到 .9 -->
     <Style x:Key="IconButtonStyle" TargetType="Button">
-        <Setter Property="Width" Value="32"/>
-        <Setter Property="Height" Value="32"/>
+        <Setter Property="Width" Value="28"/>
+        <Setter Property="Height" Value="28"/>
         <Setter Property="Background" Value="Transparent"/>
-        <Setter Property="Foreground" Value="{ThemeResource TextPrimaryBrush}"/>
+        <Setter Property="Foreground" Value="{ThemeResource TextSecondaryBrush}"/>
+        <Setter Property="CornerRadius" Value="14"/>
         <Setter Property="UseSystemFocusVisuals" Value="True"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Grid x:Name="Root" Background="{TemplateBinding Background}" CornerRadius="{StaticResource ItemCornerRadius}">
+                    <Grid x:Name="Root" Background="{TemplateBinding Background}" CornerRadius="{TemplateBinding CornerRadius}" RenderTransformOrigin="0.5,0.5">
+                        <Grid.RenderTransform><ScaleTransform x:Name="Press"/></Grid.RenderTransform>
+                        <Grid.BackgroundTransition><BrushTransition Duration="0:0:0.16"/></Grid.BackgroundTransition>
                         <VisualStateManager.VisualStateGroups>
                             <VisualStateGroup x:Name="CommonStates">
+                                <VisualStateGroup.Transitions><VisualTransition GeneratedDuration="0:0:0.16"/></VisualStateGroup.Transitions>
                                 <VisualState x:Name="Normal"/>
                                 <VisualState x:Name="PointerOver">
-                                    <VisualState.Setters><Setter Target="Root.Background" Value="{ThemeResource SubtleFillHoverBrush}"/></VisualState.Setters>
+                                    <VisualState.Setters>
+                                        <Setter Target="Root.Background" Value="{ThemeResource WashBrush}"/>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextPrimaryBrush}"/>
+                                    </VisualState.Setters>
                                 </VisualState>
                                 <VisualState x:Name="Pressed">
-                                    <VisualState.Setters><Setter Target="Root.Background" Value="{ThemeResource SubtleFillPressedBrush}"/></VisualState.Setters>
+                                    <VisualState.Setters>
+                                        <Setter Target="Root.Background" Value="{ThemeResource WashPressedBrush}"/>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextPrimaryBrush}"/>
+                                    </VisualState.Setters>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Press" Storyboard.TargetProperty="ScaleX" To="0.9" Duration="0:0:0.08"/>
+                                        <DoubleAnimation Storyboard.TargetName="Press" Storyboard.TargetProperty="ScaleY" To="0.9" Duration="0:0:0.08"/>
+                                    </Storyboard>
                                 </VisualState>
                                 <VisualState x:Name="Disabled">
-                                    <VisualState.Setters><Setter Target="Root.Opacity" Value="0.4"/></VisualState.Setters>
+                                    <VisualState.Setters><Setter Target="Root.Opacity" Value="0.45"/></VisualState.Setters>
                                 </VisualState>
                             </VisualStateGroup>
                         </VisualStateManager.VisualStateGroups>
-                        <ContentPresenter Content="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}"
+                        <ContentPresenter x:Name="Content" Content="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}"
                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Grid>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
     </Style>
+    <!-- 卡片行的翻页箭头：标题行右侧常显的 28px 圆钮 -->
+    <Style x:Key="RailArrowButtonStyle" TargetType="Button" BasedOn="{StaticResource IconButtonStyle}">
+        <Setter Property="Foreground" Value="{ThemeResource TextPrimaryBrush}"/>
+        <Setter Property="IsTabStop" Value="False"/>
+    </Style>
 
-    <!-- 卡片：整张可点击、可聚焦，没有按钮外观 -->
+    <!-- 圆形胶囊开关：筛选按钮。36×36，带边和投影；打开或有筛选时底色加深 -->
+    <Style x:Key="IconPillToggleStyle" TargetType="ToggleButton">
+        <Setter Property="Width" Value="{StaticResource PillHeight}"/>
+        <Setter Property="Height" Value="{StaticResource PillHeight}"/>
+        <Setter Property="MinWidth" Value="0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Background" Value="{ThemeResource ControlFillBrush}"/>
+        <Setter Property="BorderBrush" Value="{ThemeResource ControlStrokeBrush}"/>
+        <Setter Property="Foreground" Value="{ThemeResource TextSecondaryBrush}"/>
+        <Setter Property="CornerRadius" Value="18"/>
+        <Setter Property="UseSystemFocusVisuals" Value="True"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Grid x:Name="Root" Background="Transparent" RenderTransformOrigin="0.5,0.5">
+                        <Grid.RenderTransform><ScaleTransform x:Name="Press"/></Grid.RenderTransform>
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CommonStates">
+                                <VisualStateGroup.Transitions><VisualTransition GeneratedDuration="0:0:0.16"/></VisualStateGroup.Transitions>
+                                <VisualState x:Name="Normal"/>
+                                <VisualState x:Name="PointerOver">
+                                    <VisualState.Setters>
+                                        <Setter Target="Surface.Background" Value="{ThemeResource ControlFillHoverBrush}"/>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextPrimaryBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Pressed">
+                                    <VisualState.Setters>
+                                        <Setter Target="Surface.Background" Value="{ThemeResource ControlFillPressedBrush}"/>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextPrimaryBrush}"/>
+                                    </VisualState.Setters>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Press" Storyboard.TargetProperty="ScaleX" To="0.94" Duration="0:0:0.08"/>
+                                        <DoubleAnimation Storyboard.TargetName="Press" Storyboard.TargetProperty="ScaleY" To="0.94" Duration="0:0:0.08"/>
+                                    </Storyboard>
+                                </VisualState>
+                                <VisualState x:Name="Checked">
+                                    <VisualState.Setters>
+                                        <Setter Target="Surface.Background" Value="{ThemeResource ChipSelectedFillBrush}"/>
+                                        <Setter Target="Surface.BorderBrush" Value="{ThemeResource ControlStrokeStrongBrush}"/>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextPrimaryBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="CheckedPointerOver">
+                                    <VisualState.Setters>
+                                        <Setter Target="Surface.Background" Value="{ThemeResource ChipSelectedFillBrush}"/>
+                                        <Setter Target="Surface.BorderBrush" Value="{ThemeResource ControlStrokeStrongBrush}"/>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextPrimaryBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="CheckedPressed">
+                                    <VisualState.Setters>
+                                        <Setter Target="Surface.Background" Value="{ThemeResource ChipSelectedFillBrush}"/>
+                                        <Setter Target="Surface.BorderBrush" Value="{ThemeResource ControlStrokeStrongBrush}"/>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextPrimaryBrush}"/>
+                                    </VisualState.Setters>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Press" Storyboard.TargetProperty="ScaleX" To="0.94" Duration="0:0:0.08"/>
+                                        <DoubleAnimation Storyboard.TargetName="Press" Storyboard.TargetProperty="ScaleY" To="0.94" Duration="0:0:0.08"/>
+                                    </Storyboard>
+                                </VisualState>
+                                <VisualState x:Name="Disabled">
+                                    <VisualState.Setters><Setter Target="Root.Opacity" Value="0.45"/></VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="CheckedDisabled">
+                                    <VisualState.Setters><Setter Target="Root.Opacity" Value="0.45"/></VisualState.Setters>
+                                </VisualState>
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+                        <Border themes:SoftShadow.Kind="Control" CornerRadius="{TemplateBinding CornerRadius}"/>
+                        <Border x:Name="Surface" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"
+                                CornerRadius="{TemplateBinding CornerRadius}">
+                            <Border.BackgroundTransition><BrushTransition Duration="0:0:0.16"/></Border.BackgroundTransition>
+                            <ContentPresenter x:Name="Content" Content="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 卡片：整张可点击、可聚焦，没有按钮外观；键盘焦点由卡片自己表现（上浮加深描边），不画焦点框 -->
     <Style x:Key="CardButtonStyle" TargetType="Button">
         <Setter Property="Padding" Value="0"/>
         <Setter Property="HorizontalAlignment" Value="Stretch"/>
@@ -484,8 +807,7 @@
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
         <Setter Property="VerticalContentAlignment" Value="Stretch"/>
-        <Setter Property="UseSystemFocusVisuals" Value="True"/>
-        <Setter Property="FocusVisualMargin" Value="-4"/>
+        <Setter Property="UseSystemFocusVisuals" Value="False"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
@@ -497,62 +819,56 @@
         </Setter>
     </Style>
 
-    <!-- 卡片上的圆形播放钮：深色玻璃，悬停为主色 -->
+    <!-- 卡片上的 36px 播放钮：深色玻璃、白色内描边、投影；悬停加深并放大到 1.05 -->
     <Style x:Key="CardPlayButtonStyle" TargetType="Button">
         <Setter Property="Width" Value="36"/>
         <Setter Property="Height" Value="36"/>
-        <Setter Property="Background" Value="#8F101216"/>
+        <Setter Property="Background" Value="#6B101216"/>
+        <Setter Property="BorderBrush" Value="#38FFFFFF"/>
         <Setter Property="Foreground" Value="#FFFFFFFF"/>
         <Setter Property="UseSystemFocusVisuals" Value="True"/>
+        <Setter Property="CornerRadius" Value="18"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Grid x:Name="Root" Background="{TemplateBinding Background}" CornerRadius="18" BorderBrush="#38FFFFFF" BorderThickness="1">
+                    <Grid x:Name="Root" Background="Transparent" RenderTransformOrigin="0.5,0.5">
+                        <Grid.RenderTransform><ScaleTransform x:Name="Press"/></Grid.RenderTransform>
                         <VisualStateManager.VisualStateGroups>
                             <VisualStateGroup x:Name="CommonStates">
-                                <VisualState x:Name="Normal"/>
-                                <VisualState x:Name="PointerOver">
-                                    <VisualState.Setters><Setter Target="Root.Background" Value="{ThemeResource AccentBrush}"/></VisualState.Setters>
-                                </VisualState>
-                                <VisualState x:Name="Pressed">
-                                    <VisualState.Setters><Setter Target="Root.Background" Value="{ThemeResource AccentPressedBrush}"/></VisualState.Setters>
-                                </VisualState>
-                            </VisualStateGroup>
-                        </VisualStateManager.VisualStateGroups>
-                        <FontIcon Glyph="&#xF5B0;" FontSize="14" Margin="2,0,0,0" Foreground="{TemplateBinding Foreground}"/>
-                    </Grid>
-                </ControlTemplate>
-            </Setter.Value>
-        </Setter>
-    </Style>
-
-    <!-- 卡片行两侧的翻页箭头 -->
-    <Style x:Key="RailArrowButtonStyle" TargetType="Button">
-        <Setter Property="Width" Value="36"/>
-        <Setter Property="Height" Value="36"/>
-        <Setter Property="Background" Value="{ThemeResource PopupBackgroundBrush}"/>
-        <Setter Property="Foreground" Value="{ThemeResource TextPrimaryBrush}"/>
-        <Setter Property="IsTabStop" Value="False"/>
-        <Setter Property="Template">
-            <Setter.Value>
-                <ControlTemplate TargetType="Button">
-                    <Grid x:Name="Root" Background="{TemplateBinding Background}" CornerRadius="18" BorderBrush="{ThemeResource PopupStrokeBrush}" BorderThickness="1"
-                          RenderTransformOrigin="0.5,0.5">
-                        <Grid.RenderTransform><ScaleTransform x:Name="Scale"/></Grid.RenderTransform>
-                        <VisualStateManager.VisualStateGroups>
-                            <VisualStateGroup x:Name="CommonStates">
+                                <VisualStateGroup.Transitions><VisualTransition GeneratedDuration="0:0:0.16"/></VisualStateGroup.Transitions>
                                 <VisualState x:Name="Normal"/>
                                 <VisualState x:Name="PointerOver">
                                     <VisualState.Setters>
-                                        <Setter Target="Scale.ScaleX" Value="1.06"/>
-                                        <Setter Target="Scale.ScaleY" Value="1.06"/>
+                                        <Setter Target="Surface.Background" Value="#9E101216"/>
+                                        <Setter Target="Surface.BorderBrush" Value="#57FFFFFF"/>
                                     </VisualState.Setters>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Press" Storyboard.TargetProperty="ScaleX" To="1.05" Duration="0:0:0.16"/>
+                                        <DoubleAnimation Storyboard.TargetName="Press" Storyboard.TargetProperty="ScaleY" To="1.05" Duration="0:0:0.16"/>
+                                    </Storyboard>
                                 </VisualState>
-                                <VisualState x:Name="Pressed"/>
+                                <VisualState x:Name="Pressed">
+                                    <VisualState.Setters>
+                                        <Setter Target="Surface.Background" Value="#9E101216"/>
+                                        <Setter Target="Surface.BorderBrush" Value="#57FFFFFF"/>
+                                    </VisualState.Setters>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Press" Storyboard.TargetProperty="ScaleX" To="0.95" Duration="0:0:0.08"/>
+                                        <DoubleAnimation Storyboard.TargetName="Press" Storyboard.TargetProperty="ScaleY" To="0.95" Duration="0:0:0.08"/>
+                                    </Storyboard>
+                                </VisualState>
+                                <VisualState x:Name="Disabled">
+                                    <VisualState.Setters><Setter Target="Root.Opacity" Value="0.45"/></VisualState.Setters>
+                                </VisualState>
                             </VisualStateGroup>
                         </VisualStateManager.VisualStateGroups>
-                        <ContentPresenter Content="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}"
-                                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <Border themes:SoftShadow.Kind="Glass" CornerRadius="{TemplateBinding CornerRadius}"/>
+                        <Border x:Name="Surface" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"
+                                CornerRadius="{TemplateBinding CornerRadius}">
+                            <Border.BackgroundTransition><BrushTransition Duration="0:0:0.16"/></Border.BackgroundTransition>
+                            <themes:LineIcon Glyph="{StaticResource IconPlay}" Filled="True" Width="13" Height="13" Margin="2,0,0,0"
+                                             Foreground="{TemplateBinding Foreground}" HorizontalAlignment="Center"/>
+                        </Border>
                     </Grid>
                 </ControlTemplate>
             </Setter.Value>
@@ -561,11 +877,11 @@
 
     <Style x:Key="PopupMenuPresenterStyle" TargetType="MenuFlyoutPresenter">
         <Setter Property="CornerRadius" Value="{StaticResource PopupCornerRadius}"/>
-        <Setter Property="Padding" Value="6"/>
-        <Setter Property="MinWidth" Value="184"/>
+        <Setter Property="Padding" Value="4"/>
+        <Setter Property="MinWidth" Value="144"/>
     </Style>
 
-    <!-- 弹出面：菜单、对话框、通知共用 -->
+    <!-- 弹出面：菜单、对话框、通知共用。投影由宿主在它前面放一个 SoftShadow.Kind="Popup" 的元素 -->
     <Style x:Key="PopupSurfaceStyle" TargetType="Border">
         <Setter Property="Background" Value="{ThemeResource PopupBackgroundBrush}"/>
         <Setter Property="BorderBrush" Value="{ThemeResource PopupStrokeBrush}"/>

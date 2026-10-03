@@ -4,22 +4,24 @@
     <ResourceDictionary.ThemeDictionaries>
         <ResourceDictionary x:Key="Default">
             <SolidColorBrush x:Key="HeroBackgroundBrush" Color="Transparent"/>
-            <SolidColorBrush x:Key="HeroTitleForegroundBrush" Color="#FFFFFFFF"/>
-            <SolidColorBrush x:Key="HeroMetaForegroundBrush" Color="#EBFFFFFF"/>
-            <SolidColorBrush x:Key="HeroOverviewForegroundBrush" Color="#DBFFFFFF"/>
+            <SolidColorBrush x:Key="HeroTitleForegroundBrush" Color="#F2FFFFFF"/>
+            <SolidColorBrush x:Key="HeroMetaForegroundBrush" Color="#E6FFFFFF"/>
+            <SolidColorBrush x:Key="HeroOverviewForegroundBrush" Color="#D9FFFFFF"/>
             <SolidColorBrush x:Key="HeroHintForegroundBrush" Color="#C2FFFFFF"/>
             <SolidColorBrush x:Key="HeroSeparatorBrush" Color="#8CFFFFFF"/>
-            <SolidColorBrush x:Key="HeroBadgeStrokeBrush" Color="#E6FFFFFF"/>
-            <SolidColorBrush x:Key="HeroPlayBackgroundBrush" Color="#76000000"/>
+            <SolidColorBrush x:Key="HeroBadgeStrokeBrush" Color="#66FFFFFF"/>
+            <SolidColorBrush x:Key="HeroBadgeFillBrush" Color="#59000000"/>
+            <SolidColorBrush x:Key="HeroPlayHoverBackgroundBrush" Color="#B3000000"/>
+            <SolidColorBrush x:Key="HeroPlayBackgroundBrush" Color="#8C000000"/>
             <SolidColorBrush x:Key="HeroPlayForegroundBrush" Color="#FFFFFFFF"/>
-            <SolidColorBrush x:Key="HeroPlayStrokeBrush" Color="#48FFFFFF"/>
-            <SolidColorBrush x:Key="HeroProgressBackgroundBrush" Color="#40FFFFFF"/>
-            <SolidColorBrush x:Key="HeroActionBackgroundBrush" Color="#FFFFFFFF"/>
-            <SolidColorBrush x:Key="HeroActionForegroundBrush" Color="#FF16161A"/>
-            <SolidColorBrush x:Key="HeroActionStrokeBrush" Color="#40FFFFFF"/>
-            <SolidColorBrush x:Key="HeroActionHoverBackgroundBrush" Color="#FFF1F1F4"/>
-            <SolidColorBrush x:Key="HeroActionPressedBackgroundBrush" Color="#FFE0E0E4"/>
-            <SolidColorBrush x:Key="HeroActionHoverForegroundBrush" Color="#FF16161A"/>
+            <SolidColorBrush x:Key="HeroPlayStrokeBrush" Color="#00FFFFFF"/>
+            <SolidColorBrush x:Key="HeroProgressBackgroundBrush" Color="#4DFFFFFF"/>
+            <SolidColorBrush x:Key="HeroActionBackgroundBrush" Color="#6B101216"/>
+            <SolidColorBrush x:Key="HeroActionForegroundBrush" Color="#F2FFFFFF"/>
+            <SolidColorBrush x:Key="HeroActionStrokeBrush" Color="#38FFFFFF"/>
+            <SolidColorBrush x:Key="HeroActionHoverBackgroundBrush" Color="#9E101216"/>
+            <SolidColorBrush x:Key="HeroActionPressedBackgroundBrush" Color="#B8101216"/>
+            <SolidColorBrush x:Key="HeroActionHoverForegroundBrush" Color="#FFFFFFFF"/>
         </ResourceDictionary>
         <ResourceDictionary x:Key="HighContrast">
             <SolidColorBrush x:Key="HeroBackgroundBrush" Color="{ThemeResource SystemColorWindowColor}"/>
@@ -29,6 +31,8 @@
             <SolidColorBrush x:Key="HeroHintForegroundBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
             <SolidColorBrush x:Key="HeroSeparatorBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
             <SolidColorBrush x:Key="HeroBadgeStrokeBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
+            <SolidColorBrush x:Key="HeroBadgeFillBrush" Color="{ThemeResource SystemColorWindowColor}"/>
+            <SolidColorBrush x:Key="HeroPlayHoverBackgroundBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
             <SolidColorBrush x:Key="HeroPlayBackgroundBrush" Color="{ThemeResource SystemColorButtonFaceColor}"/>
             <SolidColorBrush x:Key="HeroPlayForegroundBrush" Color="{ThemeResource SystemColorButtonTextColor}"/>
             <SolidColorBrush x:Key="HeroPlayStrokeBrush" Color="{ThemeResource SystemColorButtonTextColor}"/>
@@ -88,18 +92,23 @@
         <Setter Property="FontSize" Value="{StaticResource BodyLargeFontSize}"/>
         <Setter Property="LineHeight" Value="{StaticResource BodyLargeLineHeight}"/>
     </Style>
-    <Style x:Key="SubtitleTextStyle" TargetType="TextBlock" BasedOn="{StaticResource BaseTextStyle}">
+    <Style x:Key="GroupTitleTextStyle" TargetType="TextBlock" BasedOn="{StaticResource BaseTextStyle}">
         <Setter Property="FontFamily" Value="{StaticResource MiSansSemiboldFontFamily}"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="FontSize" Value="{StaticResource GroupTitleFontSize}"/>
+        <Setter Property="LineHeight" Value="{StaticResource GroupTitleLineHeight}"/>
+    </Style>
+    <Style x:Key="SubtitleTextStyle" TargetType="TextBlock" BasedOn="{StaticResource BaseTextStyle}">
+        <Setter Property="FontFamily" Value="{StaticResource MiSansBoldFontFamily}"/>
+        <Setter Property="FontWeight" Value="Bold"/>
         <Setter Property="FontSize" Value="{StaticResource SubtitleFontSize}"/>
         <Setter Property="LineHeight" Value="{StaticResource SubtitleLineHeight}"/>
     </Style>
     <Style x:Key="PageTitleTextStyle" TargetType="TextBlock" BasedOn="{StaticResource BaseTextStyle}">
-        <Setter Property="FontFamily" Value="{StaticResource MiSansSemiboldFontFamily}"/>
-        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="FontFamily" Value="{StaticResource MiSansBoldFontFamily}"/>
+        <Setter Property="FontWeight" Value="Bold"/>
         <Setter Property="FontSize" Value="{StaticResource TitleFontSize}"/>
         <Setter Property="LineHeight" Value="{StaticResource TitleLineHeight}"/>
-        <Setter Property="CharacterSpacing" Value="-10"/>
     </Style>
     <Style x:Key="EyebrowTextStyle" TargetType="TextBlock" BasedOn="{StaticResource BaseTextStyle}">
         <Setter Property="FontFamily" Value="{StaticResource MiSansSemiboldFontFamily}"/>
@@ -107,15 +116,16 @@
         <Setter Property="FontSize" Value="{StaticResource CaptionFontSize}"/>
         <Setter Property="LineHeight" Value="{StaticResource CaptionLineHeight}"/>
         <Setter Property="CharacterSpacing" Value="{StaticResource EyebrowCharacterSpacing}"/>
-        <Setter Property="Foreground" Value="{ThemeResource TextTertiaryBrush}"/>
+        <Setter Property="Foreground" Value="{ThemeResource TextSecondaryBrush}"/>
     </Style>
     <Style x:Key="CardTitleTextStyle" TargetType="TextBlock" BasedOn="{StaticResource BaseTextStyle}">
         <Setter Property="FontFamily" Value="{StaticResource MiSansMediumFontFamily}"/>
         <Setter Property="FontWeight" Value="Medium"/>
-        <Setter Property="LineHeight" Value="19"/>
+        <Setter Property="LineHeight" Value="{StaticResource CardLineHeight}"/>
         <Setter Property="TextWrapping" Value="NoWrap"/>
     </Style>
     <Style x:Key="CardSubtitleTextStyle" TargetType="TextBlock" BasedOn="{StaticResource CaptionTextStyle}">
+        <Setter Property="LineHeight" Value="{StaticResource CardLineHeight}"/>
         <Setter Property="TextWrapping" Value="NoWrap"/>
     </Style>
     <Style x:Key="BadgeTextStyle" TargetType="TextBlock">
@@ -128,8 +138,9 @@
     <Style x:Key="HeroTitleTextStyle" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource MiSansSemiboldFontFamily}"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
-        <Setter Property="FontSize" Value="46"/>
-        <Setter Property="LineHeight" Value="52"/>
+        <Setter Property="FontSize" Value="42"/>
+        <Setter Property="LineHeight" Value="45"/>
+        <Setter Property="CharacterSpacing" Value="-20"/>
         <Setter Property="LineStackingStrategy" Value="BlockLineHeight"/>
         <Setter Property="Foreground" Value="{ThemeResource HeroTitleForegroundBrush}"/>
         <Setter Property="TextWrapping" Value="Wrap"/>
@@ -149,9 +160,11 @@
         <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
     </Style>
     <Style x:Key="HeroMetaTextStyle" TargetType="TextBlock">
-        <Setter Property="FontFamily" Value="{StaticResource MiSansMediumFontFamily}"/>
-        <Setter Property="FontWeight" Value="Medium"/>
+        <Setter Property="FontFamily" Value="{StaticResource MiSansRegularFontFamily}"/>
+        <Setter Property="FontWeight" Value="Normal"/>
         <Setter Property="FontSize" Value="{StaticResource BodyFontSize}"/>
+        <Setter Property="LineHeight" Value="{StaticResource BodyLineHeight}"/>
+        <Setter Property="LineStackingStrategy" Value="BlockLineHeight"/>
         <Setter Property="Foreground" Value="{ThemeResource HeroMetaForegroundBrush}"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
@@ -166,8 +179,16 @@
         <Setter Property="FontSize" Value="13"/>
         <Setter Property="Foreground" Value="{ThemeResource RatingBrush}"/>
     </Style>
-    <Style x:Key="HeroBadgeTextStyle" TargetType="TextBlock" BasedOn="{StaticResource BadgeTextStyle}">
-        <Setter Property="Foreground" Value="{ThemeResource HeroTitleForegroundBrush}"/>
+    <Style x:Key="HeroBadgeTextStyle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource MiSansRegularFontFamily}"/>
+        <Setter Property="FontSize" Value="{StaticResource BodySmallFontSize}"/>
+        <Setter Property="Foreground" Value="{ThemeResource HeroMetaForegroundBrush}"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+    <Style x:Key="HeroStarTextStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="15"/>
+        <Setter Property="Foreground" Value="{ThemeResource RatingBrush}"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
     <Style x:Key="OnboardingTitleStyle" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource MiSansBoldFontFamily}"/>

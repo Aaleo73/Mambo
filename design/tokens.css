@@ -1,6 +1,7 @@
 /*
- * Mambo 设计 token（P2 设计稿）
- * 单位为 DIP（1px = 1 DIP）。已转换为 src/Mambo.App/Themes/Tokens.xaml（2026-10-02 定稿），修改时两边同步。
+ * Mambo 设计 token
+ * 单位为 DIP（1px = 1 DIP）。与 src/Mambo.App/Themes/Tokens.xaml 同步；取值以原项目为基准（docs/decisions/P9-visual-parity.md）。
+ * 原型页面（index.html、prototype.css、prototype.js）仍是 P2 的样子，不再作为视觉依据。
  * 字体直接引用 App 的 MiSans；用 file:// 直接打开时浏览器可能拦截字体并回退到系统字体，建议按 README 用本地 HTTP 打开。
  */
 
@@ -22,10 +23,11 @@
   --type-body-sm: 13px/18px;
   --type-body: 14px/20px;
   --type-body-lg: 16px/24px;
-  --type-subtitle: 20px/28px;
-  --type-title: 30px/38px;
+  --type-subtitle: 24px/28px;   /* 分区标题，粗体 */
+  --type-title: 34px/42px;      /* 页标题，粗体 */
+  --type-group: 18px/26px;      /* 设置分区名、状态页标题，半粗体 */
   --type-title-lg: 40px/48px;
-  --tracking-eyebrow: .16em;
+  --tracking-eyebrow: .18em;
 
   /* ---------- 间距（4px 栅格） ---------- */
   --sp-1: 4px;
@@ -48,10 +50,11 @@
 
   /* ---------- 控件（沿用原版：柔和中性底 + 细边框 + 12 圆角） ---------- */
   --r-control: 12px;   /* 原版 --radius-control */
-  --r-item: 10px;      /* 导航项、菜单项 */
-  --r-popup: 16px;     /* 弹出面（原版 18，略收） */
-  --control-h: 36px;
-  --control-h-lg: 42px; /* 原版按钮高度 */
+  --r-item: 8px;       /* 导航项 */
+  --r-popup: 18px;     /* 弹出面 */
+  --control-h: 42px;   /* 按钮 */
+  --pill-h: 36px;      /* 计数、排序、筛选胶囊 */
+  --input-h: 38px;
   --control-h-sm: 30px;
   --nav-h: 40px;
 
@@ -59,24 +62,26 @@
   --titlebar-h: 40px;
   --sidebar-w: 208px;
   --caption-w: 46px;
-  --page-pad-x: 40px;
-  --page-pad-top: 32px;
+  --page-pad-x: 24px;
+  --page-pad-top: 20px;
+  --page-pad-bottom: 32px;
 
   /* ---------- 卡片尺寸 ---------- */
   --poster-w: 150px;
   --poster-h: 220px;
-  --poster-r: 12px;
+  --poster-r: 14px;
   --landscape-w: 300px;
   --landscape-h: 169px;
   --landscape-r: 10px;
   --landscape-min: 240px;  /* 横版网格最小卡宽：列数 = floor((可用宽 + 16) / (240 + 16))，1100 宽 3 列、1500 宽 4 列、1920 宽 6 列 */
   --person-w: 132px;
   --grid-gap-x: 20px;
-  --grid-gap-y: 28px;
-  --rail-gap: 16px;
+  --grid-gap-y: 24px;
+  --rail-gap: 12px;
   --hero-min-h: 500px;
   --hero-max-h: 600px;
   --hero-ratio: .62;      /* 占窗口高度的比例 */
+  --hero-max-width-ratio: .4; /* 高度上限 = max(hero-max-h, 内容区宽 × 这个值) */
 
   /* ---------- 动效 ---------- */
   --ease-standard: cubic-bezier(.4, 0, .2, 1);
@@ -88,6 +93,11 @@
   --dur-fast: 160ms;
   --dur-normal: 240ms;
   --dur-route: 280ms;
+  --dur-image-ready: 140ms;
+  --dur-hero-exit: 180ms;
+  --dur-cover: 220ms;
+  --dur-hero-content: 320ms;
+  --dur-fold: 560ms;
   --dur-player: 360ms;
   --dur-hero: 480ms;
   --dur-settle: 500ms;
@@ -96,16 +106,16 @@
 /* ---------- 浅色主题（默认，贴近原版） ---------- */
 [data-theme="light"] {
   color-scheme: light;
-  --text-1: rgba(22, 22, 26, .92);
-  --text-2: rgba(28, 28, 32, .68);
-  --text-3: rgba(36, 36, 40, .50);
+  --text-1: rgba(24, 24, 24, .90);
+  --text-2: rgba(30, 30, 30, .72);
+  --text-3: rgba(38, 38, 38, .55);
   --text-disabled: rgba(0, 0, 0, .32);
   --text-on-accent: #ffffff;
 
   --accent: #0c68b8;
-  --accent-hover: #0a5ca3;
+  --accent-hover: #095a9f;
   --accent-press: #08508e;
-  --accent-subtle: rgba(12, 104, 184, .10);
+  --accent-subtle: rgba(12, 104, 184, .16);
   --accent-text: #0a5fa8;
   --danger: #c42b1c;
   --danger-hover: #a52315;
@@ -121,33 +131,45 @@
 
   /* 内容区：与外壳同一层玻璃，只有左、上细线（原版） */
   --content-stroke: rgba(0, 0, 0, .10);
-  --rule: rgba(0, 0, 0, .08);
+  --rule: rgba(0, 0, 0, .10);
+  --rule-hair: rgba(0, 0, 0, .07);
+  --rule-strong: rgba(0, 0, 0, .15);
   --inverse: #ffffff;      /* 选中环、反色文字 */
 
   /* 填充与描边（原版的中性柔和底） */
   --fill-subtle-hover: rgba(0, 0, 0, .04);
-  --fill-subtle-press: rgba(0, 0, 0, .07);
+  --fill-subtle-press: rgba(0, 0, 0, .08);
+  --wash: rgba(0, 0, 0, .06);
+  --wash-press: rgba(0, 0, 0, .10);
+  --selected: rgba(0, 0, 0, .08);
   --fill-control: rgba(0, 0, 0, .035);
   --fill-control-hover: rgba(0, 0, 0, .06);
-  --fill-control-press: rgba(0, 0, 0, .085);
+  --fill-control-press: rgba(0, 0, 0, .08);
+  --fill-control-focus: rgba(0, 0, 0, .07);
+  --stroke-control-strong: rgba(0, 0, 0, .18);
+  --shadow-control: 0 8px 22px rgba(15, 23, 42, .08);
   --stroke-control: rgba(0, 0, 0, .10);
   --fill-input: rgba(0, 0, 0, .025);
-  --fill-input-hover: rgba(0, 0, 0, .04);
-  --fill-input-focus: rgba(255, 255, 255, .6);
-  --stroke-input: rgba(0, 0, 0, .18);
+  --fill-input-hover: rgba(0, 0, 0, .025);
+  --fill-input-focus: rgba(0, 0, 0, .035);
+  --stroke-input: rgba(0, 0, 0, .20);
   --accent-60: rgba(12, 104, 184, .6);
   --focus: rgba(12, 104, 184, .72);
   --focus-soft: rgba(12, 104, 184, .16);
-  --nav-active: rgba(0, 0, 0, .10);
+  --nav-active: rgba(0, 0, 0, .12);
   --nav-hover: rgba(0, 0, 0, .04);
   --nav-press: rgba(0, 0, 0, .08);
-  --chip: rgba(0, 0, 0, .045);
-  --chip-hover: rgba(0, 0, 0, .075);
+  --chip: rgba(255, 255, 255, .16);
+  --chip-hover: rgba(255, 255, 255, .26);
+  --chip-stroke: rgba(0, 0, 0, .07);
+  --chip-stroke-hover: rgba(0, 0, 0, .12);
+  --chip-selected: rgba(0, 0, 0, .09);
+  --chip-selected-stroke: rgba(0, 0, 0, .16);
   --switch-off: rgba(0, 0, 0, .16);
 
   --card-stroke: rgba(0, 0, 0, .14);
   --card-stroke-hover: rgba(0, 0, 0, .30);
-  --placeholder: rgba(0, 0, 0, .045);
+  --placeholder: rgba(0, 0, 0, .05);
   --skeleton: rgba(0, 0, 0, .05);
   --skeleton-shine: rgba(255, 255, 255, .55);
 
@@ -162,9 +184,9 @@
 /* ---------- 深色主题（评估用） ---------- */
 [data-theme="dark"] {
   color-scheme: dark;
-  --text-1: rgba(255, 255, 255, .94);
-  --text-2: rgba(255, 255, 255, .70);
-  --text-3: rgba(255, 255, 255, .50);
+  --text-1: rgba(255, 255, 255, .92);
+  --text-2: rgba(255, 255, 255, .72);
+  --text-3: rgba(255, 255, 255, .55);
   --text-disabled: rgba(255, 255, 255, .34);
   --text-on-accent: #ffffff;
 
@@ -185,27 +207,39 @@
   --window-shadow: 0 32px 64px rgba(0, 0, 0, .45), 0 2px 21px rgba(0, 0, 0, .35);
 
   --content-stroke: rgba(255, 255, 255, .10);
-  --rule: rgba(255, 255, 255, .08);
+  --rule: rgba(255, 255, 255, .10);
+  --rule-hair: rgba(255, 255, 255, .07);
+  --rule-strong: rgba(255, 255, 255, .15);
   --inverse: #1d1f24;
 
-  --fill-subtle-hover: rgba(255, 255, 255, .06);
-  --fill-subtle-press: rgba(255, 255, 255, .04);
+  --fill-subtle-hover: rgba(255, 255, 255, .05);
+  --fill-subtle-press: rgba(255, 255, 255, .09);
+  --wash: rgba(255, 255, 255, .09);
+  --wash-press: rgba(255, 255, 255, .14);
+  --selected: rgba(255, 255, 255, .12);
   --fill-control: rgba(255, 255, 255, .06);
   --fill-control-hover: rgba(255, 255, 255, .09);
   --fill-control-press: rgba(255, 255, 255, .12);
+  --fill-control-focus: rgba(255, 255, 255, .11);
+  --stroke-control-strong: rgba(255, 255, 255, .20);
+  --shadow-control: 0 8px 22px rgba(0, 0, 0, .28);
   --stroke-control: rgba(255, 255, 255, .10);
   --fill-input: rgba(255, 255, 255, .05);
-  --fill-input-hover: rgba(255, 255, 255, .07);
-  --fill-input-focus: rgba(0, 0, 0, .22);
-  --stroke-input: rgba(255, 255, 255, .18);
+  --fill-input-hover: rgba(255, 255, 255, .05);
+  --fill-input-focus: rgba(255, 255, 255, .07);
+  --stroke-input: rgba(255, 255, 255, .20);
   --accent-60: rgba(59, 143, 224, .6);
   --focus: rgba(122, 183, 240, .8);
   --focus-soft: rgba(59, 143, 224, .22);
-  --nav-active: rgba(255, 255, 255, .10);
+  --nav-active: rgba(255, 255, 255, .12);
   --nav-hover: rgba(255, 255, 255, .05);
   --nav-press: rgba(255, 255, 255, .08);
-  --chip: rgba(255, 255, 255, .07);
-  --chip-hover: rgba(255, 255, 255, .11);
+  --chip: rgba(255, 255, 255, .06);
+  --chip-hover: rgba(255, 255, 255, .10);
+  --chip-stroke: rgba(255, 255, 255, .08);
+  --chip-stroke-hover: rgba(255, 255, 255, .14);
+  --chip-selected: rgba(255, 255, 255, .14);
+  --chip-selected-stroke: rgba(255, 255, 255, .22);
   --switch-off: rgba(255, 255, 255, .22);
 
   --card-stroke: rgba(255, 255, 255, .12);

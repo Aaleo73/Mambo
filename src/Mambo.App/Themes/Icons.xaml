@@ -1,0 +1,47 @@
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!--
+        线条图标的路径数据，24×24 视框，配合 LineIcon 使用（描边 1.8、圆头圆角）。
+        形状来自 Feather Icons（MIT，见 THIRD_PARTY_NOTICES.md）；圆、矩形、折线已展开成路径命令。
+    -->
+    <x:String x:Key="IconHome">M3 9 L12 2 L21 9 V20 A2 2 0 0 1 19 22 H5 A2 2 0 0 1 3 20 Z M9 22 V12 H15 V22</x:String>
+    <x:String x:Key="IconClock">M12 3 A9 9 0 1 1 12 21 A9 9 0 1 1 12 3 Z M12 7 V12 L15.5 14</x:String>
+    <x:String x:Key="IconFilm">M4.18 2 H19.82 A2.18 2.18 0 0 1 22 4.18 V19.82 A2.18 2.18 0 0 1 19.82 22 H4.18 A2.18 2.18 0 0 1 2 19.82 V4.18 A2.18 2.18 0 0 1 4.18 2 Z M7 2 V22 M17 2 V22 M2 12 H22</x:String>
+    <x:String x:Key="IconTv">M4 7 H20 A2 2 0 0 1 22 9 V20 A2 2 0 0 1 20 22 H4 A2 2 0 0 1 2 20 V9 A2 2 0 0 1 4 7 Z M17 2 L12 7 L7 2</x:String>
+    <x:String x:Key="IconFolder">M22 19 A2 2 0 0 1 20 21 H4 A2 2 0 0 1 2 19 V5 A2 2 0 0 1 4 3 H9 L11 6 H20 A2 2 0 0 1 22 8 Z</x:String>
+    <x:String x:Key="IconSettings">M19.4 15 a1.65 1.65 0 0 0 0.33 1.82 l0.06 0.06 a2 2 0 0 1 0 2.83 a2 2 0 0 1 -2.83 0 l-0.06 -0.06 a1.65 1.65 0 0 0 -1.82 -0.33 a1.65 1.65 0 0 0 -1 1.51 V21 a2 2 0 0 1 -2 2 a2 2 0 0 1 -2 -2 v-0.09 A1.65 1.65 0 0 0 9 19.4 a1.65 1.65 0 0 0 -1.82 0.33 l-0.06 0.06 a2 2 0 0 1 -2.83 0 a2 2 0 0 1 0 -2.83 l0.06 -0.06 A1.65 1.65 0 0 0 4.68 15 a1.65 1.65 0 0 0 -1.51 -1 H3 a2 2 0 0 1 -2 -2 a2 2 0 0 1 2 -2 h0.09 A1.65 1.65 0 0 0 4.6 9 a1.65 1.65 0 0 0 -0.33 -1.82 l-0.06 -0.06 a2 2 0 0 1 0 -2.83 a2 2 0 0 1 2.83 0 l0.06 0.06 A1.65 1.65 0 0 0 9 4.68 a1.65 1.65 0 0 0 1 -1.51 V3 a2 2 0 0 1 2 -2 a2 2 0 0 1 2 2 v0.09 a1.65 1.65 0 0 0 1 1.51 a1.65 1.65 0 0 0 1.82 -0.33 l0.06 -0.06 a2 2 0 0 1 2.83 0 a2 2 0 0 1 0 2.83 l-0.06 0.06 a1.65 1.65 0 0 0 -0.33 1.82 V9 a1.65 1.65 0 0 0 1.51 1 H21 a2 2 0 0 1 2 2 a2 2 0 0 1 -2 2 h-0.09 a1.65 1.65 0 0 0 -1.51 1 Z M12 9 A3 3 0 1 1 12 15 A3 3 0 1 1 12 9 Z</x:String>
+    <x:String x:Key="IconSearch">M11 3 A8 8 0 1 1 11 19 A8 8 0 1 1 11 3 Z M21 21 L16.65 16.65</x:String>
+    <x:String x:Key="IconClose">M18 6 L6 18 M6 6 L18 18</x:String>
+    <x:String x:Key="IconChevronLeft">M15 18 L9 12 L15 6</x:String>
+    <x:String x:Key="IconChevronRight">M9 18 L15 12 L9 6</x:String>
+    <x:String x:Key="IconChevronDown">M6 9 L12 15 L18 9</x:String>
+    <x:String x:Key="IconChevronUp">M18 15 L12 9 L6 15</x:String>
+    <x:String x:Key="IconCheck">M20 6 L9 17 L4 12</x:String>
+    <x:String x:Key="IconAlertTriangle">M10.29 3.86 L1.82 18 A2 2 0 0 0 3.53 21 H20.47 A2 2 0 0 0 22.18 18 L13.71 3.86 A2 2 0 0 0 10.29 3.86 Z M12 9 V13 M12 17 H12.01</x:String>
+    <x:String x:Key="IconAlertCircle">M12 2 A10 10 0 1 1 12 22 A10 10 0 1 1 12 2 Z M12 8 V12 M12 16 H12.01</x:String>
+    <x:String x:Key="IconFilter">M22 3 H2 L10 12.46 V19 L14 21 V12.46 Z</x:String>
+    <x:String x:Key="IconSort">M4 6 H20 M4 12 H14 M4 18 H8</x:String>
+    <x:String x:Key="IconRefresh">M23 4 V10 H17 M20.49 15 A9 9 0 1 1 18.36 5.64 L23 10</x:String>
+    <x:String x:Key="IconList">M8 6 H21 M8 12 H21 M8 18 H21 M3 6 H3.01 M3 12 H3.01 M3 18 H3.01</x:String>
+    <x:String x:Key="IconGrid">M3 3 H10 V10 H3 Z M14 3 H21 V10 H14 Z M14 14 H21 V21 H14 Z M3 14 H10 V21 H3 Z</x:String>
+    <x:String x:Key="IconPanelRight">M5 3 H19 A2 2 0 0 1 21 5 V19 A2 2 0 0 1 19 21 H5 A2 2 0 0 1 3 19 V5 A2 2 0 0 1 5 3 Z M15 3 V21</x:String>
+    <x:String x:Key="IconMaximize">M15 3 H21 V9 M9 21 H3 V15 M21 3 L14 10 M3 21 L10 14</x:String>
+    <x:String x:Key="IconFullscreen">M4 9 V4 H9 M20 15 V20 H15 M15 4 H20 V9 M9 20 H4 V15</x:String>
+    <x:String x:Key="IconFullscreenExit">M9 4 V9 H4 M15 20 V15 H20 M20 9 H15 V4 M4 15 H9 V20</x:String>
+    <x:String x:Key="IconVolumeWaves">M16 9.5 A3.2 3.2 0 0 1 16 14.5 M18.2 7.2 A6.2 6.2 0 0 1 18.2 16.8</x:String>
+    <x:String x:Key="IconVolumeMuted">M16 9 L21 15 M21 9 L16 15</x:String>
+
+    <!-- 实心图标：LineIcon 设 Filled="True" -->
+    <x:String x:Key="IconPlay">M6 4 L20 12 L6 20 Z</x:String>
+    <x:String x:Key="IconPause">M6.2 4 H8.3 A1.2 1.2 0 0 1 9.5 5.2 V18.8 A1.2 1.2 0 0 1 8.3 20 H6.2 A1.2 1.2 0 0 1 5 18.8 V5.2 A1.2 1.2 0 0 1 6.2 4 Z M15.7 4 H17.8 A1.2 1.2 0 0 1 19 5.2 V18.8 A1.2 1.2 0 0 1 17.8 20 H15.7 A1.2 1.2 0 0 1 14.5 18.8 V5.2 A1.2 1.2 0 0 1 15.7 4 Z</x:String>
+    <x:String x:Key="IconSkipPrevious">M4 5 H6.2 V19 H4 Z M20 5 L9 12 L20 19 Z</x:String>
+    <x:String x:Key="IconSkipNext">M4 5 L15 12 L4 19 Z M17.8 5 H20 V19 H17.8 Z</x:String>
+    <x:String x:Key="IconVolumeBody">M4 10 V14 H7.2 L12 18 V6 L7.2 10 Z</x:String>
+
+    <!-- 窗口按钮：10×10 视框，Box="10"，描边 1（关闭 1.2） -->
+    <x:String x:Key="CaptionMinimize">M0 5 H10</x:String>
+    <x:String x:Key="CaptionMaximize">M0.5 0.5 H9.5 V9.5 H0.5 Z</x:String>
+    <x:String x:Key="CaptionRestore">M2.5 2.5 H0.5 V9.5 H7.5 V7.5 M2.5 0.5 H9.5 V7.5 H2.5 Z</x:String>
+    <x:String x:Key="CaptionClose">M0 0 L10 10 M10 0 L0 10</x:String>
+</ResourceDictionary>
