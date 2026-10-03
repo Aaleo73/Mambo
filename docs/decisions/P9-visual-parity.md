@@ -65,6 +65,14 @@
 
 原生播放首轮也曾在起播阶段返回 `playback.failed`（`artifacts/native-overlay-validation/29a0e7c709ab4fccad2927706f6e5755/app-report.json`）；随后 Debug、AOT 均实际起播、关闭成功。该次原生失败原因未定位，不能据此宣称修复了原生引擎缺陷。临时诊断代码已移除。
 
+## 浏览页补充调整
+
+- 侧栏隐藏滚动条，保留媒体库长列表的纵向滚动。
+- 设置页移除 1024 DIP 最大宽度，分区与分隔线铺满右侧可用宽度，保留页面内边距。
+- 详情页剧集行采用与首页一致的 `ScrollView` + `ItemsRepeater`，保留虚拟化、目标集定位、换季复位与末尾加载；通过按住拖动或左右箭头横向移动，不再接收滚轮横移，纵向滚轮留给整页。
+- 该轮 `dotnet build -p:Platform=x64 --no-restore` 通过，0 警告、0 错误；实际假数据窗口的最大化与最小尺寸设置页均保持 24 DIP 右内边距，侧栏未显示滚动条。
+
+
 ## 图标与许可
 
 当前实现使用 **Feather Icons 4.29.2 / MIT**，不是计划初稿所列的 Lucide / ISC。线性路径在 `Themes/Icons.xaml` 中适配为 WinUI Geometry；来源为 [Feather 上游](https://github.com/feathericons/feather/tree/v4.29.2)。完整版权和 MIT 文本已加入 `LICENSES/Feather-4.29.2-LICENSE.txt`，并登记在 `THIRD_PARTY_NOTICES.md`、`LICENSES/sources.json` 中。现有项目规则自动将许可文件复制到构建和发布目录。

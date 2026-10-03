@@ -282,17 +282,19 @@
                         <TextBlock Style="{StaticResource BodySmallTextStyle}" Foreground="{ThemeResource TextSecondaryBrush}" Text="{x:Bind ViewModel.SeriesErrorText, Mode=OneWay}" VerticalAlignment="Center" TextWrapping="Wrap"/>
                         <Button Style="{StaticResource SoftButtonStyle}" Content="重试" Click="OnRetryClick"/>
                     </StackPanel>
-                    <ListView x:Name="EpisodeList" Height="238" Margin="4,-8,4,0" Padding="20,8,8,8" ItemsSource="{x:Bind ViewModel.Episodes}" SelectionMode="None" IsItemClickEnabled="False"
-                              ItemContainerStyle="{StaticResource RailItemStyle}" Loaded="OnEpisodeListLoaded"
-                              ScrollViewer.HorizontalScrollBarVisibility="Hidden" ScrollViewer.VerticalScrollBarVisibility="Disabled"
-                              ScrollViewer.VerticalScrollMode="Disabled" ScrollViewer.HorizontalScrollMode="Enabled">
-                        <ListView.ItemsPanel><ItemsPanelTemplate><ItemsStackPanel Orientation="Horizontal"/></ItemsPanelTemplate></ListView.ItemsPanel>
-                        <ListView.ItemTemplate>
-                            <DataTemplate x:DataType="vm:DetailEpisodeViewModel">
-                                <controls:EpisodeCard Episode="{x:Bind}" Click="OnEpisodeClick" PlayClick="OnEpisodePlayClick"/>
-                            </DataTemplate>
-                        </ListView.ItemTemplate>
-                    </ListView>
+                    <ScrollView x:Name="EpisodeScroller" Height="238" Margin="4,-8,4,0" ContentOrientation="Horizontal"
+                                HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden"
+                                VerticalScrollMode="Disabled" IgnoredInputKinds="MouseWheel"
+                                ViewChanged="OnEpisodeViewChanged" ExtentChanged="OnEpisodeExtentChanged" SizeChanged="OnEpisodeScrollerSizeChanged">
+                        <ItemsRepeater x:Name="EpisodeRepeater" Margin="20,8,20,8" ItemsSource="{x:Bind ViewModel.Episodes}">
+                            <ItemsRepeater.Layout><StackLayout Orientation="Horizontal" Spacing="{StaticResource RailSpacing}"/></ItemsRepeater.Layout>
+                            <ItemsRepeater.ItemTemplate>
+                                <DataTemplate x:DataType="vm:DetailEpisodeViewModel">
+                                    <controls:EpisodeCard Episode="{x:Bind}" Click="OnEpisodeClick" PlayClick="OnEpisodePlayClick"/>
+                                </DataTemplate>
+                            </ItemsRepeater.ItemTemplate>
+                        </ItemsRepeater>
+                    </ScrollView>
                     <!-- 季信息或这一季的剧集还在加载：一行骨架卡片 -->
                     <StackPanel x:Name="EpisodeSkeleton" Orientation="Horizontal" Spacing="{StaticResource RailSpacing}" Padding="24,0" Visibility="{x:Bind ViewModel.IsEpisodesLoading, Mode=OneWay}"/>
                     <controls:StateView Title="剧集加载失败" Visibility="{x:Bind ViewModel.HasEpisodesError, Mode=OneWay}">

@@ -25,8 +25,6 @@
         <StackPanel Padding="{StaticResource PagePadding}">
             <controls:PageHeader Eyebrow="SETTINGS" Title="设置"/>
 
-            <Grid>
-            <Grid.ColumnDefinitions><ColumnDefinition Width="*" MaxWidth="1024"/></Grid.ColumnDefinitions>
             <Border BorderBrush="{ThemeResource RuleStrongBrush}" BorderThickness="0,1,0,1">
                 <StackPanel>
                     <!-- 服务器 -->
@@ -202,7 +200,6 @@
                     </Grid>
                 </StackPanel>
             </Border>
-            </Grid>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

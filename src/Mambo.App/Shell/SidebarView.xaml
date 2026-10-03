@@ -22,7 +22,7 @@
                 <themes:LineIcon Glyph="{StaticResource IconSearch}" Width="15" Height="15" StrokeWidth="2"/>
             </Button>
         </Grid>
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled">
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
             <StackPanel Spacing="2">
                 <RadioButton x:Name="HomeItem" Style="{StaticResource NavItemStyle}" GroupName="SidebarNav" IsChecked="{x:Bind ViewModel.IsHomeActive, Mode=OneWay}"
                              Checked="OnHomeChecked" AutomationProperties.Name="首页">

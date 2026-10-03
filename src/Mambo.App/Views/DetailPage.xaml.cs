@@ -20,11 +20,12 @@ public sealed partial class DetailPage : UserControl, INavigablePage, IDisposabl
 {
     // 进度环：直径 67、线宽 2.6。虚线长度以线宽为单位，一整圈是 π × (67 − 2.6) ÷ 2.6。
     private const double RingDashUnits = Math.PI * (67 - 2.6) / 2.6;
+    private static readonly ScrollingScrollOptions Instant = new(ScrollingAnimationMode.Disabled, ScrollingSnapPointsMode.Ignore);
+    private static readonly ScrollingScrollOptions Animated = new(ScrollingAnimationMode.Enabled, ScrollingSnapPointsMode.Ignore);
     private readonly WindowContext window;
     private WindowContrastObserver? contrastObserver;
-    private ScrollViewer? episodeScroller;
     private ScrollViewer? peopleScroller;
-    private RailScroller? episodeRail;
+    private readonly RailScroller episodeRail;
     private RailScroller? peopleRail;
     private bool disposed;
     private DetailViewState? pendingRestore;
@@ -42,6 +43,12 @@ public sealed partial class DetailPage : UserControl, INavigablePage, IDisposabl
         this.window = window;
         ViewModel = viewModel;
         InitializeComponent();
+        episodeRail = new RailScroller(EpisodeScroller, () => EpisodeScroller.HorizontalOffset, () => EpisodeScroller.ScrollableWidth, () => EpisodeScroller.ViewportWidth,
+            (offset, animate) => EpisodeScroller.ScrollTo(offset, 0, animate && Motion.AnimationsEnabled ? Animated : Instant))
+        {
+            Pitch = (double)Application.Current.Resources["LandscapeWidth"] + (double)Application.Current.Resources["RailSpacing"],
+            IsWheelEnabled = false,
+        };
         // 原版的文字阴影：标题 0 2px 10px .65，评分信息 0 1px 3px .65，其余 0 1px 4px .6。
         SoftShadow.AttachDrop(TitleShadow, Heading, 10, 2, 0.65f);
         SoftShadow.AttachDrop(MetaShadow, MetaRow, 3, 1, 0.65f);
@@ -111,7 +118,9 @@ public sealed partial class DetailPage : UserControl, INavigablePage, IDisposabl
         contrastObserver ??= new WindowContrastObserver(window, DispatcherQueue, ApplyContrast);
         ApplyContrast(contrastObserver.HighContrast);
         UpdateHeroHeight();
-        AttachEpisodeScroller();
+        ScrollToTarget();
+        CheckLoadMore();
+        UpdateEpisodeArrows();
         AttachPeopleScroller();
         InitializeHeroArt();
         _ = LoadHeroArtAsync();
@@ -176,28 +185,7 @@ public sealed partial class DetailPage : UserControl, INavigablePage, IDisposabl
         if (scrimVisual is not null) scrimVisual.Size = size;
     }
 
-    private void OnEpisodeListLoaded(object sender, RoutedEventArgs e) => AttachEpisodeScroller();
     private void OnPeopleListLoaded(object sender, RoutedEventArgs e) => AttachPeopleScroller();
-
-    private void AttachEpisodeScroller()
-    {
-        if (disposed || episodeScroller is not null) return;
-        episodeScroller = FindScroller(EpisodeList);
-        if (episodeScroller is { } scroller)
-        {
-            scroller.ViewChanged += OnEpisodeViewChanged;
-            scroller.SizeChanged += OnEpisodeScrollerSizeChanged;
-            if (scroller.Content is FrameworkElement content) content.SizeChanged += OnEpisodeScrollerSizeChanged;
-            episodeRail = new RailScroller(scroller, () => scroller.HorizontalOffset, () => scroller.ScrollableWidth, () => scroller.ViewportWidth,
-                (offset, animate) => scroller.ChangeView(offset, null, null, !animate || !Motion.AnimationsEnabled))
-            {
-                Pitch = (double)Application.Current.Resources["LandscapeWidth"] + (double)Application.Current.Resources["RailSpacing"],
-            };
-        }
-        ScrollToTarget();
-        CheckLoadMore();
-        UpdateEpisodeArrows();
-    }
 
     private void AttachPeopleScroller()
     {
@@ -217,14 +205,6 @@ public sealed partial class DetailPage : UserControl, INavigablePage, IDisposabl
 
     private void DetachScrollers()
     {
-        if (episodeScroller is not null)
-        {
-            episodeScroller.ViewChanged -= OnEpisodeViewChanged;
-            episodeScroller.SizeChanged -= OnEpisodeScrollerSizeChanged;
-            if (episodeScroller.Content is FrameworkElement content) content.SizeChanged -= OnEpisodeScrollerSizeChanged;
-            episodeScroller = null;
-            episodeRail = null;
-        }
         if (peopleScroller is not null)
         {
             peopleScroller.ViewChanged -= OnPeopleViewChanged;
@@ -246,7 +226,8 @@ public sealed partial class DetailPage : UserControl, INavigablePage, IDisposabl
         return null;
     }
 
-    private void OnEpisodeViewChanged(object? sender, ScrollViewerViewChangedEventArgs e) { CheckLoadMore(); UpdateEpisodeArrows(); }
+    private void OnEpisodeViewChanged(ScrollView sender, object args) { CheckLoadMore(); UpdateEpisodeArrows(); }
+    private void OnEpisodeExtentChanged(ScrollView sender, object args) { CheckLoadMore(); UpdateEpisodeArrows(); }
     private void OnEpisodeScrollerSizeChanged(object sender, SizeChangedEventArgs e) { CheckLoadMore(); UpdateEpisodeArrows(); }
     private void OnPeopleViewChanged(object? sender, ScrollViewerViewChangedEventArgs e) => UpdatePeopleArrows();
     private void OnPeopleScrollerSizeChanged(object sender, SizeChangedEventArgs e) => UpdatePeopleArrows();
@@ -255,8 +236,8 @@ public sealed partial class DetailPage : UserControl, INavigablePage, IDisposabl
 
     private void CheckLoadMore()
     {
-        if (episodeScroller is not { } scroller || !IsLoaded || ViewModel.HasEpisodeMoreError) return;
-        if (scroller.ScrollableWidth - scroller.HorizontalOffset <= scroller.ViewportWidth * 1.5) _ = ViewModel.LoadMoreAsync();
+        if (!IsLoaded || disposed || ViewModel.HasEpisodeMoreError) return;
+        if (EpisodeScroller.ScrollableWidth - EpisodeScroller.HorizontalOffset <= EpisodeScroller.ViewportWidth * 1.5) _ = ViewModel.LoadMoreAsync();
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -323,8 +304,18 @@ public sealed partial class DetailPage : UserControl, INavigablePage, IDisposabl
     private void ScrollToTarget()
     {
         if (!IsLoaded || disposed || ViewModel.SelectedEpisodeId is not { } id) return;
-        var target = ViewModel.Episodes.FirstOrDefault(e => e.Id == id);
-        if (target is not null) EpisodeList.ScrollIntoView(target, ScrollIntoViewAlignment.Default);
+        for (var index = 0; index < ViewModel.Episodes.Count; index++)
+        {
+            if (ViewModel.Episodes[index].Id != id) continue;
+            EpisodeScroller.UpdateLayout();
+            var left = EpisodeRepeater.Margin.Left + index * episodeRail.Pitch;
+            var right = left + (double)Application.Current.Resources["LandscapeWidth"];
+            var offset = EpisodeScroller.HorizontalOffset;
+            if (left < offset) offset = left;
+            else if (right > offset + EpisodeScroller.ViewportWidth) offset = right - EpisodeScroller.ViewportWidth;
+            EpisodeScroller.ScrollTo(Math.Clamp(offset, 0, EpisodeScroller.ScrollableWidth), 0, Instant);
+            break;
+        }
     }
 
     private void InitializeHeroArt()
@@ -428,7 +419,7 @@ public sealed partial class DetailPage : UserControl, INavigablePage, IDisposabl
         if (sender is not FrameworkElement { Tag: string id }) return;
         ViewModel.SelectSeason(id);
         if (sender is ToggleButton seasonButton) seasonButton.IsChecked = true;
-        episodeScroller?.ChangeView(0, null, null, true);
+        EpisodeScroller.ScrollTo(0, 0, Instant);
     }
 
     private void OnEpisodeClick(object sender, RoutedEventArgs e)

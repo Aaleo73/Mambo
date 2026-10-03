@@ -50,6 +50,9 @@ internal sealed class RailScroller
     /// <summary>卡片宽度加间距；大于 0 时落点吸附到它的整数倍。</summary>
     public double Pitch { get; set; }
 
+    /// <summary>是否允许横向或 Shift+滚轮；关闭后滚轮留给外层页面。</summary>
+    public bool IsWheelEnabled { get; init; } = true;
+
     /// <summary>按当前位置更新箭头：不能滚动时整组隐藏，到头的一侧禁用。</summary>
     public void UpdateArrows(FrameworkElement group, Control left, Control right)
     {
@@ -82,6 +85,7 @@ internal sealed class RailScroller
 
     private void OnWheel(object sender, PointerRoutedEventArgs e)
     {
+        if (!IsWheelEnabled) return;
         var properties = e.GetCurrentPoint(surface).Properties;
         var shift = (InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Shift) & Windows.UI.Core.CoreVirtualKeyStates.Down) != 0;
         if (!properties.IsHorizontalMouseWheel && !shift) return;
