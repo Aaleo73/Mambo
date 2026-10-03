@@ -25,6 +25,7 @@ using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using NativeValue = Mambo.Player.LibMpv.MpvValue;
 
 namespace Mambo.App.Debug;
 
@@ -75,6 +76,10 @@ internal static class NativeOverlaySmoke
                 && services.GetRequiredService<IImageService>() is FakeImageService
                 && services.GetRequiredService<ILibraryPreferences>() is FakeLibraryPreferences;
             if (!report.IsolatedServicesVerified) throw new InvalidOperationException("NativeOverlayIsolationRequired");
+            // Only in-memory diagnostic settings are changed. The generated PCM is already
+            // very quiet, and the actual playback starts at a deliberately low volume.
+            await services.GetRequiredService<ISettingsService>().UpdateAsync(value => value with { Volume = 15 }, token);
+            report.AudioFixtureGenerated = fixture.AudioFixtureGenerated;
             report.Stage = "等待正式外壳";
             await WaitAsync(() => window.Shell.IsLoaded && window.Shell.ActualWidth > 0, token);
             report.Stage = "正式入口打开本地片源";
@@ -106,9 +111,30 @@ internal static class NativeOverlaySmoke
             report.ViewportMatched = ViewportMatched(player);
             report.TitleBound = player.ViewModel.Title == LocalPreparer.Title;
             report.ProductionEngineParameters = fixture.EngineCreateCount == 1;
-            if (real.Engine is LibMpvEngine engine)
-                report.AudioOutputAvailable = engine.Core.GetProperty("current-ao") is Mambo.Player.LibMpv.MpvValue.Text { Value.Length: > 0 };
+            if (real.Engine is not LibMpvEngine engine) throw new InvalidOperationException("NativeAudioEngineRequired");
+            report.Stage = "等待真实音轨和音频输出";
+            // Playing alone also succeeds with an unusable AO. Require the real driver,
+            // selected external PCM track and output format before testing any controls.
+            await WaitAsync(() => ReadAudioState(engine.Core, session.Snapshot, report), token);
             await WaitAsync(() => fixture.Handler.Count("Playing") == 1, token);
+
+            report.Stage = "正式音量和静音控件回写";
+            player.ShowControlsForSmoke();
+            await player.DispatchSmokeVolumeAsync(10);
+            await WaitAsync(() => Math.Abs(session.Snapshot.Volume - 10) < .01
+                && Math.Abs(player.ViewModel.Snapshot.Volume - 10) < .01
+                && NativeNumber(engine.Core.GetProperty("volume")) is { } volume && Math.Abs(volume - 10) < .01, token);
+            report.VolumeControl = true;
+            report.NativeVolume = NativeNumber(engine.Core.GetProperty("volume")) ?? 0;
+            InvokeButton(player, player.ViewModel.MuteAccessibleName);
+            await WaitAsync(() => session.Snapshot.IsMuted && player.ViewModel.Snapshot.IsMuted
+                && engine.Core.GetProperty("mute") is NativeValue.Flag { Value: true }, token);
+            report.MuteButton = true;
+            InvokeButton(player, player.ViewModel.MuteAccessibleName);
+            await WaitAsync(() => !session.Snapshot.IsMuted && !player.ViewModel.Snapshot.IsMuted
+                && engine.Core.GetProperty("mute") is NativeValue.Flag { Value: false }, token);
+            report.UnmuteButton = true;
+            report.NativeUnmuted = engine.Core.GetProperty("mute") is NativeValue.Flag { Value: false };
 
             report.Stage = "真实控件暂停和跳转";
             player.ShowControlsForSmoke();
@@ -121,6 +147,12 @@ internal static class NativeOverlaySmoke
             InvokeButton(player, player.ViewModel.PauseAccessibleName);
             await WaitAsync(() => !session.Snapshot.IsPaused && !player.ViewModel.IsPaused, token);
             report.ResumeButton = true;
+            report.Stage = "确认恢复后真实音频继续输出";
+            var audioStart = NativeNumber(engine.Core.GetProperty("time-pos")) ?? 0;
+            await WaitAsync(() => ReadAudioState(engine.Core, session.Snapshot, report)
+                && engine.Core.GetProperty("mute") is NativeValue.Flag { Value: false }
+                && NativeNumber(engine.Core.GetProperty("time-pos")) is { } position && position >= audioStart + .1, token);
+            report.AudioPlaybackAdvanced = true;
 
             report.Stage = "真实关闭按钮和交换链解绑";
             var surface = player.VideoSurface;
@@ -162,6 +194,9 @@ internal static class NativeOverlaySmoke
             report.Passed = report.ErrorKind.Length == 0 && report.CleanupErrorKind.Length == 0
                 && report.IsolatedServicesVerified && report.FormalOverlayLoaded && report.RealEmbeddedEngine
                 && report.ProductionEngineParameters && report.TitleBound && report.Playing && report.Bound && report.SizeMatched && report.ViewportMatched
+                && report.AudioFixtureGenerated && report.AudioOutputAvailable && report.AudioTrackSelected && report.ExternalAudioTrackSelected
+                && report.AudioOutputSampleRate > 0 && report.AudioOutputChannels > 0 && report.AudioPlaybackAdvanced
+                && report.VolumeControl && report.MuteButton && report.UnmuteButton && report.NativeUnmuted && Math.Abs(report.NativeVolume - 10) < .01
                 && report.PauseButton && report.SeekControl && report.ResumeButton && report.Closed && report.Detached
                 && report.Stopped && report.OutboxEmpty && report.ReportSequenceOrdered && report.ShutdownCompleted;
             if (report.Passed) report.Stage = "完成";
@@ -188,6 +223,38 @@ internal static class NativeOverlaySmoke
             (int)Math.Round(player.ActualHeight * player.VideoSurface.DpiScale));
         return expected.Item1 > 200 && expected.Item2 > 200 && player.VideoSurface.BufferSize == expected;
     }
+
+    private static bool ReadAudioState(MpvCore core, SessionSnapshot snapshot, NativeOverlayReport report)
+    {
+        report.AudioOutputDriver = core.GetProperty("current-ao") is NativeValue.Text text ? text.Value : "";
+        report.AudioOutputAvailable = report.AudioOutputDriver.Length > 0
+            && !report.AudioOutputDriver.Equals("null", StringComparison.OrdinalIgnoreCase);
+        var aid = NativeNumber(core.GetProperty("aid"));
+        report.SelectedAudioTrackId = aid is > 0 and <= int.MaxValue ? (int)aid.Value : 0;
+        var id = report.SelectedAudioTrackId.ToString(CultureInfo.InvariantCulture);
+        report.AudioTrackSelected = report.SelectedAudioTrackId > 0 && snapshot.SelectedAudioTrackId == id
+            && snapshot.AudioTracks.Any(track => track.Id == id);
+        report.ExternalAudioTrackSelected = core.GetProperty("track-list") is NativeValue.Array tracks
+            && tracks.Values.OfType<NativeValue.Map>().Any(track =>
+                track.Values.GetValueOrDefault("type") is NativeValue.Text { Value: "audio" }
+                && NativeNumber(track.Values.GetValueOrDefault("id")) == report.SelectedAudioTrackId
+                && track.Values.GetValueOrDefault("external") is NativeValue.Flag { Value: true }
+                && track.Values.GetValueOrDefault("selected") is NativeValue.Flag { Value: true });
+        var output = core.GetProperty("audio-out-params") as NativeValue.Map;
+        report.AudioOutputSampleRate = (int)Math.Clamp(NativeNumber(output?.Values.GetValueOrDefault("samplerate")) ?? 0, 0, int.MaxValue);
+        report.AudioOutputChannels = (int)Math.Clamp(NativeNumber(output?.Values.GetValueOrDefault("channel-count")) ?? 0, 0, int.MaxValue);
+        return report.AudioOutputAvailable && report.AudioTrackSelected && report.ExternalAudioTrackSelected
+            && report.AudioOutputSampleRate > 0 && report.AudioOutputChannels > 0;
+    }
+
+    private static double? NativeNumber(NativeValue? value) => value switch
+    {
+        NativeValue.WholeNumber number => number.Value,
+        NativeValue.Number number when double.IsFinite(number.Value) => number.Value,
+        NativeValue.Text text when double.TryParse(text.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var number)
+            && double.IsFinite(number) => number,
+        _ => null,
+    };
 
     private static void InvokeButton(DependencyObject root, string name)
     {
@@ -220,17 +287,22 @@ internal static class NativeOverlaySmoke
         public ReportHandler Handler { get; } = new();
         public StopOutbox Outbox { get; }
         public int EngineCreateCount => Volatile.Read(ref engineCreateCount);
+        public bool AudioFixtureGenerated { get; }
 
         public Fixture(Uri sample, string report, string run, ISettingsService settings, IUiScheduler scheduler, IMessenger messenger)
         {
             if (!sample.IsFile) throw new InvalidOperationException("LocalSampleRequired");
             ReportPath = report; RunId = run;
             var paths = new AppPaths(Path.Combine(Path.GetDirectoryName(report)!, "native-overlay-state-" + run));
+            Directory.CreateDirectory(paths.Root);
+            var tone = Path.Combine(paths.Root, "quiet-tone.wav");
+            GenerateQuietTone(tone);
+            AudioFixtureGenerated = File.Exists(tone) && new FileInfo(tone).Length == 44 + 48000 * 30 * 4;
             accounts.Set(new(new SessionSecret("https://" + Guid.NewGuid().ToString("N") + ".invalid/emby",
                 Guid.NewGuid().ToString("N"), Guid.NewGuid().ToString("N"), "本地播放验证", Guid.NewGuid().ToString("N"))));
             api = new(settings.Current.DeviceId, Handler);
             Outbox = new(paths, api);
-            Playback = new(accounts, new LocalPreparer(sample), async cancellation =>
+            Playback = new(accounts, new LocalPreparer(sample, tone), async cancellation =>
             {
                 var options = new Dictionary<string, string>
                 {
@@ -242,6 +314,23 @@ internal static class NativeOverlaySmoke
                 Interlocked.Increment(ref engineCreateCount);
                 return engine;
             }, api, Outbox, settings, scheduler, messenger, TimeProvider.System);
+        }
+
+        private static void GenerateQuietTone(string path)
+        {
+            // Fixed local PCM fixture; no encoder/download and no recording of user audio.
+            const int rate = 48000, channels = 2, frames = rate * 30, dataSize = frames * channels * 2;
+            using var writer = new BinaryWriter(File.Create(path));
+            writer.Write("RIFF"u8); writer.Write(36 + dataSize); writer.Write("WAVEfmt "u8);
+            writer.Write(16); writer.Write((short)1); writer.Write((short)channels); writer.Write(rate);
+            writer.Write(rate * channels * 2); writer.Write((short)(channels * 2)); writer.Write((short)16);
+            writer.Write("data"u8); writer.Write(dataSize);
+            for (var index = 0; index < frames; index++)
+            {
+                var fade = Math.Min(1, Math.Min(index, frames - 1 - index) / (rate * .02));
+                var sample = (short)(256 * fade * Math.Sin(2 * Math.PI * 440 * index / rate));
+                writer.Write(sample); writer.Write(sample);
+            }
         }
 
         public async ValueTask DisposeAsync()
@@ -257,7 +346,7 @@ internal static class NativeOverlaySmoke
         }
     }
 
-    private sealed class LocalPreparer(Uri sample) : IEntryPreparer
+    private sealed class LocalPreparer(Uri sample, string audioFixture) : IEntryPreparer
     {
         internal const string ItemId = "native-overlay-local";
         internal const string Title = "本地真实播放回归";
@@ -282,6 +371,10 @@ internal static class NativeOverlaySmoke
             var options = ImmutableArray.CreateBuilder<KeyValuePair<string, string>>();
             options.Add(new("http-header-fields", ""));
             options.Add(new("force-media-title", Title));
+            // The singular audio-file alias is CLI-only. append accepts one complete
+            // Windows path (including spaces/';'), verified against this libmpv build.
+            options.Add(new("audio-files-append", audioFixture));
+            options.Add(new("aid", "auto"));
             if (entry.StartTicks > 0) options.Add(new("start", (entry.StartTicks / (double)TimeSpan.TicksPerSecond).ToString("F3", CultureInfo.InvariantCulture)));
             return Task.FromResult(new ResolvedCandidate(entry.Candidates[candidateIndex],
                 new(sample, new Dictionary<string, string>(), 0), options.ToImmutable()));
@@ -345,6 +438,19 @@ internal sealed class NativeOverlayReport
     public int ExpectedPixelHeight { get; set; }
     public bool ViewportMatched { get; set; }
     public bool AudioOutputAvailable { get; set; }
+    public bool AudioFixtureGenerated { get; set; }
+    public string AudioOutputDriver { get; set; } = "";
+    public bool AudioTrackSelected { get; set; }
+    public bool ExternalAudioTrackSelected { get; set; }
+    public int SelectedAudioTrackId { get; set; }
+    public int AudioOutputSampleRate { get; set; }
+    public int AudioOutputChannels { get; set; }
+    public bool AudioPlaybackAdvanced { get; set; }
+    public bool VolumeControl { get; set; }
+    public double NativeVolume { get; set; }
+    public bool MuteButton { get; set; }
+    public bool UnmuteButton { get; set; }
+    public bool NativeUnmuted { get; set; }
     public bool PauseButton { get; set; }
     public bool SeekControl { get; set; }
     public bool ResumeButton { get; set; }

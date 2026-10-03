@@ -14,6 +14,33 @@ public sealed class LibMpvEngineTests
         OperatingSystem.IsWindows() && File.Exists(Path.Combine(AppContext.BaseDirectory, "mpv", "libmpv-2.dll")),
         "没有 Windows libmpv DLL，跳过真实组件验证。");
 
+    [Theory]
+    [InlineData(false, true)]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    [InlineData(true, false)]
+    public async Task AudioOutputUsesNativeAutoselectionUnlessAudioIsDisabled(bool headless, bool enableAudio)
+    {
+        RequireLibrary();
+        // Keep the production audio branch, but never create a window, load media or open an audio device.
+        await using var core = new MpvCore(1, 1, headless, enableAudio,
+            new Dictionary<string, string> { ["vo"] = "null", ["force-window"] = "no", ["hwdec"] = "no" });
+        var drivers = Assert.IsType<Mambo.Player.LibMpv.MpvValue.Array>(core.GetProperty("options/ao"));
+        if (!headless && enableAudio)
+        {
+            // The actual native settings list must remain empty so mpv probes the supported drivers.
+            // A literal "auto" driver is nonempty and prevents that probe.
+            Assert.Empty(drivers.Values);
+        }
+        else
+        {
+            var driver = Assert.IsType<Mambo.Player.LibMpv.MpvValue.Map>(Assert.Single(drivers.Values));
+            Assert.Equal("null", Assert.IsType<Mambo.Player.LibMpv.MpvValue.Text>(driver.Values["name"]).Value);
+        }
+        Assert.Equal("auto", Assert.IsType<Mambo.Player.LibMpv.MpvValue.Text>(core.GetProperty("options/audio-device")).Value);
+        Assert.Null(core.GetProperty("current-ao"));
+    }
+
     [Fact]
     public async Task LoadCopiesLifecycleAndTypedPropertiesWithRealEntryId()
     {

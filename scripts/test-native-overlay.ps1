@@ -23,7 +23,7 @@ $null = [IO.Directory]::CreateDirectory($overlayRoot)
 $overlayReportPath = Join-Path $overlayRoot 'app-report.json'
 $overlayResultPath = Join-Path $overlayRoot 'result.json'
 $overlayResult = [ordered]@{
-    schemaVersion = 1
+    schemaVersion = 2
     status = 'Failed'
     reason = 'NotStarted'
     runId = $overlayRunId
@@ -36,6 +36,20 @@ $overlayResult = [ordered]@{
     reportIdentityMatched = $false
     realEmbeddedEngine = $false
     productionEngineParameters = $false
+    audioFixtureGenerated = $false
+    audioOutputAvailable = $false
+    audioOutputDriver = $null
+    audioTrackSelected = $false
+    externalAudioTrackSelected = $false
+    selectedAudioTrackId = 0
+    audioOutputSampleRate = 0
+    audioOutputChannels = 0
+    audioPlaybackAdvanced = $false
+    volumeControl = $false
+    nativeVolume = 0
+    muteButton = $false
+    unmuteButton = $false
+    nativeUnmuted = $false
     appPassed = $false
     appStage = $null
     appErrorKind = $null
@@ -122,23 +136,42 @@ try {
     $overlayResult.appPassed = [bool]$overlayReport.Passed
     $overlayResult.realEmbeddedEngine = [bool]$overlayReport.RealEmbeddedEngine
     $overlayResult.productionEngineParameters = [bool]$overlayReport.ProductionEngineParameters
+    $overlayResult.audioFixtureGenerated = [bool]$overlayReport.AudioFixtureGenerated
+    $overlayResult.audioOutputAvailable = [bool]$overlayReport.AudioOutputAvailable
+    $overlayResult.audioOutputDriver = $overlayReport.AudioOutputDriver
+    $overlayResult.audioTrackSelected = [bool]$overlayReport.AudioTrackSelected
+    $overlayResult.externalAudioTrackSelected = [bool]$overlayReport.ExternalAudioTrackSelected
+    $overlayResult.selectedAudioTrackId = $overlayReport.SelectedAudioTrackId
+    $overlayResult.audioOutputSampleRate = $overlayReport.AudioOutputSampleRate
+    $overlayResult.audioOutputChannels = $overlayReport.AudioOutputChannels
+    $overlayResult.audioPlaybackAdvanced = [bool]$overlayReport.AudioPlaybackAdvanced
+    $overlayResult.volumeControl = [bool]$overlayReport.VolumeControl
+    $overlayResult.nativeVolume = $overlayReport.NativeVolume
+    $overlayResult.muteButton = [bool]$overlayReport.MuteButton
+    $overlayResult.unmuteButton = [bool]$overlayReport.UnmuteButton
+    $overlayResult.nativeUnmuted = [bool]$overlayReport.NativeUnmuted
     $overlayResult.appStage = $overlayReport.Stage
     $overlayResult.appErrorKind = $overlayReport.ErrorKind
     $overlayResult.appHResult = $overlayReport.HResult
     $overlayChecks = @('IsolatedServicesVerified', 'ProductionEngineParameters', 'FormalOverlayLoaded', 'RealEmbeddedEngine',
-        'TitleBound', 'Playing', 'Bound', 'SizeMatched', 'ViewportMatched', 'PauseButton', 'SeekControl', 'ResumeButton', 'Closed', 'Detached',
+        'TitleBound', 'Playing', 'Bound', 'SizeMatched', 'ViewportMatched', 'AudioFixtureGenerated', 'AudioOutputAvailable',
+        'AudioTrackSelected', 'ExternalAudioTrackSelected', 'AudioPlaybackAdvanced', 'VolumeControl', 'MuteButton', 'UnmuteButton', 'NativeUnmuted',
+        'PauseButton', 'SeekControl', 'ResumeButton', 'Closed', 'Detached',
         'Stopped', 'OutboxEmpty', 'ReportSequenceOrdered', 'ShutdownCompleted')
     $overlayAllChecks = $true
     foreach ($overlayCheck in $overlayChecks) { $overlayAllChecks = $overlayAllChecks -and $overlayReport.$overlayCheck -eq $true }
     if ($overlayProcess.ExitCode -ne 0 -or -not $overlayReport.Passed -or -not $overlayAllChecks -or
         $overlayReport.InitialEngineWidth -ne 1 -or $overlayReport.InitialEngineHeight -ne 1 -or
         $overlayReport.EngineAudioEnabled -ne $true -or $overlayReport.ExpectedPixelWidth -le 200 -or $overlayReport.ExpectedPixelHeight -le 200 -or
+        [string]::IsNullOrWhiteSpace($overlayReport.AudioOutputDriver) -or $overlayReport.AudioOutputDriver -ieq 'null' -or
+        $overlayReport.SelectedAudioTrackId -le 0 -or $overlayReport.AudioOutputSampleRate -le 0 -or $overlayReport.AudioOutputChannels -le 0 -or
+        [Math]::Abs($overlayReport.NativeVolume - 10) -ge 0.01 -or
         $overlayReport.BufferWidth -ne $overlayReport.ExpectedPixelWidth -or $overlayReport.BufferHeight -ne $overlayReport.ExpectedPixelHeight) {
         $overlayResult.reason = 'NativeOverlayChecksFailed'
         throw [InvalidOperationException]::new('正式真实播放界面验证未通过。')
     }
     $overlayResult.status = 'Passed'
-    $overlayResult.reason = 'RealShellOverlayCompositionClosed'
+    $overlayResult.reason = 'RealShellOverlayCompositionAudioClosed'
 } catch {
     $overlayResult.errorKind = $_.Exception.GetType().Name
     $overlayResult.hResult = $_.Exception.HResult.ToString('X8')
@@ -162,4 +195,4 @@ try {
     }
 }
 if ($overlayResult.status -ne 'Passed') { throw '正式真实播放界面诊断失败；详见本轮 result.json 的固定阶段和错误代码。' }
-Write-Host "正式 Shell / Overlay / 原生交换链 / 正常关闭通过：$overlayResultPath"
+Write-Host "正式 Shell / Overlay / 原生交换链 / 音频输出与音量静音控件 / 正常关闭通过：$overlayResultPath"

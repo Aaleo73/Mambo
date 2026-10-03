@@ -4,9 +4,11 @@
 
 2026-10-03：用户明确把 Claude 的后续工作也交给 Codex，并授权持续推进。外壳和播放器的接入请求 R-003/R-016/R-017/R-019/R-020 已处理；阶段验收仍按实际证据更新。统一接手记录见 [P4–P6 集成](../decisions/P4-P6-integration.md)。AppSettings.UseEpisodeGrid 为选集布局跨重启记忆的兼容增量，旧文件默认列表。
 
-当前本地播放修复候选为 `publish/releases/0.1.0/20261003-142004-535/app`，安装包为同目录上一层的 `Mambo-0.1.0-win-x64-setup.exe`。发布路径和完整校验值见 `artifacts/release-candidate-playback-fix.json`；提交后源码归档单独放在该发布目录的 `sources-final/`。旧入口 `publish/aot` 同步本次文件，避免运行旧二进制。不推送远端，不将当前 libmpv 组合包公开分发。
+当前本地播放及音频修复候选为 `publish/releases/0.1.0/20261003-144025-553/app`，安装包为同目录上一层的 `Mambo-0.1.0-win-x64-setup.exe`。发布路径和完整校验值见 `artifacts/release-candidate-audio-fix.json`；提交后源码归档单独放在该发布目录的 `sources-final/`。旧入口 `publish/aot` 同步本次文件，避免运行旧二进制。不推送远端，不将当前 libmpv 组合包公开分发。
 
-本次解决用户正式播放器“片源无法播放”：登录服务器签发的跨域下载 Location 中认证查询被误删，三个候选全部 HTTP 401 / mpv -13。改为保留已认证服务器签发的完整链接，仍清空跨域认证头并保留直接外部地址、降级、字幕后续跳转的隔离。真实保存会话复测三个候选全部 HTTP 206 / FILE_LOADED / PLAYBACK_RESTART。新增安全原生错误诊断和正式 Shell 真实 libmpv 验证；353 项单测通过，Debug 构建零警告零错误，Debug/AOT 正式播放、视口尺寸、暂停/跳转/恢复/关闭均通过。决策及验证见 [播放跳转兼容](../decisions/playback-issued-redirect.md)。
+本次修复“有画面但无声”：正常播放器不再设置不存在的 ao=auto 驱动，改为保留 mpv 默认音频驱动选择，仅显式无声/headless 测试设置 ao=null。同一集真实验证 WASAPI、已选音轨、48000 Hz / 2 channels、非静音。357/357 单测通过，Debug/AOT 构建无警告错误；正式界面回归现在强制检查真实音频输出、所选音轨、有效输出格式、音量/静音控件原生回写及恢复推进，Debug/AOT 均通过。见 [音频输出修复](../decisions/playback-audio-output.md)。原 Windows 音量与设备设置未修改。
+
+上一轮解决用户正式播放器“片源无法播放”：登录服务器签发的跨域下载 Location 中认证查询被误删，三个候选全部 HTTP 401 / mpv -13。改为保留已认证服务器签发的完整链接，仍清空跨域认证头并保留直接外部地址、降级、字幕后续跳转的隔离。真实保存会话复测三个候选全部 HTTP 206 / FILE_LOADED / PLAYBACK_RESTART。当时新增安全原生错误诊断和正式 Shell 真实 libmpv 验证，353 项单测通过，Debug/AOT 正式播放、视口尺寸、暂停/跳转/恢复/关闭通过；该轮没有把音频输出列为通过条件，本轮已纠正。决策及验证见 [播放跳转兼容](../decisions/playback-issued-redirect.md)。
 
 上一轮 134251 候选构建零警告零错误，345 项单元测试全部通过。修复了直接 Window.Close 绕过清理导致 Video Lab 计时器访问已销毁 XAML 的原生崩溃，并修复主窗口自绘关闭按钮的同类路径。Debug/AOT 各 10 次 IPC 正常启停、P3 真实播放和 Fake 两入口通过。该轮 Debug/AOT/安装目录完整界面回归通过：实际关闭按钮取消/重入/确认/清理四项、生产库停止失效到三页面实际进度绑定、五项原生无障碍检查及 50 次假播放关闭零留存均通过。安装轮 `artifacts/installer-validation/b86c1004e97e4039a3b5cf3ba337e479/result.json` 完整 Passed：安装/升级清单核验、升级进程正常退出、卸载清除程序与注册项、356 个原用户文件及卸载前 357 文件含本轮 marker 的完整保留均通过。本次未改安装脚本，未重复安装/卸载。
 

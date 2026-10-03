@@ -797,6 +797,7 @@ PlayerOverlay（Grid，RequestedTheme=Dark，IsTabStop=True，持有焦点）
 **验收**
 - FakeEngine 事件脚本测试覆盖：候选回退、连播跳集、季末、中途关闭、mpv 自动切集、上报顺序。
 - 无头 libmpv 测试通过。
+- 正式 Shell / Overlay 的 Debug 与 AOT 验证必须包含真实音轨：有效且非 null 的音频输出驱动、选中音轨、输出采样率/声道，以及音量/静音控件对原生播放器的回写；不能仅以 Playing 或画面绑定判定声音正常。使用本地低幅合成音轨，保持系统音量和默认设备设置不变。
 - 【需用户】真实服务器：
   - Emby 后台看到的 Playing/Progress/Stopped 位置和倍速正确；
   - 强制转码能播放，停止后会被清理；

@@ -37,13 +37,16 @@ public sealed class MpvCore : IAsyncDisposable
                 ["input-default-bindings"] = "no", ["input-vo-keyboard"] = "no", ["osc"] = "no",
                 ["osd-level"] = "0", ["osd-bar"] = "no", ["cursor-autohide"] = "no",
                 ["idle"] = "yes", ["keep-open"] = "no", ["force-window"] = headless ? "no" : "immediate",
-                ["vo"] = headless ? "null" : "gpu-next", ["ao"] = headless || !enableAudio ? "null" : "auto",
+                ["vo"] = headless ? "null" : "gpu-next",
                 ["hwdec"] = headless ? "no" : "d3d11va",
                 ["cache"] = "yes", ["demuxer-max-bytes"] = "128MiB", ["demuxer-max-back-bytes"] = "64MiB",
                 ["demuxer-readahead-secs"] = "15", ["network-timeout"] = "15",
                 ["user-agent"] = "Mambo/0.0.0", ["audio-client-name"] = "Mambo",
                 ["media-controls"] = "no", ["sub-auto"] = "no", ["slang"] = "zh-CN,zh-Hans,chi,zho,chs,zh,eng,en",
             };
+            // ao 是驱动列表，"auto" 不是音频驱动。正常播放保留 mpv 默认的设备选择；
+            // 只有显式无声诊断才指定 null，否则视频可以起播却没有任何声音输出。
+            if (headless || !enableAudio) options["ao"] = "null";
             if (!headless)
             {
                 options["gpu-api"] = "d3d11";
