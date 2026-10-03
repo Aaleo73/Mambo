@@ -158,23 +158,25 @@
             <SolidColorBrush x:Key="ScrollBarButtonBackgroundPressed" Color="Transparent"/>
             <SolidColorBrush x:Key="WindowBackgroundBrush" Color="Transparent"/>
             <SolidColorBrush x:Key="WindowOpaqueFallbackBrush" Color="#FFF3F6FA"/>
-            <SolidColorBrush x:Key="PlayerCaptionBackgroundBrush" Color="#FF0B0B0D"/>
             <!-- 播放层：常规主题使用深色，高对比度另行映射系统颜色 -->
             <SolidColorBrush x:Key="PlayerCanvasBrush" Color="#FF000000"/>
             <SolidColorBrush x:Key="PlayerTextPrimaryBrush" Color="#F5FFFFFF"/>
             <SolidColorBrush x:Key="PlayerTextSecondaryBrush" Color="#B8FFFFFF"/>
             <SolidColorBrush x:Key="PlayerTextTertiaryBrush" Color="#80FFFFFF"/>
-            <SolidColorBrush x:Key="PlayerPanelBrush" Color="#EB18191C"/>
-            <SolidColorBrush x:Key="PlayerPanelStrokeBrush" Color="#1AFFFFFF"/>
-            <SolidColorBrush x:Key="PlayerHoverBrush" Color="#1AFFFFFF"/>
+            <SolidColorBrush x:Key="PlayerPanelBrush" Color="#D9000000"/>
+            <SolidColorBrush x:Key="PlayerPanelStrokeBrush" Color="#26FFFFFF"/>
+            <SolidColorBrush x:Key="PlayerMenuSelectedBrush" Color="#26FFFFFF"/>
+            <SolidColorBrush x:Key="PlayerHoverBrush" Color="#26FFFFFF"/>
             <SolidColorBrush x:Key="PlayerPressedBrush" Color="#0FFFFFFF"/>
-            <SolidColorBrush x:Key="PlayerTrackBrush" Color="#3DFFFFFF"/>
+            <SolidColorBrush x:Key="PlayerTrackBrush" Color="#33FFFFFF"/>
             <SolidColorBrush x:Key="PlayerBufferBrush" Color="#70FFFFFF"/>
             <SolidColorBrush x:Key="PlayerFillBrush" Color="#FFFFFFFF"/>
-            <SolidColorBrush x:Key="PlayerPillBrush" Color="#B8101114"/>
+            <SolidColorBrush x:Key="PlayerPillBrush" Color="#99000000"/>
+            <SolidColorBrush x:Key="PlayerFailureBrush" Color="#99000000"/>
+            <SolidColorBrush x:Key="PlayerSeekGlowBrush" Color="#26FFFFFF"/>
             <LinearGradientBrush x:Key="PlayerScrimBottomBrush" StartPoint="0,1" EndPoint="0,0">
-                <GradientStop Color="#DB000000" Offset="0"/>
-                <GradientStop Color="#85000000" Offset="0.42"/>
+                <GradientStop Color="#E6000000" Offset="0"/>
+                <GradientStop Color="#73000000" Offset="0.5"/>
                 <GradientStop Color="#00000000" Offset="1"/>
             </LinearGradientBrush>
             <LinearGradientBrush x:Key="PlayerScrimTopBrush" StartPoint="0,0" EndPoint="0,1">
@@ -185,15 +187,11 @@
             <SolidColorBrush x:Key="PlayerButtonBackgroundBrush" Color="#00000000"/>
             <SolidColorBrush x:Key="PlayerPlayBackgroundBrush" Color="#FFFFFFFF"/>
             <SolidColorBrush x:Key="PlayerPlayForegroundBrush" Color="#FF0B0B0D"/>
-            <SolidColorBrush x:Key="PlayerBigPlayBackgroundBrush" Color="#76000000"/>
+            <SolidColorBrush x:Key="PlayerBigPlayBackgroundBrush" Color="#73000000"/>
             <SolidColorBrush x:Key="PlayerBigPlayStrokeBrush" Color="#40FFFFFF"/>
-            <SolidColorBrush x:Key="PlayerDrawerBrush" Color="#F7141518"/>
-            <SolidColorBrush x:Key="PlayerImagePlaceholderBrush" Color="#FF222222"/>
-            <SolidColorBrush x:Key="PlayerImageScrimBrush" Color="#73000000"/>
-            <SolidColorBrush x:Key="PlayerEpisodeGridBrush" Color="#14FFFFFF"/>
-            <SolidColorBrush x:Key="PlayerEpisodeCurrentBrush" Color="#30FFFFFF"/>
-            <Style x:Key="PlayerEpisodeSecondaryTextStyle" TargetType="TextBlock"><Setter Property="Foreground" Value="{StaticResource PlayerTextSecondaryBrush}"/></Style>
-            <Style x:Key="PlayerEpisodeDescriptionTextStyle" TargetType="TextBlock"><Setter Property="Foreground" Value="{StaticResource PlayerTextTertiaryBrush}"/></Style>
+            <SolidColorBrush x:Key="PlayerEpisodeHoverBrush" Color="#0A000000"/>
+            <SolidColorBrush x:Key="PlayerEpisodeCurrentBrush" Color="#1F000000"/>
+            <SolidColorBrush x:Key="PlayerEpisodeSelectedStrokeBrush" Color="Transparent"/>
         </ResourceDictionary>
         <ResourceDictionary x:Key="Default">
             <SolidColorBrush x:Key="TextPrimaryBrush" Color="#EBFFFFFF"/>
@@ -349,23 +347,25 @@
             <SolidColorBrush x:Key="ScrollBarButtonBackgroundPressed" Color="Transparent"/>
             <SolidColorBrush x:Key="WindowBackgroundBrush" Color="Transparent"/>
             <SolidColorBrush x:Key="WindowOpaqueFallbackBrush" Color="#FF1E2024"/>
-            <SolidColorBrush x:Key="PlayerCaptionBackgroundBrush" Color="#FF0B0B0D"/>
             <!-- 播放层：常规主题使用深色，高对比度另行映射系统颜色 -->
             <SolidColorBrush x:Key="PlayerCanvasBrush" Color="#FF000000"/>
             <SolidColorBrush x:Key="PlayerTextPrimaryBrush" Color="#F5FFFFFF"/>
             <SolidColorBrush x:Key="PlayerTextSecondaryBrush" Color="#B8FFFFFF"/>
             <SolidColorBrush x:Key="PlayerTextTertiaryBrush" Color="#80FFFFFF"/>
-            <SolidColorBrush x:Key="PlayerPanelBrush" Color="#EB18191C"/>
-            <SolidColorBrush x:Key="PlayerPanelStrokeBrush" Color="#1AFFFFFF"/>
-            <SolidColorBrush x:Key="PlayerHoverBrush" Color="#1AFFFFFF"/>
+            <SolidColorBrush x:Key="PlayerPanelBrush" Color="#D9000000"/>
+            <SolidColorBrush x:Key="PlayerPanelStrokeBrush" Color="#26FFFFFF"/>
+            <SolidColorBrush x:Key="PlayerMenuSelectedBrush" Color="#26FFFFFF"/>
+            <SolidColorBrush x:Key="PlayerHoverBrush" Color="#26FFFFFF"/>
             <SolidColorBrush x:Key="PlayerPressedBrush" Color="#0FFFFFFF"/>
-            <SolidColorBrush x:Key="PlayerTrackBrush" Color="#3DFFFFFF"/>
+            <SolidColorBrush x:Key="PlayerTrackBrush" Color="#33FFFFFF"/>
             <SolidColorBrush x:Key="PlayerBufferBrush" Color="#70FFFFFF"/>
             <SolidColorBrush x:Key="PlayerFillBrush" Color="#FFFFFFFF"/>
-            <SolidColorBrush x:Key="PlayerPillBrush" Color="#B8101114"/>
+            <SolidColorBrush x:Key="PlayerPillBrush" Color="#99000000"/>
+            <SolidColorBrush x:Key="PlayerFailureBrush" Color="#99000000"/>
+            <SolidColorBrush x:Key="PlayerSeekGlowBrush" Color="#26FFFFFF"/>
             <LinearGradientBrush x:Key="PlayerScrimBottomBrush" StartPoint="0,1" EndPoint="0,0">
-                <GradientStop Color="#DB000000" Offset="0"/>
-                <GradientStop Color="#85000000" Offset="0.42"/>
+                <GradientStop Color="#E6000000" Offset="0"/>
+                <GradientStop Color="#73000000" Offset="0.5"/>
                 <GradientStop Color="#00000000" Offset="1"/>
             </LinearGradientBrush>
             <LinearGradientBrush x:Key="PlayerScrimTopBrush" StartPoint="0,0" EndPoint="0,1">
@@ -376,15 +376,11 @@
             <SolidColorBrush x:Key="PlayerButtonBackgroundBrush" Color="#00000000"/>
             <SolidColorBrush x:Key="PlayerPlayBackgroundBrush" Color="#FFFFFFFF"/>
             <SolidColorBrush x:Key="PlayerPlayForegroundBrush" Color="#FF0B0B0D"/>
-            <SolidColorBrush x:Key="PlayerBigPlayBackgroundBrush" Color="#76000000"/>
+            <SolidColorBrush x:Key="PlayerBigPlayBackgroundBrush" Color="#73000000"/>
             <SolidColorBrush x:Key="PlayerBigPlayStrokeBrush" Color="#40FFFFFF"/>
-            <SolidColorBrush x:Key="PlayerDrawerBrush" Color="#F7141518"/>
-            <SolidColorBrush x:Key="PlayerImagePlaceholderBrush" Color="#FF222222"/>
-            <SolidColorBrush x:Key="PlayerImageScrimBrush" Color="#73000000"/>
-            <SolidColorBrush x:Key="PlayerEpisodeGridBrush" Color="#14FFFFFF"/>
-            <SolidColorBrush x:Key="PlayerEpisodeCurrentBrush" Color="#30FFFFFF"/>
-            <Style x:Key="PlayerEpisodeSecondaryTextStyle" TargetType="TextBlock"><Setter Property="Foreground" Value="{StaticResource PlayerTextSecondaryBrush}"/></Style>
-            <Style x:Key="PlayerEpisodeDescriptionTextStyle" TargetType="TextBlock"><Setter Property="Foreground" Value="{StaticResource PlayerTextTertiaryBrush}"/></Style>
+            <SolidColorBrush x:Key="PlayerEpisodeHoverBrush" Color="#0AFFFFFF"/>
+            <SolidColorBrush x:Key="PlayerEpisodeCurrentBrush" Color="#1FFFFFFF"/>
+            <SolidColorBrush x:Key="PlayerEpisodeSelectedStrokeBrush" Color="Transparent"/>
         </ResourceDictionary>
         <!-- P6：所有对比度主题使用用户选择的系统颜色，不退回品牌色或亚克力。 -->
         <ResourceDictionary x:Key="HighContrast">
@@ -459,7 +455,6 @@
             <SolidColorBrush x:Key="PopupBackgroundBrush" Color="{ThemeResource SystemColorWindowColor}"/>
             <SolidColorBrush x:Key="WindowBackgroundBrush" Color="{ThemeResource SystemColorWindowColor}"/>
             <SolidColorBrush x:Key="WindowOpaqueFallbackBrush" Color="{ThemeResource SystemColorWindowColor}"/>
-            <SolidColorBrush x:Key="PlayerCaptionBackgroundBrush" Color="{ThemeResource SystemColorWindowColor}"/>
             <SolidColorBrush x:Key="PlayerCanvasBrush" Color="{ThemeResource SystemColorWindowColor}"/>
             <SolidColorBrush x:Key="PlayerTextPrimaryBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
             <SolidColorBrush x:Key="PlayerTextSecondaryBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
@@ -472,6 +467,8 @@
             <SolidColorBrush x:Key="PlayerBufferBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
             <SolidColorBrush x:Key="PlayerFillBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
             <SolidColorBrush x:Key="PlayerPillBrush" Color="{ThemeResource SystemColorWindowColor}"/>
+            <SolidColorBrush x:Key="PlayerFailureBrush" Color="{ThemeResource SystemColorWindowColor}"/>
+            <SolidColorBrush x:Key="PlayerSeekGlowBrush" Color="Transparent"/>
             <SolidColorBrush x:Key="PlayerScrimBottomBrush" Color="{ThemeResource SystemColorWindowColor}"/>
             <SolidColorBrush x:Key="PlayerScrimTopBrush" Color="{ThemeResource SystemColorWindowColor}"/>
             <SolidColorBrush x:Key="PlayerButtonForegroundBrush" Color="{ThemeResource SystemColorButtonTextColor}"/>
@@ -480,14 +477,11 @@
             <SolidColorBrush x:Key="PlayerPlayForegroundBrush" Color="{ThemeResource SystemColorButtonTextColor}"/>
             <SolidColorBrush x:Key="PlayerBigPlayBackgroundBrush" Color="{ThemeResource SystemColorButtonFaceColor}"/>
             <SolidColorBrush x:Key="PlayerBigPlayStrokeBrush" Color="{ThemeResource SystemColorButtonTextColor}"/>
-            <SolidColorBrush x:Key="PlayerDrawerBrush" Color="{ThemeResource SystemColorWindowColor}"/>
-            <SolidColorBrush x:Key="PlayerImagePlaceholderBrush" Color="{ThemeResource SystemColorWindowColor}"/>
-            <SolidColorBrush x:Key="PlayerImageScrimBrush" Color="{ThemeResource SystemColorWindowColor}"/>
-            <SolidColorBrush x:Key="PlayerEpisodeGridBrush" Color="{ThemeResource SystemColorButtonFaceColor}"/>
-            <SolidColorBrush x:Key="PlayerEpisodeCurrentBrush" Color="{ThemeResource SystemColorButtonFaceColor}"/>
+            <SolidColorBrush x:Key="PlayerEpisodeHoverBrush" Color="{ThemeResource SystemColorWindowColor}"/>
+            <SolidColorBrush x:Key="PlayerEpisodeCurrentBrush" Color="{ThemeResource SystemColorWindowColor}"/>
+            <SolidColorBrush x:Key="PlayerEpisodeSelectedStrokeBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
+            <SolidColorBrush x:Key="PlayerMenuSelectedBrush" Color="{ThemeResource SystemColorWindowColor}"/>
             <Color x:Key="PopupShadowColor">Transparent</Color>
-            <Style x:Key="PlayerEpisodeSecondaryTextStyle" TargetType="TextBlock"/>
-            <Style x:Key="PlayerEpisodeDescriptionTextStyle" TargetType="TextBlock"/>
             <!-- WinUI 轻量样式覆盖：别名必须与被引用的画刷在同一个主题字典里，否则深色会解析成浅色 -->
             <StaticResource x:Key="ButtonBackground" ResourceKey="ControlFillBrush"/>
             <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="ControlFillHoverBrush"/>

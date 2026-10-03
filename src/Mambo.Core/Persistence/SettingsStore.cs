@@ -305,13 +305,19 @@ public sealed class SettingsStore : ISettingsService, IDisposable
             if (value is null || value.Version != 1) return null;
             Validate(value.Settings);
             var settings = value.Settings;
+            // 源生成反序列化会为缺失的 init-only 布尔成员写入 false；显式迁移旧文档，
+            // 不能靠属性初始化器，也不能覆盖用户已保存的列表选择。
+            var episodeLayoutRepaired = root is JsonObject document &&
+                document.FirstOrDefault(static property => property.Key.Equals(nameof(SettingsDocument.Settings), StringComparison.OrdinalIgnoreCase)).Value is JsonObject storedSettings &&
+                !storedSettings.Any(static property => property.Key.Equals(nameof(AppSettings.UseEpisodeGrid), StringComparison.OrdinalIgnoreCase));
+            if (episodeLayoutRepaired) settings = settings with { UseEpisodeGrid = true };
             var externalRepaired = settings.ExternalMpvApproval is not null && !MatchesApproval(settings) ||
                 settings.PlaybackMode == PlaybackMode.External && !MatchesApproval(settings);
             if (externalRepaired) settings = settings with { PlaybackMode = PlaybackMode.Embedded, ExternalMpvApproval = null };
             // 非关键字段损坏只丢弃对应输入，不重置有效的设备标识与其他偏好。
             var connection = NormalizeConnection(value.Connection, out var connectionRepaired);
             var preferences = NormalizePreferences(value.Preferences, out var preferencesRepaired);
-            repaired = arraysRepaired || connectionRepaired || preferencesRepaired || externalRepaired;
+            repaired = arraysRepaired || connectionRepaired || preferencesRepaired || externalRepaired || episodeLayoutRepaired;
             return value with
             {
                 Settings = settings,

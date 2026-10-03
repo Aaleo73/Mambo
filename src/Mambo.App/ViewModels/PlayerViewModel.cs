@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
+using Microsoft.UI.Xaml;
 using Mambo.Core.Contracts;
 
 namespace Mambo.App.ViewModels;
@@ -37,12 +38,12 @@ public sealed partial class PlayerViewModel : ObservableObject, IDisposable
     public bool IsBuffering => snapshot.IsBuffering && CanControl;
     public bool CanPrevious => CanControl && snapshot.CanPrevious;
     public bool CanNext => CanControl && snapshot.CanNext;
-    public bool HasEpisodes => Episodes.Count > 1 || snapshot.Entries.FirstOrDefault()?.EpisodeNumber is not null || !string.IsNullOrEmpty(snapshot.Entries.FirstOrDefault()?.EpisodeLabel);
+    public bool HasEpisodes => Episodes.Count > 1;
     public bool IsPaused => snapshot.IsPaused && CanControl;
-    public string PauseGlyph => snapshot.IsPaused ? "\uE768" : "\uE769";
+    public string PauseGlyph => (string)Application.Current.Resources[snapshot.IsPaused ? "IconPlay" : "IconPause"];
     public string PauseAccessibleName => snapshot.IsPaused ? "继续播放" : "暂停播放";
     public string MuteAccessibleName => snapshot.IsMuted ? "取消静音" : "静音";
-    public string VolumeGlyph => snapshot.IsMuted || snapshot.Volume == 0 ? "\uE74F" : "\uE767";
+    public string VolumeGlyph => (string)Application.Current.Resources[snapshot.IsMuted || snapshot.Volume == 0 ? "IconVolumeMuted" : "IconVolumeWaves"];
     public string RateText => Math.Abs(snapshot.PlaybackRate - 1) < .001 ? "倍速" : snapshot.PlaybackRate.ToString("0.##", CultureInfo.InvariantCulture) + "×";
     public string DurationText => FormatTicks(snapshot.DurationTicks);
     public double DurationSeconds => Math.Max(1, TimeSpan.FromTicks(Math.Max(0, snapshot.DurationTicks)).TotalSeconds);
@@ -137,7 +138,11 @@ public sealed partial class PlayerViewModel : ObservableObject, IDisposable
             Episodes.Clear();
             for (var i = 0; i < snapshot.Entries.Length; i++) Episodes.Add(new(snapshot.Entries[i], i));
         }
-        foreach (var episode in Episodes) episode.IsCurrent = episode.ItemId == snapshot.Entry?.ItemId;
+        foreach (var episode in Episodes)
+        {
+            episode.IsCurrent = episode.ItemId == snapshot.Entry?.ItemId;
+            episode.CanSelect = CanControl;
+        }
         foreach (var property in ProjectionProperties) OnPropertyChanged(property);
         Tick();
     }
@@ -162,20 +167,17 @@ public sealed partial class PlayerEpisodeViewModel : ObservableObject
     {
         ItemId = entry.ItemId;
         Title = entry.EpisodeName ?? entry.Title;
-        Image = entry.Image;
         Number = GetEpisodeNumber(entry, index).ToString(CultureInfo.InvariantCulture);
-        Description = entry.DurationTicks is > 0 ? $"{Math.Round(TimeSpan.FromTicks(entry.DurationTicks.Value).TotalMinutes)} 分钟" : "";
-        if (entry.UserData.Played) Description += " · 已看完";
     }
     public string ItemId { get; }
     public string Title { get; }
-    public object? Image { get; }
     public string Number { get; }
-    public string Description { get; }
     public string AccessibleName => $"第 {Number} 集，{Title}" + (IsCurrent ? "，正在播放" : "");
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(AccessibleName))]
     public partial bool IsCurrent { get; set; }
+    [ObservableProperty]
+    public partial bool CanSelect { get; set; }
 
     private static int GetEpisodeNumber(PlaybackEntry entry, int index)
     {

@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Mambo.App.Shell;
+using Mambo.App.Themes;
 using Mambo.App.Views;
 using Mambo.Core.Contracts;
 using Mambo.Core.Fakes;
@@ -11,6 +12,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Windows.System;
+using WinRT;
 
 namespace Mambo.App.Debug;
 
@@ -46,8 +48,8 @@ internal static class PlayerControlsSmoke
             report.Stage = "OpenSeries";
             var session = await playback.PlayAsync(new PlayRequest("demo-series-001"), token);
             report.SessionsOpened++;
-            await WaitAsync(() => window.Shell.ActivePlayer is { IsLoaded: true } active &&
-                ReferenceEquals(active.Session, session) && active.ViewModel.CanControl, token);
+            await WaitAsync(() => !window.Shell.IsTransitioning && window.Shell.ActivePlayer is { IsLoaded: true } active &&
+                ReferenceEquals(active.Session, session) && active.ViewModel.CanControl && active.VideoSurface.IsDemoAttached, token);
             var player = window.Shell.ActivePlayer!;
             var fake = (FakePlaybackSession)session;
             report.SeriesEpisodeCount = session.Snapshot.Entries.Length;
@@ -77,6 +79,14 @@ internal static class PlayerControlsSmoke
             await KeyAsync("SpacePauses", VirtualKey.Space, () => player.ViewModel.IsPaused);
             await InvokeButtonAsync(player, player.ViewModel.PauseAccessibleName, token);
             await CheckAsync(report, "PauseButtonResumes", () => !player.ViewModel.IsPaused, token);
+            player.Focus(FocusState.Programmatic);
+            await Task.Delay(3200, token);
+            await CheckAsync(report, "IdleChromeHides", () => !player.ControlsVisible, token);
+            var volumeBeforeHint = player.ViewModel.Volume;
+            await player.DispatchSmokeKeyAsync(volumeBeforeHint > 0 ? VirtualKey.Down : VirtualKey.Up);
+            await CheckAsync(report, "KeyboardHintWithoutChrome", () => player.KeyHintVisible && !player.ControlsVisible &&
+                player.ViewModel.Volume != volumeBeforeHint, token);
+            await CheckAsync(report, "KeyboardHintExpires", () => !player.KeyHintVisible && !player.ControlsVisible, token);
             await InvokeButtonAsync(player, player.ViewModel.PauseAccessibleName, token);
             await CheckAsync(report, "PauseButtonPauses", () => player.ViewModel.IsPaused, token);
 
@@ -122,6 +132,27 @@ internal static class PlayerControlsSmoke
 
             await player.DispatchSmokeSeekAsync(25);
             await WaitAsync(() => At(session, 25), token);
+            var hoverPosition = session.Snapshot.PositionTicks;
+            player.DispatchSmokeSeekHover(.5);
+            Mark(report, "SeekHoverPreviewsWithoutSeeking", player.SeekTipVisible &&
+                Math.Abs(player.SeekTipSeconds - TimeSpan.FromTicks(session.Snapshot.DurationTicks).TotalSeconds / 2) < .01 &&
+                session.Snapshot.PositionTicks == hoverPosition && Math.Abs(player.DisplayedSeekSeconds - 25) < .01);
+            player.DispatchSmokeSeekHover(.9);
+            player.DispatchSmokeSeekHover(.5);
+            player.DispatchSmokeSeekHover(.5);
+            var seekHost = player.FindName("SeekHost").As<Grid>();
+            var seekTip = player.FindName("SeekTip").As<Border>();
+            await CheckAsync(report, "SeekHoverTracksPointerAcrossMoves", () =>
+            {
+                var left = seekTip.TransformToVisual(seekHost).TransformPoint(new(0, 0)).X;
+                return seekTip.ActualWidth > 0 && left <= seekHost.ActualWidth / 2 &&
+                    left + seekTip.ActualWidth >= seekHost.ActualWidth / 2;
+            }, token);
+            player.DispatchSmokeSeekHover(1.5);
+            Mark(report, "SeekHoverClampsAtEnd", Math.Abs(player.SeekTipSeconds -
+                TimeSpan.FromTicks(session.Snapshot.DurationTicks).TotalSeconds) < .01 && session.Snapshot.PositionTicks == hoverPosition);
+            player.DispatchSmokeSeekExit();
+            Mark(report, "SeekHoverClearsOnExit", !player.SeekTipVisible && session.Snapshot.PositionTicks == hoverPosition);
             player.BeginSmokeSeek(40);
             Mark(report, "SeekDragShowsPreview", player.SeekTipVisible && Math.Abs(player.DisplayedSeekSeconds - 40) < .01 && At(session, 25));
             await Task.Delay(300, token);
@@ -186,8 +217,17 @@ internal static class PlayerControlsSmoke
             await player.DispatchSmokeTrackAsync(null, subtitle: true);
             await CheckAsync(report, "SubtitleMenuOff", () => player.ViewModel.Snapshot.SelectedSubtitleTrackId is null && !player.HasOpenMenu, token);
 
+            var preferences = window.Services.GetRequiredService<ISettingsService>();
+            Mark(report, "EpisodePanelExpanded", player.EpisodePanelVisible);
+            var expandedViewportWidth = player.ViewportElement.ActualWidth;
             player.ToggleEpisodesForSmoke();
-            Mark(report, "EpisodeDrawerOpens", player.EpisodeDrawerOpen);
+            await player.FlushPreferencesAsync();
+            await CheckAsync(report, "EpisodePanelCollapseExpandsVideo", () => !player.EpisodePanelVisible &&
+                preferences.Current.EpisodePanelCollapsed && player.ViewportElement.ActualWidth > expandedViewportWidth + 200, token);
+            player.ToggleEpisodesForSmoke();
+            await player.FlushPreferencesAsync();
+            await CheckAsync(report, "EpisodePanelRestoresVideo", () => player.EpisodePanelVisible &&
+                !preferences.Current.EpisodePanelCollapsed && Math.Abs(player.ViewportElement.ActualWidth - expandedViewportWidth) < 1, token);
             await player.SetEpisodeGridForSmokeAsync(false);
             Mark(report, "EpisodeListLayout", !player.EpisodeGridVisible);
             await player.SetEpisodeGridForSmokeAsync(true);
@@ -212,7 +252,6 @@ internal static class PlayerControlsSmoke
             await CheckAsync(report, "NextEpisodeButton", () => player.ViewModel.CanControl && player.ViewModel.Snapshot.CurrentEntryIndex == 1, token);
             await InvokeButtonAsync(player, "上一集", token);
             await CheckAsync(report, "PreviousEpisodeButton", () => player.ViewModel.CanControl && player.ViewModel.Snapshot.CurrentEntryIndex == 0, token);
-            player.ToggleEpisodesForSmoke();
             await PauseAsync(true);
             var nearEnd = TimeSpan.FromTicks(session.Snapshot.DurationTicks).TotalSeconds - 10;
             await player.DispatchSmokeSeekAsync(nearEnd);
@@ -272,17 +311,16 @@ internal static class PlayerControlsSmoke
 
             await player.DispatchSmokeKeyAsync(VirtualKey.F11);
             await WaitAsync(() => presentation.IsFullscreen, token);
-            player.ToggleEpisodesForSmoke();
+            Mark(report, "FullscreenHidesEpisodePanel", !player.EpisodePanelVisible);
             player.ShowMenuForSmoke(tracks: false);
             await WaitAsync(() => player.HasOpenMenu, token);
             await player.DispatchSmokeKeyAsync(VirtualKey.Escape);
-            await CheckAsync(report, "EscapeClosesMenuFirst", () => !player.HasOpenMenu && player.EpisodeDrawerOpen && presentation.IsFullscreen && playback.Current is not null, token);
+            await CheckAsync(report, "EscapeClosesMenuFirst", () => !player.HasOpenMenu && !player.EpisodePanelVisible && presentation.IsFullscreen && playback.Current is not null, token);
             await player.DispatchSmokeKeyAsync(VirtualKey.Escape);
-            Mark(report, "EscapeClosesDrawerSecond", !player.EpisodeDrawerOpen && presentation.IsFullscreen && playback.Current is not null);
+            await CheckAsync(report, "EscapeLeavesFullscreenSecond", () => !presentation.IsFullscreen && player.EpisodePanelVisible && playback.Current is not null, token);
             await player.DispatchSmokeKeyAsync(VirtualKey.Escape);
-            await CheckAsync(report, "EscapeLeavesFullscreenThird", () => !presentation.IsFullscreen && playback.Current is not null, token);
-            await player.DispatchSmokeKeyAsync(VirtualKey.Escape);
-            await CheckAsync(report, "EscapeClosesPlaybackLast", () => playback.Current is null && window.Shell.ActivePlayer is null && !navigation.ForwardBlocked, token);
+            await CheckAsync(report, "EscapeClosesPlaybackLast", () => playback.Current is null && window.Shell.ActivePlayer is null &&
+                !navigation.ForwardBlocked && !window.Shell.IsTransitioning, token);
             Mark(report, "NavigationRestored", navigation.CanGoForward && ReferenceEquals(navigation.Current, browsingEntry));
             Mark(report, "FocusRestored", previousFocus is { IsLoaded: true, IsEnabled: true }
                 ? ReferenceEquals(FocusManager.GetFocusedElement(window.Shell.XamlRoot), previousFocus)
@@ -294,7 +332,7 @@ internal static class PlayerControlsSmoke
             report.Stage = "EpisodeLayoutExternalCloseRace";
             var layoutSession = await playback.PreviewAsync(token);
             report.SessionsOpened++;
-            await WaitAsync(() => window.Shell.ActivePlayer is { IsLoaded: true } active &&
+            await WaitAsync(() => !window.Shell.IsTransitioning && window.Shell.ActivePlayer is { IsLoaded: true } active &&
                 ReferenceEquals(active.Session, layoutSession) && active.ViewModel.CanControl, token);
             var layoutOwner = window.Shell.ActivePlayer!;
             var layoutSettings = window.Services.GetRequiredService<ISettingsService>();
@@ -302,34 +340,64 @@ internal static class PlayerControlsSmoke
             var queuedWrites = Enumerable.Range(0, Math.Clamp((int)Math.Ceiling(200 / Math.Max(1, fakeDelayMs)), 2, 24))
                 .Select(_ => layoutSettings.UpdateAsync(settings => settings, token)).ToArray();
             layoutOwner.SetEpisodeGridForSmoke(false);
+            layoutOwner.ToggleEpisodesForSmoke();
             Mark(report, "EpisodeLayoutWritePendingAtExternalClose", !layoutOwner.PendingPreferenceSave.IsCompleted);
             await layoutSession.CloseAsync(cancellationToken: token);
             var layoutReplacement = await playback.PreviewAsync(token);
             report.SessionsOpened++;
-            await WaitAsync(() => window.Shell.ActivePlayer is { IsLoaded: true } active &&
+            await WaitAsync(() => !window.Shell.IsTransitioning && window.Shell.ActivePlayer is { IsLoaded: true } active &&
                 ReferenceEquals(active.Session, layoutReplacement) && active.ViewModel.CanControl, token);
             var nextLayoutOwner = window.Shell.ActivePlayer!;
             await Task.WhenAll(queuedWrites);
             Mark(report, "EpisodeLayoutExternalCloseReopen", !layoutSettings.Current.UseEpisodeGrid && !nextLayoutOwner.EpisodeGridVisible);
+            Mark(report, "EpisodePanelExternalCloseReopen", layoutSettings.Current.EpisodePanelCollapsed && !nextLayoutOwner.EpisodePanelVisible);
+            nextLayoutOwner.ToggleEpisodesForSmoke();
+            await nextLayoutOwner.FlushPreferencesAsync();
+            Mark(report, "EpisodePanelRaceRestoresExpanded", !layoutSettings.Current.EpisodePanelCollapsed && nextLayoutOwner.EpisodePanelVisible);
             await nextLayoutOwner.SetEpisodeGridForSmokeAsync(true);
             Mark(report, "EpisodeLayoutRaceRestoresGrid", layoutSettings.Current.UseEpisodeGrid && nextLayoutOwner.EpisodeGridVisible);
             await layoutReplacement.CloseAsync(cancellationToken: token);
-            await WaitAsync(() => playback.Current is null && window.Shell.ActivePlayer is null && !navigation.ForwardBlocked, token);
+            await WaitAsync(() => playback.Current is null && window.Shell.ActivePlayer is null && !navigation.ForwardBlocked && !window.Shell.IsTransitioning, token);
+
+            report.Stage = "InterruptedPlayerFold";
+            var interrupted = await playback.PreviewAsync(token);
+            report.SessionsOpened++;
+            await WaitAsync(() => window.Shell.ActivePlayer is { IsLoaded: true } active &&
+                ReferenceEquals(active.Session, interrupted), token);
+            if (Motion.AnimationsEnabled)
+                Mark(report, "OpeningFoldDefersVideoSurface", window.Shell.IsTransitioning &&
+                    !window.Shell.ActivePlayer!.VideoSurface.IsDemoAttached);
+            await interrupted.CloseAsync(cancellationToken: token);
+            var replacement = await playback.PreviewAsync(token);
+            report.SessionsOpened++;
+            await CheckAsync(report, "InterruptedFoldReopensCurrentSession", () => !window.Shell.IsTransitioning &&
+                window.Shell.ActivePlayer is { IsLoaded: true } active && ReferenceEquals(active.Session, replacement) &&
+                active.VideoSurface.IsDemoAttached && active.ViewModel.CanControl, token);
+            await replacement.CloseAsync(cancellationToken: token);
+            await CheckAsync(report, "InterruptedFoldRestoresBrowser", () => playback.Current is null &&
+                window.Shell.ActivePlayer is null && !window.Shell.IsTransitioning && !navigation.ForwardBlocked &&
+                window.Shell.LastPlayerFocusRestoreSucceeded && window.Shell.LastPlayerFocusRestoredWithinShell, token);
 
             foreach (var close in new[] { "AltLeftCloses", "MouseBackCloses", "NavigatorBackCloses", "CloseButtonCloses" })
             {
                 report.Stage = close;
                 var auxiliary = await playback.PreviewAsync(token);
                 report.SessionsOpened++;
-                await WaitAsync(() => window.Shell.ActivePlayer is { IsLoaded: true } active &&
+                await WaitAsync(() => !window.Shell.IsTransitioning && window.Shell.ActivePlayer is { IsLoaded: true } active &&
                     ReferenceEquals(active.Session, auxiliary) && active.ViewModel.CanControl, token);
                 var active = window.Shell.ActivePlayer!;
                 Mark(report, "EpisodeLayoutRememberedByNewOverlay", active.EpisodeGridVisible);
                 if (close == "AltLeftCloses") await active.DispatchSmokeKeyAsync(VirtualKey.Left, alt: true);
                 else if (close == "MouseBackCloses") await active.DispatchSmokeMouseButtonAsync(back: true);
                 else if (close == "NavigatorBackCloses") Mark(report, "NavigatorBackIntercepted", navigation.GoBack());
-                else await InvokeButtonAsync(active, "关闭播放", token);
-                await CheckAsync(report, close, () => playback.Current is null && window.Shell.ActivePlayer is null && !navigation.ForwardBlocked, token);
+                else
+                {
+                    await active.DispatchSmokeKeyAsync(VirtualKey.F11);
+                    await WaitAsync(() => presentation.IsFullscreen, token);
+                    await InvokeButtonAsync(active, "关闭播放", token);
+                }
+                await CheckAsync(report, close, () => playback.Current is null && window.Shell.ActivePlayer is null &&
+                    !navigation.ForwardBlocked && !window.Shell.IsTransitioning, token);
             }
             report.Passed = true;
             report.Status = "Passed";

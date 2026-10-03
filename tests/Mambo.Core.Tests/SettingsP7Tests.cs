@@ -18,13 +18,35 @@ public sealed class SettingsP7Tests
         using (var settings = new SettingsStore(directory.Paths, new Scheduler()))
         {
             Assert.Equal(SettingsThemeMode.System, settings.Current.ThemeMode);
-            Assert.False(settings.Current.UseEpisodeGrid);
-            await settings.UpdateAsync(value => value with { ThemeMode = SettingsThemeMode.Dark, UseEpisodeGrid = true }, TestContext.Current.CancellationToken);
+            await settings.UpdateAsync(value => value with { ThemeMode = SettingsThemeMode.Dark }, TestContext.Current.CancellationToken);
             await Assert.ThrowsAsync<AppException>(() => settings.UpdateAsync(value => value with { ThemeMode = (SettingsThemeMode)99 }, TestContext.Current.CancellationToken));
         }
         using var restored = new SettingsStore(directory.Paths, new Scheduler());
         Assert.Equal(SettingsThemeMode.Dark, restored.Current.ThemeMode);
-        Assert.True(restored.Current.UseEpisodeGrid);
+        Assert.Equal(device, restored.Current.DeviceId);
+        Assert.Equal(37, restored.Current.Volume);
+    }
+
+    [Theory]
+    [InlineData("", true)]
+    [InlineData(",\"UseEpisodeGrid\":false", false)]
+    [InlineData(",\"UseEpisodeGrid\":true", true)]
+    public async Task EpisodePreferencesMigrateWithoutOverwritingStoredLayout(string storedLayout, bool expectedGrid)
+    {
+        using var directory = new SettingsDirectory();
+        var device = Guid.NewGuid();
+        await File.WriteAllTextAsync(directory.Paths.Settings,
+            $$$"""{"Version":1,"Settings":{"DeviceId":"{{{device}}}","Volume":37{{{storedLayout}}}}}""",
+            TestContext.Current.CancellationToken);
+        using (var settings = new SettingsStore(directory.Paths, new Scheduler()))
+        {
+            Assert.Equal(expectedGrid, settings.Current.UseEpisodeGrid);
+            Assert.False(settings.Current.EpisodePanelCollapsed);
+            await settings.UpdateAsync(value => value with { EpisodePanelCollapsed = true }, TestContext.Current.CancellationToken);
+        }
+        using var restored = new SettingsStore(directory.Paths, new Scheduler());
+        Assert.True(restored.Current.EpisodePanelCollapsed);
+        Assert.Equal(expectedGrid, restored.Current.UseEpisodeGrid);
         Assert.Equal(device, restored.Current.DeviceId);
         Assert.Equal(37, restored.Current.Volume);
     }

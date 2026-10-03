@@ -35,7 +35,6 @@
                 AutomationProperties.AccessibilityView="Raw"/>
         <Border Grid.ColumnSpan="2" Height="1" Margin="1,1,1,0" VerticalAlignment="Top" Background="{ThemeResource GlassHighlightBrush}"
                 IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw"/>
-        <Border x:Name="PlayerCaptionBackground" Grid.ColumnSpan="2" Background="{ThemeResource PlayerCaptionBackgroundBrush}" Visibility="Collapsed"/>
         <Grid x:Name="TitleBar" Grid.ColumnSpan="2" Background="Transparent">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="{StaticResource SidebarGridLength}"/>
@@ -81,16 +80,33 @@
             </StackPanel>
         </Grid>
 
-        <Border x:Name="SidebarSlot" Grid.Row="1"/>
-        <Border x:Name="Well" Grid.Row="1" Grid.Column="1" Margin="{StaticResource ContentMargin}"
-                BorderBrush="{ThemeResource ContentStrokeBrush}" BorderThickness="{StaticResource ContentBorderThickness}"
-                CornerRadius="{StaticResource ContentCornerRadius}">
-            <shell:PageHost x:Name="Pages"/>
-        </Border>
+        <Grid x:Name="BrowseFace" Grid.Row="1" Grid.ColumnSpan="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="{StaticResource SidebarGridLength}"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Border x:Name="SidebarSlot"/>
+            <Border x:Name="Well" Grid.Column="1" Margin="{StaticResource ContentMargin}"
+                    BorderBrush="{ThemeResource ContentStrokeBrush}" BorderThickness="{StaticResource ContentBorderThickness}"
+                    CornerRadius="{StaticResource ContentCornerRadius}">
+                <shell:PageHost x:Name="Pages"/>
+            </Border>
+            <Border x:Name="BrowseShade" Grid.ColumnSpan="2" Background="Black" Opacity="0"
+                    IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw"/>
+        </Grid>
 
         <!-- 卡片进详情时的封面快照画在这一层 -->
         <Canvas x:Name="TransitionLayer" Grid.RowSpan="2" Grid.ColumnSpan="2" IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw"/>
-        <Grid x:Name="PlayerSlot" Grid.Row="1" Grid.ColumnSpan="2" Visibility="Collapsed"/>
+        <Grid x:Name="PlayerSlot" Grid.Row="1" Grid.ColumnSpan="2" Visibility="Collapsed">
+            <Grid x:Name="PlayerContent"/>
+            <!-- 会话已经结束时只翻转这个占位面，不保留播放器或视频交换链。 -->
+            <Grid x:Name="ClosingFace" Visibility="Collapsed" IsHitTestVisible="False"
+                  AutomationProperties.AccessibilityView="Raw">
+                <Border x:Name="ClosingVideo" Background="Black" Margin="0,12,0,0" CornerRadius="12,12,0,0"/>
+            </Grid>
+            <Border x:Name="PlayerShade" Background="Black" Opacity="0" IsHitTestVisible="False"
+                    AutomationProperties.AccessibilityView="Raw"/>
+        </Grid>
         <Grid x:Name="OverlayLayer" Grid.RowSpan="2" Grid.ColumnSpan="2"/>
         <shell:DialogHost x:Name="Dialogs" Grid.RowSpan="2" Grid.ColumnSpan="2"/>
     </Grid>

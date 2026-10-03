@@ -59,8 +59,10 @@ public sealed record AppSettings
     public string? ExternalMpvPath { get; init; }
     public ExternalMpvApproval? ExternalMpvApproval { get; init; }
     public SettingsThemeMode ThemeMode { get; init; } = SettingsThemeMode.System;
-    /// <summary>选集抽屉的上次布局；false 为列表，true 为集号网格。</summary>
-    public bool UseEpisodeGrid { get; init; }
+    /// <summary>选集面板的上次布局；false 为列表，true 为集号网格。旧设置中的显式选择保持不变。</summary>
+    public bool UseEpisodeGrid { get; init; } = true;
+    /// <summary>非全屏播放时是否收起选集面板；旧设置默认展开。</summary>
+    public bool EpisodePanelCollapsed { get; init; }
     public HdrMode HdrMode { get; init; } = HdrMode.Auto;
     public HardwareDecodingMode HardwareDecoding { get; init; } = HardwareDecodingMode.Auto;
     public double Volume { get; init; } = 100;

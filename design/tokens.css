@@ -261,26 +261,26 @@
   --p-text-1: rgba(255, 255, 255, .96);
   --p-text-2: rgba(255, 255, 255, .72);
   --p-text-3: rgba(255, 255, 255, .50);
-  --p-panel: rgba(24, 25, 28, .92);
-  --p-panel-stroke: rgba(255, 255, 255, .10);
-  --p-hover: rgba(255, 255, 255, .10);
+  --p-panel: rgba(0, 0, 0, .85);
+  --p-panel-stroke: rgba(255, 255, 255, .15);
+  --p-hover: rgba(255, 255, 255, .15);
   --p-press: rgba(255, 255, 255, .06);
-  --p-track: rgba(255, 255, 255, .24);
+  --p-track: rgba(255, 255, 255, .20);
   --p-buffer: rgba(255, 255, 255, .44);
   --p-fill: #ffffff;
-  --p-pill: rgba(16, 17, 20, .72);
+  --p-pill: rgba(0, 0, 0, .60);
   --p-button-text: rgba(255, 255, 255, .96);
   --p-button-bg: transparent;
   --p-play-bg: #ffffff;
   --p-play-text: #0b0b0d;
-  --p-big-play-bg: rgba(0, 0, 0, .46);
+  --p-big-play-bg: rgba(0, 0, 0, .45);
   --p-big-play-stroke: rgba(255, 255, 255, .25);
   --p-drawer: rgba(20, 21, 24, .97);
   --p-image-placeholder: #222222;
   --p-image-scrim: rgba(0, 0, 0, .45);
   --p-episode-grid: rgba(255, 255, 255, .08);
-  --p-episode-current: rgba(255, 255, 255, .19);
-  --p-scrim-bottom: linear-gradient(to top, rgba(0, 0, 0, .86) 0%, rgba(0, 0, 0, .52) 42%, rgba(0, 0, 0, 0) 100%);
+  --p-episode-current: rgba(255, 255, 255, .12);
+  --p-scrim-bottom: linear-gradient(to top, rgba(0, 0, 0, .90) 0%, rgba(0, 0, 0, .45) 50%, rgba(0, 0, 0, 0) 100%);
   --p-scrim-top: linear-gradient(to bottom, rgba(0, 0, 0, .62) 0%, rgba(0, 0, 0, 0) 100%);
 }
 

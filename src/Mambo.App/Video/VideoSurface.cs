@@ -35,6 +35,8 @@ public sealed partial class VideoSurface : SwapChainPanel, IDisposable
     private readonly InputSystemCursor arrow = InputSystemCursor.Create(InputSystemCursorShape.Arrow);
     private CompositionRoundedRectangleGeometry? clipGeometry;
     private CompositionGeometricClip? clip;
+    private float clipRadius = 8;
+    private bool clipTopOnly;
     private bool disposed;
     internal event Action<int, int>? PixelSizeRequested;
     internal event Action<string>? DiagnosticError;
@@ -59,6 +61,18 @@ public sealed partial class VideoSurface : SwapChainPanel, IDisposable
         commit.Tick += CommitBuffer;
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
+    }
+
+    /// <summary>设置视口裁剪；只圆上角时向下延伸几何，不改变交换链的目标像素尺寸。</summary>
+    public void SetViewportClip(float radius, bool topOnly)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        if (!DispatcherQueue.HasThreadAccess) throw new InvalidOperationException("视频裁剪必须在界面线程执行。");
+        if (!float.IsFinite(radius) || radius < 0) throw new ArgumentOutOfRangeException(nameof(radius));
+        if (clipRadius == radius && clipTopOnly == topOnly) return;
+        clipRadius = radius;
+        clipTopOnly = topOnly;
+        ApplyClip();
     }
 
     private void CommitBuffer(DispatcherQueueTimer sender, object args)
@@ -282,10 +296,11 @@ public sealed partial class VideoSurface : SwapChainPanel, IDisposable
         if (clipGeometry is null)
         {
             clipGeometry = compositor.CreateRoundedRectangleGeometry();
-            clipGeometry.CornerRadius = new System.Numerics.Vector2(8, 8);
             clip = compositor.CreateGeometricClip(clipGeometry);
             visual.Clip = clip;
         }
-        clipGeometry.Size = new System.Numerics.Vector2((float)target.Width, (float)target.Height);
+        clipGeometry.CornerRadius = new System.Numerics.Vector2(clipRadius, clipRadius);
+        clipGeometry.Size = new System.Numerics.Vector2((float)target.Width,
+            (float)target.Height + (clipTopOnly ? clipRadius : 0));
     }
 }

@@ -140,7 +140,8 @@ internal static class UiLabSmoke
             report.Stage = "播放层与控制";
             await SaveReportAsync(report, reportPath);
             var session = await playback.PreviewAsync(token);
-            await WaitAsync(() => session.Snapshot.Phase == PlayerPhase.Playing && window.Shell.ActivePlayer is not null, token);
+            await WaitAsync(() => session.Snapshot.Phase == PlayerPhase.Playing && !window.Shell.IsTransitioning &&
+                window.Shell.ActivePlayer is { IsLoaded: true } loaded && loaded.VideoSurface.IsDemoAttached, token);
             report.Overlay = navigation.ForwardBlocked && navigation.BackInterceptor?.CanHandle == true;
             var behind = navigation.Current;
             navigation.Navigate(Route.Home);
@@ -161,7 +162,7 @@ internal static class UiLabSmoke
             presentation.ExitFullscreen();
             report.Fullscreen = !presentation.IsFullscreen;
             await session.CloseAsync(token);
-            await WaitAsync(() => playback.Current is null && window.Shell.ActivePlayer is null && !navigation.ForwardBlocked, token);
+            await WaitAsync(() => playback.Current is null && window.Shell.ActivePlayer is null && !navigation.ForwardBlocked && !window.Shell.IsTransitioning, token);
             report.Closed = true;
             report.PlayerControls = await PlayerControlsSmoke.RunAsync(window, playback, token);
 
@@ -180,13 +181,14 @@ internal static class UiLabSmoke
             for (var index = 0; index < 50; index++)
             {
                 var repeated = await playback.PreviewAsync(token);
-                await WaitAsync(() => repeated.Snapshot.Phase == PlayerPhase.Playing && window.Shell.ActivePlayer is { IsLoaded: true } loaded && loaded.VideoSurface.IsDemoAttached, token);
+                await WaitAsync(() => repeated.Snapshot.Phase == PlayerPhase.Playing && !window.Shell.IsTransitioning &&
+                    window.Shell.ActivePlayer is { IsLoaded: true } loaded && loaded.VideoSurface.IsDemoAttached, token);
                 await AwaitNextRenderingAsync(token);
                 report.OpenedFrameCycles++;
                 closedPlayers.Add(new WeakReference(window.Shell.ActivePlayer!));
                 closedSurfaces.Add(new WeakReference(window.Shell.ActivePlayer!.VideoSurface));
                 await repeated.CloseAsync(token);
-                await WaitAsync(() => playback.Current is null && window.Shell.ActivePlayer is null, token);
+                await WaitAsync(() => playback.Current is null && window.Shell.ActivePlayer is null && !window.Shell.IsTransitioning, token);
                 await AwaitNextRenderingAsync(token);
                 report.ClosedFrameCycles++;
                 report.SessionsClosed++;
@@ -364,14 +366,11 @@ internal static class UiLabSmoke
     {
         var fullPath = Path.GetFullPath(reportPath);
         Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
-        var temporary = fullPath + "." + report.RunId + ".tmp";
         try
         {
-            await File.WriteAllTextAsync(temporary, JsonSerializer.Serialize(report, UiLabJsonContext.Default.UiLabReport));
-            // Windows 的 Move(overwrite) 在报告读取句柄仍打开时会返回拒绝访问；
-            // Replace 可与允许 FileShare.Delete 的诊断读取器并存，且读者始终看到完整 JSON。
-            if (File.Exists(fullPath)) File.Replace(temporary, fullPath, destinationBackupFileName: null);
-            else File.Move(temporary, fullPath);
+            // 所有验收读取者都等进程退出后解析终报；运行中的检查点可能尚未写完。
+            // 不反复替换文件身份：允许写入但未共享 Delete 的观察句柄会阻止 Replace/Move。
+            await File.WriteAllTextAsync(fullPath, JsonSerializer.Serialize(report, UiLabJsonContext.Default.UiLabReport));
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)
         {
@@ -380,7 +379,6 @@ internal static class UiLabSmoke
             report.ReportWriteHResult = error.HResult.ToString("X8", CultureInfo.InvariantCulture);
             throw;
         }
-        finally { if (File.Exists(temporary)) File.Delete(temporary); }
     }
 
     private static async Task WaitAsync(Func<bool> ready, CancellationToken token)

@@ -146,7 +146,7 @@ internal static class PlaybackRefreshSmoke
             report.Stage = "SeekAndCloseActualPlayer";
             var session = await playback.PlayAsync(new PlayRequest(ItemId, InitialPosition), probeToken);
             ownedSession = session;
-            await WaitAsync(() => window.Shell.ActivePlayer is { IsLoaded: true } player &&
+            await WaitAsync(() => !window.Shell.IsTransitioning && window.Shell.ActivePlayer is { IsLoaded: true } player &&
                 ReferenceEquals(player.Session, session) && session.Snapshot.Phase == PlayerPhase.Playing, probeToken);
             if (!session.Snapshot.IsPaused) await session.TogglePauseAsync(probeToken);
             await session.SeekAsync(TimeSpan.FromTicks(SeekPosition), probeToken);
@@ -167,12 +167,15 @@ internal static class PlaybackRefreshSmoke
             Require(report, "SeekDoesNotArtificiallyRefreshPages", http.Position == InitialPosition &&
                 PagesAt(detail, recent, libraryPage, initialFraction, InitialPosition));
             var activePlayer = window.Shell.ActivePlayer!;
+            await activePlayer.DispatchSmokeKeyAsync(Windows.System.VirtualKey.F11);
+            await WaitAsync(() => activePlayer.FindName("TopBar").As<Grid>().Visibility == Visibility.Visible, probeToken);
+            activePlayer.ShowControlsForSmoke();
             var close = activePlayer.FindName("CloseButton").As<Button>();
             var peer = FrameworkElementAutomationPeer.CreatePeerForElement(close) ?? new ButtonAutomationPeer(close);
             var invoke = peer.GetPattern(PatternInterface.Invoke) as IInvokeProvider;
             Require(report, "ActualCloseButtonInvokeProvider", invoke is not null);
             invoke!.Invoke();
-            await WaitAsync(() => playback.Current is null && window.Shell.ActivePlayer is null, probeToken);
+            await WaitAsync(() => playback.Current is null && window.Shell.ActivePlayer is null && !window.Shell.IsTransitioning, probeToken);
 
             report.Stage = "ObserveStoppedRefreshXaml";
             var finalPosition = session.Snapshot.PositionTicks;

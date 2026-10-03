@@ -154,7 +154,7 @@ try {
     $overlayResult.appErrorKind = $overlayReport.ErrorKind
     $overlayResult.appHResult = $overlayReport.HResult
     $overlayChecks = @('IsolatedServicesVerified', 'ProductionEngineParameters', 'FormalOverlayLoaded', 'RealEmbeddedEngine',
-        'TitleBound', 'Playing', 'Bound', 'SizeMatched', 'ViewportMatched', 'AudioFixtureGenerated', 'AudioOutputAvailable',
+        'TitleBound', 'Playing', 'Bound', 'SizeMatched', 'ViewportMatched', 'FullscreenViewportMatched', 'AudioFixtureGenerated', 'AudioOutputAvailable',
         'AudioTrackSelected', 'ExternalAudioTrackSelected', 'AudioPlaybackAdvanced', 'VolumeControl', 'MuteButton', 'UnmuteButton', 'NativeUnmuted',
         'PauseButton', 'SeekControl', 'ResumeButton', 'Closed', 'Detached',
         'Stopped', 'OutboxEmpty', 'ReportSequenceOrdered', 'ShutdownCompleted')

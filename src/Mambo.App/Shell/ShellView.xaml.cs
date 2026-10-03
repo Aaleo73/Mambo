@@ -34,6 +34,10 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
     private IPlaybackSession? startingSession;
     private Task pendingPreferenceSaves = Task.CompletedTask;
     private int playerPresentationVersion;
+    private readonly PlayerFoldTransition fold;
+    private bool browseCovered;
+    private bool presentationChanging;
+    private bool presentationPending;
     private CompositionRoundedRectangleGeometry? wellClip;
     private bool disposed;
 
@@ -49,6 +53,7 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
         this.toasts = toasts;
         this.dialogs = dialogs;
         InitializeComponent();
+        fold = new PlayerFoldTransition(BrowseFace, PlayerSlot, BrowseShade, PlayerShade);
         Sidebar = new SidebarView(viewModel, navigator);
         SidebarSlot.Child = Sidebar;
         toastHost = new ToastHost(toasts);
@@ -63,7 +68,8 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
         playback.EntrySkipped += OnEntrySkipped;
         window.PresentationChanged += OnPresentationChanged;
         Well.SizeChanged += (_, _) => UpdateWellClip();
-        TitleBar.SizeChanged += (_, _) => TitleBarLayoutChanged?.Invoke(this, EventArgs.Empty);
+        TitleBar.SizeChanged += OnTitleBarSizeChanged;
+        Root.SizeChanged += OnRootSizeChanged;
         NavButtons.SizeChanged += (_, _) => TitleBarLayoutChanged?.Invoke(this, EventArgs.Empty);
         CenterContent.SizeChanged += (_, _) => TitleBarLayoutChanged?.Invoke(this, EventArgs.Empty);
         AddHandler(PointerPressedEvent, new PointerEventHandler(OnPointerPressed), true);
@@ -80,9 +86,11 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
     public FrameworkElement TitleBarElement => TitleBar;
     public FrameworkElement MaximizeElement => MaximizeButton;
     internal PlayerOverlay? ActivePlayer => player;
+    internal Task PendingPresentation { get; private set; } = Task.CompletedTask;
+    internal bool IsTransitioning => presentationPending || fold.IsRunning;
     internal bool LastPlayerFocusRestoreSucceeded { get; private set; }
     internal bool LastPlayerFocusRestoredWithinShell { get; private set; }
-    public bool CanHandle => player is not null || startingSession is not null;
+    public bool CanHandle => browseCovered;
     public IEnumerable<FrameworkElement> PassthroughElements => [NavButtons, MinimizeButton, CloseButton, CenterContent];
 
     public event EventHandler? TitleBarLayoutChanged;
@@ -103,8 +111,7 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
     public bool TryHandleBack()
     {
         if (player is { } active) { _ = active.CloseAsync(); return true; }
-        if (startingSession is not { } pending) return false;
-        playerPresentationVersion++;
+        if (startingSession is not { } pending) return browseCovered;
         _ = ClosePendingSessionAsync(pending);
         return true;
     }
@@ -136,9 +143,17 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
     public void Dispose()
     {
         if (disposed) return;
+        ParkPlayerFocus();
         disposed = true;
         playerPresentationVersion++;
         startingSession = null;
+        fold.Dispose();
+        presentationPending = false;
+        browseCovered = false;
+        ClosingFace.Visibility = Visibility.Collapsed;
+        PlayerSlot.Visibility = Visibility.Collapsed;
+        Root.SizeChanged -= OnRootSizeChanged;
+        TitleBar.SizeChanged -= OnTitleBarSizeChanged;
         Bindings.StopTracking();
         CoverTransition.Detach(TransitionLayer);
         playback.SessionStarted -= OnSessionStarted;
@@ -151,9 +166,12 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
         if (player is { } active)
         {
             pendingPreferenceSaves = Task.WhenAll(pendingPreferenceSaves, active.PendingPreferenceSave);
+            active.TitleChanged -= OnPlayerTitleChanged;
+            active.LayoutChanged -= OnPlayerLayoutChanged;
             active.Dispose();
         }
         player = null;
+        PlayerContent.Children.Clear();
         if (ReferenceEquals(navigator.BackInterceptor, this)) navigator.BackInterceptor = null;
         navigator.ForwardBlocked = false;
         Pages.Clear();
@@ -167,39 +185,56 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
 
     private void OnSessionStarted(object? sender, PlaybackSessionEventArgs e) => ShowPlayer(e.Session);
     // UI 事件适配器：意外的初始化异常继续交给 XAML 的未处理异常通道，不能变成未观察 Task。
-    private async void ShowPlayer(IPlaybackSession session) => await ShowPlayerAsync(session);
-    private async Task ShowPlayerAsync(IPlaybackSession session)
+    private async void ShowPlayer(IPlaybackSession session)
     {
         if (disposed || ReferenceEquals(player?.Session, session) || ReferenceEquals(startingSession, session)) return;
-        if (CanHandle) RemovePlayer();
+        await (PendingPresentation = ShowPlayerAsync(session));
+    }
+    private async Task ShowPlayerAsync(IPlaybackSession session)
+    {
+        var interrupted = IsTransitioning || player is not null;
         var version = ++playerPresentationVersion;
+        presentationPending = true;
+        fold.Settle();
+        DetachPlayer();
         startingSession = session;
-        pageTitle = ViewModel.TitleText;
-        previousFocus = XamlRoot is null ? null : FocusManager.GetFocusedElement(XamlRoot) as Control;
-        Well.IsHitTestVisible = false;
-        SidebarSlot.IsHitTestVisible = false;
+        if (!browseCovered)
+        {
+            browseCovered = true;
+            pageTitle = ViewModel.TitleText;
+            previousFocus = XamlRoot is null ? null : FocusManager.GetFocusedElement(XamlRoot) as Control;
+            coveredPage = Pages.CurrentPage as Control;
+            coveredPageEnabled = coveredPage?.IsEnabled ?? false;
+            LastPlayerFocusRestoreSucceeded = false;
+            LastPlayerFocusRestoredWithinShell = false;
+        }
+        Well.IsHitTestVisible = SidebarSlot.IsHitTestVisible = false;
         Sidebar.IsEnabled = false;
-        coveredPage = Pages.CurrentPage as Control;
-        coveredPageEnabled = coveredPage?.IsEnabled ?? false;
         if (coveredPage is not null) coveredPage.IsEnabled = false;
         (Pages.CurrentPage as HomePage)?.SetCovered(true);
         CenterContent.Visibility = Visibility.Collapsed;
-        TitleBar.RequestedTheme = ElementTheme.Dark;
-        PlayerCaptionBackground.Visibility = Visibility.Visible;
-        SetPlayerToastResources();
-        toastHost.RequestedTheme = ElementTheme.Dark;
         navigator.BackInterceptor = this;
         navigator.ForwardBlocked = true;
-        // 外部关闭可以先结束会话、再销毁 Overlay；等旧布局写入完成后才读取 Current。
+        // 等旧布局写入后再读取设置；整个等待期间仍持有导航锁。
         await pendingPreferenceSaves;
         if (disposed || version != playerPresentationVersion || !ReferenceEquals(playback.Current, session)) return;
         startingSession = null;
-        player = new PlayerOverlay(session, window, toasts, settings);
-        player.TitleChanged += OnPlayerTitleChanged;
-        PlayerSlot.Children.Add(player);
+        var current = new PlayerOverlay(session, window, toasts, settings);
+        player = current;
+        current.SetTransitionActive(true);
+        current.TitleChanged += OnPlayerTitleChanged;
+        current.LayoutChanged += OnPlayerLayoutChanged;
+        ClosingFace.Visibility = Visibility.Collapsed;
+        PlayerContent.Children.Add(current);
         PlayerSlot.Visibility = Visibility.Visible;
         OnPlayerTitleChanged(null, EventArgs.Empty);
-        OnPresentationChanged(null, EventArgs.Empty);
+        UpdatePresentationLayout();
+        await fold.PlayAsync(true, !interrupted);
+        if (disposed || version != playerPresentationVersion || !ReferenceEquals(player, current)) return;
+        current.SetTransitionActive(false);
+        current.Focus(FocusState.Programmatic);
+        UpdateTitleAlignment();
+        presentationPending = false;
     }
 
     private void OnPlayerTitleChanged(object? sender, EventArgs e)
@@ -211,7 +246,7 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
     {
         // 替换时旧会话先结束，然后才会通知新会话启动。
         if (!ReferenceEquals(player?.Session, e.Session) && !ReferenceEquals(startingSession, e.Session)) return;
-        RemovePlayer();
+        HidePlayer();
         if (e.EndReason == PlaybackEndReason.SeasonEnded)
             toasts.Show(ToastKind.Info, "本季已播放完", duration: TimeSpan.FromSeconds(6));
         else if (e.EndReason == PlaybackEndReason.Failed)
@@ -221,78 +256,93 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
     private void OnEntrySkipped(object? sender, PlaybackEntrySkippedEventArgs e) =>
         toasts.Show(ToastKind.Warning, "有一集无法加入连播，已跳过", duration: TimeSpan.FromSeconds(6));
 
-    private void RemovePlayer()
+    private async void HidePlayer() => await (PendingPresentation = HidePlayerAsync());
+
+    private async Task HidePlayerAsync()
     {
-        if (!CanHandle) return;
-        playerPresentationVersion++;
-        var old = player;
+        if (!browseCovered) return;
+        var interrupted = IsTransitioning;
+        var hadPlayer = player is not null;
+        var panelWidth = PlayerPanelWidth;
+        var version = ++playerPresentationVersion;
+        presentationPending = true;
+        fold.Settle();
+        // 释放和移除发生在第一个 await 之前；翻回去仅保留黑色几何占位。
+        DetachPlayer();
+        startingSession = null;
+        ClosingVideo.Margin = new Thickness(0, 12, panelWidth, 0);
+        ClosingFace.Visibility = Visibility.Visible;
+        presentationChanging = true;
+        try { window.ExitFullscreen(); }
+        finally { presentationChanging = false; }
+        UpdatePresentationLayout();
+        await fold.PlayAsync(false, hadPlayer && !interrupted);
+        if (disposed || version != playerPresentationVersion) return;
+        ClosingFace.Visibility = Visibility.Collapsed;
+        browseCovered = false;
+        Well.IsHitTestVisible = SidebarSlot.IsHitTestVisible = true;
+        Sidebar.IsEnabled = true;
+        if (coveredPage is not null) coveredPage.IsEnabled = coveredPageEnabled;
+        (Pages.CurrentPage as HomePage)?.SetCovered(false);
+        CenterContent.Visibility = Visibility.Visible;
+        coveredPage = null;
+        UpdatePageTitle();
+        UpdateTitleAlignment();
+        if (ReferenceEquals(navigator.BackInterceptor, this)) navigator.BackInterceptor = null;
+        navigator.ForwardBlocked = false;
         var restoreTarget = previousFocus;
         previousFocus = null;
-        LastPlayerFocusRestoreSucceeded = false;
-        LastPlayerFocusRestoredWithinShell = false;
-        var focusRestored = false;
-        try
-        {
-            window.ExitFullscreen();
-            Well.IsHitTestVisible = true;
-            SidebarSlot.IsHitTestVisible = true;
-            Sidebar.IsEnabled = true;
-            if (coveredPage is not null) coveredPage.IsEnabled = coveredPageEnabled;
-            (Pages.CurrentPage as HomePage)?.SetCovered(false);
-            CenterContent.Visibility = Visibility.Visible;
-            TitleBar.RequestedTheme = ElementTheme.Default;
-            PlayerCaptionBackground.Visibility = Visibility.Collapsed;
-            toastHost.Resources.ThemeDictionaries.Remove("Default");
-            toastHost.Resources.ThemeDictionaries.Remove("HighContrast");
-            toastHost.RequestedTheme = ElementTheme.Default;
-            OnPresentationChanged(null, EventArgs.Empty);
-            // 浏览控件先恢复可聚焦性，再移走焦点；移除仍有焦点的播放器会触发
-            // 框架另找临时目标。导航锁保持到播放器和它的资源全部移除之后。
-            focusRestored = CanRestoreFocus(restoreTarget, old)
-                && restoreTarget!.Focus(FocusState.Programmatic) && HasShellFocus(old);
-            if (!focusRestored) focusRestored = Sidebar.FocusNavigation() && HasShellFocus(old);
-        }
-        finally
-        {
-            try
-            {
-                if (old is not null)
-                {
-                    pendingPreferenceSaves = Task.WhenAll(pendingPreferenceSaves, old.PendingPreferenceSave);
-                    old.TitleChanged -= OnPlayerTitleChanged;
-                    old.Dispose();
-                }
-            }
-            finally
-            {
-                PlayerSlot.Children.Clear();
-                player = null;
-                startingSession = null;
-                PlayerSlot.Visibility = Visibility.Collapsed;
-                coveredPage = null;
-                UpdatePageTitle();
-                navigator.BackInterceptor = null;
-                navigator.ForwardBlocked = false;
-                OnPresentationChanged(null, EventArgs.Empty);
-                LastPlayerFocusRestoredWithinShell = HasShellFocus(old);
-                LastPlayerFocusRestoreSucceeded = focusRestored && LastPlayerFocusRestoredWithinShell;
-            }
-        }
+        var restored = CanRestoreFocus(restoreTarget) && restoreTarget!.Focus(FocusState.Programmatic) && HasShellFocus();
+        if (!restored) restored = Sidebar.FocusNavigation() && HasShellFocus();
+        LastPlayerFocusRestoredWithinShell = HasShellFocus();
+        LastPlayerFocusRestoreSucceeded = restored && LastPlayerFocusRestoredWithinShell;
+        presentationPending = false;
     }
 
-    private bool CanRestoreFocus(Control? candidate, PlayerOverlay? old) =>
+    private void DetachPlayer()
+    {
+        ParkPlayerFocus();
+        var old = player;
+        player = null;
+        if (old is null) return;
+        pendingPreferenceSaves = Task.WhenAll(pendingPreferenceSaves, old.PendingPreferenceSave);
+        old.TitleChanged -= OnPlayerTitleChanged;
+        old.LayoutChanged -= OnPlayerLayoutChanged;
+        old.Dispose();
+        PlayerContent.Children.Clear();
+    }
+
+    private void ParkPlayerFocus()
+    {
+        if (player is null || XamlRoot is null || HasShellFocus()) return;
+        // 原生视频树销毁前，焦点必须先落到仍可用的外壳控件。
+        // 浏览面在翻折结束前仍禁用；标题栏按钮是这个阶段的稳定目标。
+        presentationChanging = true;
+        try { window.ExitFullscreen(); }
+        finally { presentationChanging = false; }
+        TitleBar.Visibility = Visibility.Visible;
+        Root.RowDefinitions[0].Height = (GridLength)Application.Current.Resources["TitleBarHeightGridLength"];
+        TitleBar.UpdateLayout();
+        MinimizeButton.Focus(FocusState.Programmatic);
+    }
+
+    private double PlayerPanelWidth => player is { EpisodePanelVisible: true } active
+        ? Math.Max(0, active.ActualWidth - active.ViewportElement.ActualWidth)
+        : ClosingFace.Visibility == Visibility.Visible ? ClosingVideo.Margin.Right : 0;
+
+    private bool CanRestoreFocus(Control? candidate) =>
         candidate is { IsLoaded: true, IsEnabled: true, IsTabStop: true }
-        && ReferenceEquals(candidate.XamlRoot, XamlRoot) && IsWithinShell(candidate, old);
+        && ReferenceEquals(candidate.XamlRoot, XamlRoot) && IsWithinShell(candidate);
 
-    private bool HasShellFocus(PlayerOverlay? old) => XamlRoot is { } root
+    private bool HasShellFocus() => XamlRoot is { } root
         && FocusManager.GetFocusedElement(root) is Control { IsLoaded: true, IsEnabled: true } focused
-        && ReferenceEquals(focused.XamlRoot, root) && IsWithinShell(focused, old);
+        && ReferenceEquals(focused.XamlRoot, root) && IsWithinShell(focused);
 
-    private bool IsWithinShell(DependencyObject? candidate, PlayerOverlay? old)
+    private bool IsWithinShell(DependencyObject? candidate)
     {
         for (var current = candidate; current is not null; current = VisualTreeHelper.GetParent(current))
         {
-            if (ReferenceEquals(current, old)) return false;
+            if (ReferenceEquals(current, PlayerSlot)) return false;
             if (current is UIElement element && element.Visibility != Visibility.Visible) return false;
             if (current is Control { IsEnabled: false }) return false;
             if (ReferenceEquals(current, this)) return true;
@@ -302,32 +352,40 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
 
     private void OnPresentationChanged(object? sender, EventArgs e)
     {
+        if (disposed) return;
+        if (!presentationChanging) fold.Settle();
+        UpdatePresentationLayout();
+    }
+
+    private void UpdatePresentationLayout()
+    {
         var fullscreen = player is not null && window.IsFullscreen;
         TitleBar.Visibility = fullscreen ? Visibility.Collapsed : Visibility.Visible;
-        PlayerCaptionBackground.Visibility = CanHandle && !fullscreen ? Visibility.Visible : Visibility.Collapsed;
-        SidebarSlot.Visibility = fullscreen ? Visibility.Collapsed : Visibility.Visible;
-        Well.Visibility = fullscreen ? Visibility.Collapsed : Visibility.Visible;
         Root.RowDefinitions[0].Height = fullscreen ? new GridLength(0) : (GridLength)Application.Current.Resources["TitleBarHeightGridLength"];
         Grid.SetRow(PlayerSlot, fullscreen ? 0 : 1);
         Grid.SetRowSpan(PlayerSlot, fullscreen ? 2 : 1);
-        TitleBarLayoutChanged?.Invoke(this, EventArgs.Empty);
+        UpdateTitleAlignment();
     }
 
-    private void SetPlayerToastResources()
+    private void OnPlayerLayoutChanged(object? sender, EventArgs e) => UpdateTitleAlignment();
+
+    private void OnRootSizeChanged(object sender, SizeChangedEventArgs e)
     {
-        // 使用主题字典，使已显示的 Toast 也能跟随系统对比度切换。
-        var tokens = Application.Current.Resources.MergedDictionaries.First(dictionary =>
-            dictionary.ThemeDictionaries.TryGetValue("HighContrast", out var theme) &&
-            theme is ResourceDictionary contrast && contrast.ContainsKey("PlayerPanelBrush"));
-        foreach (var name in new[] { "Default", "HighContrast" })
-        {
-            var theme = (ResourceDictionary)tokens.ThemeDictionaries[name];
-            toastHost.Resources.ThemeDictionaries[name] = new ResourceDictionary
-            {
-                ["PopupBackgroundBrush"] = theme["PlayerPanelBrush"],
-                ["PopupStrokeBrush"] = theme["PlayerPanelStrokeBrush"],
-            };
-        }
+        if (disposed) return;
+        fold.Settle();
+        UpdateTitleAlignment();
+    }
+
+    private void OnTitleBarSizeChanged(object sender, SizeChangedEventArgs e) => UpdateTitleAlignment();
+
+    private void UpdateTitleAlignment()
+    {
+        if (disposed) return;
+        Grid.SetColumn(CenterArea, browseCovered ? 0 : 1);
+        Grid.SetColumnSpan(CenterArea, browseCovered ? 3 : 2);
+        // 玩家视口是标题对齐的唯一尺寸来源，不把选集栏算入画面中心。
+        CenterArea.Margin = new Thickness(0, 0, PlayerPanelWidth, 0);
+        TitleBarLayoutChanged?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>标题栏中间的可交互内容，例如首页 hero 分页点。</summary>

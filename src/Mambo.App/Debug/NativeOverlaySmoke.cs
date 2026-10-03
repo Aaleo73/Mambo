@@ -106,8 +106,8 @@ internal static class NativeOverlaySmoke
             report.SizeMatched = player.VideoSurface.BufferSize == player.VideoSurface.PixelSize;
             report.BufferWidth = player.VideoSurface.BufferSize.Width;
             report.BufferHeight = player.VideoSurface.BufferSize.Height;
-            report.ExpectedPixelWidth = (int)Math.Round(player.ActualWidth * player.VideoSurface.DpiScale);
-            report.ExpectedPixelHeight = (int)Math.Round(player.ActualHeight * player.VideoSurface.DpiScale);
+            report.ExpectedPixelWidth = (int)Math.Round(player.ViewportElement.ActualWidth * player.VideoSurface.DpiScale);
+            report.ExpectedPixelHeight = (int)Math.Round(player.ViewportElement.ActualHeight * player.VideoSurface.DpiScale);
             report.ViewportMatched = ViewportMatched(player);
             report.TitleBound = player.ViewModel.Title == LocalPreparer.Title;
             report.ProductionEngineParameters = fixture.EngineCreateCount == 1;
@@ -154,11 +154,20 @@ internal static class NativeOverlaySmoke
                 && NativeNumber(engine.Core.GetProperty("time-pos")) is { } position && position >= audioStart + .1, token);
             report.AudioPlaybackAdvanced = true;
 
+            report.Stage = "全屏视口与真实交换链尺寸";
+            player.ShowControlsForSmoke();
+            InvokeButton(player, "切换全屏");
+            await WaitAsync(() => services.GetRequiredService<WindowContext>().IsFullscreen &&
+                player.VideoSurface.BufferSize.Height != report.BufferHeight && ViewportMatched(player), token);
+            report.FullscreenViewportMatched = true;
+            report.FullscreenPixelWidth = player.VideoSurface.BufferSize.Width;
+            report.FullscreenPixelHeight = player.VideoSurface.BufferSize.Height;
+
             report.Stage = "真实关闭按钮和交换链解绑";
             var surface = player.VideoSurface;
             InvokeButton(player, "关闭播放");
             await WaitAsync(() => session.Snapshot.Phase == PlayerPhase.Closed && fixture.Playback.Current is null
-                && window.Shell.ActivePlayer is null, token);
+                && window.Shell.ActivePlayer is null && !window.Shell.IsTransitioning, token);
             report.Closed = true;
             report.Detached = surface.BufferSize == (0, 0);
             await WaitAsync(() => fixture.Handler.Count("Stopped") == 1 && fixture.Outbox.Snapshot.IsEmpty, token);
@@ -193,7 +202,7 @@ internal static class NativeOverlaySmoke
             }
             report.Passed = report.ErrorKind.Length == 0 && report.CleanupErrorKind.Length == 0
                 && report.IsolatedServicesVerified && report.FormalOverlayLoaded && report.RealEmbeddedEngine
-                && report.ProductionEngineParameters && report.TitleBound && report.Playing && report.Bound && report.SizeMatched && report.ViewportMatched
+                && report.ProductionEngineParameters && report.TitleBound && report.Playing && report.Bound && report.SizeMatched && report.ViewportMatched && report.FullscreenViewportMatched
                 && report.AudioFixtureGenerated && report.AudioOutputAvailable && report.AudioTrackSelected && report.ExternalAudioTrackSelected
                 && report.AudioOutputSampleRate > 0 && report.AudioOutputChannels > 0 && report.AudioPlaybackAdvanced
                 && report.VolumeControl && report.MuteButton && report.UnmuteButton && report.NativeUnmuted && Math.Abs(report.NativeVolume - 10) < .01
@@ -218,9 +227,9 @@ internal static class NativeOverlaySmoke
     private static bool ViewportMatched(PlayerOverlay player)
     {
         // A stale initial 1x1 target must not pass merely because buffer == PixelSize.
-        // The normal overlay's VideoHost fills its independently measured viewport.
-        var expected = ((int)Math.Round(player.ActualWidth * player.VideoSurface.DpiScale),
-            (int)Math.Round(player.ActualHeight * player.VideoSurface.DpiScale));
+        // Measure the video rectangle independently of the episode panel and top gutter.
+        var expected = ((int)Math.Round(player.ViewportElement.ActualWidth * player.VideoSurface.DpiScale),
+            (int)Math.Round(player.ViewportElement.ActualHeight * player.VideoSurface.DpiScale));
         return expected.Item1 > 200 && expected.Item2 > 200 && player.VideoSurface.BufferSize == expected;
     }
 
@@ -437,6 +446,9 @@ internal sealed class NativeOverlayReport
     public int ExpectedPixelWidth { get; set; }
     public int ExpectedPixelHeight { get; set; }
     public bool ViewportMatched { get; set; }
+    public bool FullscreenViewportMatched { get; set; }
+    public int FullscreenPixelWidth { get; set; }
+    public int FullscreenPixelHeight { get; set; }
     public bool AudioOutputAvailable { get; set; }
     public bool AudioFixtureGenerated { get; set; }
     public string AudioOutputDriver { get; set; } = "";
