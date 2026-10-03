@@ -912,6 +912,60 @@
         <Setter Property="MinWidth" Value="144"/>
     </Style>
 
+    <!-- 弹出面里的一行选项：36 高、圆角 12、文字缩进 28；悬停是一层白色高亮 -->
+    <Style x:Key="PopupItemButtonStyle" TargetType="Button">
+        <Setter Property="MinHeight" Value="36"/>
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+        <Setter Property="Padding" Value="28,0,10,0"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{ThemeResource TextSecondaryBrush}"/>
+        <Setter Property="CornerRadius" Value="{StaticResource SoftControlCornerRadius}"/>
+        <Setter Property="FontFamily" Value="{StaticResource MiSansSemiboldFontFamily}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="FontSize" Value="{StaticResource BodySmallFontSize}"/>
+        <Setter Property="UseSystemFocusVisuals" Value="False"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid x:Name="Root" Background="{TemplateBinding Background}" CornerRadius="{TemplateBinding CornerRadius}" Padding="{TemplateBinding Padding}"
+                          MinHeight="{TemplateBinding MinHeight}">
+                        <Grid.BackgroundTransition><BrushTransition Duration="0:0:0.16"/></Grid.BackgroundTransition>
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CommonStates">
+                                <VisualState x:Name="Normal"/>
+                                <VisualState x:Name="PointerOver">
+                                    <VisualState.Setters>
+                                        <Setter Target="Root.Background" Value="{ThemeResource PopupItemHoverBrush}"/>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextPrimaryBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Pressed">
+                                    <VisualState.Setters>
+                                        <Setter Target="Root.Background" Value="{ThemeResource PopupItemPressedBrush}"/>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextPrimaryBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                            </VisualStateGroup>
+                            <VisualStateGroup x:Name="FocusStates">
+                                <VisualState x:Name="Focused">
+                                    <VisualState.Setters>
+                                        <Setter Target="Root.Background" Value="{ThemeResource PopupItemHoverBrush}"/>
+                                        <Setter Target="Content.Foreground" Value="{ThemeResource TextPrimaryBrush}"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Unfocused"/>
+                                <VisualState x:Name="PointerFocused"/>
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+                        <ContentPresenter x:Name="Content" Content="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}"
+                                          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center"/>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- 弹出面：菜单、对话框、通知共用。投影由宿主在它前面放一个 SoftShadow.Kind="Popup" 的元素 -->
     <Style x:Key="PopupSurfaceStyle" TargetType="Border">
         <Setter Property="Background" Value="{ThemeResource PopupBackgroundBrush}"/>

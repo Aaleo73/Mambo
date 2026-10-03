@@ -4,23 +4,22 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:Mambo.App.Views.Controls"
     xmlns:vm="using:Mambo.App.ViewModels">
-    <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Auto">
+    <!-- 搜索页整页滚动，滚动条不显示 -->
+    <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Hidden">
         <StackPanel Padding="{StaticResource PagePadding}">
             <controls:PageHeader Eyebrow="SEARCH" Title="搜索"/>
-            <TextBlock Style="{StaticResource BodyTextStyle}" Foreground="{ThemeResource TextSecondaryBrush}" Margin="0,-12,0,22"
-                       Text="{x:Bind ViewModel.Subtitle}"/>
             <ItemsRepeater ItemsSource="{x:Bind ViewModel.Groups}">
+                <ItemsRepeater.Layout>
+                    <StackLayout Spacing="24"/>
+                </ItemsRepeater.Layout>
                 <ItemsRepeater.ItemTemplate>
                     <DataTemplate x:DataType="vm:SearchGroupViewModel">
-                        <StackPanel Margin="0,8,0,30" Visibility="{x:Bind IsVisible, Mode=OneWay}">
-                            <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,0,0,12">
-                                <TextBlock Style="{StaticResource SubtitleTextStyle}" Text="{x:Bind Name}"/>
-                                <TextBlock Style="{StaticResource BodySmallTextStyle}" Foreground="{ThemeResource TextSecondaryBrush}" VerticalAlignment="Bottom"
-                                           Margin="0,0,0,3" Text="{x:Bind CountText, Mode=OneWay}"/>
-                            </StackPanel>
+                        <StackPanel Visibility="{x:Bind IsVisible, Mode=OneWay}">
+                            <TextBlock Style="{StaticResource SubtitleTextStyle}" Margin="0,0,0,12" Text="{x:Bind Name}"/>
                             <ItemsRepeater ItemsSource="{x:Bind Cards.Items}" XYFocusKeyboardNavigation="Enabled">
                                 <ItemsRepeater.Layout>
-                                    <UniformGridLayout MinItemWidth="{StaticResource LandscapeMinWidth}" MinColumnSpacing="16" MinRowSpacing="24" ItemsStretch="Fill"/>
+                                    <UniformGridLayout MinItemWidth="{StaticResource LandscapeMinWidth}" MinColumnSpacing="{StaticResource RailSpacing}"
+                                                       MinRowSpacing="{StaticResource GridRowSpacing}" ItemsStretch="Fill"/>
                                 </ItemsRepeater.Layout>
                                 <ItemsRepeater.ItemTemplate>
                                     <DataTemplate x:DataType="vm:MediaCardViewModel">
@@ -28,29 +27,27 @@
                                     </DataTemplate>
                                 </ItemsRepeater.ItemTemplate>
                             </ItemsRepeater>
-                            <StackPanel Orientation="Horizontal" Spacing="10" Visibility="{x:Bind Cards.HasError, Mode=OneWay}">
-                                <FontIcon Glyph="&#xE7BA;" FontSize="16" Foreground="{ThemeResource WarningBrush}"/>
+                            <StackPanel Orientation="Horizontal" Spacing="12" Visibility="{x:Bind Cards.HasError, Mode=OneWay}">
                                 <TextBlock Style="{StaticResource BodySmallTextStyle}" Foreground="{ThemeResource TextSecondaryBrush}" VerticalAlignment="Center"
                                            Text="{x:Bind Cards.ErrorText, Mode=OneWay}"/>
-                                <Button Style="{StaticResource SoftButtonStyle}" Height="{StaticResource ControlHeightSmall}" Padding="12,0" Content="重试"
-                                        Tag="{x:Bind}" Click="OnGroupRetryClick"/>
+                                <Button Style="{StaticResource SoftButtonStyle}" Content="重试" Tag="{x:Bind}" Click="OnGroupRetryClick"/>
                             </StackPanel>
-                            <Button Style="{StaticResource SoftButtonStyle}" Margin="0,18,0,0" HorizontalAlignment="Center" Content="加载更多"
+                            <Button Style="{StaticResource SoftButtonStyle}" Margin="0,16,0,0" HorizontalAlignment="Center" Content="加载更多"
                                     Tag="{x:Bind}" Click="OnLoadMoreClick" Visibility="{x:Bind CanLoadMore, Mode=OneWay}"/>
-                            <Button Style="{StaticResource SoftButtonStyle}" Margin="0,18,0,0" HorizontalAlignment="Center" Content="重试加载"
+                            <Button Style="{StaticResource SoftButtonStyle}" Margin="0,16,0,0" HorizontalAlignment="Center" Content="重试加载"
                                     Tag="{x:Bind}" Click="OnLoadMoreClick" Visibility="{x:Bind Cards.HasMoreError, Mode=OneWay}"/>
-                            <ProgressRing Margin="0,18,0,0" Width="20" Height="20" IsActive="{x:Bind Cards.IsLoadingMore, Mode=OneWay}"
-                                          Visibility="{x:Bind Cards.IsLoadingMore, Mode=OneWay}"/>
+                            <TextBlock Style="{StaticResource CaptionTextStyle}" Margin="0,16,0,0" HorizontalAlignment="Center" Text="正在加载"
+                                       Visibility="{x:Bind Cards.IsLoadingMore, Mode=OneWay}"/>
                         </StackPanel>
                     </DataTemplate>
                 </ItemsRepeater.ItemTemplate>
             </ItemsRepeater>
-            <ProgressRing Margin="0,96,0,0" Width="28" Height="28" IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}"
-                          Visibility="{x:Bind ViewModel.IsLoading, Mode=OneWay}"/>
+            <!-- 首次搜索：两组骨架 -->
+            <StackPanel x:Name="Skeleton" Spacing="24" Visibility="{x:Bind ViewModel.IsLoading, Mode=OneWay}"/>
             <controls:StateView Title="{x:Bind ViewModel.NoResultsTitle}" Visibility="{x:Bind ViewModel.HasNoResults, Mode=OneWay}"/>
             <controls:StateView Title="搜索失败" Visibility="{x:Bind ViewModel.HasError, Mode=OneWay}">
                 <controls:StateView.Actions>
-                    <Button Style="{StaticResource SoftAccentButtonStyle}" Content="重试" Click="OnRetryClick"/>
+                    <Button Style="{StaticResource SoftButtonStyle}" Content="重试" Click="OnRetryClick"/>
                 </controls:StateView.Actions>
             </controls:StateView>
         </StackPanel>

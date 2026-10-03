@@ -1,4 +1,3 @@
-using System.Numerics;
 using System.ComponentModel;
 using Mambo.App.Themes;
 using Mambo.App.ViewModels;
@@ -13,7 +12,7 @@ namespace Mambo.App.Views.Controls;
 
 /// <summary>
 /// 网格的增量加载与首屏错开淡入：距末尾不足 1.5 屏时加载下一页；
-/// 首屏（前 24 张）在首次加载和条件改变后依次上浮淡入。
+/// 首屏（前 24 张）在首次加载和条件改变后依次淡入。
 /// </summary>
 internal sealed class GridLoader : IDisposable
 {
@@ -146,25 +145,15 @@ internal sealed class GridLoader : IDisposable
     public void Prepare(ItemsRepeaterElementPreparedEventArgs args)
     {
         if (args.Index >= 24 || DateTime.UtcNow > revealUntil || !Motion.AnimationsEnabled) return;
-        var element = args.Element;
-        ElementCompositionPreview.SetIsTranslationEnabled(element, true);
-        var visual = ElementCompositionPreview.GetElementVisual(element);
+        // 只做透明度（240ms），前 8 张每张错开 20ms，之后的一起出现。
+        var visual = ElementCompositionPreview.GetElementVisual(args.Element);
         var compositor = visual.Compositor;
-        var easing = Motion.CreateEasing(compositor, Motion.Settle);
-        var delay = TimeSpan.FromMilliseconds(args.Index * 18);
         var opacity = compositor.CreateScalarKeyFrameAnimation();
         opacity.InsertKeyFrame(0, 0);
-        opacity.InsertKeyFrame(1, 1, easing);
+        opacity.InsertKeyFrame(1, 1, Motion.CreateEasing(compositor, Motion.Fluid));
         opacity.Duration = Motion.Normal;
-        opacity.DelayTime = delay;
+        opacity.DelayTime = TimeSpan.FromMilliseconds(Math.Min(args.Index, 8) * 20);
         opacity.DelayBehavior = AnimationDelayBehavior.SetInitialValueBeforeDelay;
-        var offset = compositor.CreateVector3KeyFrameAnimation();
-        offset.InsertKeyFrame(0, new Vector3(0, 10, 0));
-        offset.InsertKeyFrame(1, Vector3.Zero, easing);
-        offset.Duration = Motion.Normal;
-        offset.DelayTime = delay;
-        offset.DelayBehavior = AnimationDelayBehavior.SetInitialValueBeforeDelay;
         visual.StartAnimation("Opacity", opacity);
-        visual.StartAnimation("Translation", offset);
     }
 }

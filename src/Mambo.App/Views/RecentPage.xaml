@@ -4,32 +4,41 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:Mambo.App.Views.Controls"
     xmlns:vm="using:Mambo.App.ViewModels">
-    <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Auto" ViewChanged="OnScrollViewChanged">
-        <StackPanel Padding="{StaticResource PagePadding}">
-            <controls:PageHeader Eyebrow="RECENT" Title="最近播放" Count="{x:Bind ViewModel.CountText, Mode=OneWay}"/>
-            <ItemsRepeater x:Name="Grid" ItemsSource="{x:Bind ViewModel.Cards.Items}" ElementPrepared="OnElementPrepared"
-                           XYFocusKeyboardNavigation="Enabled" SizeChanged="OnGridSizeChanged">
-                <ItemsRepeater.Layout>
-                    <UniformGridLayout MinItemWidth="{StaticResource LandscapeMinWidth}" MinColumnSpacing="16" MinRowSpacing="24" ItemsStretch="Fill"/>
-                </ItemsRepeater.Layout>
-                <ItemsRepeater.ItemTemplate>
-                    <DataTemplate x:DataType="vm:MediaCardViewModel">
-                        <controls:LandscapeCard Item="{x:Bind}" IsAdaptive="True"/>
-                    </DataTemplate>
-                </ItemsRepeater.ItemTemplate>
-            </ItemsRepeater>
-            <ProgressRing Margin="0,28,0,8" Width="20" Height="20" IsActive="{x:Bind ViewModel.Cards.IsLoadingMore, Mode=OneWay}"
-                          Visibility="{x:Bind ViewModel.Cards.IsLoadingMore, Mode=OneWay}"/>
-            <Button Style="{StaticResource SoftButtonStyle}" Margin="0,28,0,8" HorizontalAlignment="Center" Content="重试加载" Click="OnLoadMoreClick"
-                    Visibility="{x:Bind ViewModel.Cards.HasMoreError, Mode=OneWay}"/>
-            <ProgressRing Margin="0,96,0,0" Width="28" Height="28" IsActive="{x:Bind ViewModel.Cards.IsLoadingFirst, Mode=OneWay}"
-                          Visibility="{x:Bind ViewModel.Cards.IsLoadingFirst, Mode=OneWay}"/>
-            <controls:StateView Title="暂无内容" Visibility="{x:Bind ViewModel.Cards.IsEmpty, Mode=OneWay}"/>
-            <controls:StateView Title="最近播放加载失败" Visibility="{x:Bind ViewModel.Cards.HasError, Mode=OneWay}">
-                <controls:StateView.Actions>
-                    <Button Style="{StaticResource SoftAccentButtonStyle}" Content="重试" Click="OnRetryClick"/>
-                </controls:StateView.Actions>
-            </controls:StateView>
-        </StackPanel>
-    </ScrollViewer>
+    <!-- 页头固定，只有网格滚动；滚动区在内容区底边上方 32 处结束 -->
+    <Grid Padding="0,20,0,32">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <controls:PageHeader Margin="24,0" Eyebrow="RECENT" Title="最近播放" Count="{x:Bind ViewModel.CountText, Mode=OneWay}"/>
+        <ScrollViewer x:Name="Scroller" Grid.Row="1" Margin="0,4,0,0" VerticalScrollBarVisibility="Auto" ViewChanged="OnScrollViewChanged">
+            <StackPanel Padding="24,8,24,0">
+                <!-- 列数随宽度变化，卡片拉伸填满整行，图片保持 16:9 -->
+                <ItemsRepeater x:Name="Grid" ItemsSource="{x:Bind ViewModel.Cards.Items}" ElementPrepared="OnElementPrepared"
+                               XYFocusKeyboardNavigation="Enabled" SizeChanged="OnGridSizeChanged">
+                    <ItemsRepeater.Layout>
+                        <UniformGridLayout MinItemWidth="{StaticResource LandscapeMinWidth}" MinColumnSpacing="{StaticResource RailSpacing}"
+                                           MinRowSpacing="{StaticResource GridRowSpacing}" ItemsStretch="Fill"/>
+                    </ItemsRepeater.Layout>
+                    <ItemsRepeater.ItemTemplate>
+                        <DataTemplate x:DataType="vm:MediaCardViewModel">
+                            <controls:LandscapeCard Item="{x:Bind}" IsAdaptive="True"/>
+                        </DataTemplate>
+                    </ItemsRepeater.ItemTemplate>
+                </ItemsRepeater>
+                <Grid Margin="0,24,0,0" Height="222" Visibility="{x:Bind ViewModel.Cards.IsLoadingMore, Mode=OneWay}">
+                    <StackPanel x:Name="MoreSkeleton" Orientation="Horizontal" Spacing="{StaticResource RailSpacing}" HorizontalAlignment="Left"/>
+                </Grid>
+                <Button Style="{StaticResource SoftButtonStyle}" Margin="0,24,0,8" HorizontalAlignment="Center" Content="重试加载" Click="OnLoadMoreClick"
+                        Visibility="{x:Bind ViewModel.Cards.HasMoreError, Mode=OneWay}"/>
+                <controls:WrapPanel x:Name="Skeleton" Spacing="12" Visibility="{x:Bind ViewModel.Cards.IsLoadingFirst, Mode=OneWay}"/>
+                <controls:StateView Title="暂无内容" Visibility="{x:Bind ViewModel.Cards.IsEmpty, Mode=OneWay}"/>
+                <controls:StateView Title="最近播放加载失败" Visibility="{x:Bind ViewModel.Cards.HasError, Mode=OneWay}">
+                    <controls:StateView.Actions>
+                        <Button Style="{StaticResource SoftButtonStyle}" Content="重试" Click="OnRetryClick"/>
+                    </controls:StateView.Actions>
+                </controls:StateView>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
 </UserControl>

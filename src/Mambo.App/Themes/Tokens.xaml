@@ -143,6 +143,19 @@
             <StaticResource x:Key="MenuFlyoutItemBackgroundPointerOver" ResourceKey="PopupItemHoverBrush"/>
             <StaticResource x:Key="MenuFlyoutItemBackgroundPressed" ResourceKey="PopupItemPressedBrush"/>
             <StaticResource x:Key="FocusStrokeColorOuterBrush" ResourceKey="FocusStrokeBrush"/>
+            <StaticResource x:Key="ScrollBarThumbFill" ResourceKey="ScrollBarThumbBrush"/>
+            <StaticResource x:Key="ScrollBarThumbFillPointerOver" ResourceKey="ScrollBarThumbHoverBrush"/>
+            <StaticResource x:Key="ScrollBarThumbFillPressed" ResourceKey="ScrollBarThumbHoverBrush"/>
+            <StaticResource x:Key="ScrollBarPanningThumbBackground" ResourceKey="ScrollBarThumbBrush"/>
+            <SolidColorBrush x:Key="ScrollBarTrackFill" Color="Transparent"/>
+            <SolidColorBrush x:Key="ScrollBarTrackFillPointerOver" Color="Transparent"/>
+            <SolidColorBrush x:Key="ScrollBarTrackStroke" Color="Transparent"/>
+            <SolidColorBrush x:Key="ScrollBarTrackStrokePointerOver" Color="Transparent"/>
+            <SolidColorBrush x:Key="ScrollBarButtonArrowForeground" Color="Transparent"/>
+            <SolidColorBrush x:Key="ScrollBarButtonArrowForegroundPointerOver" Color="Transparent"/>
+            <SolidColorBrush x:Key="ScrollBarButtonArrowForegroundPressed" Color="Transparent"/>
+            <SolidColorBrush x:Key="ScrollBarButtonBackgroundPointerOver" Color="Transparent"/>
+            <SolidColorBrush x:Key="ScrollBarButtonBackgroundPressed" Color="Transparent"/>
             <SolidColorBrush x:Key="WindowBackgroundBrush" Color="Transparent"/>
             <SolidColorBrush x:Key="WindowOpaqueFallbackBrush" Color="#FFF3F6FA"/>
             <SolidColorBrush x:Key="PlayerCaptionBackgroundBrush" Color="#FF0B0B0D"/>
@@ -321,6 +334,19 @@
             <StaticResource x:Key="MenuFlyoutItemBackgroundPointerOver" ResourceKey="PopupItemHoverBrush"/>
             <StaticResource x:Key="MenuFlyoutItemBackgroundPressed" ResourceKey="PopupItemPressedBrush"/>
             <StaticResource x:Key="FocusStrokeColorOuterBrush" ResourceKey="FocusStrokeBrush"/>
+            <StaticResource x:Key="ScrollBarThumbFill" ResourceKey="ScrollBarThumbBrush"/>
+            <StaticResource x:Key="ScrollBarThumbFillPointerOver" ResourceKey="ScrollBarThumbHoverBrush"/>
+            <StaticResource x:Key="ScrollBarThumbFillPressed" ResourceKey="ScrollBarThumbHoverBrush"/>
+            <StaticResource x:Key="ScrollBarPanningThumbBackground" ResourceKey="ScrollBarThumbBrush"/>
+            <SolidColorBrush x:Key="ScrollBarTrackFill" Color="Transparent"/>
+            <SolidColorBrush x:Key="ScrollBarTrackFillPointerOver" Color="Transparent"/>
+            <SolidColorBrush x:Key="ScrollBarTrackStroke" Color="Transparent"/>
+            <SolidColorBrush x:Key="ScrollBarTrackStrokePointerOver" Color="Transparent"/>
+            <SolidColorBrush x:Key="ScrollBarButtonArrowForeground" Color="Transparent"/>
+            <SolidColorBrush x:Key="ScrollBarButtonArrowForegroundPointerOver" Color="Transparent"/>
+            <SolidColorBrush x:Key="ScrollBarButtonArrowForegroundPressed" Color="Transparent"/>
+            <SolidColorBrush x:Key="ScrollBarButtonBackgroundPointerOver" Color="Transparent"/>
+            <SolidColorBrush x:Key="ScrollBarButtonBackgroundPressed" Color="Transparent"/>
             <SolidColorBrush x:Key="WindowBackgroundBrush" Color="Transparent"/>
             <SolidColorBrush x:Key="WindowOpaqueFallbackBrush" Color="#FF1E2024"/>
             <SolidColorBrush x:Key="PlayerCaptionBackgroundBrush" Color="#FF0B0B0D"/>
@@ -527,6 +553,19 @@
             <StaticResource x:Key="MenuFlyoutItemBackgroundPointerOver" ResourceKey="PopupItemHoverBrush"/>
             <StaticResource x:Key="MenuFlyoutItemBackgroundPressed" ResourceKey="PopupItemPressedBrush"/>
             <StaticResource x:Key="FocusStrokeColorOuterBrush" ResourceKey="FocusStrokeBrush"/>
+            <StaticResource x:Key="ScrollBarThumbFill" ResourceKey="ScrollBarThumbBrush"/>
+            <StaticResource x:Key="ScrollBarThumbFillPointerOver" ResourceKey="ScrollBarThumbHoverBrush"/>
+            <StaticResource x:Key="ScrollBarThumbFillPressed" ResourceKey="ScrollBarThumbHoverBrush"/>
+            <StaticResource x:Key="ScrollBarPanningThumbBackground" ResourceKey="ScrollBarThumbBrush"/>
+            <SolidColorBrush x:Key="ScrollBarTrackFill" Color="Transparent"/>
+            <SolidColorBrush x:Key="ScrollBarTrackFillPointerOver" Color="Transparent"/>
+            <SolidColorBrush x:Key="ScrollBarTrackStroke" Color="Transparent"/>
+            <SolidColorBrush x:Key="ScrollBarTrackStrokePointerOver" Color="Transparent"/>
+            <SolidColorBrush x:Key="ScrollBarButtonArrowForeground" Color="Transparent"/>
+            <SolidColorBrush x:Key="ScrollBarButtonArrowForegroundPointerOver" Color="Transparent"/>
+            <SolidColorBrush x:Key="ScrollBarButtonArrowForegroundPressed" Color="Transparent"/>
+            <SolidColorBrush x:Key="ScrollBarButtonBackgroundPointerOver" Color="Transparent"/>
+            <SolidColorBrush x:Key="ScrollBarButtonBackgroundPressed" Color="Transparent"/>
         </ResourceDictionary>
     </ResourceDictionary.ThemeDictionaries>
 

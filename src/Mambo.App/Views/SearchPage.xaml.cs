@@ -1,5 +1,7 @@
 using Mambo.App.Shell;
+using Mambo.App.Themes;
 using Mambo.App.ViewModels;
+using Mambo.App.Views.Controls;
 using System.ComponentModel;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -16,6 +18,17 @@ public sealed partial class SearchPage : UserControl, INavigablePage, IDisposabl
         ViewModel = viewModel;
         InitializeComponent();
         Scroller.AddHandler(PointerWheelChangedEvent, new PointerEventHandler(OnUserScroll), true);
+        // 首次搜索的占位：两组，每组一条标题条加四张横版卡。
+        var block = XamlResources.Style(Application.Current.Resources, "SkeletonBlockStyle");
+        for (var section = 0; section < 2; section++)
+        {
+            var group = new StackPanel();
+            group.Children.Add(new Border { Style = block, Width = 128, Height = 20, CornerRadius = new CornerRadius(10), Margin = new Thickness(0, 0, 0, 12), HorizontalAlignment = HorizontalAlignment.Left });
+            var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
+            for (var i = 0; i < 4; i++) row.Children.Add(CardSkeleton.Create(landscape: true));
+            group.Children.Add(row);
+            Skeleton.Children.Add(group);
+        }
     }
 
     public SearchViewModel ViewModel { get; }

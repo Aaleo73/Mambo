@@ -15,6 +15,11 @@ public sealed partial class RecentPage : UserControl, INavigablePage, IDisposabl
         ViewModel = viewModel;
         InitializeComponent();
         loader = new GridLoader(Scroller, Grid, () => ViewModel.Cards);
+        for (var i = 0; i < 8; i++)
+        {
+            Skeleton.Children.Add(CardSkeleton.Create(landscape: true));
+            MoreSkeleton.Children.Add(CardSkeleton.Create(landscape: true));
+        }
     }
 
     public RecentViewModel ViewModel { get; }
