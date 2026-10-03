@@ -21,13 +21,14 @@ internal sealed class PlaybackVideoBridge : IDisposable
     {
         this.surface = surface; this.session = session; queue = surface.DispatcherQueue;
         retry = queue.CreateTimer(); retry.Interval = TimeSpan.FromMilliseconds(50);
-        retry.Tick += (_, _) => TryBind();
+        retry.Tick += OnRetry;
         session.EngineChanged += EngineChanged;
         session.Detaching += DetachAsync;
         surface.PixelSizeRequested += SizeRequested;
         if (session.Settings is { } settings) settings.Changed += SettingsChanged;
         EngineChanged(session.Engine);
     }
+    private void OnRetry(DispatcherQueueTimer sender, object args) => TryBind();
     private void EngineChanged(IPlayerEngine? value)
     {
         if (!queue.HasThreadAccess) { queue.TryEnqueue(() => EngineChanged(value)); return; }
@@ -107,6 +108,7 @@ internal sealed class PlaybackVideoBridge : IDisposable
     {
         if (disposed) return; disposed = true;
         retry.Stop(); session.EngineChanged -= EngineChanged; session.Detaching -= DetachAsync;
+        retry.Tick -= OnRetry;
         surface.PixelSizeRequested -= SizeRequested;
         if (session.Settings is { } settings) settings.Changed -= SettingsChanged;
         ReleaseEngine();

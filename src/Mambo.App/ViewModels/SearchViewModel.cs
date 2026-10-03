@@ -56,7 +56,7 @@ public sealed partial class SearchViewModel : ObservableObject, IDisposable
 {
     private readonly ILibraryService library;
     private readonly CancellationTokenSource scope = new();
-    private readonly IQuery<ImmutableArray<SearchGroup>> groups;
+    private readonly IQuery<ImmutableArray<SearchGroup>> groups = null!;
 
     public SearchViewModel(ILibraryService library, string text)
     {
@@ -64,9 +64,20 @@ public sealed partial class SearchViewModel : ObservableObject, IDisposable
         Text = text;
         Subtitle = $"“{text}”的搜索结果";
         NoResultsTitle = $"没有找到“{text}”";
-        groups = library.ObserveSearchGroups(scope.Token);
-        groups.Updated += (_, _) => BuildGroups();
-        BuildGroups();
+        try
+        {
+            groups = library.ObserveSearchGroups(scope.Token);
+            groups.Updated += OnGroupsUpdated;
+            BuildGroups();
+        }
+        catch
+        {
+            FailedConstruction.Release(scope.Cancel,
+                () => { if (groups is not null) groups.Updated -= OnGroupsUpdated; },
+                () => { foreach (var group in Groups) FailedConstruction.Release(group.Dispose); },
+                () => groups?.Dispose(), scope.Dispose);
+            throw;
+        }
     }
 
     public string Text { get; }
@@ -93,9 +104,12 @@ public sealed partial class SearchViewModel : ObservableObject, IDisposable
     {
         scope.Cancel();
         foreach (var group in Groups) group.Dispose();
+        groups.Updated -= OnGroupsUpdated;
         groups.Dispose();
         scope.Dispose();
     }
+
+    private void OnGroupsUpdated(object? sender, EventArgs e) => BuildGroups();
 
     private void BuildGroups()
     {
@@ -119,7 +133,7 @@ public sealed partial class SearchViewModel : ObservableObject, IDisposable
 
     private void UpdateState()
     {
-        IsLoading = !groups.IsInitialized || Groups.Any(g => g.Cards.IsLoadingFirst);
+        IsLoading = (!groups.IsInitialized && groups.Error is null) || Groups.Any(g => g.Cards.IsLoadingFirst);
         HasError = groups.Error is not null && !groups.IsInitialized;
         HasNoResults = groups.IsInitialized && !IsLoading && Groups.All(g => g.Cards.IsEmpty);
     }

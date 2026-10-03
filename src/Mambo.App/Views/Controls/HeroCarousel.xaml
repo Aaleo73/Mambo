@@ -2,9 +2,15 @@
     x:Class="Mambo.App.Views.Controls.HeroCarousel"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <UserControl.Resources>
+        <Style x:Key="ContrastHeroBadgeStyle" TargetType="Border" BasedOn="{StaticResource HeroBadgeStyle}">
+            <Setter Property="BorderBrush" Value="{ThemeResource HeroBadgeStrokeBrush}"/>
+            <Setter Property="Background" Value="{ThemeResource HeroBackgroundBrush}"/>
+        </Style>
+    </UserControl.Resources>
     <Button x:Name="Root" Style="{StaticResource CardButtonStyle}" Click="OnClick" FocusVisualMargin="0"
             PointerEntered="OnPointerEntered" PointerExited="OnPointerExited" GotFocus="OnFocusChanged" LostFocus="OnFocusChanged">
-        <Grid x:Name="Stage">
+        <Grid x:Name="Stage" Background="{ThemeResource HeroBackgroundBrush}">
             <Grid x:Name="ArtHost"/>
             <StackPanel x:Name="Info" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="40,0,0,120" MaxWidth="560" Spacing="14"
                         IsHitTestVisible="False">

@@ -21,8 +21,16 @@ public sealed partial class RailViewModel : ObservableObject, IDisposable
         IsLandscape = landscape;
         LinkText = linkText ?? "";
         this.openLink = openLink;
-        query.Updated += OnUpdated;
-        Apply();
+        try
+        {
+            query.Updated += OnUpdated;
+            Apply();
+        }
+        catch
+        {
+            FailedConstruction.Release(() => query.Updated -= OnUpdated, query.Dispose);
+            throw;
+        }
     }
 
     public string Title { get; }

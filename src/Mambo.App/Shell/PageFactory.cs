@@ -16,15 +16,28 @@ public sealed class PageFactory(IServiceProvider services)
         {
             PageKind.Home => new HomePage(Get<ShellViewModel>(), Get<ISessionService>(), Get<ILibraryService>(), Get<Navigator>(),
                 Get<TitleBarService>(), Get<WindowContext>()),
-            PageKind.Settings => new SettingsPage(
+            PageKind.Settings => CreateOwned(
                 new SettingsViewModel(Get<ISessionService>(), Get<ISettingsService>(), Get<IPlaybackService>(), Get<Navigator>(),
                     Get<ToastService>(), Get<DialogService>(), Get<ThemeService>()),
-                Get<WindowContext>(), Get<ToastService>(), Get<DialogService>()),
-            PageKind.Recent => new RecentPage(new RecentViewModel(Get<ILibraryService>())),
-            PageKind.Library => new LibraryPage(new LibraryViewModel(Get<ILibraryService>(), Get<ILibraryPreferences>(), Library(route.Parameter ?? ""))),
-            PageKind.Search => new SearchPage(new SearchViewModel(Get<ILibraryService>(), route.Parameter ?? "")),
-            _ => new PlaceholderPage("DETAIL", "详情"),
+                model => new SettingsPage(model, Get<WindowContext>(), Get<ToastService>(), Get<DialogService>())),
+            PageKind.Recent => CreateOwned(new RecentViewModel(Get<ILibraryService>()), model => new RecentPage(model)),
+            PageKind.Library => CreateOwned(new LibraryViewModel(Get<ILibraryService>(), Get<ILibraryPreferences>(), Library(route.Parameter ?? "")), model => new LibraryPage(model)),
+            PageKind.Search => CreateOwned(new SearchViewModel(Get<ILibraryService>(), route.Parameter ?? ""), model => new SearchPage(model)),
+            PageKind.Detail => CreateOwned(new DetailViewModel(Get<ILibraryService>(), Get<PlaybackLauncher>(), Get<IPlaybackService>(), route.Parameter ?? ""), model => new DetailPage(model, Get<WindowContext>())),
+            _ => throw new ArgumentOutOfRangeException(nameof(route)),
         };
+    }
+
+    // XAML 构造失败时页面尚未返回给 PageHost；已创建的模型仍须停止查询、取消页面作用域。
+    private static FrameworkElement CreateOwned<T>(T model, Func<T, FrameworkElement> create) where T : IDisposable
+    {
+        try { return create(model); }
+        catch
+        {
+            try { model.Dispose(); }
+            catch (Exception) { }
+            throw;
+        }
     }
 
     private MediaLibrary Library(string id) =>

@@ -158,11 +158,14 @@ public sealed class P1InfrastructureTests
         {
             using var query = cache.Observe(key, account, _ => Task.FromResult(ImmutableArray.Create(new MediaLibrary("one", "电影", LibraryKind.Movies))), scopeToken: Token);
             await query.RefreshAsync(Token);
+            Assert.Equal(0, cache.RestoredSnapshotCount);
             await cache.FlushAsync(Token);
         }
         using var cold = new QueryCache(scheduler, new QueryPersistence(paths));
+        Assert.Equal(0, cold.RestoredSnapshotCount);
         using var restored = cold.Observe(key, account, _ => Task.FromException<ImmutableArray<MediaLibrary>>(new AppException(ErrorText.Network("加载"))), scopeToken: Token);
         Assert.True(restored.IsInitialized); Assert.Equal("one", Assert.Single(restored.Current).Id);
+        Assert.Equal(1, cold.RestoredSnapshotCount);
         account.Dispose();
         using var next = new AccountSession(account.Secret);
         using var switched = cold.Observe(key, next, _ => Task.FromResult(ImmutableArray.Create(new MediaLibrary("two", "剧集", LibraryKind.TvShows))), scopeToken: Token);

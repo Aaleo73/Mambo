@@ -1,3 +1,6 @@
 * text=auto
 third_party/libmpv/include/** text eol=lf
 *.ps1 text eol=crlf
+# Preserve upstream license/translation snapshots byte-for-byte, including their whitespace.
+LICENSES/**/*.txt -text whitespace=-blank-at-eol,-blank-at-eof,-space-before-tab
+installer/ChineseSimplified.isl -text whitespace=-blank-at-eol,-blank-at-eof,-space-before-tab

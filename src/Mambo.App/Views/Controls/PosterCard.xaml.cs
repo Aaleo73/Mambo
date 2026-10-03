@@ -8,7 +8,7 @@ public sealed partial class PosterCard : CardBase
 {
     public PosterCard() => InitializeComponent();
 
-    private void OnClick(object sender, RoutedEventArgs e) => HandleClick();
+    private void OnClick(object sender, RoutedEventArgs e) => HandleClick(Art);
     private void OnPointerEntered(object sender, PointerRoutedEventArgs e) => HandleHover(true, Art);
     private void OnPointerExited(object sender, PointerRoutedEventArgs e)
     {

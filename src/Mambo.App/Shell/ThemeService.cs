@@ -1,3 +1,4 @@
+using Mambo.Core.Contracts;
 using Microsoft.UI.Xaml;
 
 namespace Mambo.App.Shell;
@@ -9,10 +10,20 @@ public enum ThemeMode
     Dark,
 }
 
-/// <summary>外观主题；默认跟随系统。持久化等待契约提供字段（R-016）。</summary>
-public sealed class ThemeService
+/// <summary>从设置恢复外观，并同步原子设置更新。</summary>
+public sealed class ThemeService : IDisposable
 {
-    public ThemeMode Mode { get; private set; } = ThemeMode.System;
+    private readonly ISettingsService settings;
+
+    public ThemeService(ISettingsService settings)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        this.settings = settings;
+        ApplySettings();
+        settings.Changed += OnSettingsChanged;
+    }
+
+    public ThemeMode Mode { get; private set; }
 
     public ElementTheme ElementTheme => Mode switch
     {
@@ -23,8 +34,18 @@ public sealed class ThemeService
 
     public event EventHandler? Changed;
 
-    public void Set(ThemeMode mode)
+    public void Dispose() => settings.Changed -= OnSettingsChanged;
+
+    private void OnSettingsChanged(object? sender, EventArgs e) => ApplySettings();
+
+    private void ApplySettings()
     {
+        var mode = settings.Current.ThemeMode switch
+        {
+            SettingsThemeMode.Light => ThemeMode.Light,
+            SettingsThemeMode.Dark => ThemeMode.Dark,
+            _ => ThemeMode.System,
+        };
         if (mode == Mode) return;
         Mode = mode;
         Changed?.Invoke(this, EventArgs.Empty);

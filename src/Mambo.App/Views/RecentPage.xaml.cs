@@ -22,17 +22,20 @@ public sealed partial class RecentPage : UserControl, INavigablePage, IDisposabl
     public void OnNavigatedTo(NavEntry entry, NavigationMode mode, bool created)
     {
         ArgumentNullException.ThrowIfNull(entry);
-        if (created) ScrollState.Restore(Scroller, entry.VerticalOffset);
+        loader.SetActive(true);
+        if (created) _ = loader.RestoreAsync(entry.VerticalOffset);
+        else DispatcherQueue.TryEnqueue(loader.Check);
     }
 
     public void OnNavigatedFrom(NavEntry entry)
     {
         ArgumentNullException.ThrowIfNull(entry);
+        loader.SetActive(false);
         entry.VerticalOffset = Scroller.VerticalOffset;
     }
 
     public void Refresh() => _ = ViewModel.Cards.RefreshAsync();
-    public void Dispose() => ViewModel.Dispose();
+    public void Dispose() { loader.Dispose(); ViewModel.Dispose(); }
 
     private void OnRetryClick(object sender, RoutedEventArgs e) => _ = ViewModel.Cards.RefreshAsync();
     private void OnLoadMoreClick(object sender, RoutedEventArgs e) => _ = ViewModel.Cards.LoadMoreAsync();

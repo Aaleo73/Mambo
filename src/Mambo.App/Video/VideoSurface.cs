@@ -12,8 +12,7 @@ using Mambo.Core.Playback;
 namespace Mambo.App.Video;
 
 /// <summary>公开 API 不暴露 Player 类型。所有 Attach / Detach 和尺寸事件均在 UI 线程执行。</summary>
-[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1001", Justification = "WinUI 控件在 Unloaded 或 Detach 释放桥接；引擎关闭也先等待 UI 解绑。")]
-public sealed partial class VideoSurface : SwapChainPanel
+public sealed partial class VideoSurface : SwapChainPanel, IDisposable
 {
     private nint swapChain;
     private FrameworkElement? host;
@@ -34,6 +33,9 @@ public sealed partial class VideoSurface : SwapChainPanel
     private SpriteVisual? demoVisual;
     private CompositionColorBrush? demoBrush;
     private readonly InputSystemCursor arrow = InputSystemCursor.Create(InputSystemCursorShape.Arrow);
+    private CompositionRoundedRectangleGeometry? clipGeometry;
+    private CompositionGeometricClip? clip;
+    private bool disposed;
     internal event Action<int, int>? PixelSizeRequested;
     internal event Action<string>? DiagnosticError;
     internal double DpiScale => XamlRoot?.RasterizationScale ?? 1;
@@ -54,25 +56,59 @@ public sealed partial class VideoSurface : SwapChainPanel
         commit = DispatcherQueue.CreateTimer();
         commit.Interval = TimeSpan.FromMilliseconds(40);
         commit.IsRepeating = false;
-        commit.Tick += (_, _) =>
-        {
-            if (swapChain == 0 || BufferSize != wanted) return;
-            committed = new Size(wanted.Width / DpiScale, wanted.Height / DpiScale);
-            LayoutPanel();
-        };
+        commit.Tick += CommitBuffer;
         Loaded += OnLoaded;
-        Unloaded += (_, _) =>
+        Unloaded += OnUnloaded;
+    }
+
+    private void CommitBuffer(DispatcherQueueTimer sender, object args)
+    {
+        if (swapChain == 0 || BufferSize != wanted) return;
+        committed = new Size(wanted.Width / DpiScale, wanted.Height / DpiScale);
+        LayoutPanel();
+    }
+
+    private void OnUnloaded(object sender, RoutedEventArgs args)
+    {
+        Detach();
+        ReleaseHost();
+    }
+
+    private void ReleaseHost()
+    {
+        if (host is not null)
         {
-            Detach();
-            if (host is not null) host.SizeChanged -= HostSizeChanged;
-            if (root is not null) root.Changed -= DpiChanged;
-            host = null;
-            root = null;
-        };
+            host.SizeChanged -= HostSizeChanged;
+            if (clip is not null) ElementCompositionPreview.GetElementVisual(host).Clip = null;
+        }
+        if (root is not null) root.Changed -= DpiChanged;
+        clip?.Dispose(); clip = null;
+        clipGeometry?.Dispose(); clipGeometry = null;
+        host = null;
+        root = null;
+    }
+
+    /// <summary>永久释放控件的计时器、光标和 Composition 资源；释放后不能再次绑定播放。</summary>
+    public void Dispose()
+    {
+        if (disposed) return;
+        if (!DispatcherQueue.HasThreadAccess) throw new InvalidOperationException("视频释放必须在界面线程执行。");
+        Detach();
+        disposed = true;
+        Loaded -= OnLoaded;
+        Unloaded -= OnUnloaded;
+        ReleaseHost();
+        poll.Tick -= PollBuffer;
+        commit.Tick -= CommitBuffer;
+        ProtectedCursor = null;
+        arrow.Dispose();
+        PixelSizeRequested = null;
+        DiagnosticError = null;
     }
 
     private void OnLoaded(object sender, RoutedEventArgs args)
     {
+        if (disposed) return;
         host = Parent as FrameworkElement;
         root = XamlRoot;
         if (host is not null)
@@ -88,6 +124,7 @@ public sealed partial class VideoSurface : SwapChainPanel
     // P0 内部探针入口；P1a 以后对前端只公开 Attach(IPlaybackSession)。
     internal void Attach(nint swapChainAddress)
     {
+        ObjectDisposedException.ThrowIf(disposed, this);
         if (!DispatcherQueue.HasThreadAccess) throw new InvalidOperationException("视频绑定必须在界面线程执行。");
         if (demoSession is not null) Detach();
         if (swapChainAddress == 0) { Detach(); return; }
@@ -135,6 +172,7 @@ public sealed partial class VideoSurface : SwapChainPanel
     /// <summary>前端绑定入口；交换链、HDR 和关闭解绑由后端桥接管理。</summary>
     public void Attach(IPlaybackSession session)
     {
+        ObjectDisposedException.ThrowIf(disposed, this);
         ArgumentNullException.ThrowIfNull(session);
         if (!DispatcherQueue.HasThreadAccess) throw new InvalidOperationException("视频绑定必须在界面线程执行。");
         Detach();
@@ -177,7 +215,7 @@ public sealed partial class VideoSurface : SwapChainPanel
         ElementCompositionPreview.SetElementChildVisual(this, demoVisual);
     }
 
-    public void HideCursor(bool hide) { ProtectedCursor = hide ? null : arrow; }
+    public void HideCursor(bool hide) { if (!disposed) ProtectedCursor = hide ? null : arrow; }
     public void SetLiveResize(bool active)
     {
         liveResize = active;
@@ -241,9 +279,13 @@ public sealed partial class VideoSurface : SwapChainPanel
         if (host is null || target.Width <= 0 || target.Height <= 0) return;
         var visual = ElementCompositionPreview.GetElementVisual(host);
         var compositor = visual.Compositor;
-        var rectangle = compositor.CreateRoundedRectangleGeometry();
-        rectangle.Size = new System.Numerics.Vector2((float)target.Width, (float)target.Height);
-        rectangle.CornerRadius = new System.Numerics.Vector2(8, 8);
-        visual.Clip = compositor.CreateGeometricClip(rectangle);
+        if (clipGeometry is null)
+        {
+            clipGeometry = compositor.CreateRoundedRectangleGeometry();
+            clipGeometry.CornerRadius = new System.Numerics.Vector2(8, 8);
+            clip = compositor.CreateGeometricClip(clipGeometry);
+            visual.Clip = clip;
+        }
+        clipGeometry.Size = new System.Numerics.Vector2((float)target.Width, (float)target.Height);
     }
 }

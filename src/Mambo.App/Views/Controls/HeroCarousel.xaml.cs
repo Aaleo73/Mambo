@@ -37,12 +37,15 @@ public sealed partial class HeroCarousel : UserControl, IDisposable
     private CompositionLinearGradientBrush? mask;
     private CancellationTokenSource? loading;
     private WindowContext? window;
+    private WindowContrastObserver? contrastObserver;
     private int index = -1;
     private bool hovering;
     private bool focused;
     private bool dotsHovering;
     private bool pageActive = true;
     private bool visibleEnough = true;
+    private bool disposed;
+    private bool highContrast;
 
     public HeroCarousel()
     {
@@ -52,37 +55,47 @@ public sealed partial class HeroCarousel : UserControl, IDisposable
         Dots.HoverChanged += (_, hover) => { dotsHovering = hover; UpdateTimer(); };
         timer = DispatcherQueue.CreateTimer();
         timer.Interval = Interval;
-        timer.Tick += (_, _) => GoTo((index + 1) % Math.Max(1, slides.Count));
+        timer.Tick += OnTimer;
         Loaded += OnLoaded;
+        Unloaded += OnUnloaded;
         SizeChanged += (_, _) => UpdateLayerSize();
     }
 
     /// <summary>标题栏中间的分页点，幻灯片少于 2 张时不显示。</summary>
     public HeroDots Dots { get; }
+    private void OnTimer(DispatcherQueueTimer sender, object args) => GoTo((index + 1) % Math.Max(1, slides.Count));
     public int Count => slides.Count;
 
     public void Initialize(WindowContext windowContext)
     {
+        ArgumentNullException.ThrowIfNull(windowContext);
+        if (window is not null) window.ActiveChanged -= OnWindowActiveChanged;
+        contrastObserver?.Dispose();
+        contrastObserver = null;
         window = windowContext;
         window.ActiveChanged += OnWindowActiveChanged;
+        if (IsLoaded) AttachContrastObserver();
     }
 
     public void SetSlides(IReadOnlyList<HeroSlideViewModel> items)
     {
         ArgumentNullException.ThrowIfNull(items);
         var limited = items.Take(8).ToList();
-        if (limited.Select(s => s.Id).SequenceEqual(slides.Select(s => s.Id))) return;
+        if (limited.Count == slides.Count && limited.Where((slide, i) => !slide.HasSameContent(slides[i])).Any() == false) return;
+        var currentId = index >= 0 && index < slides.Count ? slides[index].Id : null;
         slides.Clear();
         slides.AddRange(limited);
         Dots.Build(slides.Count);
         index = -1;
-        if (slides.Count > 0) GoTo(0);
+        if (slides.Count > 0) GoTo(Math.Max(0, slides.FindIndex(s => s.Id == currentId)));
         UpdateTimer();
     }
 
     public void SetPageActive(bool active)
     {
         pageActive = active;
+        if (!active) CancelLoading();
+        else if (IsLoaded && index >= 0) _ = ShowAsync(index, animate: false);
         UpdateTimer();
     }
 
@@ -95,15 +108,41 @@ public sealed partial class HeroCarousel : UserControl, IDisposable
 
     public void Dispose()
     {
+        if (disposed) return;
+        disposed = true;
         timer.Stop();
+        timer.Tick -= OnTimer;
+        Loaded -= OnLoaded;
+        Unloaded -= OnUnloaded;
+        contrastObserver?.Dispose();
+        contrastObserver = null;
+        CancelLoading();
+        if (window is not null) window.ActiveChanged -= OnWindowActiveChanged;
+        if (front?.Brush is CompositionMaskBrush frontMask) ((frontMask.Source as CompositionSurfaceBrush)?.Surface as LoadedImageSurface)?.Dispose();
+        if (back?.Brush is CompositionMaskBrush backMask) ((backMask.Source as CompositionSurfaceBrush)?.Surface as LoadedImageSurface)?.Dispose();
+        front?.Dispose(); back?.Dispose(); container?.Dispose();
+    }
+
+    private void CancelLoading()
+    {
         loading?.Cancel();
         loading?.Dispose();
-        if (window is not null) window.ActiveChanged -= OnWindowActiveChanged;
+        loading = null;
+    }
+
+    private void OnUnloaded(object sender, RoutedEventArgs e)
+    {
+        timer.Stop();
+        CancelLoading();
+        contrastObserver?.Dispose();
+        contrastObserver = null;
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
-        if (container is not null) return;
+        if (disposed) return;
+        AttachContrastObserver();
+        if (container is not null) { UpdateTimer(); if (index >= 0) _ = ShowAsync(index, animate: false); return; }
         var host = ElementCompositionPreview.GetElementVisual(ArtHost);
         var compositor = host.Compositor;
         mask = compositor.CreateLinearGradientBrush();
@@ -145,6 +184,55 @@ public sealed partial class HeroCarousel : UserControl, IDisposable
         ElementCompositionPreview.SetElementChildVisual(ArtHost, container);
         UpdateLayerSize();
         if (index >= 0) _ = ShowAsync(index, animate: false);
+        UpdateTimer();
+    }
+
+    private void AttachContrastObserver()
+    {
+        if (window is null || contrastObserver is not null || disposed) return;
+        contrastObserver = new WindowContrastObserver(window, DispatcherQueue, ApplyContrast);
+        ApplyContrast(contrastObserver.HighContrast);
+    }
+
+    private void ApplyContrast(bool value)
+    {
+        if (disposed) return;
+        var changed = highContrast != value;
+        highContrast = value;
+        ArtHost.Visibility = highContrast ? Visibility.Collapsed : Visibility.Visible;
+        LogoImage.Visibility = highContrast ? Visibility.Collapsed : Visibility.Visible;
+        if (highContrast)
+        {
+            CancelLoading();
+            LogoImage.Source = null;
+            TitleText.Visibility = Visibility.Visible;
+            ClearImageLayers();
+        }
+        else if (changed && index >= 0)
+        {
+            ShowInfo(slides[index], animate: false);
+            _ = ShowAsync(index, animate: false);
+        }
+        UpdateTimer();
+    }
+
+    private void ClearImageLayers()
+    {
+        foreach (var layer in new[] { front, back })
+        {
+            if (layer is null) continue;
+            layer.StopAnimation("Opacity");
+            layer.StopAnimation("Scale");
+            layer.Opacity = 0;
+            if (layer.Brush is not CompositionMaskBrush masked) continue;
+            var brush = masked.Source as CompositionSurfaceBrush;
+            masked.Source = null;
+            if (brush is not null)
+            {
+                (brush.Surface as LoadedImageSurface)?.Dispose();
+                brush.Dispose();
+            }
+        }
     }
 
     private SpriteVisual CreateLayer(Compositor compositor)
@@ -193,7 +281,7 @@ public sealed partial class HeroCarousel : UserControl, IDisposable
     {
         AutomationProperties.SetName(Root, slide.Title);
         TitleText.Text = slide.Title;
-        TitleText.Visibility = slide.Logo is null ? Visibility.Visible : Visibility.Collapsed;
+        TitleText.Visibility = highContrast || slide.Logo is null ? Visibility.Visible : Visibility.Collapsed;
         LogoImage.Source = null;
         OverviewText.Text = slide.Overview;
         OverviewText.Visibility = slide.Overview.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -207,13 +295,12 @@ public sealed partial class HeroCarousel : UserControl, IDisposable
         void Separator()
         {
             if (MetaRow.Children.Count > 0)
-                MetaRow.Children.Add(new Border { Width = 3, Height = 3, CornerRadius = new CornerRadius(1.5), VerticalAlignment = VerticalAlignment.Center,
-                    Background = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 255, 255, 255)) });
+                MetaRow.Children.Add(new Border { Style = XamlResources.Style(Application.Current.Resources, "HeroSeparatorStyle") });
         }
         if (slide.RatingText.Length > 0)
         {
             var star = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
-            star.Children.Add(new FontIcon { Glyph = "", FontSize = 13, Foreground = (Brush)Application.Current.Resources["RatingBrush"] });
+            star.Children.Add(new FontIcon { Glyph = "", Style = XamlResources.Style(Application.Current.Resources, "HeroRatingIconStyle") });
             star.Children.Add(MetaText(slide.RatingText));
             MetaRow.Children.Add(star);
         }
@@ -228,37 +315,37 @@ public sealed partial class HeroCarousel : UserControl, IDisposable
             Separator();
             MetaRow.Children.Add(new Border
             {
-                Style = (Style)Application.Current.Resources["HeroBadgeStyle"],
-                Child = new TextBlock { Text = slide.OfficialRating, Style = (Style)Application.Current.Resources["BadgeTextStyle"] },
+                Style = XamlResources.Style(Resources, "ContrastHeroBadgeStyle"),
+                Child = new TextBlock { Text = slide.OfficialRating, Style = XamlResources.Style(Application.Current.Resources, "HeroBadgeTextStyle") },
             });
         }
     }
 
-    private static TextBlock MetaText(string text) => new() { Text = text, Style = (Style)Application.Current.Resources["HeroMetaTextStyle"] };
+    private static TextBlock MetaText(string text) => new() { Text = text, Style = XamlResources.Style(Application.Current.Resources, "HeroMetaTextStyle") };
 
     private async Task ShowAsync(int slideIndex, bool animate)
     {
-        if (front is null || back is null || ImageLoader.Current is not { } loader || XamlRoot is null) return;
-        loading?.Cancel();
-        loading?.Dispose();
+        if (disposed || highContrast || !IsLoaded || !pageActive || front is null || back is null || ImageLoader.Current is not { } loader || XamlRoot is null) return;
+        CancelLoading();
         var cts = new CancellationTokenSource();
         loading = cts;
+        var token = cts.Token;
         var slide = slides[slideIndex];
         var scale = XamlRoot.RasterizationScale;
         try
         {
             if (slide.Logo is { } logo)
             {
-                var bitmap = await loader.LoadAsync(logo, 400, scale, ImagePriority.Hero, cts.Token);
-                if (cts.IsCancellationRequested) return;
+                var bitmap = await loader.LoadAsync(logo, 400, scale, ImagePriority.Hero, token);
+                if (cts.IsCancellationRequested || highContrast) return;
                 LogoImage.Source = bitmap;
                 TitleText.Visibility = bitmap is null ? Visibility.Visible : Visibility.Collapsed;
             }
-            var surface = slide.Backdrop is { } backdrop ? await LoadSurfaceAsync(loader, backdrop, scale, ImagePriority.Hero, cts.Token) : null;
-            if (cts.IsCancellationRequested) return;
+            var surface = slide.Backdrop is { } backdrop ? await LoadSurfaceAsync(loader, backdrop, scale, ImagePriority.Hero, token) : null;
+            if (token.IsCancellationRequested || highContrast) { surface?.Dispose(); return; }
             Present(surface, animate);
             if (slides.Count > 1 && slides[(slideIndex + 1) % slides.Count].Backdrop is { } next)
-                (await loader.FetchStreamAsync(next, PixelWidth(scale), ImagePriority.Prefetch, cts.Token))?.Dispose();
+                (await loader.FetchStreamAsync(next, PixelWidth(scale), ImagePriority.Prefetch, token))?.Dispose();
         }
         catch (OperationCanceledException)
         {
@@ -274,10 +361,19 @@ public sealed partial class HeroCarousel : UserControl, IDisposable
         if (stream is null) return null;
         var completion = new TaskCompletionSource<bool>();
         var surface = LoadedImageSurface.StartLoadFromStream(stream, new Size(width, width * 9 / 16.0));
-        surface.LoadCompleted += (_, args) => completion.TrySetResult(args.Status == LoadedImageSourceLoadStatus.Success);
-        var ok = await completion.Task;
-        token.ThrowIfCancellationRequested();
-        return ok ? surface : null;
+        void OnCompleted(LoadedImageSurface sender, LoadedImageSourceLoadCompletedEventArgs args) => completion.TrySetResult(args.Status == LoadedImageSourceLoadStatus.Success);
+        surface.LoadCompleted += OnCompleted;
+        try
+        {
+            bool ok;
+            try { ok = await completion.Task.WaitAsync(token); }
+            finally { surface.LoadCompleted -= OnCompleted; }
+            token.ThrowIfCancellationRequested();
+            if (ok) return surface;
+            surface.Dispose();
+            return null;
+        }
+        catch { surface.Dispose(); throw; }
     }
 
     private void Present(LoadedImageSurface? surface, bool animate)
@@ -287,7 +383,10 @@ public sealed partial class HeroCarousel : UserControl, IDisposable
         var brush = compositor.CreateSurfaceBrush(surface);
         brush.Stretch = CompositionStretch.UniformToFill;
         brush.VerticalAlignmentRatio = 0.25f;
+        var old = ((CompositionMaskBrush)back.Brush).Source as CompositionSurfaceBrush;
         ((CompositionMaskBrush)back.Brush).Source = brush;
+        (old?.Surface as LoadedImageSurface)?.Dispose();
+        old?.Dispose();
         (front, back) = (back, front);
         images?.Children.Remove(front);
         images?.Children.InsertAtTop(front);
@@ -318,7 +417,7 @@ public sealed partial class HeroCarousel : UserControl, IDisposable
     /// <summary>文字区各行依次上浮淡入，间隔 40ms。</summary>
     private void Rise()
     {
-        if (!Motion.AnimationsEnabled) return;
+        if (!Motion.AnimationsEnabled || highContrast) return;
         var delay = TimeSpan.Zero;
         foreach (var child in Info.Children)
         {
@@ -347,7 +446,7 @@ public sealed partial class HeroCarousel : UserControl, IDisposable
 
     private void UpdateTimer()
     {
-        var run = slides.Count > 1 && !hovering && !focused && !dotsHovering && pageActive && visibleEnough
+        var run = !disposed && !highContrast && IsLoaded && slides.Count > 1 && !hovering && !focused && !dotsHovering && pageActive && visibleEnough
             && (window?.IsActive ?? true) && Motion.AnimationsEnabled;
         if (run && !timer.IsRunning) timer.Start();
         else if (!run && timer.IsRunning) timer.Stop();
@@ -402,8 +501,8 @@ public sealed partial class HeroDots : StackPanel
             var number = i;
             var button = new Button
             {
-                Style = (Style)Application.Current.Resources["HeroDotButtonStyle"],
-                Content = new Border { Style = (Style)Application.Current.Resources["HeroDotStyle"] },
+                Style = XamlResources.Style(Application.Current.Resources, "HeroDotButtonStyle"),
+                Content = new Border { Style = XamlResources.Style(Application.Current.Resources, "HeroDotStyle") },
             };
             AutomationProperties.SetName(button, $"第 {i + 1} 张");
             button.Click += (_, _) => DotClicked?.Invoke(this, number);
@@ -416,6 +515,6 @@ public sealed partial class HeroDots : StackPanel
     {
         for (var i = 0; i < Children.Count; i++)
             if (Children[i] is Button { Content: Border dot })
-                dot.Style = (Style)Application.Current.Resources[i == index ? "HeroDotActiveStyle" : "HeroDotStyle"];
+                dot.Style = XamlResources.Style(Application.Current.Resources, i == index ? "HeroDotActiveStyle" : "HeroDotStyle");
     }
 }

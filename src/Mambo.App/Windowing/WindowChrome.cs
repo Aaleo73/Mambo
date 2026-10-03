@@ -20,6 +20,7 @@ internal sealed class WindowChrome : IDisposable
     private readonly NonClientHook hook;
     private bool hover;
     private bool pressed;
+    private XamlRoot? root;
 
     public WindowChrome(Microsoft.UI.Xaml.Window window, OverlappedPresenter presenter, ShellView shell, nint hwnd)
     {
@@ -32,13 +33,9 @@ internal sealed class WindowChrome : IDisposable
         hook = new NonClientHook(hwnd);
         hook.MaximizePressedChanged += OnMaximizePressed;
         hook.MaximizeClicked += ToggleMaximize;
-        shell.TitleBarLayoutChanged += (_, _) => UpdateRegions();
-        window.SizeChanged += (_, _) => UpdateRegions();
-        shell.Loaded += (_, _) =>
-        {
-            UpdateRegions();
-            if (shell.XamlRoot is { } root) root.Changed += (_, _) => UpdateRegions();
-        };
+        shell.TitleBarLayoutChanged += OnTitleBarLayoutChanged;
+        window.SizeChanged += OnSizeChanged;
+        shell.Loaded += OnLoaded;
         window.AppWindow.Changed += OnAppWindowChanged;
         UpdateVisual();
     }
@@ -52,6 +49,12 @@ internal sealed class WindowChrome : IDisposable
     public void UpdateRegions()
     {
         if (shell.XamlRoot is not { } root || shell.ActualWidth <= 0) return;
+        if (window.AppWindow.Presenter.Kind == AppWindowPresenterKind.FullScreen)
+        {
+            source.SetRegionRects(NonClientRegionKind.Passthrough, []);
+            source.SetRegionRects(NonClientRegionKind.Maximize, []);
+            return;
+        }
         var scale = root.RasterizationScale;
         var passthrough = shell.PassthroughElements.Where(e => e.ActualWidth > 0 && e.ActualHeight > 0).Select(e => ToRect(e, scale)).ToArray();
         source.SetRegionRects(NonClientRegionKind.Passthrough, passthrough);
@@ -63,7 +66,25 @@ internal sealed class WindowChrome : IDisposable
         source.PointerEntered -= OnPointerEntered;
         source.PointerExited -= OnPointerExited;
         window.AppWindow.Changed -= OnAppWindowChanged;
+        shell.TitleBarLayoutChanged -= OnTitleBarLayoutChanged;
+        window.SizeChanged -= OnSizeChanged;
+        shell.Loaded -= OnLoaded;
+        if (root is not null) root.Changed -= OnRootChanged;
+        root = null;
+        hook.MaximizePressedChanged -= OnMaximizePressed;
+        hook.MaximizeClicked -= ToggleMaximize;
         hook.Dispose();
+    }
+
+    private void OnTitleBarLayoutChanged(object? sender, EventArgs args) => UpdateRegions();
+    private void OnSizeChanged(object sender, WindowSizeChangedEventArgs args) => UpdateRegions();
+    private void OnRootChanged(XamlRoot sender, XamlRootChangedEventArgs args) => UpdateRegions();
+    private void OnLoaded(object sender, RoutedEventArgs args)
+    {
+        if (root is not null) root.Changed -= OnRootChanged;
+        root = shell.XamlRoot;
+        if (root is not null) root.Changed += OnRootChanged;
+        UpdateRegions();
     }
 
     private static RectInt32 ToRect(FrameworkElement element, double scale)

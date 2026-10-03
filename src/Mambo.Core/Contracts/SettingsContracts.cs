@@ -59,6 +59,8 @@ public sealed record AppSettings
     public string? ExternalMpvPath { get; init; }
     public ExternalMpvApproval? ExternalMpvApproval { get; init; }
     public SettingsThemeMode ThemeMode { get; init; } = SettingsThemeMode.System;
+    /// <summary>选集抽屉的上次布局；false 为列表，true 为集号网格。</summary>
+    public bool UseEpisodeGrid { get; init; }
     public HdrMode HdrMode { get; init; } = HdrMode.Auto;
     public HardwareDecodingMode HardwareDecoding { get; init; } = HardwareDecodingMode.Auto;
     public double Volume { get; init; } = 100;

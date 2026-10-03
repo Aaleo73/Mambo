@@ -31,7 +31,7 @@ public sealed partial class RemoteImage : Grid
         picture.Background = brush;
         Children.Add(picture);
         Loaded += (_, _) => Reload();
-        Unloaded += (_, _) => Cancel();
+        Unloaded += (_, _) => { Cancel(); brush.ImageSource = null; picture.Opacity = 0; };
         SizeChanged += (_, e) => { if (e.PreviousSize.Width <= 0 && DecodeWidth <= 0) Reload(); };
         RegisterPropertyChangedCallback(CornerRadiusProperty, (_, _) => picture.CornerRadius = CornerRadius);
     }

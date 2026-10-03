@@ -22,6 +22,29 @@ public sealed class QueryCache(IUiScheduler scheduler, QueryPersistence persiste
     private readonly HashSet<Task> writes = [];
     private bool disposed;
     private Task? disposal;
+    private int restoredSnapshotCount;
+
+    /// <summary>本进程从持久化快照成功初始化的查询数；诊断仅计数，不公开账号或数据。</summary>
+    public int RestoredSnapshotCount { get { lock (gate) return restoredSnapshotCount; } }
+
+    /// <summary>当前可见首页卡片中仍来自磁盘快照的对象数；仅按引用去重，不公开身份或内容。</summary>
+    public int CountRestoredHomeItems(IEnumerable<MediaItem> visibleItems)
+    {
+        ArgumentNullException.ThrowIfNull(visibleItems);
+        var visible = new HashSet<MediaItem>(visibleItems, ReferenceEqualityComparer.Instance);
+        lock (gate)
+        {
+            if (disposed || visible.Count == 0) return 0;
+            var restored = new HashSet<MediaItem>(ReferenceEqualityComparer.Instance);
+            foreach (var pair in entries)
+            {
+                if (pair.Key.Kind is not ("continue" or "latest")) continue;
+                foreach (var item in pair.Value.PersistedHomeItems)
+                    if (visible.Contains(item)) restored.Add(item);
+            }
+            return restored.Count;
+        }
+    }
 
     public IQuery<T> Observe<T>(QueryKey key, AccountSession account, Func<CancellationToken, Task<T>> fetch,
         TimeSpan? staleAfter = null, bool updateFetcher = true, CancellationToken scopeToken = default)
@@ -39,7 +62,8 @@ public sealed class QueryCache(IUiScheduler scheduler, QueryPersistence persiste
                 found?.Dispose();
                 entry = new Entry<T>(account, fetch, clock, staleAfter ?? TimeSpan.FromSeconds(60),
                     (origin, generation, value) => SaveValue(key, origin, generation, value));
-                if (scope.Values.TryGetValue(key.LocalKey, out var snapshot)) entry.Seed(snapshot);
+                var persistedOrigin = scope.PersistedKeys.Contains(key.LocalKey);
+                if (scope.Values.TryGetValue(key.LocalKey, out var snapshot) && entry.Seed(snapshot, persistedOrigin) && persistedOrigin) restoredSnapshotCount++;
                 entries[key] = entry;
             }
             else
@@ -82,6 +106,7 @@ public sealed class QueryCache(IUiScheduler scheduler, QueryPersistence persiste
             var scope = GetScope(name);
             var generation = ++scope.Generation;
             scope.Values.Clear();
+            scope.PersistedKeys.Clear();
             scope.Pending?.Cancel();
             scope.Pending = null;
             var barrier = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -146,6 +171,7 @@ public sealed class QueryCache(IUiScheduler scheduler, QueryPersistence persiste
             if (disposed || !entries.TryGetValue(key, out var entry) || !ReferenceEquals(entry, origin) || !origin.CanPublish(requestGeneration)) return;
             var scope = GetScope(key.Scope);
             scope.Values[key.LocalKey] = snapshot;
+            scope.PersistedKeys.Remove(key.LocalKey);
             scope.Pending?.Cancel();
             var cancellation = new CancellationTokenSource();
             scope.Pending = cancellation;
@@ -248,6 +274,7 @@ public sealed class QueryCache(IUiScheduler scheduler, QueryPersistence persiste
     {
         public string Name { get; } = name;
         public Dictionary<string, QuerySnapshot> Values { get; } = values;
+        public HashSet<string> PersistedKeys { get; } = new(values.Keys, StringComparer.Ordinal);
         public SemaphoreSlim Io { get; } = new(1, 1);
         public long Generation { get; set; }
         public CancellationTokenSource? Pending { get; set; }
@@ -258,7 +285,13 @@ public sealed class QueryCache(IUiScheduler scheduler, QueryPersistence persiste
         public void Dispose() => Io.Dispose();
     }
 
-    private interface IEntry : IDisposable { AccountSession Account { get; } void Invalidate(); void Reset(); }
+    private interface IEntry : IDisposable
+    {
+        AccountSession Account { get; }
+        ImmutableArray<MediaItem> PersistedHomeItems { get; }
+        void Invalidate();
+        void Reset();
+    }
     private sealed class Entry<T>(AccountSession account, Func<CancellationToken, Task<T>> fetch, TimeProvider clock,
         TimeSpan staleAfter, Action<Entry<T>, long, T> save) : IEntry
     {
@@ -267,19 +300,30 @@ public sealed class QueryCache(IUiScheduler scheduler, QueryPersistence persiste
         private readonly CancellationToken accountToken = account.Token;
         private T? value;
         private AppError? error;
-        private bool initialized, ended;
+        private bool initialized, ended, persistedOrigin;
         private DateTimeOffset updated;
         private Flight? active;
         private long generation;
         private Func<CancellationToken, Task<T>> loader = fetch;
         public AccountSession Account => account;
+        public ImmutableArray<MediaItem> PersistedHomeItems
+        {
+            get
+            {
+                lock (sync)
+                    return !ended && !accountToken.IsCancellationRequested && persistedOrigin && value is ImmutableArray<MediaItem> items
+                        ? items : [];
+            }
+        }
         public void SetFetcher(Func<CancellationToken, Task<T>> next) { lock (sync) loader = next; }
         public bool CanPublish(long expected)
         { lock (sync) return !ended && active is { } operation && operation.Generation == expected && !operation.Token.IsCancellationRequested; }
-        public void Seed(QuerySnapshot snapshot)
+        public bool Seed(QuerySnapshot snapshot, bool persisted)
         {
             object? seed = snapshot.Kind switch { "libraries" => snapshot.Libraries, "items" => snapshot.Items, "page" => new QueryPage<MediaItem>(snapshot.Items, snapshot.TotalCount, snapshot.HasMore) { NextOffset = snapshot.NextOffset }, _ => null };
-            if (seed is T typed) { value = typed; initialized = true; updated = snapshot.UpdatedAt; }
+            if (seed is not T typed) return false;
+            lock (sync) { value = typed; initialized = true; updated = snapshot.UpdatedAt; persistedOrigin = persisted; }
+            return true;
         }
         public IQuery<T> Observe(IUiScheduler scheduler, CancellationToken scope)
         {
@@ -328,7 +372,7 @@ public sealed class QueryCache(IUiScheduler scheduler, QueryPersistence persiste
                 {
                     if (ended || !ReferenceEquals(active, operation) || operation.Token.IsCancellationRequested)
                         throw new OperationCanceledException(operation.Token);
-                    value = result; initialized = true; error = null; updated = clock.GetUtcNow();
+                    value = result; initialized = true; error = null; updated = clock.GetUtcNow(); persistedOrigin = false;
                 }
                 save(this, operation.Generation, result);
             }
@@ -373,13 +417,13 @@ public sealed class QueryCache(IUiScheduler scheduler, QueryPersistence persiste
         }
         public void Reset()
         {
-            lock (sync) { StopLocked(); value = default; initialized = false; error = null; updated = DateTimeOffset.MinValue; }
+            lock (sync) { StopLocked(); value = default; initialized = false; error = null; updated = DateTimeOffset.MinValue; persistedOrigin = false; }
             Notify();
         }
         public void Dispose()
         {
             Observation[] all;
-            lock (sync) { if (ended) return; ended = true; StopLocked(); all = observers.ToArray(); }
+            lock (sync) { if (ended) return; ended = true; persistedOrigin = false; StopLocked(); all = observers.ToArray(); }
             foreach (var observer in all) observer.End();
         }
         private sealed class Flight : IDisposable

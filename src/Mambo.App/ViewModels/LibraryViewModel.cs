@@ -54,7 +54,7 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
     private readonly ILibraryPreferences preferences;
     private readonly string libraryId;
     private readonly CancellationTokenSource scope = new();
-    private readonly IQuery<FilterOptions> filters;
+    private readonly IQuery<FilterOptions> filters = null!;
     private PagedCards? pending;
     private LibraryQuery query;
 
@@ -74,12 +74,24 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
             new(LibrarySort.ProductionYear, SortDirection.Descending, "年份"),
         ];
         if (model.Kind == LibraryKind.Movies) Sorts.Add(new(LibrarySort.Runtime, SortDirection.Descending, "时长"));
-        filters = library.ObserveFilters(libraryId, scope.Token);
-        filters.Updated += (_, _) => BuildChips();
-        Cards = Observe(query);
-        Cards.PropertyChanged += OnCardsPropertyChanged;
-        BuildChips();
-        ApplyQueryState();
+        try
+        {
+            filters = library.ObserveFilters(libraryId, scope.Token);
+            filters.Updated += OnFiltersUpdated;
+            Cards = Observe(query);
+            Cards.PropertyChanged += OnCardsPropertyChanged;
+            BuildChips();
+            ApplyQueryState();
+        }
+        catch
+        {
+            FailedConstruction.Release(scope.Cancel,
+                () => { if (Cards is not null) Cards.PropertyChanged -= OnCardsPropertyChanged; },
+                () => Cards?.Dispose(),
+                () => { if (filters is not null) filters.Updated -= OnFiltersUpdated; },
+                () => filters?.Dispose(), scope.Dispose);
+            throw;
+        }
     }
 
     public string Title { get; }
@@ -166,6 +178,7 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
         Cards.PropertyChanged -= OnCardsPropertyChanged;
         Cards.Dispose();
         pending?.Dispose();
+        filters.Updated -= OnFiltersUpdated;
         filters.Dispose();
         scope.Dispose();
     }
@@ -233,6 +246,8 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
         ShowFilteredEmpty = Cards.IsEmpty && HasFilters;
         ShowEmpty = Cards.IsEmpty && !HasFilters;
     }
+
+    private void OnFiltersUpdated(object? sender, EventArgs e) => BuildChips();
 
     private void BuildChips()
     {

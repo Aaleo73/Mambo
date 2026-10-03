@@ -1,0 +1,10 @@
+{
+  "release": "20260610",
+  "url": "https://github.com/shinchiro/mpv-winbuild-cmake/releases/download/20260610/mpv-x86_64-20260610-git-304426c.7z",
+  "digestSource": "https://github.com/shinchiro/mpv-winbuild-cmake/releases/expanded_assets/20260610",
+  "archiveSha256": "facac536baa73c7b925771af5e39a3c9cb16b8d75b59a6e9800de89799dffca7",
+  "files": {
+    "mpv.exe": "b0bb2dc1928e6d86cc26d950815c80c977440081e814c6a46e93f6e9e99c276d",
+    "d3dcompiler_43.dll": "4b074a3976399dc735484f5d43d04b519b7bdee8ac719d9ab8ed6bd4e6be0345"
+  }
+}

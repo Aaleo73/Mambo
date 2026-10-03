@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using Mambo.App.Shell;
+using Mambo.App.Themes;
 using Mambo.App.ViewModels;
 using Mambo.Core.Contracts;
 using Microsoft.UI.Xaml;
@@ -19,6 +20,10 @@ public sealed partial class HomePage : UserControl, INavigablePage, IDisposable
     private readonly TitleBarService titleBar;
     private HomeViewModel? content;
     private bool active;
+    private bool covered;
+    private bool stateQueued;
+    private bool disposed;
+    private IDisposable? scrollRestore;
 
     public HomePage(ShellViewModel shell, ISessionService session, ILibraryService library, Navigator navigator,
         TitleBarService titleBar, WindowContext window)
@@ -30,45 +35,80 @@ public sealed partial class HomePage : UserControl, INavigablePage, IDisposable
         this.navigator = navigator;
         this.titleBar = titleBar;
         InitializeComponent();
-        Hero.Initialize(window);
-        for (var i = 0; i < 8; i++)
-            SkeletonCards.Children.Add(new Border { Style = (Style)Application.Current.Resources["SkeletonBlockStyle"], Width = 300, Height = 169 });
-        shell.PropertyChanged += OnShellPropertyChanged;
-        SizeChanged += (_, _) => UpdateHeroHeight();
-        ApplyState();
+        try
+        {
+            Hero.Initialize(window);
+            for (var i = 0; i < 8; i++)
+                SkeletonCards.Children.Add(new Border { Style = XamlResources.Style(Application.Current.Resources, "SkeletonBlockStyle"), Width = 300, Height = 169 });
+            shell.PropertyChanged += OnShellPropertyChanged;
+            SizeChanged += (_, _) => UpdateHeroHeight();
+            ApplyState();
+        }
+        catch
+        {
+            try { Dispose(); }
+            catch (Exception) { }
+            throw;
+        }
     }
 
     public void OnNavigatedTo(NavEntry entry, NavigationMode mode, bool created)
     {
         ArgumentNullException.ThrowIfNull(entry);
         active = true;
-        Hero.SetPageActive(true);
+        Hero.SetPageActive(!covered);
         UpdateDots();
-        if (created) ScrollState.Restore(Scroller, entry.VerticalOffset);
+        if (created) scrollRestore = ScrollState.Restore(Scroller, entry.VerticalOffset);
     }
 
     public void OnNavigatedFrom(NavEntry entry)
     {
         ArgumentNullException.ThrowIfNull(entry);
         active = false;
+        scrollRestore?.Dispose();
+        scrollRestore = null;
         entry.VerticalOffset = Scroller.VerticalOffset;
         Hero.SetPageActive(false);
         titleBar.Hide(Hero.Dots);
     }
 
     public void Refresh() => _ = content?.RefreshAsync();
+    internal bool HasFirstContent => content is { HasContent: true } && content.Rails.Any(rail => rail.Items.Count > 0);
+
+    /// <summary>播放器覆盖首页时暂停轮播；返回后仍按导航活动状态决定是否恢复。</summary>
+    public void SetCovered(bool value)
+    {
+        covered = value;
+        Hero.SetPageActive(active && !covered);
+    }
 
     public void Dispose()
     {
+        if (disposed) return;
+        disposed = true;
         shell.PropertyChanged -= OnShellPropertyChanged;
-        titleBar.Hide(Hero.Dots);
-        DisposeContent();
-        Hero.Dispose();
+        try { scrollRestore?.Dispose(); }
+        finally
+        {
+            try { titleBar.Hide(Hero.Dots); }
+            finally
+            {
+                try { DisposeContent(); }
+                finally { Hero.Dispose(); }
+            }
+        }
     }
 
     private void OnShellPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(ShellViewModel.State) or nameof(ShellViewModel.IsLoggedIn)) ApplyState();
+        if (e.PropertyName is not (nameof(ShellViewModel.State) or nameof(ShellViewModel.IsLoggedIn)) || disposed || stateQueued) return;
+        // 同一账号通知随后可能清掉此页；合并到下一次调度，避免旧页先创建又立即销毁内容。
+        stateQueued = true;
+        if (!DispatcherQueue.TryEnqueue(() =>
+        {
+            stateQueued = false;
+            if (!disposed) ApplyState();
+        })) stateQueued = false;
     }
 
     private void ApplyState()

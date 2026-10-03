@@ -14,8 +14,9 @@ public sealed partial class SettingsPage : UserControl, INavigablePage, IDisposa
 {
     private const string NoticesFile = "THIRD_PARTY_NOTICES.md";
     private const string Licenses =
-        "mpv / libmpv · GPL-2.0-or-later\nFFmpeg · GPL-3.0-or-later\nWindows App SDK · MIT\n.NET · MIT\n" +
-        "CommunityToolkit.Mvvm · MIT\nMicrosoft.Extensions.DependencyInjection · MIT\nSerilog · Apache-2.0\nMiSans · MiSans 字体许可协议";
+        "Mambo · GPL-3.0-or-later\nmpv / libmpv · GPL-2.0-or-later\nFFmpeg · GPL-3.0-or-later（构建配置）\n" +
+        "Windows App SDK · Microsoft 软件许可条款\n.NET / CommunityToolkit.Mvvm · MIT\n" +
+        "Serilog · Apache-2.0\n本应用使用 MiSans 字体 · MiSans 字体知识产权许可协议\n完整声明见发布目录 THIRD_PARTY_NOTICES.md 与 LICENSES。";
     private readonly WindowContext window;
     private readonly ToastService toasts;
     private readonly DialogService dialogs;
@@ -35,6 +36,7 @@ public sealed partial class SettingsPage : UserControl, INavigablePage, IDisposa
     {
         ArgumentNullException.ThrowIfNull(entry);
         if (created) ScrollState.Restore(Scroller, entry.VerticalOffset);
+        _ = ViewModel.RefreshCacheSizeAsync();
     }
 
     public void OnNavigatedFrom(NavEntry entry)
@@ -45,6 +47,7 @@ public sealed partial class SettingsPage : UserControl, INavigablePage, IDisposa
 
     public void Refresh()
     {
+        _ = ViewModel.RefreshCacheSizeAsync();
     }
 
     public void Dispose() => ViewModel.Dispose();
@@ -71,10 +74,18 @@ public sealed partial class SettingsPage : UserControl, INavigablePage, IDisposa
     private async void OnHdrAlwaysClick(object sender, RoutedEventArgs e) => await ViewModel.SetHdrAsync(HdrMode.Always);
     private async void OnHdrOffClick(object sender, RoutedEventArgs e) => await ViewModel.SetHdrAsync(HdrMode.Off);
     private async void OnHardwareToggled(object sender, RoutedEventArgs e) => await ViewModel.SetHardwareDecodingAsync(HardwareSwitch.IsOn);
-    private void OnThemeSystemClick(object sender, RoutedEventArgs e) => ViewModel.SetTheme(ThemeMode.System);
-    private void OnThemeLightClick(object sender, RoutedEventArgs e) => ViewModel.SetTheme(ThemeMode.Light);
-    private void OnThemeDarkClick(object sender, RoutedEventArgs e) => ViewModel.SetTheme(ThemeMode.Dark);
+    private async void OnThemeSystemClick(object sender, RoutedEventArgs e) => await ViewModel.SetThemeAsync(ThemeMode.System);
+    private async void OnThemeLightClick(object sender, RoutedEventArgs e) => await ViewModel.SetThemeAsync(ThemeMode.Light);
+    private async void OnThemeDarkClick(object sender, RoutedEventArgs e) => await ViewModel.SetThemeAsync(ThemeMode.Dark);
     private async void OnClearCacheClick(object sender, RoutedEventArgs e) => await ViewModel.ClearCacheAsync();
+    private async void OnValidateMpvClick(object sender, RoutedEventArgs e) => await ViewModel.ValidateMpvAsync();
+
+    private async void OnMpvKeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Key != VirtualKey.Enter) return;
+        e.Handled = true;
+        await ViewModel.ValidateMpvAsync();
+    }
 
     private async void OnPickMpvClick(object sender, RoutedEventArgs e)
     {
@@ -83,7 +94,7 @@ public sealed partial class SettingsPage : UserControl, INavigablePage, IDisposa
             var picker = new FileOpenPicker(window.WindowId);
             picker.FileTypeFilter.Add(".exe");
             var result = await picker.PickSingleFileAsync();
-            if (result is not null) ViewModel.MpvPath = result.Path;
+            if (result is not null) await ViewModel.ChooseMpvAsync(result.Path);
         }
         catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException or System.Runtime.InteropServices.COMException)
         {
@@ -104,8 +115,15 @@ public sealed partial class SettingsPage : UserControl, INavigablePage, IDisposa
 
     private async void OnLogsClick(object sender, RoutedEventArgs e)
     {
-        var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Mambo", "logs");
-        if (!Directory.Exists(path) || !await Launcher.LaunchFolderPathAsync(path))
+        if (!ViewModel.CanOpenLogs) return;
+        try
+        {
+            if (Directory.Exists(ViewModel.LogDirectory) && await Launcher.LaunchFolderPathAsync(ViewModel.LogDirectory)) return;
             toasts.Show(ToastKind.Error, "无法打开日志目录");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Runtime.InteropServices.COMException)
+        {
+            toasts.Show(ToastKind.Error, "无法打开日志目录");
+        }
     }
 }

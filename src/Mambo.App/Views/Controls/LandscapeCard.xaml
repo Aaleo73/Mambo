@@ -4,7 +4,8 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:images="using:Mambo.App.Images"
     xmlns:controls="using:Mambo.App.Views.Controls">
-    <Grid x:Name="Layout" Background="Transparent" SizeChanged="OnLayoutSizeChanged"
+    <Grid x:Name="Layout" Background="Transparent"
+          GotFocus="OnFocusChanged" LostFocus="OnFocusChanged"
           PointerEntered="OnPointerEntered" PointerExited="OnPointerExited" PointerCanceled="OnPointerExited">
         <Grid.RowDefinitions>
             <RowDefinition x:Name="ArtRow" Height="{StaticResource LandscapeHeightGridLength}"/>

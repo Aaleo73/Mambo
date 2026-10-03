@@ -6,6 +6,8 @@
 *.binlog
 publish/
 artifacts/
+# 用户取消的专用虚拟机工具；等待工具策略允许清理，不纳入提交或源码发布包。
+scripts/diagnostics/clean-windows/
 TestResults/
 third_party/libmpv/bin/
 third_party/libmpv/download/

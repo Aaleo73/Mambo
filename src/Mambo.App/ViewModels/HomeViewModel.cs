@@ -15,24 +15,36 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
     private readonly ILibraryService library;
     private readonly Navigator navigator;
     private readonly CancellationTokenSource scope = new();
-    private readonly IQuery<ImmutableArray<MediaLibrary>> libraries;
-    private readonly IQuery<ImmutableArray<MediaItem>> hero;
-    private readonly RailViewModel continueRail;
+    private readonly IQuery<ImmutableArray<MediaLibrary>> libraries = null!;
+    private readonly IQuery<ImmutableArray<MediaItem>> hero = null!;
+    private readonly RailViewModel continueRail = null!;
     private readonly Dictionary<string, RailViewModel> latest = [];
 
     public HomeViewModel(ILibraryService library, Navigator navigator)
     {
         this.library = library;
         this.navigator = navigator;
-        libraries = library.ObserveLibraries(scope.Token);
-        hero = library.ObserveHero(scope.Token);
-        continueRail = new RailViewModel("最近播放", library.ObserveContinueWatching(scope.Token), CardContext.ContinueWatching, landscape: true,
-            "查看全部", () => navigator.Navigate(Route.Recent));
-        Rails.Add(continueRail);
-        libraries.Updated += OnLibrariesUpdated;
-        hero.Updated += OnHeroUpdated;
-        OnLibrariesUpdated(null, EventArgs.Empty);
-        OnHeroUpdated(null, EventArgs.Empty);
+        try
+        {
+            libraries = library.ObserveLibraries(scope.Token);
+            hero = library.ObserveHero(scope.Token);
+            continueRail = new RailViewModel("最近播放", library.ObserveContinueWatching(scope.Token), CardContext.ContinueWatching, landscape: true,
+                "查看全部", () => navigator.Navigate(Route.Recent));
+            Rails.Add(continueRail);
+            libraries.Updated += OnLibrariesUpdated;
+            hero.Updated += OnHeroUpdated;
+            OnLibrariesUpdated(null, EventArgs.Empty);
+            OnHeroUpdated(null, EventArgs.Empty);
+        }
+        catch
+        {
+            FailedConstruction.Release(scope.Cancel,
+                () => { if (libraries is not null) libraries.Updated -= OnLibrariesUpdated; },
+                () => { if (hero is not null) hero.Updated -= OnHeroUpdated; },
+                () => libraries?.Dispose(), () => hero?.Dispose(),
+                () => { foreach (var rail in Rails) FailedConstruction.Release(rail.Dispose); }, scope.Dispose);
+            throw;
+        }
     }
 
     public ObservableCollection<RailViewModel> Rails { get; } = [];
@@ -105,7 +117,7 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
     private void OnHeroUpdated(object? sender, EventArgs e)
     {
         var slides = hero.ItemsOrEmpty().Where(i => i.Images.Length > 0).Select(i => new HeroSlideViewModel(i)).ToList();
-        if (slides.Select(s => s.Id).SequenceEqual(Slides.Select(s => s.Id))) return;
+        if (slides.Count == Slides.Count && slides.Where((slide, index) => !slide.HasSameContent(Slides[index])).Any() == false) return;
         Slides = slides;
         SlidesChanged?.Invoke(this, EventArgs.Empty);
     }

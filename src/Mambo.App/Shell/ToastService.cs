@@ -32,6 +32,7 @@ public sealed partial class ToastItem : ObservableObject
     public bool IsError => Kind == ToastKind.Error;
     internal Action? Action { get; }
     internal DispatcherQueueTimer? Timer { get; set; }
+    internal Windows.Foundation.TypedEventHandler<DispatcherQueueTimer, object>? TickHandler { get; set; }
 
     public string Glyph => Kind switch
     {
@@ -43,7 +44,7 @@ public sealed partial class ToastItem : ObservableObject
 }
 
 /// <summary>右下角通知，最多 3 条；错误需手动关闭，其余默认 3 秒消失，悬停时暂停计时。</summary>
-public sealed class ToastService
+public sealed class ToastService : IDisposable
 {
     private const int Capacity = 3;
     private static readonly TimeSpan DefaultDuration = TimeSpan.FromSeconds(3);
@@ -66,7 +67,8 @@ public sealed class ToastService
         item.Timer = queue.CreateTimer();
         item.Timer.Interval = duration ?? DefaultDuration;
         item.Timer.IsRepeating = false;
-        item.Timer.Tick += (_, _) => Dismiss(item);
+        item.TickHandler = (_, _) => Dismiss(item);
+        item.Timer.Tick += item.TickHandler;
         item.Timer.Start();
     }
 
@@ -74,7 +76,16 @@ public sealed class ToastService
     {
         ArgumentNullException.ThrowIfNull(item);
         item.Timer?.Stop();
+        if (item.Timer is { } timer && item.TickHandler is { } handler) timer.Tick -= handler;
+        item.Timer = null;
+        item.TickHandler = null;
         Items.Remove(item);
+    }
+
+    public void Dispose()
+    {
+        foreach (var item in Items.ToArray()) Dismiss(item);
+        queue = null;
     }
 
     public void Invoke(ToastItem item)

@@ -129,6 +129,7 @@ internal sealed class ExternalIpcLabReport
     public string Stage { get; set; } = "连接假 IPC";
     public string ErrorKind { get; set; } = "";
     public string HResult { get; set; } = "";
+    public string ErrorStack { get; set; } = "";
 }
 
 [JsonSourceGenerationOptions(WriteIndented = true)]

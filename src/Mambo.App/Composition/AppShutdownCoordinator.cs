@@ -19,6 +19,11 @@ public sealed class AppShutdownCoordinator : IDisposable
         if (backend is not null && Application.Current is { } application) exceptions = new(application, backend.Log);
     }
     public Task CloseAsync() => closing ??= CloseCoreAsync();
+    public void ReportPageFailure(Exception error)
+    {
+        ArgumentNullException.ThrowIfNull(error);
+        if (closing is null) backend?.Log.Exception("页面边界异常", error);
+    }
     private async Task CloseCoreAsync()
     {
         try

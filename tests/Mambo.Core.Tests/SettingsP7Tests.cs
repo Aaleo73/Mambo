@@ -18,11 +18,13 @@ public sealed class SettingsP7Tests
         using (var settings = new SettingsStore(directory.Paths, new Scheduler()))
         {
             Assert.Equal(SettingsThemeMode.System, settings.Current.ThemeMode);
-            await settings.UpdateAsync(value => value with { ThemeMode = SettingsThemeMode.Dark }, TestContext.Current.CancellationToken);
+            Assert.False(settings.Current.UseEpisodeGrid);
+            await settings.UpdateAsync(value => value with { ThemeMode = SettingsThemeMode.Dark, UseEpisodeGrid = true }, TestContext.Current.CancellationToken);
             await Assert.ThrowsAsync<AppException>(() => settings.UpdateAsync(value => value with { ThemeMode = (SettingsThemeMode)99 }, TestContext.Current.CancellationToken));
         }
         using var restored = new SettingsStore(directory.Paths, new Scheduler());
         Assert.Equal(SettingsThemeMode.Dark, restored.Current.ThemeMode);
+        Assert.True(restored.Current.UseEpisodeGrid);
         Assert.Equal(device, restored.Current.DeviceId);
         Assert.Equal(37, restored.Current.Volume);
     }

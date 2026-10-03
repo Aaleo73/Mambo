@@ -31,6 +31,7 @@ public sealed partial class VideoLab : UserControl
     private HdrController? hdr;
     private Task? consume;
     private Task? closeTask;
+    private bool closing;
     private bool busy;
     private FakeLab? fakeLab;
     private bool seeking;
@@ -49,6 +50,7 @@ public sealed partial class VideoLab : UserControl
     private readonly PowerRequest power = new();
     private ServiceProvider? backendServices;
     private IPlaybackSession? backendSession;
+    internal event Action? SmokeCompleted;
 
     public VideoLab()
     {
@@ -60,10 +62,10 @@ public sealed partial class VideoLab : UserControl
         Surface.DiagnosticError += text => note = text;
         refresh = DispatcherQueue.CreateTimer();
         refresh.Interval = TimeSpan.FromMilliseconds(100);
-        refresh.Tick += (_, _) => RefreshDiagnostics();
+        refresh.Tick += RefreshTick;
         bindingRetry = DispatcherQueue.CreateTimer();
         bindingRetry.Interval = TimeSpan.FromMilliseconds(300);
-        bindingRetry.Tick += (_, _) => TryBind();
+        bindingRetry.Tick += BindingRetryTick;
         Loaded += OnLoaded;
     }
 
@@ -74,24 +76,37 @@ public sealed partial class VideoLab : UserControl
         // 显示器监听属于窗口；每次播放只连接播放器，避免重复创建原生监听对象。
         hdr = new HdrController(owner.AppWindow.Id, DispatcherQueue);
     }
-    public void SetLiveResize(bool active) => Surface.SetLiveResize(active);
+    public void SetLiveResize(bool active) { if (!closing) Surface.SetLiveResize(active); }
+    private void RefreshTick(DispatcherQueueTimer sender, object args) => RefreshDiagnostics();
+    private void BindingRetryTick(DispatcherQueueTimer sender, object args) => TryBind();
 
     private async void OnLoaded(object sender, RoutedEventArgs args)
     {
+        if (closing) return;
         windowReadyMs = Program.UptimeMilliseconds;
         if (BackendServices.IsFakeMode(Program.Arguments, Environment.GetEnvironmentVariable("MAMBO_FAKE")))
         {
             Application.Current.UnhandledException += (_, failure) => FakeLab.RecordFailure(failure.Exception, "未处理的 UI 异常");
             fakeLab = new FakeLab();
-            fakeLab.SmokeCompleted += () => window?.Close();
+            fakeLab.SmokeCompleted += () => SmokeCompleted?.Invoke();
             Content = fakeLab;
             return;
         }
         refresh.Start();
         if (Program.Arguments.Contains("--p7-smoke", StringComparer.Ordinal))
         {
-            await ExternalIpcLabSmoke.RunAsync(Environment.GetEnvironmentVariable("MAMBO_EXTERNAL_LAB_REPORT") ?? "");
-            window?.Close(); return;
+            var ipcReport = Environment.GetEnvironmentVariable("MAMBO_EXTERNAL_LAB_REPORT") ?? "";
+            Application.Current.UnhandledException += (_, failure) =>
+            {
+                // 仅合成管道诊断：记录退出阶段的类型/代码/调用栈，不复制异常消息。
+                var safe = new ExternalIpcLabReport { Stage = "未处理的界面异常",
+                    ErrorKind = failure.Exception.GetType().Name,
+                    HResult = failure.Exception.HResult.ToString("X8", CultureInfo.InvariantCulture),
+                    ErrorStack = failure.Exception.StackTrace ?? "" };
+                File.WriteAllText(ipcReport, JsonSerializer.Serialize(safe, ExternalIpcLabJsonContext.Default.ExternalIpcLabReport));
+            };
+            await ExternalIpcLabSmoke.RunAsync(ipcReport);
+            SmokeCompleted?.Invoke(); return;
         }
         if (Program.Arguments.Contains("--p3-smoke", StringComparer.Ordinal))
         {
@@ -105,13 +120,13 @@ public sealed partial class VideoLab : UserControl
                 File.WriteAllText(playbackReport, JsonSerializer.Serialize(safe, PlaybackLabJsonContext.Default.PlaybackLabReport));
             };
             await PlaybackLabSmoke.RunAsync(Surface, playbackSample, DispatcherQueue, playbackReport);
-            window?.Close(); return;
+            SmokeCompleted?.Invoke(); return;
         }
         var sample = Environment.GetEnvironmentVariable("MAMBO_VIDEO_LAB_SAMPLE");
         if (Program.Arguments.Contains("--smoke", StringComparer.Ordinal) && !string.IsNullOrWhiteSpace(sample))
         {
             await RunSmokeAsync(sample);
-            window?.Close();
+            SmokeCompleted?.Invoke();
         }
         else if (!string.IsNullOrWhiteSpace(sample))
         {
@@ -307,6 +322,7 @@ public sealed partial class VideoLab : UserControl
 
     private void TryBind()
     {
+        if (closing) return;
         if (player is null) { bindingRetry.Stop(); return; }
         if (bound && pendingSwapChain is null) { bindingRetry.Stop(); return; }
         if (++bindingAttempts > 10)
@@ -332,6 +348,7 @@ public sealed partial class VideoLab : UserControl
 
     private void RefreshDiagnostics()
     {
+        if (closing) return;
         if (backendSession is { } session)
         {
             var engineName = session.Snapshot.EngineKind == EngineKind.External ? "外部 MPV" : "内置播放器";
@@ -473,7 +490,14 @@ public sealed partial class VideoLab : UserControl
     }
     private async Task CloseCoreAsync()
     {
+        closing = true;
+        Loaded -= OnLoaded;
         refresh.Stop();
+        refresh.Tick -= RefreshTick;
+        bindingRetry.Stop();
+        bindingRetry.Tick -= BindingRetryTick;
+        PositionSlider.RemoveHandler(PointerPressedEvent, new PointerEventHandler(SeekPressed));
+        PositionSlider.RemoveHandler(PointerReleasedEvent, new PointerEventHandler(SeekReleased));
         if (fakeLab is { } demo) await demo.CloseAsync();
         if (backendServices is { } services)
         {
@@ -486,6 +510,9 @@ public sealed partial class VideoLab : UserControl
         catch { /* 释放有看门狗，窗口关闭不得永久等待。 */ }
         hdr?.Dispose();
         hdr = null;
+        // 永久关闭时趁 HWND 仍有效释放 host clip、光标与计时器事件，不拖到原生卸载回调。
+        Surface.Dispose();
+        power.Dispose();
     }
 
     private async Task RunSmokeAsync(string sample)

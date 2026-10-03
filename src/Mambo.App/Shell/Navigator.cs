@@ -90,6 +90,7 @@ public sealed class Navigator
 
     public void Navigate(Route route)
     {
+        if (ForwardBlocked) return;
         if (route.Equals(Current.Route)) return;
         if (route.Kind == PageKind.Search && Current.Route.Kind == PageKind.Search)
         {
@@ -99,6 +100,13 @@ public sealed class Navigator
         Push(back, Current);
         forward.Clear();
         Go(new NavEntry(route), NavigationMode.New);
+    }
+
+    /// <summary>重新创建当前失败页面；保留当前记录与前进、后退历史。</summary>
+    public void RetryCurrent()
+    {
+        if (ForwardBlocked) return;
+        Go(Current, NavigationMode.Replace);
     }
 
     public bool GoBack()

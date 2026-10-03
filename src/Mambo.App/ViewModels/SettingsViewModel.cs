@@ -17,7 +17,7 @@ public enum StatusTone
 /// <summary>设置页：服务器、播放、外观、关于四组。</summary>
 public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 {
-    private static readonly TimeSpan ValidationDelay = TimeSpan.FromMilliseconds(400);
+    private static readonly TimeSpan PathSaveDelay = TimeSpan.FromMilliseconds(400);
     private readonly ISessionService session;
     private readonly ISettingsService settings;
     private readonly IPlaybackService playback;
@@ -25,8 +25,14 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly ToastService toasts;
     private readonly DialogService dialogs;
     private readonly ThemeService theme;
-    private readonly DispatcherQueueTimer validationTimer;
+    private readonly DispatcherQueueTimer pathSaveTimer;
+    private readonly CancellationTokenSource lifetime = new();
+    private long draftVersion;
+    private long cacheReadVersion;
+    private bool draftDirty;
+    private bool validatingMpv;
     private bool applying;
+    private bool disposed;
 
     public SettingsViewModel(ISessionService session, ISettingsService settings, IPlaybackService playback, Navigator navigator,
         ToastService toasts, DialogService dialogs, ThemeService theme)
@@ -38,20 +44,31 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         this.toasts = toasts;
         this.dialogs = dialogs;
         this.theme = theme;
-        validationTimer = DispatcherQueue.GetForCurrentThread().CreateTimer();
-        validationTimer.Interval = ValidationDelay;
-        validationTimer.IsRepeating = false;
-        validationTimer.Tick += (_, _) => _ = ValidateMpvAsync();
-        var defaults = settings.ConnectionDefaults;
-        ServerAddress = defaults.ServerAddress;
-        LoginUserName = defaults.UserName;
-        MpvPath = settings.Current.ExternalMpvPath ?? "";
-        session.Changed += OnSessionChanged;
-        settings.Changed += OnSettingsChanged;
-        theme.Changed += OnThemeChanged;
-        ApplySession();
-        ApplySettings();
-        ApplyTheme();
+        pathSaveTimer = DispatcherQueue.GetForCurrentThread().CreateTimer();
+        pathSaveTimer.Interval = PathSaveDelay;
+        pathSaveTimer.IsRepeating = false;
+        pathSaveTimer.Tick += (_, _) => _ = SaveMpvPathAsync();
+        try
+        {
+            var defaults = settings.ConnectionDefaults;
+            ServerAddress = defaults.ServerAddress;
+            LoginUserName = defaults.UserName;
+            applying = true;
+            MpvPath = settings.Current.ExternalMpvPath ?? "";
+            applying = false;
+            session.Changed += OnSessionChanged;
+            settings.Changed += OnSettingsChanged;
+            theme.Changed += OnThemeChanged;
+            ApplySession();
+            ApplySettings();
+            ApplyTheme();
+            _ = RefreshCacheSizeAsync();
+        }
+        catch
+        {
+            FailedConstruction.Release(Dispose);
+            throw;
+        }
     }
 
     public static string Version { get; } = ReadVersion();
@@ -113,7 +130,15 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     public partial bool CanUseExternal { get; private set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanValidateMpv))]
     public partial string MpvPath { get; set; } = "";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanValidateMpv), nameof(CanEditMpvPath))]
+    public partial bool IsValidatingMpv { get; private set; }
+
+    public bool CanValidateMpv => !IsValidatingMpv && MpvPath.Trim().Length > 0;
+    public bool CanEditMpvPath => !IsValidatingMpv;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasMpvStatus), nameof(IsMpvOk), nameof(IsMpvWarning), nameof(IsMpvInfo))]
@@ -149,12 +174,28 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     public partial bool IsThemeDark { get; private set; }
 
+    [ObservableProperty]
+    public partial string CacheSizeText { get; private set; } = "计算中…";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanClearCache), nameof(ClearCacheText))]
+    public partial bool IsClearingCache { get; private set; }
+
+    public bool CanClearCache => !IsClearingCache;
+    public string ClearCacheText => IsClearingCache ? "清除中…" : "清除缓存";
+    public string LogDirectory => settings.LogDirectory;
+    public bool CanOpenLogs => !string.IsNullOrWhiteSpace(LogDirectory);
+
     public void Dispose()
     {
-        validationTimer.Stop();
+        if (disposed) return;
+        disposed = true;
+        pathSaveTimer.Stop();
+        lifetime.Cancel();
         session.Changed -= OnSessionChanged;
         settings.Changed -= OnSettingsChanged;
         theme.Changed -= OnThemeChanged;
+        lifetime.Dispose();
     }
 
     public async Task ConnectAsync(string password)
@@ -205,60 +246,148 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         }
     }
 
-    public Task SetPlaybackModeAsync(PlaybackMode mode) => UpdateAsync(s => s with { PlaybackMode = mode });
+    public Task SetPlaybackModeAsync(PlaybackMode mode) =>
+        mode == PlaybackMode.External && !CanUseExternal ? Task.CompletedTask
+            : UpdateAsync(s => s with { PlaybackMode = mode });
     public Task SetHdrAsync(HdrMode mode) => UpdateAsync(s => s with { HdrMode = mode });
 
     public Task SetHardwareDecodingAsync(bool enabled) =>
         enabled == HardwareDecoding ? Task.CompletedTask
             : UpdateAsync(s => s with { HardwareDecoding = enabled ? HardwareDecodingMode.Auto : HardwareDecodingMode.Off });
 
-    public void SetTheme(ThemeMode mode) => theme.Set(mode);
+    public Task SetThemeAsync(ThemeMode mode) => UpdateAsync(s => s with
+    {
+        ThemeMode = mode switch
+        {
+            ThemeMode.Light => SettingsThemeMode.Light,
+            ThemeMode.Dark => SettingsThemeMode.Dark,
+            _ => SettingsThemeMode.System,
+        },
+    });
 
     public async Task ClearCacheAsync()
     {
-        if (!await dialogs.ConfirmAsync(new ConfirmRequest("清除缓存？", "登录信息和设置不受影响。", "清除"))) return;
+        if (disposed || IsClearingCache ||
+            !await dialogs.ConfirmAsync(new ConfirmRequest("清除缓存？", "登录信息和设置不受影响。", "清除"))) return;
+        IsClearingCache = true;
         try
         {
-            await settings.ClearCacheAsync();
+            await settings.ClearCacheAsync(lifetime.Token);
+            Images.ImageLoader.Current?.ClearDecodedCache();
+            await RefreshCacheSizeAsync();
             toasts.Show(ToastKind.Success, "已清除缓存");
         }
         catch (AppException ex)
         {
             toasts.Show(ToastKind.Error, ex.Error.Message);
         }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            toasts.Show(ToastKind.Error, "无法清除缓存，请稍后重试");
+        }
+        finally
+        {
+            if (!disposed) IsClearingCache = false;
+        }
+    }
+
+    public async Task RefreshCacheSizeAsync()
+    {
+        if (disposed) return;
+        var version = ++cacheReadVersion;
+        try
+        {
+            var bytes = await settings.GetCacheSizeAsync(lifetime.Token);
+            if (!disposed && version == cacheReadVersion) CacheSizeText = FormatBytes(bytes);
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) when (ex is AppException or IOException or UnauthorizedAccessException)
+        {
+            if (!disposed && version == cacheReadVersion) CacheSizeText = "暂时无法读取";
+        }
     }
 
     partial void OnMpvPathChanged(string value)
     {
         if (applying) return;
-        validationTimer.Stop();
-        validationTimer.Start();
+        ++draftVersion;
+        draftDirty = true;
+        pathSaveTimer.Stop();
+        pathSaveTimer.Start();
+        ApplyMpvStatus();
     }
 
-    private async Task ValidateMpvAsync()
+    public async Task ChooseMpvAsync(string path)
     {
+        if (disposed || IsValidatingMpv || string.IsNullOrWhiteSpace(path)) return;
+        MpvPath = path;
+        await ValidateMpvAsync();
+    }
+
+    /// <summary>只由选择文件、验证按钮或 Enter 显式调用，不在读取设置或编辑防抖时执行。</summary>
+    public async Task ValidateMpvAsync()
+    {
+        if (disposed || !CanValidateMpv) return;
+        pathSaveTimer.Stop();
         var path = MpvPath.Trim();
+        var version = draftVersion;
+        validatingMpv = true;
+        ApplyMpvStatus();
         try
         {
-            await settings.UpdateAsync(s => s with { ExternalMpvPath = path.Length == 0 ? null : path });
-            if (path.Length > 0) await settings.ValidateExternalPlayerAsync(path);
+            await settings.UpdateAsync(s => s with { ExternalMpvPath = path }, lifetime.Token);
+            if (version != draftVersion || disposed) return;
+            await settings.ValidateExternalPlayerAsync(path, lifetime.Token);
+            if (version != draftVersion || disposed) return;
+            draftDirty = false;
+            SetMpvDraft(settings.Current.ExternalMpvPath ?? "");
+            if (settings.ExternalPlayerStatus == ExternalPlayerStatus.Approved)
+                await settings.UpdateAsync(s => s with { PlaybackMode = PlaybackMode.External }, lifetime.Token);
         }
         catch (AppException ex)
         {
             toasts.Show(ToastKind.Error, ex.Error.Message);
         }
+        catch (OperationCanceledException) { }
+        finally
+        {
+            validatingMpv = false;
+            if (!disposed) ApplySettings();
+        }
+    }
+
+    private async Task SaveMpvPathAsync()
+    {
+        if (disposed) return;
+        var path = MpvPath.Trim();
+        var version = draftVersion;
+        try
+        {
+            await settings.UpdateAsync(s => s with { ExternalMpvPath = path.Length == 0 ? null : path }, lifetime.Token);
+            if (disposed || version != draftVersion) return;
+            draftDirty = false;
+            ApplySettings();
+        }
+        catch (AppException ex)
+        {
+            toasts.Show(ToastKind.Error, ex.Error.Message);
+        }
+        catch (OperationCanceledException) { }
     }
 
     private async Task UpdateAsync(Func<AppSettings, AppSettings> update)
     {
         try
         {
-            await settings.UpdateAsync(update);
+            if (disposed) return;
+            await settings.UpdateAsync(update, lifetime.Token);
         }
         catch (AppException ex)
         {
             toasts.Show(ToastKind.Error, ex.Error.Message);
         }
+        catch (OperationCanceledException) { }
     }
 
     private void OnSessionChanged(object? sender, EventArgs e) => ApplySession();
@@ -277,6 +406,9 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private void ApplySettings()
     {
         var current = settings.Current;
+        var persistedPath = current.ExternalMpvPath ?? "";
+        // 无关的音量或主题变更不会覆盖尚未保存的输入。
+        if (!draftDirty) SetMpvDraft(persistedPath);
         applying = true;
         try
         {
@@ -284,25 +416,43 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             IsExternal = current.PlaybackMode == PlaybackMode.External;
             Hdr = current.HdrMode;
             HardwareDecoding = current.HardwareDecoding == HardwareDecodingMode.Auto;
-            var status = settings.ExternalPlayerStatus;
-            CanUseExternal = status == ExternalPlayerStatus.Approved;
-            (MpvStatusTone, MpvStatusText) = status switch
-            {
-                ExternalPlayerStatus.Validating => (StatusTone.Info, "正在验证…"),
-                ExternalPlayerStatus.Approved => (StatusTone.Ok, "已验证"),
-                ExternalPlayerStatus.Invalid when MpvPath.Trim().Length > 0 => (StatusTone.Warning, "未找到 mpv.exe"),
-                _ => (StatusTone.None, ""),
-            };
+            ApplyMpvStatus();
             OnPropertyChanged(nameof(HdrLabel));
             OnPropertyChanged(nameof(IsHdrAuto));
             OnPropertyChanged(nameof(IsHdrAlways));
             OnPropertyChanged(nameof(IsHdrOff));
             OnPropertyChanged(nameof(HardwareDecodingText));
+            OnPropertyChanged(nameof(LogDirectory));
+            OnPropertyChanged(nameof(CanOpenLogs));
         }
         finally
         {
             applying = false;
         }
+    }
+
+    private void SetMpvDraft(string path)
+    {
+        var wasApplying = applying;
+        applying = true;
+        MpvPath = path;
+        applying = wasApplying;
+    }
+
+    private void ApplyMpvStatus()
+    {
+        var status = settings.ExternalPlayerStatus;
+        IsValidatingMpv = validatingMpv || status == ExternalPlayerStatus.Validating;
+        var draftMatches = string.Equals(MpvPath.Trim(), settings.Current.ExternalMpvPath ?? "", StringComparison.OrdinalIgnoreCase);
+        CanUseExternal = status == ExternalPlayerStatus.Approved && draftMatches && !IsValidatingMpv;
+        (MpvStatusTone, MpvStatusText) = status switch
+        {
+            _ when IsValidatingMpv => (StatusTone.Info, "正在验证…"),
+            _ when !draftMatches && MpvPath.Trim().Length > 0 => (StatusTone.Info, "等待批准"),
+            ExternalPlayerStatus.Approved => (StatusTone.Ok, "已批准"),
+            ExternalPlayerStatus.Invalid => (StatusTone.Warning, "请重新批准，当前使用内置播放器"),
+            _ => (StatusTone.Info, "当前使用内置播放器"),
+        };
     }
 
     private void ApplyTheme()
@@ -319,4 +469,12 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         var text = informational?.Split('+')[0] ?? assembly.GetName().Version?.ToString(3) ?? "0.0.0";
         return "v" + text;
     }
+
+    private static string FormatBytes(long bytes) => bytes switch
+    {
+        < 1024 => $"{Math.Max(bytes, 0)} B",
+        < 1024 * 1024 => $"{bytes / 1024.0:0.#} KB",
+        < 1024L * 1024 * 1024 => $"{bytes / (1024.0 * 1024):0.#} MB",
+        _ => $"{bytes / (1024.0 * 1024 * 1024):0.#} GB",
+    };
 }

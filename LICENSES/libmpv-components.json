@@ -1,0 +1,1021 @@
+[
+  {
+    "name": "amf-headers",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/amf-headers.cmake",
+    "upstream": "https://github.com/GPUOpen-LibrariesAndSDKs/AMF.git",
+    "recipeGitTag": null,
+    "dependencies": [],
+    "licenseSnapshot": "https://github.com/GPUOpen-LibrariesAndSDKs/AMF/blob/master/LICENSE.txt",
+    "licenseSpdx": "NOASSERTION",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "angle-headers",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/angle-headers.cmake",
+    "upstream": "https://github.com/google/angle.git",
+    "recipeGitTag": "main",
+    "dependencies": [],
+    "licenseSnapshot": "https://github.com/google/angle/blob/main/LICENSE",
+    "licenseSpdx": "NOASSERTION",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "aom",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/aom.cmake",
+    "upstream": "https://aomedia.googlesource.com/aom",
+    "recipeGitTag": "main",
+    "dependencies": [],
+    "licenseSnapshot": "https://aomedia.googlesource.com/aom/+/refs/heads/main/LICENSE?format=TEXT",
+    "licenseSpdx": null,
+    "licenseStatus": "已附官方上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "avisynth-headers",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/avisynth-headers.cmake",
+    "upstream": "https://github.com/AviSynth/AviSynthPlus.git",
+    "recipeGitTag": null,
+    "dependencies": [],
+    "licenseSnapshot": "https://raw.githubusercontent.com/AviSynth/AviSynthPlus/master/distrib/gpl.txt",
+    "licenseSpdx": null,
+    "licenseStatus": "已附上游许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "brotli",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/brotli.cmake",
+    "upstream": "https://github.com/google/brotli.git",
+    "recipeGitTag": null,
+    "dependencies": [],
+    "licenseSnapshot": "https://github.com/google/brotli/blob/master/LICENSE",
+    "licenseSpdx": "MIT",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "bzip2",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/bzip2.cmake",
+    "upstream": "https://gitlab.com/bzip2/bzip2.git",
+    "recipeGitTag": null,
+    "dependencies": [],
+    "licenseSnapshot": "https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz#bzip2-1.0.8/LICENSE",
+    "licenseSpdx": null,
+    "licenseStatus": "已附官方1.0.8发行许可；对应二进制Git修订仍待核对"
+  },
+  {
+    "name": "dav1d",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/dav1d.cmake",
+    "upstream": "https://code.videolan.org/videolan/dav1d.git",
+    "recipeGitTag": null,
+    "dependencies": [
+      "xxhash"
+    ],
+    "licenseSnapshot": "https://raw.githubusercontent.com/videolan/dav1d/master/COPYING",
+    "licenseSpdx": null,
+    "licenseStatus": "已附上游许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "davs2",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/davs2.cmake",
+    "upstream": "https://github.com/saindriches/davs2.git",
+    "recipeGitTag": null,
+    "dependencies": [],
+    "licenseSnapshot": "https://github.com/saindriches/davs2/blob/master/COPYING",
+    "licenseSpdx": "GPL-2.0",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "expat",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/expat.cmake",
+    "upstream": "https://github.com/libexpat/libexpat.git",
+    "recipeGitTag": null,
+    "dependencies": [],
+    "licenseSnapshot": "https://github.com/libexpat/libexpat/blob/master/COPYING",
+    "licenseSpdx": "MIT",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "fast_float",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/fast_float.cmake",
+    "upstream": "https://github.com/fastfloat/fast_float.git",
+    "recipeGitTag": "main",
+    "dependencies": [],
+    "licenseSnapshot": "https://github.com/fastfloat/fast_float/blob/main/LICENSE-APACHE",
+    "licenseSpdx": "Apache-2.0",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "ffmpeg",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/ffmpeg.cmake",
+    "upstream": "https://github.com/FFmpeg/FFmpeg.git",
+    "recipeGitTag": null,
+    "dependencies": [
+      "amf-headers",
+      "avisynth-headers",
+      "bzip2",
+      "lame",
+      "lcms2",
+      "openssl",
+      "libssh",
+      "libsrt",
+      "libass",
+      "libbluray",
+      "libdvdnav",
+      "libdvdread",
+      "libmodplug",
+      "libpng",
+      "libsoxr",
+      "libbs2b",
+      "libvpx",
+      "libwebp",
+      "libzimg",
+      "libmysofa",
+      "fontconfig",
+      "harfbuzz",
+      "opus",
+      "speex",
+      "vorbis",
+      "x264",
+      "xvidcore",
+      "libxml2",
+      "libvpl",
+      "libopenmpt",
+      "libjxl",
+      "shaderc",
+      "libplacebo",
+      "libzvbi",
+      "libaribcaption",
+      "aom",
+      "svtav1",
+      "dav1d",
+      "vapoursynth",
+      "rubberband",
+      "libva",
+      "openal-soft"
+    ],
+    "licenseSnapshot": "https://github.com/FFmpeg/FFmpeg/blob/master/LICENSE.md",
+    "licenseSpdx": "NOASSERTION",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "fontconfig",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/fontconfig.cmake",
+    "upstream": "https://gitlab.freedesktop.org/fontconfig/fontconfig.git",
+    "recipeGitTag": "main",
+    "dependencies": [
+      "expat",
+      "freetype2",
+      "zlib",
+      "libiconv"
+    ],
+    "licenseSnapshot": "https://gitlab.freedesktop.org/fontconfig/fontconfig/-/blob/d416ada7b20a1cdd5050b60a7a1bbdb3d9ddd2dc/COPYING",
+    "licenseSpdx": "NOASSERTION",
+    "licenseStatus": "已附官方 Git 修订 d416ada7b20a1cdd5050b60a7a1bbdb3d9ddd2dc 的 COPYING 许可快照；包括逐文件/Unicode 归属；对应 20260610 二进制修订仍待核对",
+    "licenseSnapshotRevision": "d416ada7b20a1cdd5050b60a7a1bbdb3d9ddd2dc"
+  },
+  {
+    "name": "freetype2",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/freetype2.cmake",
+    "upstream": "https://github.com/freetype/freetype.git",
+    "recipeGitTag": null,
+    "dependencies": [
+      "libpng",
+      "zlib",
+      "brotli"
+    ],
+    "licenseSnapshot": "https://github.com/freetype/freetype/blob/master/LICENSE.TXT",
+    "licenseSpdx": "NOASSERTION",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "fribidi",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/fribidi.cmake",
+    "upstream": "https://github.com/fribidi/fribidi.git",
+    "recipeGitTag": null,
+    "dependencies": [],
+    "licenseSnapshot": "https://github.com/fribidi/fribidi/blob/master/COPYING",
+    "licenseSpdx": "LGPL-2.1",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "glad",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/glad.cmake",
+    "upstream": "https://github.com/Dav1dde/glad.git",
+    "recipeGitTag": "glad2",
+    "dependencies": [],
+    "licenseSnapshot": "https://github.com/Dav1dde/glad/blob/glad2/LICENSE",
+    "licenseSpdx": "NOASSERTION",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "glslang",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/glslang.cmake",
+    "upstream": "https://github.com/KhronosGroup/glslang.git",
+    "recipeGitTag": "main",
+    "dependencies": [],
+    "licenseSnapshot": "https://github.com/KhronosGroup/glslang/blob/main/LICENSE.txt",
+    "licenseSpdx": "NOASSERTION",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "graphengine",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/graphengine.cmake",
+    "upstream": "https://github.com/sekrit-twc/graphengine.git",
+    "recipeGitTag": null,
+    "dependencies": [],
+    "licenseSnapshot": "https://github.com/sekrit-twc/graphengine/blob/master/COPYING",
+    "licenseSpdx": "WTFPL",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "harfbuzz",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/harfbuzz.cmake",
+    "upstream": "https://github.com/harfbuzz/harfbuzz.git",
+    "recipeGitTag": "main",
+    "dependencies": [
+      "freetype2",
+      "libpng"
+    ],
+    "licenseSnapshot": "https://github.com/harfbuzz/harfbuzz/blob/main/COPYING",
+    "licenseSpdx": "NOASSERTION",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "highway",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/highway.cmake",
+    "upstream": "https://github.com/google/highway.git",
+    "recipeGitTag": null,
+    "dependencies": [],
+    "licenseSnapshot": "https://github.com/google/highway/blob/master/LICENSE",
+    "licenseSpdx": "NOASSERTION",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "lame",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/lame.cmake",
+    "upstream": "https://gitlab.com/shinchiro/lame.git",
+    "recipeGitTag": null,
+    "dependencies": [],
+    "licenseSnapshot": "https://gitlab.com/shinchiro/lame/-/raw/master/COPYING",
+    "licenseSpdx": null,
+    "licenseStatus": "已附上游许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "lcms2",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/lcms2.cmake",
+    "upstream": "https://github.com/mm2/Little-CMS.git",
+    "recipeGitTag": null,
+    "dependencies": [
+      "libjpeg",
+      "zlib"
+    ],
+    "licenseSnapshot": "https://github.com/mm2/Little-CMS/blob/master/LICENSE",
+    "licenseSpdx": "MIT",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "libarchive",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libarchive.cmake",
+    "upstream": "https://github.com/libarchive/libarchive.git",
+    "recipeGitTag": null,
+    "dependencies": [
+      "bzip2",
+      "expat",
+      "lzo",
+      "xz",
+      "zlib",
+      "zstd",
+      "openssl",
+      "libxml2"
+    ],
+    "licenseSnapshot": "https://github.com/libarchive/libarchive/blob/master/COPYING",
+    "licenseSpdx": "NOASSERTION",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "libaribcaption",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libaribcaption.cmake",
+    "upstream": "https://github.com/xqq/libaribcaption.git",
+    "recipeGitTag": null,
+    "dependencies": [
+      "fontconfig",
+      "freetype2",
+      "openssl"
+    ],
+    "licenseSnapshot": "https://github.com/xqq/libaribcaption/blob/master/LICENSE",
+    "licenseSpdx": "MIT",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "libass",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libass.cmake",
+    "upstream": "https://github.com/libass/libass.git",
+    "recipeGitTag": null,
+    "dependencies": [
+      "harfbuzz",
+      "freetype2",
+      "fribidi",
+      "libiconv",
+      "fontconfig",
+      "libunibreak"
+    ],
+    "licenseSnapshot": "https://github.com/libass/libass/blob/master/COPYING",
+    "licenseSpdx": "ISC",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "libbluray",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libbluray.cmake",
+    "upstream": "https://code.videolan.org/videolan/libbluray.git",
+    "recipeGitTag": null,
+    "dependencies": [
+      "libudfread",
+      "freetype2",
+      "libxml2"
+    ],
+    "licenseSnapshot": "https://download.videolan.org/pub/videolan/libbluray/1.3.4/libbluray-1.3.4.tar.bz2#libbluray-1.3.4/COPYING",
+    "licenseSpdx": null,
+    "licenseStatus": "已附官方发行归档许可快照；对应二进制Git修订仍待核对"
+  },
+  {
+    "name": "libbs2b",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libbs2b.cmake",
+    "upstream": "https://github.com/alexmarsev/libbs2b.git",
+    "recipeGitTag": null,
+    "dependencies": [],
+    "licenseSnapshot": "https://github.com/alexmarsev/libbs2b/blob/master/COPYING",
+    "licenseSpdx": "MIT",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "libdvdcss",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libdvdcss.cmake",
+    "upstream": "https://code.videolan.org/videolan/libdvdcss.git",
+    "recipeGitTag": null,
+    "dependencies": [],
+    "licenseSnapshot": "https://download.videolan.org/pub/videolan/libdvdcss/1.4.3/libdvdcss-1.4.3.tar.bz2#libdvdcss-1.4.3/COPYING",
+    "licenseSpdx": null,
+    "licenseStatus": "已附官方发行归档许可快照；对应二进制Git修订仍待核对"
+  },
+  {
+    "name": "libdvdnav",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libdvdnav.cmake",
+    "upstream": "https://code.videolan.org/videolan/libdvdnav.git",
+    "recipeGitTag": null,
+    "dependencies": [
+      "libdvdread"
+    ],
+    "licenseSnapshot": "https://download.videolan.org/pub/videolan/libdvdnav/6.1.1/libdvdnav-6.1.1.tar.bz2#libdvdnav-6.1.1/COPYING",
+    "licenseSpdx": null,
+    "licenseStatus": "已附官方发行归档许可快照；对应二进制Git修订仍待核对"
+  },
+  {
+    "name": "libdvdread",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libdvdread.cmake",
+    "upstream": "https://code.videolan.org/videolan/libdvdread.git",
+    "recipeGitTag": null,
+    "dependencies": [
+      "libdvdcss"
+    ],
+    "licenseSnapshot": "https://download.videolan.org/pub/videolan/libdvdread/6.1.3/libdvdread-6.1.3.tar.bz2#libdvdread-6.1.3/COPYING",
+    "licenseSpdx": null,
+    "licenseStatus": "已附官方发行归档许可快照；对应二进制Git修订仍待核对"
+  },
+  {
+    "name": "libiconv",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libiconv.cmake",
+    "upstream": "https://ftp.gnu.org/pub/gnu/libiconv/libiconv-1.18.tar.gz",
+    "recipeGitTag": null,
+    "dependencies": [],
+    "licenseSnapshot": "https://ftp.gnu.org/pub/gnu/libiconv/libiconv-1.18.tar.gz#libiconv-1.18/COPYING.LIB",
+    "licenseSpdx": null,
+    "licenseStatus": "已附锁定配方URL/SHA-256匹配发行归档的许可；完整构建依赖归属仍待核对"
+  },
+  {
+    "name": "libjpeg",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libjpeg.cmake",
+    "upstream": "https://github.com/libjpeg-turbo/libjpeg-turbo.git",
+    "recipeGitTag": "main",
+    "dependencies": [],
+    "licenseSnapshot": "https://github.com/libjpeg-turbo/libjpeg-turbo/blob/main/LICENSE.md",
+    "licenseSpdx": "NOASSERTION",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "libjxl",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libjxl.cmake",
+    "upstream": "https://github.com/libjxl/libjxl.git",
+    "recipeGitTag": "main",
+    "dependencies": [
+      "lcms2",
+      "libpng",
+      "zlib",
+      "libjpeg",
+      "brotli",
+      "highway"
+    ],
+    "licenseSnapshot": "https://github.com/libjxl/libjxl/blob/main/LICENSE",
+    "licenseSpdx": "BSD-3-Clause",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "libmodplug",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libmodplug.cmake",
+    "upstream": "https://github.com/Konstanty/libmodplug.git",
+    "recipeGitTag": null,
+    "dependencies": [],
+    "licenseSnapshot": "https://github.com/Konstanty/libmodplug/blob/master/COPYING",
+    "licenseSpdx": "NOASSERTION",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "libmysofa",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libmysofa.cmake",
+    "upstream": "https://github.com/hoene/libmysofa.git",
+    "recipeGitTag": "main",
+    "dependencies": [
+      "zlib"
+    ],
+    "licenseSnapshot": "https://github.com/hoene/libmysofa/blob/main/LICENSE",
+    "licenseSpdx": "NOASSERTION",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "libopenmpt",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libopenmpt.cmake",
+    "upstream": "https://lib.openmpt.org/files/libopenmpt/src/libopenmpt-0.7.12+release.autotools.tar.gz",
+    "recipeGitTag": null,
+    "dependencies": [
+      "zlib",
+      "ogg",
+      "vorbis",
+      "libsdl2"
+    ],
+    "licenseSnapshot": "https://lib.openmpt.org/files/libopenmpt/src/libopenmpt-0.7.12+release.autotools.tar.gz#libopenmpt-0.7.12+release.autotools/LICENSE",
+    "licenseSpdx": null,
+    "licenseStatus": "已附锁定配方URL/SHA-256匹配发行归档的许可；完整构建依赖归属仍待核对"
+  },
+  {
+    "name": "libplacebo",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libplacebo.cmake",
+    "upstream": "https://github.com/haasn/libplacebo.git",
+    "recipeGitTag": null,
+    "dependencies": [
+      "vulkan",
+      "shaderc",
+      "spirv-cross",
+      "lcms2",
+      "glad",
+      "fast_float",
+      "xxhash"
+    ],
+    "licenseSnapshot": "https://github.com/haasn/libplacebo/blob/master/LICENSE",
+    "licenseSpdx": "LGPL-2.1",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "libpng",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libpng.cmake",
+    "upstream": "https://github.com/glennrp/libpng.git",
+    "recipeGitTag": null,
+    "dependencies": [
+      "zlib"
+    ],
+    "licenseSnapshot": "https://github.com/pnggroup/libpng/blob/libpng18/LICENSE.md",
+    "licenseSpdx": "NOASSERTION",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "libsamplerate",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libsamplerate.cmake",
+    "upstream": "https://github.com/libsndfile/libsamplerate.git",
+    "recipeGitTag": null,
+    "dependencies": [],
+    "licenseSnapshot": "https://github.com/libsndfile/libsamplerate/blob/master/COPYING",
+    "licenseSpdx": "BSD-2-Clause",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "libsdl2",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libsdl2.cmake",
+    "upstream": "https://github.com/libsdl-org/SDL.git",
+    "recipeGitTag": "SDL2",
+    "dependencies": [
+      "vulkan",
+      "libiconv"
+    ],
+    "licenseSnapshot": "https://github.com/libsdl-org/SDL/blob/main/LICENSE.txt",
+    "licenseSpdx": "Zlib",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "libsixel",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libsixel.cmake",
+    "upstream": "https://github.com/saitoha/libsixel.git",
+    "recipeGitTag": null,
+    "dependencies": [],
+    "licenseSnapshot": "https://github.com/saitoha/libsixel/blob/master/LICENSE",
+    "licenseSpdx": "MIT",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "libsoxr",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libsoxr.cmake",
+    "upstream": "https://gitlab.com/shinchiro/soxr.git",
+    "recipeGitTag": null,
+    "dependencies": [],
+    "licenseSnapshot": "https://gitlab.com/shinchiro/soxr/-/raw/master/LICENCE",
+    "licenseSpdx": null,
+    "licenseStatus": "已附上游许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "libsrt",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libsrt.cmake",
+    "upstream": "https://github.com/Haivision/srt.git",
+    "recipeGitTag": null,
+    "dependencies": [
+      "openssl"
+    ],
+    "licenseSnapshot": "https://github.com/Haivision/srt/blob/master/LICENSE",
+    "licenseSpdx": "MPL-2.0",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "libssh",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libssh.cmake",
+    "upstream": "https://gitlab.com/libssh/libssh-mirror.git",
+    "recipeGitTag": null,
+    "dependencies": [
+      "zlib",
+      "openssl"
+    ],
+    "licenseSnapshot": "https://gitlab.com/libssh/libssh-mirror/-/raw/master/COPYING",
+    "licenseSpdx": null,
+    "licenseStatus": "已附官方上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "libudfread",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libudfread.cmake",
+    "upstream": "https://code.videolan.org/videolan/libudfread.git",
+    "recipeGitTag": null,
+    "dependencies": [],
+    "licenseSnapshot": "https://download.videolan.org/pub/videolan/libudfread/libudfread-1.2.0.tar.xz#libudfread-1.2.0/COPYING",
+    "licenseSpdx": null,
+    "licenseStatus": "已附官方发行归档许可快照；对应二进制Git修订仍待核对"
+  },
+  {
+    "name": "libunibreak",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libunibreak.cmake",
+    "upstream": "https://github.com/adah1972/libunibreak.git",
+    "recipeGitTag": null,
+    "dependencies": [],
+    "licenseSnapshot": "https://github.com/adah1972/libunibreak/blob/master/LICENCE",
+    "licenseSpdx": "Zlib",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "libva",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libva.cmake",
+    "upstream": "https://github.com/intel/libva.git",
+    "recipeGitTag": null,
+    "dependencies": [],
+    "licenseSnapshot": "https://github.com/intel/libva/blob/master/COPYING",
+    "licenseSpdx": "NOASSERTION",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "libvpl",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libvpl.cmake",
+    "upstream": "https://github.com/intel/libvpl.git",
+    "recipeGitTag": "main",
+    "dependencies": [],
+    "licenseSnapshot": "https://github.com/intel/libvpl/blob/main/LICENSE",
+    "licenseSpdx": "MIT",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "libvpx",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libvpx.cmake",
+    "upstream": "https://chromium.googlesource.com/webm/libvpx.git",
+    "recipeGitTag": "main",
+    "dependencies": [],
+    "licenseSnapshot": "https://chromium.googlesource.com/webm/libvpx/+/refs/heads/main/LICENSE?format=TEXT",
+    "licenseSpdx": null,
+    "licenseStatus": "已附官方上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "libwebp",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libwebp.cmake",
+    "upstream": "https://chromium.googlesource.com/webm/libwebp.git",
+    "recipeGitTag": "main",
+    "dependencies": [
+      "zlib",
+      "libpng",
+      "libjpeg"
+    ],
+    "licenseSnapshot": "https://chromium.googlesource.com/webm/libwebp/+/refs/heads/main/COPYING?format=TEXT",
+    "licenseSpdx": null,
+    "licenseStatus": "已附官方上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "libxml2",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libxml2.cmake",
+    "upstream": "https://github.com/GNOME/libxml2.git",
+    "recipeGitTag": null,
+    "dependencies": [
+      "zlib",
+      "libiconv"
+    ],
+    "licenseSnapshot": "https://github.com/GNOME/libxml2/blob/master/Copyright",
+    "licenseSpdx": "NOASSERTION",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "libzimg",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libzimg.cmake",
+    "upstream": "https://github.com/sekrit-twc/zimg.git",
+    "recipeGitTag": null,
+    "dependencies": [
+      "graphengine"
+    ],
+    "licenseSnapshot": "https://github.com/sekrit-twc/zimg/blob/master/COPYING",
+    "licenseSpdx": "WTFPL",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "libzvbi",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libzvbi.cmake",
+    "upstream": "https://github.com/zapping-vbi/zvbi.git",
+    "recipeGitTag": "main",
+    "dependencies": [
+      "libpng",
+      "libiconv"
+    ],
+    "licenseSnapshot": "https://github.com/zapping-vbi/zvbi/blob/main/COPYING.md",
+    "licenseSpdx": "NOASSERTION",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "luajit",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/luajit.cmake",
+    "upstream": "https://github.com/openresty/luajit2.git",
+    "recipeGitTag": "v2.1-agentzh",
+    "dependencies": [
+      "libiconv"
+    ],
+    "licenseSnapshot": "https://github.com/openresty/luajit2/blob/v2.1-agentzh/COPYRIGHT",
+    "licenseSpdx": "NOASSERTION",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "lzo",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/lzo.cmake",
+    "upstream": "https://www.oberhumer.com/opensource/lzo/download/lzo-2.10.tar.gz",
+    "recipeGitTag": null,
+    "dependencies": [],
+    "licenseSnapshot": "https://www.oberhumer.com/opensource/lzo/download/lzo-2.10.tar.gz#lzo-2.10/COPYING",
+    "licenseSpdx": null,
+    "licenseStatus": "已附锁定配方URL/SHA1匹配的2.10归档许可；完整构建归属仍待核对"
+  },
+  {
+    "name": "mpv",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/mpv.cmake",
+    "upstream": "https://github.com/mpv-player/mpv.git",
+    "recipeGitTag": null,
+    "dependencies": [
+      "angle-headers",
+      "ffmpeg",
+      "fribidi",
+      "lcms2",
+      "libarchive",
+      "libass",
+      "libdvdnav",
+      "libdvdread",
+      "libiconv",
+      "libjpeg",
+      "libpng",
+      "luajit",
+      "rubberband",
+      "uchardet",
+      "openal-soft",
+      "mujs",
+      "vulkan",
+      "shaderc",
+      "libplacebo",
+      "spirv-cross",
+      "vapoursynth",
+      "libsdl2",
+      "subrandr",
+      "libsixel"
+    ],
+    "licenseSnapshot": "https://github.com/mpv-player/mpv/blob/master/LICENSE.GPL",
+    "licenseSpdx": "NOASSERTION",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "mujs",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/mujs.cmake",
+    "upstream": "https://codeberg.org/ccxvii/mujs.git",
+    "recipeGitTag": null,
+    "dependencies": [],
+    "licenseSnapshot": "https://codeberg.org/ccxvii/mujs/raw/branch/master/COPYING",
+    "licenseSpdx": null,
+    "licenseStatus": "已附上游许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "nvcodec-headers",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/nvcodec-headers.cmake",
+    "upstream": "https://git.videolan.org/git/ffmpeg/nv-codec-headers.git",
+    "recipeGitTag": null,
+    "dependencies": [],
+    "licenseSnapshot": "https://raw.githubusercontent.com/FFmpeg/nv-codec-headers/master/include/ffnvcodec/nvEncodeAPI.h",
+    "licenseSpdx": null,
+    "licenseStatus": "已附官方当前nvEncodeAPI头文件许可；其余头文件与对应二进制修订仍待核对"
+  },
+  {
+    "name": "ogg",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/ogg.cmake",
+    "upstream": "https://github.com/xiph/ogg.git",
+    "recipeGitTag": null,
+    "dependencies": [],
+    "licenseSnapshot": "https://github.com/xiph/ogg/blob/main/COPYING",
+    "licenseSpdx": "BSD-3-Clause",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "openal-soft",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/openal-soft.cmake",
+    "upstream": "https://github.com/kcat/openal-soft.git",
+    "recipeGitTag": null,
+    "dependencies": [
+      "libsdl2"
+    ],
+    "licenseSnapshot": "https://github.com/kcat/openal-soft/blob/master/COPYING",
+    "licenseSpdx": "NOASSERTION",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "openssl",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/openssl.cmake",
+    "upstream": "https://github.com/openssl/openssl.git",
+    "recipeGitTag": null,
+    "dependencies": [
+      "zlib",
+      "zstd",
+      "brotli"
+    ],
+    "licenseSnapshot": "https://github.com/openssl/openssl/blob/master/LICENSE.txt",
+    "licenseSpdx": "Apache-2.0",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "opus",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/opus.cmake",
+    "upstream": "https://github.com/xiph/opus.git",
+    "recipeGitTag": "main",
+    "dependencies": [
+      "opus-dnn"
+    ],
+    "licenseSnapshot": "https://github.com/xiph/opus/blob/main/COPYING",
+    "licenseSpdx": "NOASSERTION",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "opus-dnn",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/opus-dnn.cmake",
+    "upstream": "https://media.xiph.org/opus/models/opus_data-8a07d57c4fce6fb30f23b3e0d264004e04f1d7b421f5392ef61543d021a439af.tar.gz",
+    "recipeGitTag": null,
+    "dependencies": [],
+    "licenseSnapshot": null,
+    "licenseSpdx": null,
+    "licenseStatus": "锁定模型归档 SHA-256 已核验，归档无 LICENSE/COPYING；官方 Opus 1.6.1 源码中有 BSD COPYING 与生成 DNN 数据，但仅 7/21 生成文件逐字节相同，其余 14 项及 .pth 权重许可范围仍待确认；不声明整个模型包已获许可",
+    "sourceArchiveSha256": "8a07d57c4fce6fb30f23b3e0d264004e04f1d7b421f5392ef61543d021a439af",
+    "licenseEvidence": "opus-model-license-evidence.md",
+    "generatedFileComparison": "opus-model-generated-files.json"
+  },
+  {
+    "name": "rubberband",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/rubberband.cmake",
+    "upstream": "https://github.com/breakfastquay/rubberband.git",
+    "recipeGitTag": "default",
+    "dependencies": [
+      "libsamplerate"
+    ],
+    "licenseSnapshot": "https://github.com/breakfastquay/rubberband/blob/default/COPYING",
+    "licenseSpdx": "GPL-2.0",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "shaderc",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/shaderc.cmake",
+    "upstream": "https://github.com/google/shaderc.git",
+    "recipeGitTag": "main",
+    "dependencies": [
+      "glslang",
+      "spirv-headers",
+      "spirv-tools"
+    ],
+    "licenseSnapshot": "https://github.com/google/shaderc/blob/main/LICENSE",
+    "licenseSpdx": "NOASSERTION",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "speex",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/speex.cmake",
+    "upstream": "https://github.com/xiph/speex.git",
+    "recipeGitTag": null,
+    "dependencies": [
+      "ogg"
+    ],
+    "licenseSnapshot": "https://github.com/xiph/speex/blob/master/COPYING",
+    "licenseSpdx": "NOASSERTION",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "spirv-cross",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/spirv-cross.cmake",
+    "upstream": "https://github.com/KhronosGroup/SPIRV-Cross.git",
+    "recipeGitTag": "main",
+    "dependencies": [],
+    "licenseSnapshot": "https://github.com/KhronosGroup/SPIRV-Cross/blob/main/LICENSE",
+    "licenseSpdx": "Apache-2.0",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "spirv-headers",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/spirv-headers.cmake",
+    "upstream": "https://github.com/KhronosGroup/SPIRV-Headers.git",
+    "recipeGitTag": "main",
+    "dependencies": [],
+    "licenseSnapshot": "https://github.com/KhronosGroup/SPIRV-Headers/blob/main/LICENSE",
+    "licenseSpdx": "NOASSERTION",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "spirv-tools",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/spirv-tools.cmake",
+    "upstream": "https://github.com/KhronosGroup/SPIRV-Tools.git",
+    "recipeGitTag": "main",
+    "dependencies": [],
+    "licenseSnapshot": "https://github.com/KhronosGroup/SPIRV-Tools/blob/main/LICENSE",
+    "licenseSpdx": "Apache-2.0",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "subrandr",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/subrandr.cmake",
+    "upstream": "https://github.com/afishhh/subrandr.git",
+    "recipeGitTag": "master",
+    "dependencies": [
+      "freetype2",
+      "harfbuzz",
+      "fontconfig"
+    ],
+    "licenseSnapshot": "https://github.com/afishhh/subrandr/blob/master/LICENSE",
+    "licenseSpdx": "MPL-2.0",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "svtav1",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/svtav1.cmake",
+    "upstream": "https://gitlab.com/AOMediaCodec/SVT-AV1.git",
+    "recipeGitTag": null,
+    "dependencies": [],
+    "licenseSnapshot": "https://gitlab.com/AOMediaCodec/SVT-AV1/-/raw/master/LICENSE.md",
+    "licenseSpdx": null,
+    "licenseStatus": "已附上游许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "uavs3d",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/uavs3d.cmake",
+    "upstream": "https://github.com/uavs3/uavs3d.git",
+    "recipeGitTag": null,
+    "dependencies": [],
+    "licenseSnapshot": "https://github.com/uavs3/uavs3d/blob/master/COPYING",
+    "licenseSpdx": "NOASSERTION",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "uchardet",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/uchardet.cmake",
+    "upstream": "https://gitlab.freedesktop.org/uchardet/uchardet.git",
+    "recipeGitTag": null,
+    "dependencies": [],
+    "licenseSnapshot": "https://raw.githubusercontent.com/BYVoid/uchardet/master/COPYING",
+    "licenseSpdx": null,
+    "licenseStatus": "已附上游许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "vapoursynth",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/vapoursynth.cmake",
+    "upstream": "https://github.com/vapoursynth/vapoursynth.git",
+    "recipeGitTag": "R65 (win-x64 headers/import libraries)",
+    "dependencies": [],
+    "licenseSnapshot": "https://raw.githubusercontent.com/vapoursynth/vapoursynth/R65/COPYING.LESSER",
+    "licenseSpdx": null,
+    "licenseStatus": "已附上游许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "vorbis",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/vorbis.cmake",
+    "upstream": "https://github.com/xiph/vorbis.git",
+    "recipeGitTag": null,
+    "dependencies": [
+      "ogg"
+    ],
+    "licenseSnapshot": "https://github.com/xiph/vorbis/blob/main/COPYING",
+    "licenseSpdx": "BSD-3-Clause",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "vulkan",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/vulkan.cmake",
+    "upstream": "https://github.com/KhronosGroup/Vulkan-Loader.git",
+    "recipeGitTag": "main",
+    "dependencies": [
+      "vulkan-header"
+    ],
+    "licenseSnapshot": "https://github.com/KhronosGroup/Vulkan-Loader/blob/main/LICENSE.txt",
+    "licenseSpdx": "NOASSERTION",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "vulkan-header",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/vulkan-header.cmake",
+    "upstream": "https://github.com/KhronosGroup/Vulkan-Headers.git",
+    "recipeGitTag": "main",
+    "dependencies": [],
+    "licenseSnapshot": "https://github.com/KhronosGroup/Vulkan-Headers/blob/main/LICENSE.md",
+    "licenseSpdx": "NOASSERTION",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "x264",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/x264.cmake",
+    "upstream": "https://code.videolan.org/videolan/x264.git",
+    "recipeGitTag": null,
+    "dependencies": [],
+    "licenseSnapshot": "https://download.videolan.org/pub/videolan/x264/snapshots/x264-snapshot-20191217-2245-stable.tar.bz2#x264-snapshot-20191217-2245-stable/COPYING",
+    "licenseSpdx": null,
+    "licenseStatus": "已附官方20191217-stable发行快照许可；对应20260610二进制修订仍待核对"
+  },
+  {
+    "name": "x265",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/x265.cmake",
+    "upstream": "https://github.com/Multicorewareinc/x265.git",
+    "recipeGitTag": null,
+    "dependencies": [
+      "x265"
+    ],
+    "licenseSnapshot": "https://github.com/Multicorewareinc/x265/blob/master/COPYING",
+    "licenseSpdx": "GPL-2.0",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "xvidcore",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/xvidcore.cmake",
+    "upstream": "\"https://downloads.xvid.com/downloads/xvidcore-1.3.7.tar.bz2\"",
+    "recipeGitTag": null,
+    "dependencies": [],
+    "licenseSnapshot": "https://downloads.xvid.com/downloads/xvidcore-1.3.7.tar.bz2#xvidcore/LICENSE",
+    "licenseSpdx": null,
+    "licenseStatus": "已附锁定配方URL/SHA-256匹配发行归档的许可；完整构建依赖归属仍待核对"
+  },
+  {
+    "name": "xxhash",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/xxhash.cmake",
+    "upstream": "https://github.com/Cyan4973/xxHash.git",
+    "recipeGitTag": "dev",
+    "dependencies": [],
+    "licenseSnapshot": "https://github.com/Cyan4973/xxHash/blob/dev/LICENSE",
+    "licenseSpdx": "NOASSERTION",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "xz",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/xz.cmake",
+    "upstream": "https://github.com/tukaani-project/xz.git",
+    "recipeGitTag": null,
+    "dependencies": [],
+    "licenseSnapshot": "https://github.com/tukaani-project/xz/blob/master/COPYING",
+    "licenseSpdx": "NOASSERTION",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "zlib",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/zlib.cmake",
+    "upstream": "https://github.com/zlib-ng/zlib-ng.git",
+    "recipeGitTag": "develop",
+    "dependencies": [],
+    "licenseSnapshot": "https://github.com/zlib-ng/zlib-ng/blob/develop/LICENSE.md",
+    "licenseSpdx": "Zlib",
+    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+  },
+  {
+    "name": "zstd",
+    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/zstd.cmake",
+    "upstream": "https://github.com/facebook/zstd.git",
+    "recipeGitTag": "dev",
+    "dependencies": [],
+    "licenseSnapshot": "https://raw.githubusercontent.com/facebook/zstd/dev/LICENSE",
+    "licenseSpdx": null,
+    "licenseStatus": "已附官方上游默认分支许可快照；对应二进制修订仍待核对"
+  }
+]

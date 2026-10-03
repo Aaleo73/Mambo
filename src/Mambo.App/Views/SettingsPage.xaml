@@ -13,8 +13,10 @@
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
     </UserControl.Resources>
-    <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Auto">
-        <StackPanel Padding="{StaticResource PagePadding}" MaxWidth="1080" HorizontalAlignment="Left" Width="Auto">
+    <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Auto" HorizontalContentAlignment="Stretch" HorizontalScrollMode="Disabled">
+        <Grid>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*" MaxWidth="1080"/></Grid.ColumnDefinitions>
+        <StackPanel Padding="{StaticResource PagePadding}" MaxWidth="1080" HorizontalAlignment="Stretch">
             <controls:PageHeader Eyebrow="SETTINGS" Title="设置"/>
 
             <StackPanel Spacing="8" Margin="0,0,0,30">
@@ -110,14 +112,21 @@
                                 <FontIcon Glyph="&#xE7BA;" FontSize="14" Foreground="{ThemeResource WarningBrush}" Visibility="{x:Bind ViewModel.IsMpvWarning, Mode=OneWay}"/>
                                 <FontIcon Glyph="&#xE946;" FontSize="14" Foreground="{ThemeResource TextSecondaryBrush}" Visibility="{x:Bind ViewModel.IsMpvInfo, Mode=OneWay}"/>
                             </Grid>
-                            <TextBlock Style="{StaticResource CaptionTextStyle}" Text="{x:Bind ViewModel.MpvStatusText, Mode=OneWay}"/>
+                            <TextBlock Style="{StaticResource CaptionTextStyle}" TextWrapping="Wrap" MaxWidth="220" Text="{x:Bind ViewModel.MpvStatusText, Mode=OneWay}"/>
                         </StackPanel>
                     </StackPanel>
-                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" Width="420">
-                        <TextBox Style="{StaticResource SoftInputStyle}" Width="320" PlaceholderText="C:\Program Files\mpv\mpv.exe" IsSpellCheckEnabled="False"
+                    <Grid Grid.Column="2" ColumnSpacing="8" Width="480" VerticalAlignment="Center">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox Style="{StaticResource SoftInputStyle}" PlaceholderText="mpv.exe 路径" IsSpellCheckEnabled="False"
+                                 IsEnabled="{x:Bind ViewModel.CanEditMpvPath, Mode=OneWay}" KeyDown="OnMpvKeyDown"
                                  Text="{x:Bind ViewModel.MpvPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="外部 mpv 路径"/>
-                        <Button Style="{StaticResource SoftButtonStyle}" Content="选择文件" Click="OnPickMpvClick"/>
-                    </StackPanel>
+                        <Button Grid.Column="1" Style="{StaticResource SoftButtonStyle}" Content="选择文件" Click="OnPickMpvClick" IsEnabled="{x:Bind ViewModel.CanEditMpvPath, Mode=OneWay}"/>
+                        <Button Grid.Column="2" Style="{StaticResource SoftButtonStyle}" Content="验证并启用" Click="OnValidateMpvClick" IsEnabled="{x:Bind ViewModel.CanValidateMpv, Mode=OneWay}"/>
+                    </Grid>
                 </Grid>
                 <Grid Style="{StaticResource SettingCardStyle}">
                     <Grid.ColumnDefinitions>
@@ -211,18 +220,22 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <FontIcon Style="{StaticResource SettingIconStyle}" Glyph="&#xE74D;"/>
-                    <TextBlock Grid.Column="1" Style="{StaticResource BodyStrongTextStyle}" VerticalAlignment="Center" Text="缓存"/>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <TextBlock Style="{StaticResource BodyStrongTextStyle}" Text="缓存"/>
+                        <TextBlock Style="{StaticResource BodySmallTextStyle}" Foreground="{ThemeResource TextSecondaryBrush}" Text="{x:Bind ViewModel.CacheSizeText, Mode=OneWay}"/>
+                    </StackPanel>
                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
-                        <Button Style="{StaticResource SoftButtonStyle}" Click="OnLogsClick" AutomationProperties.Name="打开日志目录">
+                        <Button Style="{StaticResource SoftButtonStyle}" Click="OnLogsClick" AutomationProperties.Name="打开日志目录" IsEnabled="{x:Bind ViewModel.CanOpenLogs, Mode=OneWay}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <FontIcon Glyph="&#xE838;" FontSize="14"/>
                                 <TextBlock Style="{StaticResource ButtonLabelTextStyle}" Text="打开日志目录"/>
                             </StackPanel>
                         </Button>
-                        <Button Style="{StaticResource SoftButtonStyle}" Content="清除缓存" Click="OnClearCacheClick"/>
+                        <Button Style="{StaticResource SoftButtonStyle}" Content="{x:Bind ViewModel.ClearCacheText, Mode=OneWay}" Click="OnClearCacheClick" IsEnabled="{x:Bind ViewModel.CanClearCache, Mode=OneWay}"/>
                     </StackPanel>
                 </Grid>
             </StackPanel>
         </StackPanel>
+        </Grid>
     </ScrollViewer>
 </UserControl>

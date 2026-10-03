@@ -28,4 +28,8 @@ public sealed class HeroSlideViewModel
     public string OfficialRating { get; }
     internal ImageRef? Backdrop { get; }
     internal ImageRef? Logo { get; }
+
+    internal bool HasSameContent(HeroSlideViewModel other) =>
+        Id == other.Id && Title == other.Title && Overview == other.Overview && RatingText == other.RatingText &&
+        Year == other.Year && Genres == other.Genres && OfficialRating == other.OfficialRating && Backdrop == other.Backdrop && Logo == other.Logo;
 }

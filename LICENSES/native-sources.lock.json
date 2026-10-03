@@ -1,0 +1,26 @@
+[
+  {
+    "name": "mpv-winbuild-cmake",
+    "revision": "5efd298cb51513c2410e4e9029b5e56b83c2aaac",
+    "filename": "mpv-winbuild-cmake-5efd298cb51513c2410e4e9029b5e56b83c2aaac.tar.gz",
+    "url": "https://codeload.github.com/shinchiro/mpv-winbuild-cmake/tar.gz/5efd298cb51513c2410e4e9029b5e56b83c2aaac",
+    "bytes": 81705,
+    "sha256": "92fca5575a7c940eb18729b36dce94889ded252148ba54e1ec5445f4fd6f3c5e"
+  },
+  {
+    "name": "mpv",
+    "revision": "304426c390901436fb1d4a63efbd582ae80c88f4",
+    "filename": "mpv-304426c390901436fb1d4a63efbd582ae80c88f4.tar.gz",
+    "url": "https://codeload.github.com/mpv-player/mpv/tar.gz/304426c390901436fb1d4a63efbd582ae80c88f4",
+    "bytes": 7376944,
+    "sha256": "3a3802868d7883bc8496184b6a0c6ee91e49ce4ec9e4bb3d0b854663371fd740"
+  },
+  {
+    "name": "ffmpeg",
+    "revision": "2576e09434d8026aab1769481b7b2fb43aa567c3",
+    "filename": "ffmpeg-2576e09434d8026aab1769481b7b2fb43aa567c3.tar.gz",
+    "url": "https://codeload.github.com/FFmpeg/FFmpeg/tar.gz/2576e09434d8026aab1769481b7b2fb43aa567c3",
+    "bytes": 17359680,
+    "sha256": "fd4e99c560185ec433b94f105bbe361c168e9198af4ba3746d9d81819d1a305a"
+  }
+]

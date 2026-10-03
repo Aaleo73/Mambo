@@ -9,6 +9,7 @@
     <PackageReference Include="xunit.v3" />
     <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
     <ProjectReference Include="../../src/Mambo.Core/Mambo.Core.csproj" />
     <ProjectReference Include="../../src/Mambo.Player/Mambo.Player.csproj" />
     <None Include="../../third_party/libmpv/bin/libmpv-2.dll" Link="mpv/libmpv-2.dll" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../../third_party/libmpv/bin/libmpv-2.dll')" />

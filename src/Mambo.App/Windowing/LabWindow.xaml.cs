@@ -11,6 +11,7 @@ public sealed partial class LabWindow : Window
 {
     private readonly WindowResizeHook resizeHook;
     private bool closing;
+    private bool finalClose;
 
     public LabWindow()
     {
@@ -22,6 +23,7 @@ public sealed partial class LabWindow : Window
         AppWindow.Resize(new SizeInt32(1500, 860));
         resizeHook = new WindowResizeHook(WinRT.Interop.WindowNative.GetWindowHandle(this), Lab.SetLiveResize);
         Lab.Initialize(this, presenter);
+        Lab.SmokeCompleted += OnSmokeCompleted;
         AppWindow.Closing += OnClosing;
         Closed += (_, _) => resizeHook.Dispose();
     }
@@ -34,10 +36,26 @@ public sealed partial class LabWindow : Window
 
     private async void OnClosing(AppWindow sender, AppWindowClosingEventArgs args)
     {
-        if (closing) return;
+        if (finalClose) return;
         args.Cancel = true;
+        await RequestCloseAsync();
+    }
+
+    private async void OnSmokeCompleted() => await RequestCloseAsync();
+
+    private async Task RequestCloseAsync()
+    {
+        if (closing) return;
         closing = true;
+        // Lab.CloseAsync 先让 Closing 回调返回；重复关闭在清理完成前仍须取消。
         await Lab.CloseAsync();
-        Close();
+        // Window.Close 直接销毁窗口，不保证触发 AppWindow.Closing。
+        // 系统关闭与冒烟完成都必须先经过同一条异步清理路径。
+        Lab.SmokeCompleted -= OnSmokeCompleted;
+        AppWindow.Closing -= OnClosing;
+        resizeHook.Dispose();
+        finalClose = true;
+        if (!DispatcherQueue.TryEnqueue(Close))
+            throw new InvalidOperationException("无法排队关闭验证窗口。");
     }
 }

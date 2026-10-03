@@ -11,10 +11,18 @@ public sealed partial class RecentViewModel : ObservableObject, IDisposable
     public RecentViewModel(ILibraryService library)
     {
         ArgumentNullException.ThrowIfNull(library);
-        Cards = new PagedCards(library.ObserveRecent(120, scope.Token), CardContext.ContinueWatching, landscape: true);
-        Cards.Items.CollectionChanged += (_, _) => UpdateCount();
-        Cards.PropertyChanged += (_, _) => UpdateCount();
-        UpdateCount();
+        try
+        {
+            Cards = new PagedCards(library.ObserveRecent(120, scope.Token), CardContext.ContinueWatching, landscape: true);
+            Cards.Items.CollectionChanged += (_, _) => UpdateCount();
+            Cards.PropertyChanged += (_, _) => UpdateCount();
+            UpdateCount();
+        }
+        catch
+        {
+            FailedConstruction.Release(scope.Cancel, () => Cards?.Dispose(), scope.Dispose);
+            throw;
+        }
     }
 
     public PagedCards Cards { get; }

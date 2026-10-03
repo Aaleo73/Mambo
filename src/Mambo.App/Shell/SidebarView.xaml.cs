@@ -32,7 +32,7 @@ public sealed partial class SidebarView : UserControl
         (text ?? "").Normalize(NormalizationForm.FormKC).Any(c => char.IsLetterOrDigit(c));
 
     /// <summary>启动时把焦点放在导航上，避免搜索框一开始就处于输入状态。</summary>
-    public void FocusNavigation() => HomeItem.Focus(FocusState.Programmatic);
+    public bool FocusNavigation() => HomeItem.Focus(FocusState.Programmatic);
 
     // 选中即导航：鼠标、键盘和辅助技术的"选择"都走这里；与当前页相同的路由由 Navigator 忽略。
     private void OnHomeChecked(object sender, RoutedEventArgs e) => navigator.Navigate(Route.Home);

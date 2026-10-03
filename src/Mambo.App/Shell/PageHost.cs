@@ -1,5 +1,6 @@
 using System.Numerics;
 using Mambo.App.Themes;
+using Mambo.App.Views;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Hosting;
@@ -23,48 +24,152 @@ public sealed partial class PageHost : Grid
     private const int Capacity = 4;
     private readonly List<(string Key, FrameworkElement Page)> pages = [];
     private Func<Route, FrameworkElement>? factory;
+    private Navigator? navigator;
+    private Action<Exception>? reportFailure;
     private FrameworkElement? current;
+    private bool showingError;
 
     public FrameworkElement? CurrentPage => current;
+    internal event Action<Exception>? DiagnosticFailure;
 
-    public void Initialize(Func<Route, FrameworkElement> pageFactory) => factory = pageFactory;
+    public void Initialize(Func<Route, FrameworkElement> pageFactory, Navigator navigation, Action<Exception>? failureReporter = null)
+    {
+        ArgumentNullException.ThrowIfNull(pageFactory);
+        ArgumentNullException.ThrowIfNull(navigation);
+        factory = pageFactory;
+        navigator = navigation;
+        reportFailure = failureReporter;
+    }
 
     public void Show(NavigatedEventArgs args)
     {
         ArgumentNullException.ThrowIfNull(args);
         if (factory is null) throw new InvalidOperationException("PageHost 尚未初始化。");
-        if (current is INavigablePage leaving && args.From is not null) leaving.OnNavigatedFrom(args.From);
-        var key = args.To.Route.Key;
-        var index = pages.FindIndex(p => p.Key == key);
-        var created = index < 0;
-        FrameworkElement page;
-        if (created)
+        FrameworkElement? candidate = null;
+        var leaving = true;
+        try
         {
-            page = factory(args.To.Route);
-            Children.Add(page);
+            // 兜底页从不缓存，重试也不复用任何已失败的页面实例。
+            if (showingError) Clear();
+            if (current is INavigablePage previous && args.From is not null) previous.OnNavigatedFrom(args.From);
+            leaving = false;
+            var key = args.To.Route.Key;
+            var index = pages.FindIndex(p => p.Key == key);
+            var created = index < 0;
+            if (created)
+            {
+                candidate = factory(args.To.Route);
+                Children.Add(candidate);
+            }
+            else
+            {
+                candidate = pages[index].Page;
+                pages.RemoveAt(index);
+            }
+            pages.Add((key, candidate));
+            foreach (var (_, other) in pages) other.Visibility = ReferenceEquals(other, candidate) ? Visibility.Visible : Visibility.Collapsed;
+            current = candidate;
+            (candidate as INavigablePage)?.OnNavigatedTo(args.To, args.Mode, created);
+            Evict();
+            PlayEnter(candidate);
         }
-        else
+        catch (Exception error)
         {
-            page = pages[index].Page;
-            pages.RemoveAt(index);
+            ReportFailure(error);
+            if (candidate is not null && !pages.Any(page => ReferenceEquals(page.Page, candidate))) Release(candidate);
+            if (leaving && args.From is not null) ResetViewState(args.From);
+            ShowError(args.To);
         }
-        pages.Add((key, page));
-        foreach (var (_, other) in pages) other.Visibility = ReferenceEquals(other, page) ? Visibility.Visible : Visibility.Collapsed;
-        current = page;
-        Evict();
-        (page as INavigablePage)?.OnNavigatedTo(args.To, args.Mode, created);
-        PlayEnter(page);
     }
 
-    public void RefreshCurrent() => (current as INavigablePage)?.Refresh();
+    public void RefreshCurrent()
+    {
+        if (showingError) { navigator?.RetryCurrent(); return; }
+        try { (current as INavigablePage)?.Refresh(); }
+        catch (Exception error) { ReportFailure(error); if (navigator is not null) ShowError(navigator.Current); }
+    }
 
     /// <summary>账号变化时丢弃全部页面，避免旧账号的观察继续存在。</summary>
     public void Clear()
     {
-        foreach (var (_, page) in pages) (page as IDisposable)?.Dispose();
+        var discarded = pages.Select(page => page.Page).ToList();
+        if (current is not null && !discarded.Any(page => ReferenceEquals(page, current))) discarded.Add(current);
         pages.Clear();
-        Children.Clear();
         current = null;
+        showingError = false;
+        // 单个失败页的清理异常不能阻止其余页面取消查询与退订。
+        foreach (var page in discarded) Release(page);
+    }
+
+    private void ShowError(NavEntry entry)
+    {
+        // 页面边界发生异常时，丢弃所有活页及观察，避免旧账号/旧作用域或坏缓存被重试复用。
+        Clear();
+        ResetViewState(entry);
+        showingError = true;
+        Action retry = () => navigator?.RetryCurrent();
+        Action home = () =>
+        {
+            if (navigator is null) return;
+            if (navigator.Current.Route.Equals(Route.Home)) navigator.RetryCurrent();
+            else navigator.Navigate(Route.Home);
+        };
+        FrameworkElement recovery;
+        try { recovery = new ErrorPage(retry, home); }
+        catch (Exception error)
+        {
+            ReportFailure(error);
+            // 自定义资源本身失败时，仍保留使用系统样式的恢复操作；不再次调用页面工厂。
+            var homeButton = new Button { Content = "返回首页" };
+            var retryButton = new Button { Content = "重试" };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(homeButton, "返回首页");
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(retryButton, "重试页面");
+            homeButton.Click += (_, _) => home();
+            retryButton.Click += (_, _) => retry();
+            recovery = new UserControl
+            {
+                Content = new StackPanel
+                {
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Spacing = 12,
+                    Children =
+                    {
+                        new TextBlock { Text = "出了点问题", FontSize = 20 },
+                        new TextBlock { Text = "页面暂时无法显示，请重试或返回首页。", TextWrapping = TextWrapping.Wrap, MaxWidth = 480 },
+                        homeButton,
+                        retryButton,
+                    },
+                },
+            };
+        }
+        current = recovery;
+        Children.Add(recovery);
+    }
+
+    private static void ResetViewState(NavEntry entry)
+    {
+        entry.ViewState = null;
+        entry.VerticalOffset = 0;
+    }
+
+    private void Release(FrameworkElement page)
+    {
+        try { page.Visibility = Visibility.Collapsed; }
+        catch (Exception error) { ReportFailure(error); }
+        try { Children.Remove(page); }
+        catch (Exception error) { ReportFailure(error); }
+        try { (page as IDisposable)?.Dispose(); }
+        catch (Exception error) { ReportFailure(error); }
+    }
+
+    private void ReportFailure(Exception error)
+    {
+        try { DiagnosticFailure?.Invoke(error); }
+        catch (Exception) { }
+        // 诊断接收方失败不能阻止错误页或其余作用域释放。
+        try { reportFailure?.Invoke(error); }
+        catch (Exception) { }
     }
 
     private void Evict()
@@ -75,8 +180,7 @@ public sealed partial class PageHost : Grid
             if (victim < 0) return;
             var page = pages[victim].Page;
             pages.RemoveAt(victim);
-            Children.Remove(page);
-            (page as IDisposable)?.Dispose();
+            Release(page);
         }
     }
 

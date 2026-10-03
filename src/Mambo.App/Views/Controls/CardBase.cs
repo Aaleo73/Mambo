@@ -3,6 +3,8 @@ using Mambo.App.ViewModels;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media.Animation;
+using Mambo.App.Themes;
 
 namespace Mambo.App.Views.Controls;
 
@@ -13,11 +15,27 @@ public partial class CardBase : UserControl
         new PropertyMetadata(null));
 
     private DispatcherQueueTimer? prefetch;
+    public CardBase() => Unloaded += OnUnloaded;
+
+    private void OnUnloaded(object sender, RoutedEventArgs args)
+    {
+        if (prefetch is null) return;
+        prefetch.Stop();
+        prefetch.Tick -= OnPrefetch;
+        prefetch = null;
+    }
+
+    private void OnPrefetch(DispatcherQueueTimer sender, object args)
+    {
+        if (Item is { } item) CardActions.Current?.Prefetch(item.Id);
+    }
 
     public MediaCardViewModel? Item { get => (MediaCardViewModel?)GetValue(ItemProperty); set => SetValue(ItemProperty, value); }
 
-    protected void HandleClick()
+    protected void HandleClick(UIElement source)
     {
+        if (Motion.AnimationsEnabled && XamlRoot is not null)
+            ConnectedAnimationService.GetForCurrentView().PrepareToAnimate("poster", source);
         if (Item is { } item) CardActions.Current?.Open(item.Id);
     }
 
@@ -35,7 +53,7 @@ public partial class CardBase : UserControl
             prefetch = DispatcherQueue.CreateTimer();
             prefetch.Interval = TimeSpan.FromMilliseconds(300);
             prefetch.IsRepeating = false;
-            prefetch.Tick += (_, _) => { if (Item is { } item) CardActions.Current?.Prefetch(item.Id); };
+            prefetch.Tick += OnPrefetch;
         }
         prefetch.Start();
     }

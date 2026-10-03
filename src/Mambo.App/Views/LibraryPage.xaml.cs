@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using Mambo.App.Shell;
+using Mambo.App.Themes;
 using Mambo.App.ViewModels;
 using Mambo.App.Views.Controls;
 using Microsoft.UI.Xaml;
@@ -24,7 +25,7 @@ public sealed partial class LibraryPage : UserControl, INavigablePage, IDisposab
             SortMenu.Items.Add(item);
         }
         for (var i = 0; i < 18; i++)
-            Skeleton.Children.Add(new Border { Style = (Style)Application.Current.Resources["SkeletonBlockStyle"], Width = 150, Height = 265 });
+            Skeleton.Children.Add(new Border { Style = XamlResources.Style(Application.Current.Resources, "SkeletonBlockStyle"), Width = 150, Height = 265 });
         viewModel.PropertyChanged += OnViewModelPropertyChanged;
         viewModel.ResultsReplaced += OnResultsReplaced;
     }
@@ -34,12 +35,15 @@ public sealed partial class LibraryPage : UserControl, INavigablePage, IDisposab
     public void OnNavigatedTo(NavEntry entry, NavigationMode mode, bool created)
     {
         ArgumentNullException.ThrowIfNull(entry);
-        if (created) ScrollState.Restore(Scroller, entry.VerticalOffset);
+        loader.SetActive(true);
+        if (created) _ = loader.RestoreAsync(entry.VerticalOffset);
+        else DispatcherQueue.TryEnqueue(loader.Check);
     }
 
     public void OnNavigatedFrom(NavEntry entry)
     {
         ArgumentNullException.ThrowIfNull(entry);
+        loader.SetActive(false);
         entry.VerticalOffset = Scroller.VerticalOffset;
     }
 
@@ -49,13 +53,14 @@ public sealed partial class LibraryPage : UserControl, INavigablePage, IDisposab
     {
         ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
         ViewModel.ResultsReplaced -= OnResultsReplaced;
+        loader.Dispose();
         ViewModel.Dispose();
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(LibraryViewModel.FiltersOpen))
-            FilterButton.Style = (Style)Application.Current.Resources[ViewModel.FiltersOpen ? "SoftAccentButtonStyle" : "SoftButtonStyle"];
+            FilterButton.Style = XamlResources.Style(Application.Current.Resources, ViewModel.FiltersOpen ? "SoftAccentButtonStyle" : "SoftButtonStyle");
         if (e.PropertyName == nameof(LibraryViewModel.SortLabel))
             foreach (var item in SortMenu.Items.OfType<RadioMenuFlyoutItem>())
                 item.IsChecked = item.Tag is SortOptionViewModel { IsSelected: true };
@@ -63,6 +68,7 @@ public sealed partial class LibraryPage : UserControl, INavigablePage, IDisposab
 
     private void OnResultsReplaced(object? sender, EventArgs e)
     {
+        loader.CancelRestore();
         Scroller.ChangeView(null, 0, null, true);
         loader.Reveal();
     }

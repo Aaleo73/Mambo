@@ -5,13 +5,16 @@ using Microsoft.UI.Xaml.Media;
 
 namespace Mambo.App.Windowing;
 
-/// <summary>窗口亚克力；失焦时保持激活外观，系统不支持时退回 Mica。</summary>
+/// <summary>窗口亚克力；失焦时保持激活外观，依次退回 Mica 和外壳实色背景。</summary>
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1001", Justification = "控制器在 OnTargetDisconnected 中释放。")]
 public sealed partial class MamboBackdrop : SystemBackdrop
 {
     private ISystemBackdropControllerWithTargets? controller;
     private SystemBackdropConfiguration? configuration;
     private FrameworkElement? root;
+    private bool available;
+
+    internal event Action<bool>? AvailabilityChanged;
 
     protected override void OnTargetConnected(ICompositionSupportsSystemBackdrop connectedTarget, XamlRoot xamlRoot)
     {
@@ -27,9 +30,10 @@ public sealed partial class MamboBackdrop : SystemBackdrop
             controller = new DesktopAcrylicController();
         else if (MicaController.IsSupported())
             controller = new MicaController();
-        if (controller is null) return;
+        if (controller is null) { SetAvailable(false); return; }
         controller.AddSystemBackdropTarget(connectedTarget);
         controller.SetSystemBackdropConfiguration(configuration);
+        SetAvailable(true);
     }
 
     protected override void OnTargetDisconnected(ICompositionSupportsSystemBackdrop disconnectedTarget)
@@ -42,6 +46,16 @@ public sealed partial class MamboBackdrop : SystemBackdrop
             (controller as IDisposable)?.Dispose();
             controller = null;
         }
+        root = null;
+        configuration = null;
+        SetAvailable(false);
+    }
+
+    private void SetAvailable(bool value)
+    {
+        if (available == value) return;
+        available = value;
+        AvailabilityChanged?.Invoke(value);
     }
 
     /// <summary>

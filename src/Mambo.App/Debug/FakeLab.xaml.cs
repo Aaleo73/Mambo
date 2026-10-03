@@ -189,7 +189,7 @@ public sealed partial class FakeLab : UserControl
         librariesQuery.Dispose();
         if (mediaQuery is { } query) { query.Updated -= MediaUpdated; query.Dispose(); }
         if (session is { } current) current.SnapshotChanged -= SnapshotUpdated;
-        DemoSurface.Detach();
+        DemoSurface.Dispose();
         playback.SessionEnded -= SessionEnded;
         await services.GetRequiredService<AppShutdownCoordinator>().CloseAsync();
         await services.DisposeAsync();

@@ -221,8 +221,9 @@
   --scrollbar: rgba(255, 255, 255, .24);
 }
 
-/* ---------- 播放层（始终深色；画面上方不用模糊材质） ---------- */
+/* ---------- 播放层（常规主题使用深色；画面上方不用模糊材质） ---------- */
 .player {
+  --p-canvas: #000000;
   --p-text-1: rgba(255, 255, 255, .96);
   --p-text-2: rgba(255, 255, 255, .72);
   --p-text-3: rgba(255, 255, 255, .50);
@@ -234,6 +235,99 @@
   --p-buffer: rgba(255, 255, 255, .44);
   --p-fill: #ffffff;
   --p-pill: rgba(16, 17, 20, .72);
+  --p-button-text: rgba(255, 255, 255, .96);
+  --p-button-bg: transparent;
+  --p-play-bg: #ffffff;
+  --p-play-text: #0b0b0d;
+  --p-big-play-bg: rgba(0, 0, 0, .46);
+  --p-big-play-stroke: rgba(255, 255, 255, .25);
+  --p-drawer: rgba(20, 21, 24, .97);
+  --p-image-placeholder: #222222;
+  --p-image-scrim: rgba(0, 0, 0, .45);
+  --p-episode-grid: rgba(255, 255, 255, .08);
+  --p-episode-current: rgba(255, 255, 255, .19);
   --p-scrim-bottom: linear-gradient(to top, rgba(0, 0, 0, .86) 0%, rgba(0, 0, 0, .52) 42%, rgba(0, 0, 0, 0) 100%);
   --p-scrim-top: linear-gradient(to bottom, rgba(0, 0, 0, .62) 0%, rgba(0, 0, 0, 0) 100%);
+}
+
+/* P6：与 Tokens.xaml 的 HighContrast 映射一致，由用户的系统对比度主题决定颜色。 */
+@media (forced-colors: active) {
+  [data-theme], .player {
+    --text-1: CanvasText;
+    --text-2: CanvasText;
+    --text-3: CanvasText;
+    --text-disabled: GrayText;
+    --text-on-accent: HighlightText;
+    --accent: Highlight;
+    --accent-hover: Highlight;
+    --accent-press: Highlight;
+    --accent-subtle: Canvas;
+    --accent-text: LinkText;
+    --danger: CanvasText;
+    --danger-hover: CanvasText;
+    --danger-subtle: Canvas;
+    --warning: CanvasText;
+    --success: CanvasText;
+    --rating: CanvasText;
+    --acrylic-tint: Canvas;
+    --window-stroke: CanvasText;
+    --window-shadow: none;
+    --content-stroke: CanvasText;
+    --rule: CanvasText;
+    --inverse: Canvas;
+    --fill-subtle-hover: Canvas;
+    --fill-subtle-press: Canvas;
+    --fill-control: Canvas;
+    --fill-control-hover: Canvas;
+    --fill-control-press: Canvas;
+    --stroke-control: CanvasText;
+    --fill-input: Canvas;
+    --fill-input-hover: Canvas;
+    --fill-input-focus: Canvas;
+    --stroke-input: CanvasText;
+    --accent-60: Highlight;
+    --focus: Highlight;
+    --focus-soft: Canvas;
+    --nav-active: Canvas;
+    --nav-hover: Canvas;
+    --nav-press: Canvas;
+    --chip: Canvas;
+    --chip-hover: Canvas;
+    --switch-off: CanvasText;
+    --card-stroke: CanvasText;
+    --card-stroke-hover: Highlight;
+    --placeholder: Canvas;
+    --skeleton: Canvas;
+    --skeleton-shine: Canvas;
+    --popup-bg: Canvas;
+    --popup-stroke: CanvasText;
+    --popup-shadow: none;
+    --scrim: Canvas;
+    --scrollbar: CanvasText;
+    --p-canvas: Canvas;
+    --p-text-1: CanvasText;
+    --p-text-2: CanvasText;
+    --p-text-3: CanvasText;
+    --p-panel: Canvas;
+    --p-panel-stroke: CanvasText;
+    --p-hover: ButtonFace;
+    --p-press: ButtonFace;
+    --p-track: GrayText;
+    --p-buffer: CanvasText;
+    --p-fill: Highlight;
+    --p-pill: Canvas;
+    --p-button-text: ButtonText;
+    --p-button-bg: ButtonFace;
+    --p-play-bg: ButtonFace;
+    --p-play-text: ButtonText;
+    --p-big-play-bg: ButtonFace;
+    --p-big-play-stroke: ButtonText;
+    --p-drawer: Canvas;
+    --p-image-placeholder: Canvas;
+    --p-image-scrim: Canvas;
+    --p-episode-grid: ButtonFace;
+    --p-episode-current: ButtonFace;
+    --p-scrim-bottom: Canvas;
+    --p-scrim-top: Canvas;
+  }
 }

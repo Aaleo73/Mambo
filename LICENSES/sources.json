@@ -1,0 +1,695 @@
+[
+  {
+    "path": "Apache-2.0.txt",
+    "source": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+    "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+    "retrieved": "2026-10-02"
+  },
+  {
+    "path": "CommunityToolkit-8.4.2-license.md",
+    "source": "NuGet CommunityToolkit.Mvvm 8.4.2/License.md",
+    "sha256": "651997ef19dbb9ecb8dd660dbc86444a65af21f18cfe08daa69bf201cd5cfdfc",
+    "retrieved": "2026-10-02"
+  },
+  {
+    "path": "CommunityToolkit-8.4.2-ThirdPartyNotices.txt",
+    "source": "NuGet CommunityToolkit.Mvvm 8.4.2/ThirdPartyNotices.txt",
+    "sha256": "7774f8b0ab66bfb47ec154ce24a2d6d574febc44a74d940b8a037d1c56756163",
+    "retrieved": "2026-10-02"
+  },
+  {
+    "path": "dotnet-10.0.12-license.txt",
+    "source": "NuGet Microsoft.NETCore.App.Runtime.win-x64 10.0.12/LICENSE.TXT",
+    "sha256": "d7a68596ab69b06f51ca278a6545148e4269a9381c26d597c13df5d88e08cf5b",
+    "retrieved": "2026-10-02"
+  },
+  {
+    "path": "dotnet-10.0.12-THIRD-PARTY-NOTICES.txt",
+    "source": "NuGet Microsoft.NETCore.App.Runtime.win-x64 10.0.12/THIRD-PARTY-NOTICES.TXT",
+    "sha256": "6d15e10a101c6bfff2ab4429ed061bf76c456fc4b23ad6b03e0d0f8377148a21",
+    "retrieved": "2026-10-02"
+  },
+  {
+    "path": "FFmpeg-LICENSE.md",
+    "source": "https://raw.githubusercontent.com/FFmpeg/FFmpeg/2576e09434d8026aab1769481b7b2fb43aa567c3/LICENSE.md",
+    "sha256": "2e1d16c72fd74e12063776371da757322f8b77589386532f4fd8634bde7de1af",
+    "retrieved": "2026-10-02"
+  },
+  {
+    "path": "GPL-2.0.txt",
+    "source": "https://www.gnu.org/licenses/old-licenses/gpl-2.0.txt",
+    "sha256": "edaef632cbb643e4e7a221717a6c441a4c1a7c918e6e4d56debc3d8739b233f6",
+    "retrieved": "2026-10-02"
+  },
+  {
+    "path": "GPL-3.0.txt",
+    "source": "https://www.gnu.org/licenses/gpl-3.0.txt",
+    "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+    "retrieved": "2026-10-02"
+  },
+  {
+    "path": "LGPL-2.1.txt",
+    "source": "https://www.gnu.org/licenses/old-licenses/lgpl-2.1.txt",
+    "sha256": "20e50fe7aae3e56378ebf0417d9de904f55a0e61e4df315333e632a4d3555d95",
+    "retrieved": "2026-10-02"
+  },
+  {
+    "path": "libmpv-upstream/amf-headers-LICENSE.txt",
+    "source": "https://github.com/GPUOpen-LibrariesAndSDKs/AMF/blob/master/LICENSE.txt",
+    "sha256": "eb297397aaa455b5668ab67d216b83828466152dab123fa92384c6ec16b74170",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/angle-headers-LICENSE.txt",
+    "source": "https://github.com/google/angle/blob/main/LICENSE",
+    "sha256": "bf4da21bd20bcfb5b60b7ecc67fa864a79be049e21d6178076887f178dd6c71a",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/aom-LICENSE.txt",
+    "source": "https://aomedia.googlesource.com/aom/+/refs/heads/main/LICENSE?format=TEXT",
+    "sha256": "4764a286d8b2faeaf42f4418e7d7a28d58fc8fd4d00a3d0a7f44b0a4099de7f2",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/avisynth-headers-LICENSE.txt",
+    "source": "https://raw.githubusercontent.com/AviSynth/AviSynthPlus/master/distrib/gpl.txt",
+    "sha256": "1f5f360a07ceae385d1cb7f2e95eaf43070a4609d965985ad60df1783ef1acc5",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/brotli-LICENSE.txt",
+    "source": "https://github.com/google/brotli/blob/master/LICENSE",
+    "sha256": "3d180008e36922a4e8daec11c34c7af264fed5962d07924aea928c38e8663c94",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/bzip2-LICENSE.txt",
+    "source": "https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz#bzip2-1.0.8/LICENSE",
+    "sha256": "c6dbbf828498be844a89eaa3b84adbab3199e342eb5cb2ed2f0d4ba7ec0f38a3",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/dav1d-LICENSE.txt",
+    "source": "https://raw.githubusercontent.com/videolan/dav1d/master/COPYING",
+    "sha256": "dd92c3c2247c5651606fc23a5e2d6a1ebc5ace9a3e49cbde0e12f05ad1cb1ee5",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/davs2-LICENSE.txt",
+    "source": "https://github.com/saindriches/davs2/blob/master/COPYING",
+    "sha256": "971f09fd8dedc915472df12845fb7c653563689672fb1a658e28004887ba4a07",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/expat-LICENSE.txt",
+    "source": "https://github.com/libexpat/libexpat/blob/master/COPYING",
+    "sha256": "73cc92f80889ab23c7287b1a11dd50fdec190c3f26ebe5938c579043817d651e",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/fast_float-LICENSE.txt",
+    "source": "https://github.com/fastfloat/fast_float/blob/main/LICENSE-APACHE",
+    "sha256": "097a889aa954d04e088b790b10a4014d6189561d0a6013935a73ce3d4ddaaf06",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/ffmpeg-LICENSE.txt",
+    "source": "https://github.com/FFmpeg/FFmpeg/blob/master/LICENSE.md",
+    "sha256": "e6dc72d5665a1ebd6dcc841de59278dad4ca77ecc47b03f1064a55c3e9ea8bb8",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/freetype2-LICENSE.txt",
+    "source": "https://github.com/freetype/freetype/blob/master/LICENSE.TXT",
+    "sha256": "bd36c8b474855fa294c2ec5c184544478ef3720aad37d65a6296a4f264fd2d3b",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/fribidi-LICENSE.txt",
+    "source": "https://github.com/fribidi/fribidi/blob/master/COPYING",
+    "sha256": "20e50fe7aae3e56378ebf0417d9de904f55a0e61e4df315333e632a4d3555d95",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/glad-LICENSE.txt",
+    "source": "https://github.com/Dav1dde/glad/blob/glad2/LICENSE",
+    "sha256": "cbb325cd4ac5bd06717ffa34a322b984f9d285e4c67c8ca1b7380d6ef08c2a77",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/glslang-LICENSE.txt",
+    "source": "https://github.com/KhronosGroup/glslang/blob/main/LICENSE.txt",
+    "sha256": "17e70c676e1521ff3e4686f04a2053d93a7e28a33be8de7ec37ab0ff72feb677",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/graphengine-LICENSE.txt",
+    "source": "https://github.com/sekrit-twc/graphengine/blob/master/COPYING",
+    "sha256": "7637386b5f81e8a719ca336233149005e5fa28b5e6054ea7b67de49355b0ad40",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/harfbuzz-LICENSE.txt",
+    "source": "https://github.com/harfbuzz/harfbuzz/blob/main/COPYING",
+    "sha256": "ba8f810f2455c2f08e2d56bb49b72f37fcf68f1f4fade38977cfd7372050ad64",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/highway-LICENSE.txt",
+    "source": "https://github.com/google/highway/blob/master/LICENSE",
+    "sha256": "85de9303e7a81f35d81befd51a4004c41b5e7f7e40cd4e3f5ff609ecd71a0e44",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/lame-LICENSE.txt",
+    "source": "https://gitlab.com/shinchiro/lame/-/raw/master/COPYING",
+    "sha256": "bfe4a52dc4645385f356a8e83cc54216a293e3b6f1cb4f79f5fc0277abf937fd",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/lcms2-LICENSE.txt",
+    "source": "https://github.com/mm2/Little-CMS/blob/master/LICENSE",
+    "sha256": "6dbd60437f8ef91d8de1f08ad75882547fd4931bfcc3566a0735f28db1484d31",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/libarchive-LICENSE.txt",
+    "source": "https://github.com/libarchive/libarchive/blob/master/COPYING",
+    "sha256": "30e556b3959e3985d66efefec5eaac51d4995053caa1d3cffe6eb916f146f229",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/libaribcaption-LICENSE.txt",
+    "source": "https://github.com/xqq/libaribcaption/blob/master/LICENSE",
+    "sha256": "5149f1ce4fe89190d86bfb440456701a3a7406fc2b19ef0d8b57661f62b32c04",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/libass-LICENSE.txt",
+    "source": "https://github.com/libass/libass/blob/master/COPYING",
+    "sha256": "f7e30699d02798351e7f839e3d3bfeb29ce65e44efa7735c225464c4fd7dfe9c",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/libbluray-LICENSE.txt",
+    "source": "https://download.videolan.org/pub/videolan/libbluray/1.3.4/libbluray-1.3.4.tar.bz2#libbluray-1.3.4/COPYING",
+    "sha256": "b3aa400aca6d2ba1f0bd03bd98d03d1fe7489a3bbb26969d72016360af8a5c9d",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/libbs2b-LICENSE.txt",
+    "source": "https://github.com/alexmarsev/libbs2b/blob/master/COPYING",
+    "sha256": "dfd5a8d7dc501447bf0d58b0fc9ef85ab9e713963d7dcf459897adefa4c710ca",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/libdvdcss-LICENSE.txt",
+    "source": "https://download.videolan.org/pub/videolan/libdvdcss/1.4.3/libdvdcss-1.4.3.tar.bz2#libdvdcss-1.4.3/COPYING",
+    "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/libdvdnav-LICENSE.txt",
+    "source": "https://download.videolan.org/pub/videolan/libdvdnav/6.1.1/libdvdnav-6.1.1.tar.bz2#libdvdnav-6.1.1/COPYING",
+    "sha256": "32b1062f7da84967e7019d01ab805935caa7ab7321a7ced0e30ebe75e5df1670",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/libdvdread-LICENSE.txt",
+    "source": "https://download.videolan.org/pub/videolan/libdvdread/6.1.3/libdvdread-6.1.3.tar.bz2#libdvdread-6.1.3/COPYING",
+    "sha256": "d6cb0e9e560f51085556949a84af12b79a00f10ab8b66c752537faf7cd665572",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/libiconv-LICENSE.txt",
+    "source": "https://ftp.gnu.org/pub/gnu/libiconv/libiconv-1.18.tar.gz#libiconv-1.18/COPYING.LIB",
+    "sha256": "20e50fe7aae3e56378ebf0417d9de904f55a0e61e4df315333e632a4d3555d95",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/libjpeg-LICENSE.txt",
+    "source": "https://github.com/libjpeg-turbo/libjpeg-turbo/blob/main/LICENSE.md",
+    "sha256": "ba6bceebcba0fdd35488477c2cca8c4632ce82c74dbfbc87d886ce6fc4433579",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/libjxl-LICENSE.txt",
+    "source": "https://github.com/libjxl/libjxl/blob/main/LICENSE",
+    "sha256": "8405932022a556380c2d8c272eff154a923feb197233f348ce5f7334fb0a5ede",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/libmodplug-LICENSE.txt",
+    "source": "https://github.com/Konstanty/libmodplug/blob/master/COPYING",
+    "sha256": "49942e7b3b175f549e751feb08b5270ca6f6c5fb7a1be9f9517db275ec32c92e",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/libmysofa-LICENSE.txt",
+    "source": "https://github.com/hoene/libmysofa/blob/main/LICENSE",
+    "sha256": "9c8713ccc5d6d93d20c7a1cfcb876e64baf551bfbe67faa4e60d39cda9ffd023",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/libopenmpt-LICENSE.txt",
+    "source": "https://lib.openmpt.org/files/libopenmpt/src/libopenmpt-0.7.12+release.autotools.tar.gz#libopenmpt-0.7.12+release.autotools/LICENSE",
+    "sha256": "e6374c0159c4bdf56516c956a5c4bee3a2f1dae1bfa241e2e0b7271c0e36c180",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/libplacebo-LICENSE.txt",
+    "source": "https://github.com/haasn/libplacebo/blob/master/LICENSE",
+    "sha256": "b3aa400aca6d2ba1f0bd03bd98d03d1fe7489a3bbb26969d72016360af8a5c9d",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/libpng-LICENSE.txt",
+    "source": "https://github.com/pnggroup/libpng/blob/libpng18/LICENSE.md",
+    "sha256": "bdb0a645ea18c60507d0368379b1ac5474b92255fcc2d115e07486a7672ba526",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/libsamplerate-LICENSE.txt",
+    "source": "https://github.com/libsndfile/libsamplerate/blob/master/COPYING",
+    "sha256": "2c1f76ce2effdddb425018405d5690c0b1ab4e6976e35296b0a6db65c5e1a55d",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/libsdl2-LICENSE.txt",
+    "source": "https://github.com/libsdl-org/SDL/blob/main/LICENSE.txt",
+    "sha256": "1c040b8271b37e5076359f8fd54240e371114112924d2df81ef87c7d6a1dfdfd",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/libsixel-LICENSE.txt",
+    "source": "https://github.com/saitoha/libsixel/blob/master/LICENSE",
+    "sha256": "f719f01f57fec5dea2103ce3b2443b0d457bac44dcb8989f08885116bae12d18",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/libsoxr-LICENSE.txt",
+    "source": "https://gitlab.com/shinchiro/soxr/-/raw/master/LICENCE",
+    "sha256": "dc98676341fdcd29d9f279c9679d6a75288785b174ded8d1b2e316c366166135",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/libsrt-LICENSE.txt",
+    "source": "https://github.com/Haivision/srt/blob/master/LICENSE",
+    "sha256": "fab3dd6bdab226f1c08630b1dd917e11fcb4ec5e1e020e2c16f83a0a13863e85",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/libssh-LICENSE.txt",
+    "source": "https://gitlab.com/libssh/libssh-mirror/-/raw/master/COPYING",
+    "sha256": "1656186e951db1c010a8485481fa94587f7e53a26d24976bef97945ad0c4df5a",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/libudfread-LICENSE.txt",
+    "source": "https://download.videolan.org/pub/videolan/libudfread/libudfread-1.2.0.tar.xz#libudfread-1.2.0/COPYING",
+    "sha256": "dc626520dcd53a22f727af3ee42c770e56c97a64fe3adb063799d8ab032fe551",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/libunibreak-LICENSE.txt",
+    "source": "https://github.com/adah1972/libunibreak/blob/master/LICENCE",
+    "sha256": "0c57e2ec42ece17791a75d2f9b2f8e0663181be008667a507f765b3ef22522db",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/libva-LICENSE.txt",
+    "source": "https://github.com/intel/libva/blob/master/COPYING",
+    "sha256": "c86a782ee845b52472dae9b9d79fb915d333628ac0efe49cdce63644814931de",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/libvpl-LICENSE.txt",
+    "source": "https://github.com/intel/libvpl/blob/main/LICENSE",
+    "sha256": "bf1cfac2e2792b6e1e995ce103d70796aecaf2ec7e4c5fe5474f7acec7b4a677",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/libvpx-LICENSE.txt",
+    "source": "https://chromium.googlesource.com/webm/libvpx/+/refs/heads/main/LICENSE?format=TEXT",
+    "sha256": "8267348d5af1262c11d1a08de2f5afc77457755f1ac658627dd9acf71011d615",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/libwebp-LICENSE.txt",
+    "source": "https://chromium.googlesource.com/webm/libwebp/+/refs/heads/main/COPYING?format=TEXT",
+    "sha256": "5aec868f669e384a22372a4e8a1a6cd7d44c64cd451f960ca69cc170d1e13acf",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/libxml2-LICENSE.txt",
+    "source": "https://github.com/GNOME/libxml2/blob/master/Copyright",
+    "sha256": "5d4873884a890122a4b9b20ad56ac6f7da1d796a5bfcf04a427970ac96217626",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/libzimg-LICENSE.txt",
+    "source": "https://github.com/sekrit-twc/zimg/blob/master/COPYING",
+    "sha256": "7637386b5f81e8a719ca336233149005e5fa28b5e6054ea7b67de49355b0ad40",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/libzvbi-LICENSE.txt",
+    "source": "https://github.com/zapping-vbi/zvbi/blob/main/COPYING.md",
+    "sha256": "6d679539253897582d38fcd1eabfa670c01c0ece73d8cd3dc97869fcf723f106",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/luajit-LICENSE.txt",
+    "source": "https://github.com/openresty/luajit2/blob/v2.1-agentzh/COPYRIGHT",
+    "sha256": "15477efb3696e3c49979294a2a79f9ef11e83a2414124629f996805a8967a14d",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/lzo-LICENSE.txt",
+    "source": "https://www.oberhumer.com/opensource/lzo/download/lzo-2.10.tar.gz#lzo-2.10/COPYING",
+    "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/mpv-LICENSE.txt",
+    "source": "https://github.com/mpv-player/mpv/blob/master/LICENSE.GPL",
+    "sha256": "edaef632cbb643e4e7a221717a6c441a4c1a7c918e6e4d56debc3d8739b233f6",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/mujs-LICENSE.txt",
+    "source": "https://codeberg.org/ccxvii/mujs/raw/branch/master/COPYING",
+    "sha256": "0ca9b4fbfbcab8ac7d32475890d866efc02f4cffb6b6da5c0e9a0615cc3d82fe",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/ogg-LICENSE.txt",
+    "source": "https://github.com/xiph/ogg/blob/main/COPYING",
+    "sha256": "d2ab5758336489da61c12cc5bb757da5339c4ae9001f9bb0562b4370249af814",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/openal-soft-LICENSE.txt",
+    "source": "https://github.com/kcat/openal-soft/blob/master/COPYING",
+    "sha256": "d808ce217e5b611854da622b57ec29fe545584c48bc5352fae72a4b6e5074a15",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/openssl-LICENSE.txt",
+    "source": "https://github.com/openssl/openssl/blob/master/LICENSE.txt",
+    "sha256": "7d5450cb2d142651b8afa315b5f238efc805dad827d91ba367d8516bc9d49e7a",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/opus-LICENSE.txt",
+    "source": "https://github.com/xiph/opus/blob/main/COPYING",
+    "sha256": "01e1167d54a096d123cf6dfbbeb19587278845c6481d2d66d545669846079551",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/rubberband-LICENSE.txt",
+    "source": "https://github.com/breakfastquay/rubberband/blob/default/COPYING",
+    "sha256": "cedd4c1885d75991bf1077cc6e33359103cf04fbc996f20d30ab043d5fc5fcc5",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/shaderc-LICENSE.txt",
+    "source": "https://github.com/google/shaderc/blob/main/LICENSE",
+    "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/speex-LICENSE.txt",
+    "source": "https://github.com/xiph/speex/blob/master/COPYING",
+    "sha256": "2654a4264b2bfe298dedc508748d140111840c315cc8eb646a3a68c13fa75b01",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/spirv-cross-LICENSE.txt",
+    "source": "https://github.com/KhronosGroup/SPIRV-Cross/blob/main/LICENSE",
+    "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/spirv-headers-LICENSE.txt",
+    "source": "https://github.com/KhronosGroup/SPIRV-Headers/blob/main/LICENSE",
+    "sha256": "ea43b1de38a6f90c488800d66dec1ed671e68cda530266bc96951fb5b6307613",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/spirv-tools-LICENSE.txt",
+    "source": "https://github.com/KhronosGroup/SPIRV-Tools/blob/main/LICENSE",
+    "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/subrandr-LICENSE.txt",
+    "source": "https://github.com/afishhh/subrandr/blob/master/LICENSE",
+    "sha256": "3f3d9e0024b1921b067d6f7f88deb4a60cbe7a78e76c64e3f1d7fc3b779b9d04",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/svtav1-LICENSE.txt",
+    "source": "https://gitlab.com/AOMediaCodec/SVT-AV1/-/raw/master/LICENSE.md",
+    "sha256": "0acc2fcb27472bdc9aaf8b71f37055bbdac4f54671b7d922f241bd7fcd0dd3e6",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/uavs3d-LICENSE.txt",
+    "source": "https://github.com/uavs3/uavs3d/blob/master/COPYING",
+    "sha256": "5a8dcb7da222df8a81b6e334000f859248196335e2d28e1db9f3c552827d7cdf",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/uchardet-LICENSE.txt",
+    "source": "https://raw.githubusercontent.com/BYVoid/uchardet/master/COPYING",
+    "sha256": "107a29ccdd2d778aa2df5462f85dddfa099059abd22e064e07ec2cc9bafc37cd",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/vapoursynth-LICENSE.txt",
+    "source": "https://raw.githubusercontent.com/vapoursynth/vapoursynth/R65/COPYING.LESSER",
+    "sha256": "b634ab5640e258563c536e658cad87080553df6f34f62269a21d554844e58bfe",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/vorbis-LICENSE.txt",
+    "source": "https://github.com/xiph/vorbis/blob/main/COPYING",
+    "sha256": "ec1815db59fcd302846df949d7424876cb2e2dc5ed1606c5fb0b36787b1cf43a",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/vulkan-header-LICENSE.txt",
+    "source": "https://github.com/KhronosGroup/Vulkan-Headers/blob/main/LICENSE.md",
+    "sha256": "95ad366d23fadf701d355bc45fb8b82ae2d700239471d35d41286ac3b08ff903",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/vulkan-LICENSE.txt",
+    "source": "https://github.com/KhronosGroup/Vulkan-Loader/blob/main/LICENSE.txt",
+    "sha256": "43c0a37e6a0fa7ff3c843b3ec5a4fac84b712558ddac103fbd4c1649662a9ece",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/x265-LICENSE.txt",
+    "source": "https://github.com/Multicorewareinc/x265/blob/master/COPYING",
+    "sha256": "d8afb1bcc7a2cfc603683b168d6987ef0a48e59e0da3693bf55c5d33b67e2b49",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/xvidcore-LICENSE.txt",
+    "source": "https://downloads.xvid.com/downloads/xvidcore-1.3.7.tar.bz2#xvidcore/LICENSE",
+    "sha256": "2ab06d2335f9781f1a485c78a557e6c61b6c24e118caad4d4210c46426bbce95",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/xxhash-LICENSE.txt",
+    "source": "https://github.com/Cyan4973/xxHash/blob/dev/LICENSE",
+    "sha256": "6ffedbc0f7878612d2b23589f1ff2ab15633e1df7963a5d9fc750ec5500c7e7a",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/xz-LICENSE.txt",
+    "source": "https://github.com/tukaani-project/xz/blob/master/COPYING",
+    "sha256": "616a3ad264ce29b8f1cb97e53037b139d406899ca8d1f799651e17bfa09830b8",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/zlib-LICENSE.txt",
+    "source": "https://github.com/zlib-ng/zlib-ng/blob/develop/LICENSE.md",
+    "sha256": "6c9f0d975b41afaa34d22f55bb8986ce69e5cb7ad327cb2b28820cd425edf5ee",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/zstd-LICENSE.txt",
+    "source": "https://raw.githubusercontent.com/facebook/zstd/dev/LICENSE",
+    "sha256": "7055266497633c9025b777c78eb7235af13922117480ed5c674677adc381c9d8",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "Microsoft-WindowsAppSDK-2.5.1-license.txt",
+    "source": "NuGet Microsoft.WindowsAppSDK 2.5.1/license.txt",
+    "sha256": "5b11e6347756e40fe0274bc08c97f89201b94f0d50181a09a00f1f4740840501",
+    "retrieved": "2026-10-02"
+  },
+  {
+    "path": "Microsoft-WindowsAppSDK-2.5.1-NOTICE.txt",
+    "source": "NuGet Microsoft.WindowsAppSDK 2.5.1/NOTICE.txt",
+    "sha256": "572b43d41dea717dae7dc5de69acb20a74df025e8f5a3c0aa6f7bca02615e23c",
+    "retrieved": "2026-10-02"
+  },
+  {
+    "path": "Microsoft-WindowsAppSDK-ML-2.1.94-license.txt",
+    "source": "NuGet Microsoft.WindowsAppSDK.ML 2.1.94/license.txt",
+    "sha256": "656aab74c15aa9f9964bcdcc993eb2755cbdb4822d5e0e3bc61d2e281897f758",
+    "retrieved": "2026-10-02"
+  },
+  {
+    "path": "Microsoft-WindowsAppSDK-WinUI-2.3.9-NOTICE.txt",
+    "source": "NuGet Microsoft.WindowsAppSDK.WinUI 2.3.9/NOTICE.txt",
+    "sha256": "e25393c0d340a1821827b093fa4dbbfcccd8feb7bf769e7fa773e3955cd5314b",
+    "retrieved": "2026-10-02"
+  },
+  {
+    "path": "MiSans-license.pdf",
+    "source": "https://hyperos.mi.com/font-download/MiSans%E5%AD%97%E4%BD%93%E7%9F%A5%E8%AF%86%E4%BA%A7%E6%9D%83%E8%AE%B8%E5%8F%AF%E5%8D%8F%E8%AE%AE.pdf",
+    "sha256": "4a93a27cd2bd81b3b5ecfd0a853144a876fa26938a93a68443c67d74172fcb86",
+    "retrieved": "2026-10-02"
+  },
+  {
+    "path": "mpv-Copyright.txt",
+    "source": "https://raw.githubusercontent.com/mpv-player/mpv/304426c390901436fb1d4a63efbd582ae80c88f4/Copyright",
+    "sha256": "bfe9ee4cceabcb8ecbfadf208d04156f73d801e6a57369a5606bb8341e204a23",
+    "retrieved": "2026-10-02"
+  },
+  {
+    "path": "winbuild-20260610-ffmpeg.cmake",
+    "source": "https://raw.githubusercontent.com/shinchiro/mpv-winbuild-cmake/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/ffmpeg.cmake",
+    "sha256": "9fd732fd9c27eaad092cbdb90af3d5e02dcc07579fbad913d1223222197452cd",
+    "retrieved": "2026-10-02"
+  },
+  {
+    "path": "winbuild-20260610-mpv.cmake",
+    "source": "https://raw.githubusercontent.com/shinchiro/mpv-winbuild-cmake/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/mpv.cmake",
+    "sha256": "239daadea343b27d447d36b33846162f6b19fd59f45d302dd28ee8908177e27e",
+    "retrieved": "2026-10-02"
+  },
+  {
+    "path": "libmpv-upstream/x264-LICENSE.txt",
+    "source": "https://download.videolan.org/pub/videolan/x264/snapshots/x264-snapshot-20191217-2245-stable.tar.bz2#x264-snapshot-20191217-2245-stable/COPYING",
+    "sha256": "32b1062f7da84967e7019d01ab805935caa7ab7321a7ced0e30ebe75e5df1670",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/nvcodec-headers-LICENSE.txt",
+    "source": "https://raw.githubusercontent.com/FFmpeg/nv-codec-headers/master/include/ffnvcodec/nvEncodeAPI.h",
+    "sha256": "8f115901902ad05ce3a1ba48ae15393a1853ac0a3e7835ebe986cc80e1039b19",
+    "retrieved": "2026-10-02",
+    "matchingBinaryRevision": false
+  },
+  {
+    "path": "libmpv-upstream/fontconfig-LICENSE.txt",
+    "source": "https://gitlab.freedesktop.org/fontconfig/fontconfig/-/blob/d416ada7b20a1cdd5050b60a7a1bbdb3d9ddd2dc/COPYING",
+    "sha256": "51a51aa9823704fd90bccc616cdd17ebabb5b2b3e9cbde886ca02c7002288067",
+    "retrieved": "2026-10-03"
+  },
+  {
+    "path": "opus-1.6.1-COPYING.txt",
+    "source": "https://downloads.xiph.org/releases/opus/opus-1.6.1.tar.gz#opus-1.6.1/COPYING",
+    "sha256": "01e1167d54a096d123cf6dfbbeb19587278845c6481d2d66d545669846079551",
+    "retrieved": "2026-10-03"
+  },
+  {
+    "path": "opus-1.6.1-dnn-README.md",
+    "source": "https://downloads.xiph.org/releases/opus/opus-1.6.1.tar.gz#opus-1.6.1/dnn/README.md",
+    "sha256": "6ae93dd98265b0a429d5e5714b1875424bb8345800347304ee2a03385f076bdf",
+    "retrieved": "2026-10-03"
+  },
+  {
+    "path": "Inno-Setup-license.txt",
+    "source": "https://raw.githubusercontent.com/jrsoftware/issrc/is-6_7_3/license.txt",
+    "sha256": "2e5346868c2a18434489824e11d65c3031620f792fefc415d05f19cd441abf5c",
+    "retrieved": "2026-10-03"
+  }
+]

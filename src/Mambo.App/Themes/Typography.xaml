@@ -1,6 +1,46 @@
 <ResourceDictionary
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Default">
+            <SolidColorBrush x:Key="HeroBackgroundBrush" Color="Transparent"/>
+            <SolidColorBrush x:Key="HeroTitleForegroundBrush" Color="#FFFFFFFF"/>
+            <SolidColorBrush x:Key="HeroMetaForegroundBrush" Color="#EBFFFFFF"/>
+            <SolidColorBrush x:Key="HeroOverviewForegroundBrush" Color="#DBFFFFFF"/>
+            <SolidColorBrush x:Key="HeroHintForegroundBrush" Color="#C2FFFFFF"/>
+            <SolidColorBrush x:Key="HeroSeparatorBrush" Color="#8CFFFFFF"/>
+            <SolidColorBrush x:Key="HeroBadgeStrokeBrush" Color="#E6FFFFFF"/>
+            <SolidColorBrush x:Key="HeroPlayBackgroundBrush" Color="#76000000"/>
+            <SolidColorBrush x:Key="HeroPlayForegroundBrush" Color="#FFFFFFFF"/>
+            <SolidColorBrush x:Key="HeroPlayStrokeBrush" Color="#48FFFFFF"/>
+            <SolidColorBrush x:Key="HeroProgressBackgroundBrush" Color="#40FFFFFF"/>
+            <SolidColorBrush x:Key="HeroActionBackgroundBrush" Color="#FFFFFFFF"/>
+            <SolidColorBrush x:Key="HeroActionForegroundBrush" Color="#FF16161A"/>
+            <SolidColorBrush x:Key="HeroActionStrokeBrush" Color="#40FFFFFF"/>
+            <SolidColorBrush x:Key="HeroActionHoverBackgroundBrush" Color="#FFF1F1F4"/>
+            <SolidColorBrush x:Key="HeroActionPressedBackgroundBrush" Color="#FFE0E0E4"/>
+            <SolidColorBrush x:Key="HeroActionHoverForegroundBrush" Color="#FF16161A"/>
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="HighContrast">
+            <SolidColorBrush x:Key="HeroBackgroundBrush" Color="{ThemeResource SystemColorWindowColor}"/>
+            <SolidColorBrush x:Key="HeroTitleForegroundBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
+            <SolidColorBrush x:Key="HeroMetaForegroundBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
+            <SolidColorBrush x:Key="HeroOverviewForegroundBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
+            <SolidColorBrush x:Key="HeroHintForegroundBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
+            <SolidColorBrush x:Key="HeroSeparatorBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
+            <SolidColorBrush x:Key="HeroBadgeStrokeBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
+            <SolidColorBrush x:Key="HeroPlayBackgroundBrush" Color="{ThemeResource SystemColorButtonFaceColor}"/>
+            <SolidColorBrush x:Key="HeroPlayForegroundBrush" Color="{ThemeResource SystemColorButtonTextColor}"/>
+            <SolidColorBrush x:Key="HeroPlayStrokeBrush" Color="{ThemeResource SystemColorButtonTextColor}"/>
+            <SolidColorBrush x:Key="HeroProgressBackgroundBrush" Color="{ThemeResource SystemColorGrayTextColor}"/>
+            <SolidColorBrush x:Key="HeroActionBackgroundBrush" Color="{ThemeResource SystemColorButtonFaceColor}"/>
+            <SolidColorBrush x:Key="HeroActionForegroundBrush" Color="{ThemeResource SystemColorButtonTextColor}"/>
+            <SolidColorBrush x:Key="HeroActionStrokeBrush" Color="{ThemeResource SystemColorButtonTextColor}"/>
+            <SolidColorBrush x:Key="HeroActionHoverBackgroundBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
+            <SolidColorBrush x:Key="HeroActionPressedBackgroundBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
+            <SolidColorBrush x:Key="HeroActionHoverForegroundBrush" Color="{ThemeResource SystemColorHighlightTextColor}"/>
+        </ResourceDictionary>
+    </ResourceDictionary.ThemeDictionaries>
     <!-- 字重与字体文件必须成对设置，否则 DirectWrite 会模拟粗细 -->
     <StaticResource x:Key="ContentControlThemeFontFamily" ResourceKey="MiSansRegularFontFamily"/>
 
@@ -91,7 +131,7 @@
         <Setter Property="FontSize" Value="46"/>
         <Setter Property="LineHeight" Value="52"/>
         <Setter Property="LineStackingStrategy" Value="BlockLineHeight"/>
-        <Setter Property="Foreground" Value="#FFFFFFFF"/>
+        <Setter Property="Foreground" Value="{ThemeResource HeroTitleForegroundBrush}"/>
         <Setter Property="TextWrapping" Value="Wrap"/>
         <Setter Property="MaxLines" Value="2"/>
         <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
@@ -103,7 +143,7 @@
         <Setter Property="FontSize" Value="{StaticResource BodyFontSize}"/>
         <Setter Property="LineHeight" Value="24"/>
         <Setter Property="LineStackingStrategy" Value="BlockLineHeight"/>
-        <Setter Property="Foreground" Value="#DBFFFFFF"/>
+        <Setter Property="Foreground" Value="{ThemeResource HeroOverviewForegroundBrush}"/>
         <Setter Property="TextWrapping" Value="Wrap"/>
         <Setter Property="MaxLines" Value="2"/>
         <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
@@ -112,8 +152,22 @@
         <Setter Property="FontFamily" Value="{StaticResource MiSansMediumFontFamily}"/>
         <Setter Property="FontWeight" Value="Medium"/>
         <Setter Property="FontSize" Value="{StaticResource BodyFontSize}"/>
-        <Setter Property="Foreground" Value="#EBFFFFFF"/>
+        <Setter Property="Foreground" Value="{ThemeResource HeroMetaForegroundBrush}"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+    <Style x:Key="HeroSeparatorStyle" TargetType="Border">
+        <Setter Property="Width" Value="3"/>
+        <Setter Property="Height" Value="3"/>
+        <Setter Property="CornerRadius" Value="1.5"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Background" Value="{ThemeResource HeroSeparatorBrush}"/>
+    </Style>
+    <Style x:Key="HeroRatingIconStyle" TargetType="FontIcon">
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="Foreground" Value="{ThemeResource RatingBrush}"/>
+    </Style>
+    <Style x:Key="HeroBadgeTextStyle" TargetType="TextBlock" BasedOn="{StaticResource BadgeTextStyle}">
+        <Setter Property="Foreground" Value="{ThemeResource HeroTitleForegroundBrush}"/>
     </Style>
     <Style x:Key="OnboardingTitleStyle" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource MiSansBoldFontFamily}"/>

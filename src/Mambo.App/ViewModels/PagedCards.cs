@@ -20,8 +20,16 @@ public sealed partial class PagedCards : ObservableObject, IDisposable
         this.query = query;
         this.context = context;
         this.landscape = landscape;
-        query.Updated += OnUpdated;
-        Apply();
+        try
+        {
+            query.Updated += OnUpdated;
+            Apply();
+        }
+        catch
+        {
+            FailedConstruction.Release(() => query.Updated -= OnUpdated, query.Dispose);
+            throw;
+        }
     }
 
     public ObservableCollection<MediaCardViewModel> Items { get; } = [];

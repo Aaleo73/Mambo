@@ -1,4 +1,5 @@
 using Mambo.App.ViewModels;
+using Mambo.App.Themes;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -32,13 +33,13 @@ public sealed partial class CardRail : UserControl
     private void OnRailChanged()
     {
         if (Rail is not { } rail) return;
-        Repeater.ItemTemplate = (DataTemplate)Resources[rail.IsLandscape ? "LandscapeTemplate" : "PosterTemplate"];
+        Repeater.ItemTemplate = XamlResources.Template(Resources, rail.IsLandscape ? "LandscapeTemplate" : "PosterTemplate");
         Skeleton.Children.Clear();
         for (var i = 0; i < 8; i++)
         {
             Skeleton.Children.Add(new Border
             {
-                Style = (Style)Application.Current.Resources["SkeletonBlockStyle"],
+                Style = XamlResources.Style(Application.Current.Resources, "SkeletonBlockStyle"),
                 Width = rail.IsLandscape ? 300 : 150,
                 Height = rail.IsLandscape ? 169 : 220,
             });

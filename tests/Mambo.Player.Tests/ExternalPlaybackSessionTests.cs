@@ -11,6 +11,7 @@ using Mambo.Core.Playback;
 using Mambo.Core.Reliability;
 using Mambo.Core.Session;
 using Mambo.Player.External;
+using Microsoft.Extensions.Time.Testing;
 using Xunit;
 
 namespace Mambo.Player.Tests;
@@ -192,6 +193,9 @@ public sealed class ExternalPlaybackSessionTests
         private readonly CancellationTokenSource deadline = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
         private readonly AccountContext accounts = new();
         private readonly Scheduler scheduler = new();
+        // IPC 生命周期/报告顺序由事件驱动；并发测试的磁盘延迟不能消耗生产停止预算。
+        // 预算取消及 pending 保留另由 PlaybackReporterTests/StopOutboxTests 显式推进时钟验证。
+        private readonly FakeTimeProvider clock = new();
         private readonly SettingsStore settings;
         private readonly EmbyApi api;
         public FakeMpvIpcServer Server { get; }
@@ -210,8 +214,8 @@ public sealed class ExternalPlaybackSessionTests
             settings = new(paths, scheduler);
             accounts.Set(new(new SessionSecret("https://" + Guid.NewGuid().ToString("N") + ".invalid/emby", Guid.NewGuid().ToString("N"), Guid.NewGuid().ToString("N"), "测试用户", Guid.NewGuid().ToString("N"))));
             api = new(settings.Current.DeviceId, new ReportHandler(Reports));
-            Outbox = new(paths, api);
-            Coordinator = new(accounts, Preparer, async cancellation => await ExternalMpvEngine.CreateForTestingAsync(server.Client, cancellationToken: cancellation), api, Outbox, settings, scheduler, new WeakReferenceMessenger(), TimeProvider.System);
+            Outbox = new(paths, api, clock);
+            Coordinator = new(accounts, Preparer, async cancellation => await ExternalMpvEngine.CreateForTestingAsync(server.Client, cancellationToken: cancellation), api, Outbox, settings, scheduler, new WeakReferenceMessenger(), clock);
             Coordinator.SessionEnded += (_, args) => EndReason = args.EndReason;
         }
         public static async Task<Host> CreateAsync(int count = 2) => new(await FakeMpvIpcServer.CreateAsync(TestContext.Current.CancellationToken), count);
@@ -227,7 +231,16 @@ public sealed class ExternalPlaybackSessionTests
         }
         public async ValueTask DisposeAsync()
         {
-            await Coordinator.DisposeAsync();
+            var disposing = Coordinator.DisposeAsync().AsTask();
+            // 失败清理时 fake IPC 未必发送 end-file；推进关闭兜底定时器，仍由真实时间限制清理。
+            using var cleanupDeadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            while (!disposing.IsCompleted)
+            {
+                clock.Advance(TimeSpan.FromSeconds(3));
+                await Task.WhenAny(disposing, Task.Delay(10, cleanupDeadline.Token));
+                cleanupDeadline.Token.ThrowIfCancellationRequested();
+            }
+            await disposing;
             await Outbox.DisposeAsync();
             await Server.DisposeAsync();
             settings.Dispose(); api.Dispose(); accounts.Dispose(); deadline.Dispose();
