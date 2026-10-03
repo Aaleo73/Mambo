@@ -12,7 +12,7 @@
 
 `LibMpvEngine` 复制原生事件和节点，命令等待原生确认，loadfile 使用 mpv 返回的 entryId。类型化值、LibraryImport 和 JSON 源生成可用于 Native AOT。mpv 日志默认关闭；错误只保留安全文案、类型和 HRESULT。
 
-URL 预解析限时、限次、限跳转，按协议、主机、端口及服务器路径边界决定是否携带认证；跨边界跳转永久清除认证与 RequiredHttpHeaders。每个 loadfile 都显式指定 HTTP 头，避免上一片源的状态继承。文本外挂字幕下载为有大小限制的临时本地文件，单独检查重定向并在结束时删除。
+URL 预解析限时、限次、限跳转，按协议、主机、端口及服务器路径边界决定是否携带认证头；跨边界跳转永久清除认证头与 RequiredHttpHeaders。2026-10-03 修正：保留已认证登录服务器签发的完整下载 Location，详见 [播放跳转兼容决策](playback-issued-redirect.md)，不再删除其中下载网关需要的原有查询参数。每个 loadfile 都显式指定 HTTP 头，避免上一片源的状态继承。文本外挂字幕下载为有大小限制的临时本地文件，单独检查重定向并在结束时删除。
 
 ## 上报、关闭与画面生命周期
 

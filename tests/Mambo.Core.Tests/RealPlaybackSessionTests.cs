@@ -49,8 +49,111 @@ public sealed class RealPlaybackSessionTests
         Assert.Empty(harness.Reports);
         await harness.ConfirmAsync(session);
         await UntilAsync(() => harness.Reports.Count(report => report.Kind == "Playing") == 1);
+        Assert.Equal("playback.candidate.end-file", Assert.Single(harness.Diagnostics).Stage);
+        Assert.Null(session.Snapshot.Error);
         await session.CloseAsync(TestContext.Current.CancellationToken);
         Assert.Single(harness.Reports, report => report.Kind == "Stopped");
+    }
+
+    [Fact]
+    public async Task ExhaustedCandidatesLogEachNativeFailureOnceAndLinkFinalError()
+    {
+        await using var harness = new Harness(candidateCount: 2);
+        var session = await harness.StartAsync();
+        var first = harness.Engine.Loads.Single();
+        harness.Engine.Emit(new EngineEvent.EndFile(first.Id, EngineEndReason.Error, -13));
+        harness.Engine.Emit(new EngineEvent.EndFile(first.Id, EngineEndReason.Error, -13));
+        await UntilAsync(() => harness.Engine.Loads.Count == 2);
+        var second = harness.Engine.Loads.Last();
+        harness.Engine.Emit(new EngineEvent.EndFile(second.Id, EngineEndReason.Error, -14));
+        await UntilAsync(() => session.Snapshot.Phase == PlayerPhase.Failed);
+
+        var diagnostics = harness.Diagnostics.ToArray();
+        Assert.Equal(3, diagnostics.Length);
+        Assert.Equal("playback.candidate.end-file", diagnostics[0].Stage);
+        Assert.Contains("候选 1，原生错误 -13", diagnostics[0].Message, StringComparison.Ordinal);
+        Assert.Equal(-13, diagnostics[0].Status);
+        Assert.Equal("playback.candidate.end-file", diagnostics[1].Stage);
+        Assert.Contains("候选 2，原生错误 -14", diagnostics[1].Message, StringComparison.Ordinal);
+        Assert.Equal(-14, diagnostics[1].Status);
+        Assert.NotEqual(diagnostics[0].DiagnosticId, diagnostics[1].DiagnosticId);
+        Assert.True(Guid.TryParseExact(diagnostics[1].DiagnosticId, "N", out _));
+        var finalError = Assert.IsType<AppError>(session.Snapshot.Error);
+        Assert.Same(finalError, diagnostics[2]);
+        Assert.Equal("playback.candidates.exhausted", finalError.Stage);
+        Assert.Equal(ErrorCodes.PlaybackFailed, finalError.Code);
+        Assert.Equal(-14, finalError.Status);
+        Assert.True(finalError.Retryable);
+        Assert.Equal(diagnostics[1].DiagnosticId, finalError.DiagnosticId);
+        Assert.Contains("片源无法播放，请重试。", finalError.Message, StringComparison.Ordinal);
+        Assert.Contains("错误代码：-14", finalError.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain(finalError.DiagnosticId!, finalError.Message, StringComparison.Ordinal);
+        Assert.All(diagnostics, error =>
+        {
+            Assert.DoesNotContain("entry-", error.Message, StringComparison.Ordinal);
+            Assert.DoesNotContain("测试条目", error.Message, StringComparison.Ordinal);
+            Assert.DoesNotContain(".invalid", error.Message, StringComparison.Ordinal);
+            Assert.DoesNotContain("://", error.Message, StringComparison.Ordinal);
+        });
+        Assert.Empty(harness.Reports);
+        Assert.Empty(harness.Outbox.Snapshot);
+    }
+
+    [Fact]
+    public async Task EmptyCandidateListLogsFinalFailureWithoutInventingNativeError()
+    {
+        await using var harness = new Harness(candidateCount: 0);
+        var session = await harness.Coordinator.PlayAsync(new("entry-0"), TestContext.Current.CancellationToken);
+        await UntilAsync(() => session.Snapshot.Phase == PlayerPhase.Failed);
+        var error = Assert.IsType<AppError>(session.Snapshot.Error);
+        Assert.Same(error, Assert.Single(harness.Diagnostics));
+        Assert.Equal("playback.candidates.exhausted", error.Stage);
+        Assert.Null(error.Status);
+        Assert.True(Guid.TryParseExact(error.DiagnosticId, "N", out _));
+        Assert.Equal("片源无法播放，请重试。", error.Message);
+        Assert.DoesNotContain(error.DiagnosticId!, error.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("原生错误", error.Message, StringComparison.Ordinal);
+        Assert.True(error.Retryable);
+        Assert.Empty(harness.Engine.Loads);
+    }
+
+    [Fact]
+    public async Task ConfirmedPlaybackFailureLogsNativeAndFinalDiagnostic()
+    {
+        await using var harness = new Harness();
+        var session = await harness.StartAsync();
+        await harness.ConfirmAsync(session);
+        harness.Engine.Emit(new EngineEvent.EndFile(harness.Engine.ActiveId, EngineEndReason.Error, -13));
+        await UntilAsync(() => session.Snapshot.Phase == PlayerPhase.Failed);
+        var diagnostics = harness.Diagnostics.ToArray();
+        Assert.Equal(2, diagnostics.Length);
+        Assert.Equal("playback.candidate.end-file", diagnostics[0].Stage);
+        var error = Assert.IsType<AppError>(session.Snapshot.Error);
+        Assert.Same(error, diagnostics[1]);
+        Assert.Equal("playback.end-file", error.Stage);
+        Assert.Equal(-13, error.Status);
+        Assert.Equal(diagnostics[0].DiagnosticId, error.DiagnosticId);
+        Assert.Contains("播放意外中断，已保存最新进度。", error.Message, StringComparison.Ordinal);
+        Assert.Contains("错误代码：-13", error.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain(error.DiagnosticId!, error.Message, StringComparison.Ordinal);
+        Assert.Single(harness.Engine.Loads);
+    }
+
+    [Fact]
+    public async Task NativeErrorWhileClosingDoesNotCreateFailureDiagnostic()
+    {
+        await using var harness = new Harness();
+        var session = await harness.StartAsync();
+        harness.Engine.AutoEndOnStop = false;
+        var close = session.CloseAsync(TestContext.Current.CancellationToken);
+        await UntilAsync(() => session.Snapshot.Phase == PlayerPhase.Closing);
+        harness.Engine.Emit(new EngineEvent.EndFile(harness.Engine.ActiveId, EngineEndReason.Error, -13));
+        await close.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        Assert.Equal(PlayerPhase.Closed, session.Snapshot.Phase);
+        Assert.Null(session.Snapshot.Error);
+        Assert.Empty(harness.Diagnostics);
+        Assert.Single(harness.Engine.Loads);
+        Assert.Empty(harness.Reports);
     }
 
     [Fact]
@@ -110,6 +213,7 @@ public sealed class RealPlaybackSessionTests
         harness.Engine.Emit(new EngineEvent.EndFile(harness.Engine.ActiveId, EngineEndReason.Eof, 0));
         await UntilAsync(() => session.Snapshot.Phase == PlayerPhase.Closed);
         Assert.Equal(2, harness.Reports.Count(report => report.Kind == "Stopped"));
+        Assert.Empty(harness.Diagnostics);
     }
 
     [Fact]
@@ -221,6 +325,7 @@ public sealed class RealPlaybackSessionTests
         await UntilAsync(() => session.Snapshot.PositionTicks == TimeSpan.FromSeconds(42.5).Ticks);
         harness.Engine.Emit(new EngineEvent.Shutdown());
         await UntilAsync(() => session.Snapshot.Phase == PlayerPhase.Failed);
+        Assert.Contains(harness.Diagnostics, error => error.Message == "播放器已退出。");
         await UntilAsync(() => harness.Reports.Count(report => report.Kind == "Stopped") == 1);
         var old = harness.Engine;
         await session.RetryAsync(TestContext.Current.CancellationToken);
@@ -288,6 +393,7 @@ public sealed class RealPlaybackSessionTests
         Assert.True(harness.Engine.Disposed);
         Assert.Equal(PlayerPhase.Closed, session.Snapshot.Phase);
         Assert.Empty(harness.Reports);
+        Assert.Empty(harness.Diagnostics);
     }
 
     [Fact]
@@ -387,6 +493,7 @@ public sealed class RealPlaybackSessionTests
         public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 10, 2, 0, 0, 0, TimeSpan.Zero));
         public QueueScheduler Scheduler { get; } = new();
         public ConcurrentQueue<Report> Reports { get; } = new();
+        public ConcurrentQueue<AppError> Diagnostics { get; } = new();
         public ConcurrentQueue<string> Cleanups { get; } = new();
         public ConcurrentQueue<string> NetworkAndLoads { get; } = new();
         public ConcurrentQueue<FakeEngine> Engines { get; } = new();
@@ -427,7 +534,7 @@ public sealed class RealPlaybackSessionTests
                 var engine = new FakeEngine(NetworkAndLoads);
                 engine.EmitInitialControls();
                 Engines.Enqueue(engine); return Task.FromResult<IPlayerEngine>(engine);
-            }, api, Outbox, settings, Scheduler, new WeakReferenceMessenger(), Clock);
+            }, api, Outbox, settings, Scheduler, new WeakReferenceMessenger(), Clock, Diagnostics.Enqueue);
         }
         public async Task<PlaybackSession> StartAsync()
         {

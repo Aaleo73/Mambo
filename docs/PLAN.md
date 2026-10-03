@@ -403,7 +403,7 @@ gpu-shader-cache-dir=%LOCALAPPDATA%\Mambo\mpv\shader-cache（缩短 gpu-next 首
   - **凡是要带令牌的候选，都先探测一次**：带认证头发 `GET` + `Range: bytes=0-0`，不自动跟随重定向，`ResponseHeadersRead`，3 秒超时，拿到响应头立即释放。
     - 2xx/206：直接使用这个 URL；
     - 同源 30x：对新地址继续探测；
-    - 跨域 30x：把 Location 交给 mpv，**且不带令牌**；
+    - 跨域 30x：清空认证头和 RequiredHttpHeaders，把已认证登录服务器明确签发的完整 Location 交给 mpv；不自行追加认证查询参数。下载网关可能要求 Location 自带的参数（其值可能等于账号令牌），不能删除。直接跨域候选、非原服务器的跳转和 HTTPS 降级不获得此信任，见 `docs/decisions/playback-issued-redirect.md`；
     - 最多 5 跳，总计 6 秒。
   - 服务器拒绝 Range 请求时，依次退回到 HEAD、普通 GET。
   - **这样做的原因**：ffmpeg 每次重定向都会重发自定义请求头，Emby 302 到 CDN/网盘直链的部署就会泄露令牌。
@@ -475,7 +475,7 @@ public interface IPlayerEngine : IAsyncDisposable {
 
 - **认证头**：`Authorization: Emby UserId="<uid>", Client="Mambo", Device="Windows", DeviceId="<guid>", Version="<程序集版本>"`，另加 `X-Emby-Token: <token>`。
   - `AuthenticateByName` 请求不带 UserId 和令牌。
-  - URL 里永远不放 api_key。
+  - 客户端不在 URL 中自行添加 api_key；§6.4 中保留登录服务器签发的下载 Location 是明确例外。
 - **`ServerAddress.Normalize`**：规则和错误文案见附录 A.1。
 - **端点、字段集、DeviceProfile**：见附录 A.1。DeviceProfile 在原版基础上，为所有字幕格式加上 `Embed`（交给 mpv 自己读内封字幕）。
 

@@ -226,7 +226,7 @@ public sealed class PlaybackPreparationTests
             if (request.RequestUri!.Host == cdn.Host)
             {
                 Assert.False(request.Headers.Contains("X-Emby-Token")); Assert.False(request.Headers.Contains("Referer"));
-                Assert.DoesNotContain(account.Secret.AccessToken, request.RequestUri.Query, StringComparison.Ordinal);
+                Assert.Equal(cdn.Query, request.RequestUri.Query); // 保留登录服务器签发的完整下载链接。
                 return new(HttpStatusCode.OK) { Content = new StringContent("1\n00:00:00,000 --> 00:00:01,000\n字幕\n") };
             }
             Assert.Equal(account.Secret.AccessToken, request.Headers.GetValues("X-Emby-Token").Single());

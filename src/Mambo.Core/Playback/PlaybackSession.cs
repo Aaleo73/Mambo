@@ -189,7 +189,13 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
     {
         if (candidateIndex >= entry.Prepared.Candidates.Length)
         {
-            PreparationFailed(entry.Prepared.Entry, entry.Index, append, new(AppErrorKind.Player, ErrorCodes.PlaybackFailed, "片源无法播放，请重试。", true));
+            var nativeFailure = entry.LastNativeFailure;
+            var diagnosticId = nativeFailure?.DiagnosticId ?? Guid.NewGuid().ToString("N");
+            var message = nativeFailure?.Status is { } nativeError
+                ? $"片源无法播放，请重试。（错误代码：{nativeError.ToString(CultureInfo.InvariantCulture)}）"
+                : "片源无法播放，请重试。";
+            PreparationFailed(entry.Prepared.Entry, entry.Index, append, new(AppErrorKind.Player, ErrorCodes.PlaybackFailed,
+                message, true, "playback.candidates.exhausted", nativeFailure?.Status, diagnosticId));
             return Task.CompletedTask;
         }
         entry.CandidateIndex = candidateIndex;
@@ -232,6 +238,7 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
             entry.NativeId = await engine.LoadAsync(candidate.Url.Address.AbsoluteUri,
                 append ? LoadMode.Append : LoadMode.Replace, candidate.FileOptions, lifetime.Token).ConfigureAwait(false);
             if (entry.NativeId < 0) throw new InvalidOperationException("播放器未返回播放条目标识。");
+            entry.NativeFailureLogged = false;
             entry.Loaded = false;
             entry.WasAppended = append;
             loaded[entry.NativeId] = entry;
@@ -310,6 +317,14 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
                 break;
             case EngineEvent.EndFile end when loaded.TryGetValue(end.EntryId, out var endedEntry):
                 if (end.Reason == EngineEndReason.Redirect) break;
+                if (end.Reason == EngineEndReason.Error && !closing && !endedEntry.Ended && !endedEntry.NativeFailureLogged)
+                {
+                    endedEntry.NativeFailureLogged = true;
+                    endedEntry.LastNativeFailure = new(AppErrorKind.Player, ErrorCodes.PlaybackFailed,
+                        $"片源打开失败（阶段 playback.candidate.end-file，候选 {(endedEntry.CandidateIndex + 1).ToString(CultureInfo.InvariantCulture)}，原生错误 {end.Error.ToString(CultureInfo.InvariantCulture)}）。",
+                        true, "playback.candidate.end-file", end.Error, Guid.NewGuid().ToString("N"));
+                    log?.Invoke(endedEntry.LastNativeFailure);
+                }
                 if (!endedEntry.Confirmed && end.Reason == EngineEndReason.Error && !closing)
                 {
                     loaded.Remove(end.EntryId);
@@ -329,7 +344,9 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
                     else await BeginCloseAsync(PlaybackEndReason.SeasonEnded).ConfigureAwait(false);
                 }
                 else if (end.Reason == EngineEndReason.Error)
-                    Fail(new(AppErrorKind.Player, ErrorCodes.PlaybackFailed, "播放意外中断，已保存最新进度。", true));
+                    Fail(new(AppErrorKind.Player, ErrorCodes.PlaybackFailed,
+                        $"播放意外中断，已保存最新进度。（错误代码：{end.Error.ToString(CultureInfo.InvariantCulture)}）",
+                        true, "playback.end-file", end.Error, endedEntry.LastNativeFailure?.DiagnosticId));
                 break;
             case EngineEvent.PropertyChanged property when !closing:
                 PropertyChanged(property);
@@ -511,7 +528,11 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
         try { await task.ConfigureAwait(false); }
         catch (Exception exception) { log?.Invoke(SafeError(exception)); }
     }
-    private void Fail(AppError error) => Update(snapshot with { Phase = PlayerPhase.Failed, Error = error, IsSlowOpening = false });
+    private void Fail(AppError error)
+    {
+        log?.Invoke(error);
+        Update(snapshot with { Phase = PlayerPhase.Failed, Error = error, IsSlowOpening = false });
+    }
     private void Update(SessionSnapshot value, bool throttle = false)
     {
         Volatile.Write(ref snapshot, value with { CapturedAtUtc = clock.GetUtcNow() });
@@ -661,6 +682,8 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
         public int Index { get; } = index;
         public string ReportId { get; } = Guid.NewGuid().ToString("D");
         public int CandidateIndex { get; set; }
+        public bool NativeFailureLogged { get; set; }
+        public AppError? LastNativeFailure { get; set; }
         public ResolvedCandidate? Candidate { get; set; }
         public long NativeId { get; set; }
         public bool Loaded { get; set; }

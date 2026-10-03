@@ -7,7 +7,7 @@ namespace Mambo.Core.Tests;
 public sealed class StreamUrlResolverTests
 {
     [Fact]
-    public async Task CrossOriginRedirectRemovesTokenAndDoesNotContactDestination()
+    public async Task AuthenticatedServerRedirectPreservesIssuedDownloadQueryWithoutHeadersOrProbe()
     {
         var token = Guid.NewGuid().ToString("N");
         var calls = 0;
@@ -24,7 +24,7 @@ public sealed class StreamUrlResolverTests
             new Uri("https://example.invalid/video?api_key=" + token), new Uri("https://example.invalid"), token, TestContext.Current.CancellationToken);
         Assert.Equal(1, calls);
         Assert.Empty(resolved.Headers);
-        Assert.Equal("?quality=original", resolved.Address.Query);
+        Assert.Equal("?token=" + token + "&quality=original", resolved.Address.Query);
         Assert.DoesNotContain(token, resolved.ToString());
         Assert.DoesNotContain("example.invalid", resolved.ToString());
     }
@@ -151,7 +151,7 @@ public sealed class StreamUrlResolverTests
         using var client = new HttpClient(handler);
         var resolved = await new StreamUrlResolver(client).ResolveAsync(new("https://" + host + "/emby/video"),
             new("https://" + host + "/emby"), token, new Dictionary<string, string> { ["Referer"] = Guid.NewGuid().ToString("N") }, TestContext.Current.CancellationToken);
-        Assert.Equal(1, calls); Assert.Empty(resolved.Headers); Assert.Empty(resolved.Address.Query);
+        Assert.Equal(1, calls); Assert.Empty(resolved.Headers); Assert.Equal("?api_key=" + token, resolved.Address.Query);
     }
 
     [Fact]
@@ -207,7 +207,8 @@ public sealed class StreamUrlResolverTests
                 return calls == 1 ? new(HttpStatusCode.PartialContent) : Redirect(cdn.AbsoluteUri + "?token=" + token);
             }
             Assert.False(request.Headers.Contains("X-Emby-Token")); Assert.False(request.Headers.Contains("Referer"));
-            Assert.DoesNotContain(token, request.RequestUri!.Query, StringComparison.Ordinal);
+            if (calls == 3) Assert.Equal("?token=" + token, request.RequestUri!.Query);
+            else Assert.DoesNotContain(token, request.RequestUri!.Query, StringComparison.Ordinal);
             return calls == 3 ? Redirect(root.AbsoluteUri + "/final") : new(HttpStatusCode.OK) { Content = new StringContent("字幕") };
         });
         using var client = new HttpClient(handler);
@@ -241,6 +242,71 @@ public sealed class StreamUrlResolverTests
         using var client = new HttpClient(handler);
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => new StreamUrlResolver(client).ResolveAsync(address, root,
             Guid.NewGuid().ToString("N"), cancellation.Token));
+    }
+
+    [Fact]
+    public async Task DirectCrossOriginAddressCannotCopyAccountCredential()
+    {
+        var token = Guid.NewGuid().ToString("N");
+        using var handler = new StubHandler(_ => throw new InvalidOperationException("不应探测非认证地址"));
+        using var client = new HttpClient(handler);
+        var resolved = await new StreamUrlResolver(client).ResolveAsync(
+            new("https://cdn.example.invalid/video?token=" + token + "&quality=original"),
+            new("https://example.invalid"), token, new Dictionary<string, string> { ["Authorization"] = token }, TestContext.Current.CancellationToken);
+        Assert.Empty(resolved.Headers);
+        Assert.Equal("?quality=original", resolved.Address.Query);
+    }
+
+    [Fact]
+    public async Task AuthenticatedRedirectDoesNotPermitCredentialOnHttpsDowngrade()
+    {
+        var token = Guid.NewGuid().ToString("N");
+        using var handler = new StubHandler(_ => Redirect("http://cdn.example.invalid/video?api_key=" + token));
+        using var client = new HttpClient(handler);
+        var resolved = await new StreamUrlResolver(client).ResolveAsync(
+            new("https://example.invalid/video"), new("https://example.invalid"), token, TestContext.Current.CancellationToken);
+        Assert.Empty(resolved.Headers);
+        Assert.Empty(resolved.Address.Query);
+    }
+
+    [Fact]
+    public async Task IssuedDownloadQueryIsNotRewrittenOrAugmented()
+    {
+        var token = Guid.NewGuid().ToString("N");
+        var query = "?api_key=" + token + "&sig=a%2Fb%2Bc+z&flag&&repeat=1&repeat=2";
+        using var handler = new StubHandler(_ => Redirect("https://cdn.example.invalid/video" + query));
+        using var client = new HttpClient(handler);
+        var resolved = await new StreamUrlResolver(client).ResolveAsync(
+            new("https://example.invalid/video"), new("https://example.invalid"), token, TestContext.Current.CancellationToken);
+        Assert.Empty(resolved.Headers);
+        Assert.Equal(query, resolved.Address.Query);
+    }
+
+    [Fact]
+    public async Task SubtitleRedirectFromCdnCannotAcquireServerTrustOrRestoreHeaders()
+    {
+        var token = Guid.NewGuid().ToString("N");
+        var calls = 0;
+        using var handler = new StubHandler(request =>
+        {
+            calls++;
+            if (calls == 1) return Redirect("https://cdn.example.invalid/subtitle?token=" + token);
+            Assert.False(request.Headers.Contains("X-Emby-Token"));
+            Assert.False(request.Headers.Contains("Authorization"));
+            if (calls == 2)
+            {
+                Assert.Contains(token, request.RequestUri!.Query, StringComparison.Ordinal);
+                return Redirect("https://other.example.invalid/subtitle?token=" + token);
+            }
+            Assert.DoesNotContain(token, request.RequestUri!.Query, StringComparison.Ordinal);
+            return new(HttpStatusCode.OK) { Content = new StringContent("字幕") };
+        });
+        using var client = new HttpClient(handler);
+        var bytes = await new StreamUrlResolver(client).DownloadSubtitleAsync(
+            new("https://example.invalid/subtitle"), new("https://example.invalid"), token,
+            new Dictionary<string, string> { ["Authorization"] = token }, TestContext.Current.CancellationToken);
+        Assert.Equal(3, calls);
+        Assert.Equal("字幕", System.Text.Encoding.UTF8.GetString(bytes));
     }
 
     private static HttpResponseMessage Redirect(string address) => new(HttpStatusCode.Found)

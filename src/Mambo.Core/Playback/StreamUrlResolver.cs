@@ -12,7 +12,7 @@ public sealed class ResolvedPlaybackUrl(Uri address, IReadOnlyDictionary<string,
     public override string ToString() => $"播放地址已隐藏；重定向 {Redirects} 次";
 }
 
-/// <summary>预解析认证请求；跨源跳转立即结束探测并清除认证头。</summary>
+/// <summary>预解析认证请求；跨源跳转清除认证头，保留已认证服务器签发的下载链接。</summary>
 public sealed class StreamUrlResolver(HttpClient client)
 {
     public static HttpClient CreateClient() => new(new SocketsHttpHandler
@@ -59,11 +59,12 @@ public sealed class StreamUrlResolver(HttpClient client)
                     throw new InvalidOperationException("片源重定向次数超过限制。");
                 var location = response.Headers.Location
                     ?? throw new InvalidOperationException("片源重定向缺少目标地址。");
-                current = new Uri(current, location);
-                ValidateAddress(current);
-                if (!SameServer(current, serverOrigin))
-                    return new ResolvedPlaybackUrl(RemoveCopiedCredential(current, token), new Dictionary<string, string>(), hop + 1);
-                current = RemoveAuthenticationQuery(current);
+                var destination = new Uri(current, location);
+                ValidateAddress(destination);
+                if (!SameServer(destination, serverOrigin))
+                    return new ResolvedPlaybackUrl(RedirectAddress(current, destination, serverOrigin, token,
+                        authenticated: true), new Dictionary<string, string>(), hop + 1);
+                current = RemoveAuthenticationQuery(destination);
             }
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
@@ -162,14 +163,15 @@ public sealed class StreamUrlResolver(HttpClient client)
                 if (!IsRedirect(response.StatusCode)) throw new InvalidOperationException($"字幕下载失败（HTTP {(int)response.StatusCode}）。");
                 if (hop == 5) throw new InvalidOperationException("字幕重定向次数超过限制。");
                 var location = response.Headers.Location ?? throw new InvalidOperationException("字幕重定向缺少目标地址。");
-                current = new Uri(current, location);
-                ValidateAddress(current);
-                if (!SameServer(current, serverBase))
+                var destination = new Uri(current, location);
+                ValidateAddress(destination);
+                if (!SameServer(destination, serverBase))
                 {
+                    current = RedirectAddress(current, destination, serverBase, token,
+                        authenticated: headers.ContainsKey("X-Emby-Token"));
                     headers = new Dictionary<string, string>();
-                    current = RemoveCopiedCredential(current, token);
                 }
-                else current = RemoveAuthenticationQuery(current);
+                else current = RemoveAuthenticationQuery(destination);
             }
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) { throw new TimeoutException("字幕下载超时。"); }
@@ -185,6 +187,17 @@ public sealed class StreamUrlResolver(HttpClient client)
             throw new ArgumentException("播放地址必须是无内嵌凭据的 HTTP 或 HTTPS 地址。");
     }
 
+    private static Uri RedirectAddress(Uri source, Uri destination, Uri serverBase, string? token, bool authenticated)
+    {
+        // 登录服务器可签发需要查询参数的下载网关地址；参数可能恰好等于账号令牌。
+        // 它们是服务器给出的完整 Location，不是客户端向其它来源复制的认证信息。
+        // 仅信任带认证头的原服务器响应，不信任其它来源的后续跳转，也不允许 HTTPS 降级。
+        if (authenticated && SameServer(source, serverBase) &&
+            !(source.Scheme == Uri.UriSchemeHttps && destination.Scheme != Uri.UriSchemeHttps))
+            return destination.Fragment.Length == 0 ? destination : new UriBuilder(destination) { Fragment = "" }.Uri;
+        return RemoveCopiedCredential(destination, token);
+    }
+
     public static Uri RemoveAuthenticationQuery(Uri address)
     {
         var builder = new UriBuilder(address) { Fragment = "" };
@@ -196,7 +209,7 @@ public sealed class StreamUrlResolver(HttpClient client)
 
     private static Uri RemoveCopiedCredential(Uri address, string? credential)
     {
-        // CDN 自己的签名参数必须保留，只去掉从 Emby 复制到 Location 的同一个令牌。
+        // 非认证来源的地址不享有签发下载链接的信任；只去掉其中与账号相同的令牌。
         var builder = new UriBuilder(address) { Fragment = "" };
         builder.Query = string.Join("&", address.Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries)
             .Where(part =>
