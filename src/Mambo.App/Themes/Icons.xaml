@@ -33,12 +33,15 @@
     <x:String x:Key="IconVolumeWaves">M16 9.5 A3.2 3.2 0 0 1 16 14.5 M18.2 7.2 A6.2 6.2 0 0 1 18.2 16.8</x:String>
     <x:String x:Key="IconVolumeMuted">M16 9 L21 15 M21 9 L16 15</x:String>
 
-    <!-- 实心图标：LineIcon 设 Filled="True" -->
-    <x:String x:Key="IconPlay">M6 4 L20 12 L6 20 Z</x:String>
-    <x:String x:Key="IconPause">M6.2 4 H8.3 A1.2 1.2 0 0 1 9.5 5.2 V18.8 A1.2 1.2 0 0 1 8.3 20 H6.2 A1.2 1.2 0 0 1 5 18.8 V5.2 A1.2 1.2 0 0 1 6.2 4 Z M15.7 4 H17.8 A1.2 1.2 0 0 1 19 5.2 V18.8 A1.2 1.2 0 0 1 17.8 20 H15.7 A1.2 1.2 0 0 1 14.5 18.8 V5.2 A1.2 1.2 0 0 1 15.7 4 Z</x:String>
-    <x:String x:Key="IconSkipPrevious">M4 5 H6.2 V19 H4 Z M20 5 L9 12 L20 19 Z</x:String>
-    <x:String x:Key="IconSkipNext">M4 5 L15 12 L4 19 Z M17.8 5 H20 V19 H17.8 Z</x:String>
-    <x:String x:Key="IconVolumeBody">M4 10 V14 H7.2 L12 18 V6 L7.2 10 Z</x:String>
+    <!--
+        实心图标：LineIcon 设 Filled="True"。模板会给填充再描 2.4 的同色圆角边（四周各长出 1.2），
+        所以这里的路径比成品轮廓往里收：三角收 0.6，矩形收 1.2，细竖条直接用一条线。
+    -->
+    <x:String x:Key="IconPlay">M6.6 5.03 L18.79 12 L6.6 18.97 Z</x:String>
+    <x:String x:Key="IconPause">M6.2 5.2 H8.3 V18.8 H6.2 Z M15.7 5.2 H17.8 V18.8 H15.7 Z</x:String>
+    <x:String x:Key="IconSkipPrevious">M5.1 6.2 V17.8 M19.4 6.09 L10.12 12 L19.4 17.91 Z</x:String>
+    <x:String x:Key="IconSkipNext">M4.6 6.09 L13.88 12 L4.6 17.91 Z M18.9 6.2 V17.8</x:String>
+    <x:String x:Key="IconVolumeBody">M5 11 V13 H7.56 L11 15.86 V8.14 L7.56 11 Z</x:String>
 
     <!-- 窗口按钮：10×10 视框，Box="10"，描边 1（关闭 1.2） -->
     <x:String x:Key="CaptionMinimize">M0 5 H10</x:String>

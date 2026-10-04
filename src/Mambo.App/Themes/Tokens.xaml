@@ -33,7 +33,7 @@
             <SolidColorBrush x:Key="InputFillHoverBrush" Color="#06000000"/>
             <SolidColorBrush x:Key="InputFillFocusedBrush" Color="#09000000"/>
             <SolidColorBrush x:Key="InputStrokeBrush" Color="#33000000"/>
-            <SolidColorBrush x:Key="InputStrokeFocusedBrush" Color="#990C68B8"/>
+            <SolidColorBrush x:Key="InputStrokeFocusedBrush" Color="#61000000"/>
             <SolidColorBrush x:Key="FocusStrokeBrush" Color="#B80C68B8"/>
             <SolidColorBrush x:Key="FocusGlowBrush" Color="#290C68B8"/>
             <SolidColorBrush x:Key="NavActiveBrush" Color="#1F000000"/>
@@ -44,6 +44,8 @@
             <SolidColorBrush x:Key="SwitchOffBrush" Color="#29000000"/>
             <SolidColorBrush x:Key="CardStrokeBrush" Color="#24000000"/>
             <SolidColorBrush x:Key="CardStrokeHoverBrush" Color="#4D000000"/>
+            <SolidColorBrush x:Key="CardSelectedStrokeBrush" Color="#D9181818"/>
+            <SolidColorBrush x:Key="CardSelectedInnerBrush" Color="#8CFFFFFF"/>
             <SolidColorBrush x:Key="ImagePlaceholderBrush" Color="#0D000000"/>
             <SolidColorBrush x:Key="SkeletonBrush" Color="#0D000000"/>
             <SolidColorBrush x:Key="SkeletonShineBrush" Color="#8CFFFFFF"/>
@@ -187,6 +189,8 @@
             <SolidColorBrush x:Key="PlayerButtonBackgroundBrush" Color="#00000000"/>
             <SolidColorBrush x:Key="PlayerPlayBackgroundBrush" Color="#FFFFFFFF"/>
             <SolidColorBrush x:Key="PlayerPlayForegroundBrush" Color="#FF0B0B0D"/>
+            <SolidColorBrush x:Key="PlayerPlayHoverBrush" Color="#FFE4E6EA"/>
+            <SolidColorBrush x:Key="PlayerPlayPressedBrush" Color="#FFD3D6DB"/>
             <SolidColorBrush x:Key="PlayerBigPlayBackgroundBrush" Color="#73000000"/>
             <SolidColorBrush x:Key="PlayerBigPlayStrokeBrush" Color="#40FFFFFF"/>
             <SolidColorBrush x:Key="PlayerEpisodeHoverBrush" Color="#0A000000"/>
@@ -223,7 +227,7 @@
             <SolidColorBrush x:Key="InputFillHoverBrush" Color="#0DFFFFFF"/>
             <SolidColorBrush x:Key="InputFillFocusedBrush" Color="#12FFFFFF"/>
             <SolidColorBrush x:Key="InputStrokeBrush" Color="#33FFFFFF"/>
-            <SolidColorBrush x:Key="InputStrokeFocusedBrush" Color="#993B8FE0"/>
+            <SolidColorBrush x:Key="InputStrokeFocusedBrush" Color="#73FFFFFF"/>
             <SolidColorBrush x:Key="FocusStrokeBrush" Color="#CC7AB7F0"/>
             <SolidColorBrush x:Key="FocusGlowBrush" Color="#383B8FE0"/>
             <SolidColorBrush x:Key="NavActiveBrush" Color="#1FFFFFFF"/>
@@ -234,6 +238,8 @@
             <SolidColorBrush x:Key="SwitchOffBrush" Color="#38FFFFFF"/>
             <SolidColorBrush x:Key="CardStrokeBrush" Color="#1FFFFFFF"/>
             <SolidColorBrush x:Key="CardStrokeHoverBrush" Color="#4DFFFFFF"/>
+            <SolidColorBrush x:Key="CardSelectedStrokeBrush" Color="#F2FFFFFF"/>
+            <SolidColorBrush x:Key="CardSelectedInnerBrush" Color="#59000000"/>
             <SolidColorBrush x:Key="ImagePlaceholderBrush" Color="#0FFFFFFF"/>
             <SolidColorBrush x:Key="SkeletonBrush" Color="#12FFFFFF"/>
             <SolidColorBrush x:Key="SkeletonShineBrush" Color="#1AFFFFFF"/>
@@ -376,6 +382,8 @@
             <SolidColorBrush x:Key="PlayerButtonBackgroundBrush" Color="#00000000"/>
             <SolidColorBrush x:Key="PlayerPlayBackgroundBrush" Color="#FFFFFFFF"/>
             <SolidColorBrush x:Key="PlayerPlayForegroundBrush" Color="#FF0B0B0D"/>
+            <SolidColorBrush x:Key="PlayerPlayHoverBrush" Color="#FFE4E6EA"/>
+            <SolidColorBrush x:Key="PlayerPlayPressedBrush" Color="#FFD3D6DB"/>
             <SolidColorBrush x:Key="PlayerBigPlayBackgroundBrush" Color="#73000000"/>
             <SolidColorBrush x:Key="PlayerBigPlayStrokeBrush" Color="#40FFFFFF"/>
             <SolidColorBrush x:Key="PlayerEpisodeHoverBrush" Color="#0AFFFFFF"/>
@@ -414,6 +422,8 @@
             <SolidColorBrush x:Key="InputFillFocusedBrush" Color="{ThemeResource SystemColorWindowColor}"/>
             <SolidColorBrush x:Key="InputStrokeBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
             <SolidColorBrush x:Key="InputStrokeFocusedBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
+            <SolidColorBrush x:Key="CardSelectedStrokeBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
+            <SolidColorBrush x:Key="CardSelectedInnerBrush" Color="{ThemeResource SystemColorWindowColor}"/>
             <SolidColorBrush x:Key="FocusStrokeBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
             <SolidColorBrush x:Key="FocusGlowBrush" Color="{ThemeResource SystemColorWindowColor}"/>
             <SolidColorBrush x:Key="NavActiveBrush" Color="{ThemeResource SystemColorWindowColor}"/>
@@ -475,6 +485,8 @@
             <SolidColorBrush x:Key="PlayerButtonBackgroundBrush" Color="{ThemeResource SystemColorButtonFaceColor}"/>
             <SolidColorBrush x:Key="PlayerPlayBackgroundBrush" Color="{ThemeResource SystemColorButtonFaceColor}"/>
             <SolidColorBrush x:Key="PlayerPlayForegroundBrush" Color="{ThemeResource SystemColorButtonTextColor}"/>
+            <SolidColorBrush x:Key="PlayerPlayHoverBrush" Color="{ThemeResource SystemColorButtonFaceColor}"/>
+            <SolidColorBrush x:Key="PlayerPlayPressedBrush" Color="{ThemeResource SystemColorButtonFaceColor}"/>
             <SolidColorBrush x:Key="PlayerBigPlayBackgroundBrush" Color="{ThemeResource SystemColorButtonFaceColor}"/>
             <SolidColorBrush x:Key="PlayerBigPlayStrokeBrush" Color="{ThemeResource SystemColorButtonTextColor}"/>
             <SolidColorBrush x:Key="PlayerEpisodeHoverBrush" Color="{ThemeResource SystemColorWindowColor}"/>

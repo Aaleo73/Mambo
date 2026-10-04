@@ -1098,7 +1098,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     {
         if (disposed || presentationFrozen || closing || transitionActive) return;
         volumePointerInside = true;
-        VolumeSlider.Visibility = Visibility.Visible;
+        SetVolumeOpen(true);
         Activity();
     }
     private void OnVolumeExited(object sender, PointerRoutedEventArgs e)
@@ -1110,7 +1110,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     private void OnVolumeGotFocus(object sender, RoutedEventArgs e)
     {
         if (disposed || presentationFrozen || closing || transitionActive) return;
-        VolumeSlider.Visibility = Visibility.Visible;
+        SetVolumeOpen(true);
         Activity();
     }
     private void OnVolumeLostFocus(object sender, RoutedEventArgs e)
@@ -1128,7 +1128,12 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
             if (ReferenceEquals(focused, VolumeHost)) return;
             focused = VisualTreeHelper.GetParent(focused);
         }
-        VolumeSlider.Visibility = Visibility.Collapsed;
+        SetVolumeOpen(false);
+    }
+    private void SetVolumeOpen(bool open)
+    {
+        VolumeSlider.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
+        VolumeFill.Opacity = open ? 1 : 0;
     }
     private void OnVolumeChanged(object sender, RangeBaseValueChangedEventArgs e)
     {

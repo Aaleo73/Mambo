@@ -7,7 +7,7 @@
     xmlns:themes="using:Mambo.App.Themes"
     xmlns:vm="using:Mambo.App.ViewModels">
     <UserControl.Resources>
-        <!-- hero 播放钮：72px 深色圆，白色圆角三角，带投影；悬停加深，按下缩到 .95 -->
+        <!-- hero 播放钮：72px 白色实心圆，深色圆角三角，带投影；悬停略灰，按下缩到 .95 -->
         <Style x:Key="DetailPlayButtonStyle" TargetType="Button">
             <Setter Property="Width" Value="72"/>
             <Setter Property="Height" Value="72"/>
@@ -234,12 +234,12 @@
                             <Grid Width="72" Height="72">
                                 <Button x:Name="PlayButton" Style="{StaticResource DetailPlayButtonStyle}" Click="OnPlayClick" IsEnabled="{x:Bind ViewModel.CanPlay, Mode=OneWay}"
                                         AutomationProperties.Name="{x:Bind ViewModel.PlayLabel, Mode=OneWay}"/>
-                                <!-- 进度环画在圆钮里面：细线，底圈白 30%，已看部分白 90% -->
+                                <!-- 进度环画在圆钮里面：细线，底圈黑 14%，已看部分近黑 -->
                                 <Grid x:Name="PlayProgress" Width="67" Height="67" IsHitTestVisible="False" Visibility="{x:Bind ViewModel.HasProgress, Mode=OneWay}"
                                       RenderTransformOrigin="0.5,0.5">
                                     <Grid.RenderTransform><RotateTransform Angle="-90"/></Grid.RenderTransform>
                                     <Ellipse Stroke="{ThemeResource HeroProgressBackgroundBrush}" StrokeThickness="2.6"/>
-                                    <Ellipse x:Name="PlayProgressArc" Stroke="{ThemeResource HeroMetaForegroundBrush}" StrokeThickness="2.6"
+                                    <Ellipse x:Name="PlayProgressArc" Stroke="{ThemeResource HeroProgressBrush}" StrokeThickness="2.6"
                                              StrokeDashCap="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
                                 </Grid>
                             </Grid>
@@ -252,7 +252,7 @@
                 </StackPanel>
 
                 <!-- 季与集：左边是季胶囊，右边是翻页箭头，下面是剧集行 -->
-                <StackPanel Margin="0,0,0,28" Visibility="{x:Bind ViewModel.ShowEpisodeSection, Mode=OneWay}">
+                <StackPanel Margin="0,0,0,26" Visibility="{x:Bind ViewModel.ShowEpisodeSection, Mode=OneWay}">
                     <Grid Margin="24,0,24,12" MinHeight="28" ColumnSpacing="16">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -281,8 +281,9 @@
                         <TextBlock Style="{StaticResource BodySmallTextStyle}" Foreground="{ThemeResource TextSecondaryBrush}" Text="{x:Bind ViewModel.SeriesErrorText, Mode=OneWay}" VerticalAlignment="Center" TextWrapping="Wrap"/>
                         <Button Style="{StaticResource SoftButtonStyle}" Content="重试" Click="OnRetryClick"/>
                     </StackPanel>
-                    <Grid Height="238" Margin="4,-8,4,0">
-                        <ScrollView x:Name="EpisodeScroller" Height="238" ContentOrientation="Horizontal"
+                    <!-- 轨道比卡片（222）加上下留白（各 8）多 2：缩放取整后卡片会略高于 222，刚好卡满时 ItemsRepeater 会被布局裁剪，上浮的卡片顶边就被切掉 -->
+                    <Grid Height="240" Margin="4,-8,4,0">
+                        <ScrollView x:Name="EpisodeScroller" Height="240" ContentOrientation="Horizontal"
                                     HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden"
                                     VerticalScrollMode="Disabled" IgnoredInputKinds="MouseWheel"
                                     ViewChanged="OnEpisodeViewChanged" ExtentChanged="OnEpisodeExtentChanged" SizeChanged="OnEpisodeScrollerSizeChanged">

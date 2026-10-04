@@ -2,6 +2,7 @@ using Microsoft.UI.Composition;
 using Microsoft.UI.Composition.SystemBackdrops;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
+using Windows.UI;
 
 namespace Mambo.App.Windowing;
 
@@ -31,6 +32,7 @@ public sealed partial class MamboBackdrop : SystemBackdrop
         else if (MicaController.IsSupported())
             controller = new MicaController();
         if (controller is null) { SetAvailable(false); return; }
+        ApplyTint();
         controller.AddSystemBackdropTarget(connectedTarget);
         controller.SetSystemBackdropConfiguration(configuration);
         SetAvailable(true);
@@ -75,5 +77,19 @@ public sealed partial class MamboBackdrop : SystemBackdrop
             ElementTheme.Light => SystemBackdropTheme.Light,
             _ => SystemBackdropTheme.Default,
         };
+        ApplyTint();
+    }
+
+    /// <summary>
+    /// 控制器默认的亮度层接近不透明，桌面几乎透不过来。这里按原版的做法只留一层薄的冷色着色，
+    /// 自定义取值后控制器不再随主题换色，所以主题变化时重新设置。
+    /// </summary>
+    private void ApplyTint()
+    {
+        if (controller is not DesktopAcrylicController acrylic || root is null) return;
+        var dark = root.ActualTheme == ElementTheme.Dark;
+        acrylic.TintColor = dark ? Color.FromArgb(255, 30, 32, 36) : Color.FromArgb(255, 236, 242, 249);
+        acrylic.TintOpacity = dark ? 0.45f : 0.32f;
+        acrylic.LuminosityOpacity = dark ? 0.6f : 0.45f;
     }
 }

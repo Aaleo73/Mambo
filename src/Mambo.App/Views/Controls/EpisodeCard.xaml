@@ -42,10 +42,10 @@
                     </Grid>
                     <Border x:Name="Stroke" CornerRadius="{StaticResource LandscapeCornerRadius}" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeBrush}"/>
                     <Border x:Name="InnerStroke" Margin="1" CornerRadius="9" BorderThickness="1" BorderBrush="#1AFFFFFF" Opacity="0"/>
-                    <!-- 选中：2px 主色环，里面再套 2px 半透明白环 -->
+                    <!-- 选中：2px 中性深色环，里面衬 1px 反色细线，在任何剧照上都看得清 -->
                     <Grid Visibility="{x:Bind Episode.IsSelected, Mode=OneWay}">
-                        <Border CornerRadius="{StaticResource LandscapeCornerRadius}" BorderThickness="2" BorderBrush="{ThemeResource AccentBrush}"/>
-                        <Border Margin="2" CornerRadius="8" BorderThickness="2" BorderBrush="#8CFFFFFF"/>
+                        <Border CornerRadius="{StaticResource LandscapeCornerRadius}" BorderThickness="2" BorderBrush="{ThemeResource CardSelectedStrokeBrush}"/>
+                        <Border Margin="2" CornerRadius="8" BorderThickness="1" BorderBrush="{ThemeResource CardSelectedInnerBrush}"/>
                     </Grid>
                 </Grid>
                 <StackPanel x:Name="Copy" Grid.Row="1" Height="47" Margin="0,6,0,0" Spacing="6">

@@ -11,11 +11,12 @@
             <SolidColorBrush x:Key="HeroSeparatorBrush" Color="#8CFFFFFF"/>
             <SolidColorBrush x:Key="HeroBadgeStrokeBrush" Color="#66FFFFFF"/>
             <SolidColorBrush x:Key="HeroBadgeFillBrush" Color="#59000000"/>
-            <SolidColorBrush x:Key="HeroPlayHoverBackgroundBrush" Color="#B3000000"/>
-            <SolidColorBrush x:Key="HeroPlayBackgroundBrush" Color="#8C000000"/>
-            <SolidColorBrush x:Key="HeroPlayForegroundBrush" Color="#FFFFFFFF"/>
+            <SolidColorBrush x:Key="HeroPlayHoverBackgroundBrush" Color="#FFE4E6EA"/>
+            <SolidColorBrush x:Key="HeroPlayBackgroundBrush" Color="#FFFFFFFF"/>
+            <SolidColorBrush x:Key="HeroPlayForegroundBrush" Color="#FF0B0B0D"/>
             <SolidColorBrush x:Key="HeroPlayStrokeBrush" Color="#00FFFFFF"/>
-            <SolidColorBrush x:Key="HeroProgressBackgroundBrush" Color="#4DFFFFFF"/>
+            <SolidColorBrush x:Key="HeroProgressBackgroundBrush" Color="#24000000"/>
+            <SolidColorBrush x:Key="HeroProgressBrush" Color="#FF0B0B0D"/>
             <SolidColorBrush x:Key="HeroActionBackgroundBrush" Color="#6B101216"/>
             <SolidColorBrush x:Key="HeroActionForegroundBrush" Color="#F2FFFFFF"/>
             <SolidColorBrush x:Key="HeroActionStrokeBrush" Color="#38FFFFFF"/>
@@ -37,6 +38,7 @@
             <SolidColorBrush x:Key="HeroPlayForegroundBrush" Color="{ThemeResource SystemColorButtonTextColor}"/>
             <SolidColorBrush x:Key="HeroPlayStrokeBrush" Color="{ThemeResource SystemColorButtonTextColor}"/>
             <SolidColorBrush x:Key="HeroProgressBackgroundBrush" Color="{ThemeResource SystemColorGrayTextColor}"/>
+            <SolidColorBrush x:Key="HeroProgressBrush" Color="{ThemeResource SystemColorButtonTextColor}"/>
             <SolidColorBrush x:Key="HeroActionBackgroundBrush" Color="{ThemeResource SystemColorButtonFaceColor}"/>
             <SolidColorBrush x:Key="HeroActionForegroundBrush" Color="{ThemeResource SystemColorButtonTextColor}"/>
             <SolidColorBrush x:Key="HeroActionStrokeBrush" Color="{ThemeResource SystemColorButtonTextColor}"/>
