@@ -1,7 +1,7 @@
+using Mambo.App.Themes;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Windows.System;
@@ -13,7 +13,7 @@ namespace Mambo.App.Views.Controls;
 /// 竖向滚轮留给页面，横向滚轮或 Shift+滚轮滚动本行；鼠标按住拖动超过 4px 开始滚动，松开后吸附到卡片起点；
 /// 箭头每次翻行宽的 82%，滚到头的一侧禁用，内容不足一行时不显示。
 /// </summary>
-internal sealed class RailScroller
+internal sealed class RailScroller : IDisposable
 {
     private const double DragThreshold = 4;
     private readonly UIElement surface;
@@ -25,6 +25,15 @@ internal sealed class RailScroller
     private bool dragging;
     private double pressX;
     private double pressOffset;
+    private DependencyObject? pressSource;
+    private bool attached;
+    private bool disposed;
+
+    internal bool IsAttached => attached;
+    internal bool IsPressed => pressed;
+    internal bool IsDragging => dragging;
+    internal bool HasPointerCapture => surface.PointerCaptures is { Count: > 0 };
+    private bool CanInteract => attached && !disposed && Motion.IsActive(surface);
 
     /// <param name="surface">接收指针事件的滚动区域。</param>
     /// <param name="offset">当前横向偏移。</param>
@@ -38,14 +47,52 @@ internal sealed class RailScroller
         this.max = max;
         this.viewport = viewport;
         this.scrollTo = scrollTo;
+    }
+
+    public void Attach()
+    {
+        if (attached || disposed) return;
+        attached = true;
         // 卡片是按钮，会把指针事件标记为已处理，所以连已处理的也要收。
         surface.AddHandler(UIElement.PointerWheelChangedEvent, new PointerEventHandler(OnWheel), true);
         surface.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler(OnPressed), true);
         surface.AddHandler(UIElement.PointerMovedEvent, new PointerEventHandler(OnMoved), true);
         surface.AddHandler(UIElement.PointerReleasedEvent, new PointerEventHandler(OnEnded), true);
-        surface.AddHandler(UIElement.PointerCanceledEvent, new PointerEventHandler(OnEnded), true);
+        surface.AddHandler(UIElement.PointerCanceledEvent, new PointerEventHandler(OnCanceled), true);
         surface.AddHandler(UIElement.PointerCaptureLostEvent, new PointerEventHandler(OnCaptureLost), true);
     }
+
+    public void Detach()
+    {
+        if (!attached) return;
+        attached = false;
+        Stop();
+        surface.RemoveHandler(UIElement.PointerWheelChangedEvent, new PointerEventHandler(OnWheel));
+        surface.RemoveHandler(UIElement.PointerPressedEvent, new PointerEventHandler(OnPressed));
+        surface.RemoveHandler(UIElement.PointerMovedEvent, new PointerEventHandler(OnMoved));
+        surface.RemoveHandler(UIElement.PointerReleasedEvent, new PointerEventHandler(OnEnded));
+        surface.RemoveHandler(UIElement.PointerCanceledEvent, new PointerEventHandler(OnCanceled));
+        surface.RemoveHandler(UIElement.PointerCaptureLostEvent, new PointerEventHandler(OnCaptureLost));
+    }
+
+    public void Stop()
+    {
+        pressed = dragging = false;
+        pressSource = null;
+        surface.ReleasePointerCaptures();
+        // Cancel native scrolling at the current safe position, without snapping on cancellation.
+        scrollTo(Math.Clamp(offset(), 0, max()), false);
+    }
+
+    public void Dispose()
+    {
+        if (disposed) return;
+        Detach();
+        disposed = true;
+    }
+
+    private void ScrollTo(double target, bool animate) =>
+        scrollTo(target, animate && Motion.AnimationsEnabled);
 
     /// <summary>卡片宽度加间距；大于 0 时落点吸附到它的整数倍。</summary>
     public double Pitch { get; set; }
@@ -69,10 +116,11 @@ internal sealed class RailScroller
     /// <summary>翻一页：行宽的 82%，落点吸附到卡片起点，并保证至少前进一张卡。</summary>
     public void Page(int direction)
     {
+        if (!CanInteract) return;
         var current = offset();
         var target = Snap(current + direction * viewport() * 0.82);
         if (Pitch > 0 && Math.Abs(target - current) < 1) target = current + direction * Pitch;
-        scrollTo(Math.Clamp(target, 0, max()), true);
+        ScrollTo(Math.Clamp(target, 0, max()), true);
     }
 
     private double Snap(double value)
@@ -85,52 +133,69 @@ internal sealed class RailScroller
 
     private void OnWheel(object sender, PointerRoutedEventArgs e)
     {
-        if (!IsWheelEnabled) return;
+        if (!CanInteract || !IsWheelEnabled) return;
         var properties = e.GetCurrentPoint(surface).Properties;
         var shift = (InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Shift) & Windows.UI.Core.CoreVirtualKeyStates.Down) != 0;
         if (!properties.IsHorizontalMouseWheel && !shift) return;
         var delta = properties.IsHorizontalMouseWheel ? properties.MouseWheelDelta : -properties.MouseWheelDelta;
-        scrollTo(Math.Clamp(offset() + delta, 0, max()), false);
+        ScrollTo(Math.Clamp(offset() + delta, 0, max()), false);
         e.Handled = true;
     }
 
     private void OnPressed(object sender, PointerRoutedEventArgs e)
     {
-        if (e.Pointer.PointerDeviceType != PointerDeviceType.Mouse) return;
+        if (!CanInteract || e.Pointer.PointerDeviceType != PointerDeviceType.Mouse) return;
         var point = e.GetCurrentPoint(surface);
         if (!point.Properties.IsLeftButtonPressed || max() <= 1) return;
         pressed = true;
         dragging = false;
         pressX = point.Position.X;
         pressOffset = offset();
+        pressSource = e.OriginalSource as DependencyObject;
     }
 
     private void OnMoved(object sender, PointerRoutedEventArgs e)
     {
         if (!pressed) return;
+        if (!CanInteract) { Stop(); return; }
         var delta = e.GetCurrentPoint(surface).Position.X - pressX;
         if (!dragging)
         {
             if (Math.Abs(delta) < DragThreshold) return;
+            // The move may hit a different card. Transfer capture from the original
+            // press path, including a native ScrollPresenter, rather than the new hit.
+            for (var source = pressSource; source is not null && !ReferenceEquals(source, surface); source = VisualTreeHelper.GetParent(source))
+                if (source is UIElement { PointerCaptures.Count: > 0 } captor) captor.ReleasePointerCapture(e.Pointer);
+            pressSource = null;
+            if (!surface.CapturePointer(e.Pointer))
+            {
+                pressed = false;
+                return;
+            }
             dragging = true;
-            // 让按下的卡片放弃捕获，它就不会再触发点击；之后由本行接管指针。
-            for (var source = e.OriginalSource as DependencyObject; source is not null && !ReferenceEquals(source, surface); source = VisualTreeHelper.GetParent(source))
-                if (source is ButtonBase button) { button.ReleasePointerCaptures(); break; }
-            surface.CapturePointer(e.Pointer);
         }
-        scrollTo(Math.Clamp(pressOffset - delta, 0, max()), false);
+        ScrollTo(Math.Clamp(pressOffset - delta, 0, max()), false);
         e.Handled = true;
     }
 
     private void OnEnded(object sender, PointerRoutedEventArgs e)
     {
         if (!pressed) return;
+        if (!CanInteract) { Stop(); return; }
         var wasDragging = dragging;
         pressed = dragging = false;
+        pressSource = null;
         if (!wasDragging) return;
         surface.ReleasePointerCapture(e.Pointer);
-        scrollTo(Snap(offset()), true);
+        ScrollTo(Snap(offset()), true);
         e.Handled = true;
+    }
+
+    private void OnCanceled(object sender, PointerRoutedEventArgs e)
+    {
+        var wasDragging = dragging;
+        Stop();
+        if (wasDragging) e.Handled = true;
     }
 
     private void OnCaptureLost(object sender, PointerRoutedEventArgs e)
@@ -138,6 +203,7 @@ internal sealed class RailScroller
         // 卡片放弃捕获时也会冒泡到这里；只有本行自己持有的捕获丢失才算拖动结束。
         if (!dragging || !ReferenceEquals(e.OriginalSource, surface)) return;
         pressed = dragging = false;
-        scrollTo(Snap(offset()), true);
+        pressSource = null;
+        if (CanInteract) ScrollTo(Snap(offset()), true);
     }
 }

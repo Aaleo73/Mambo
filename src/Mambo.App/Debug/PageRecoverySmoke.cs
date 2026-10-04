@@ -60,7 +60,7 @@ internal static partial class PageRecoverySmoke
             foreach (var kind in new[] { FaultKind.Factory, FaultKind.Enter, FaultKind.Leave })
             {
                 token.ThrowIfCancellationRequested();
-                await RunCaseAsync(root, kind, report, token);
+                await RunCaseAsync(root, window.Services.GetRequiredService<WindowContext>(), kind, report, token);
             }
         }
         catch (OperationCanceledException) { Check(report, "ProbeCancelled", false); }
@@ -78,12 +78,13 @@ internal static partial class PageRecoverySmoke
         return report;
     }
 
-    private static async Task RunCaseAsync(Grid root, FaultKind kind, PageRecoveryReport report, CancellationToken token)
+    private static async Task RunCaseAsync(Grid root, WindowContext window, FaultKind kind, PageRecoveryReport report, CancellationToken token)
     {
         var prefix = kind switch { FaultKind.Factory => "FactoryThrow", FaultKind.Enter => "NavigatedToThrow", _ => "NavigatedFromThrow" };
         var navigation = new Navigator();
         var fixture = new Fixture(navigation, kind);
-        var host = new PageHost { Background = root.Background, Margin = new Thickness(20) };
+        using var transitions = new BrowseTransitionCoordinator(navigation, window);
+        using var host = new PageHost { Background = root.Background, Margin = new Thickness(20) };
         Grid.SetRow(host, 1);
         Grid.SetColumn(host, 1);
         NavigatedEventArgs? last = null;
@@ -95,7 +96,7 @@ internal static partial class PageRecoverySmoke
             host.Show(args);
         }
         // 没有异常日志接收方：带合成私密文本的故障不能进入应用日志。
-        host.Initialize(fixture.Create, navigation);
+        host.Initialize(fixture.Create, navigation, transitions);
         navigation.Navigated += OnNavigated;
         var errors = new List<ErrorPage>();
         var completed = false;
@@ -220,7 +221,7 @@ internal static partial class PageRecoverySmoke
 
     private static async Task<ProbePage> HealthyAsync(PageHost host, CancellationToken token)
     {
-        await WaitAsync(() => host.CurrentPage is ProbePage page && Loaded(page) && !page.Scope.IsDisposed, token);
+        await WaitAsync(() => !host.IsTransitioning && host.CurrentPage is ProbePage page && Loaded(page) && !page.Scope.IsDisposed, token);
         return (ProbePage)host.CurrentPage!;
     }
 

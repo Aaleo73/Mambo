@@ -7,7 +7,7 @@
     Width="{StaticResource LandscapeWidth}">
     <Grid x:Name="Layout" Background="Transparent"
           GotFocus="OnFocusChanged" LostFocus="OnFocusChanged"
-          PointerEntered="OnPointerEntered" PointerExited="OnPointerExited" PointerCanceled="OnPointerExited">
+          PointerEntered="OnPointerEntered" PointerExited="OnPointerExited">
         <Grid.RowDefinitions>
             <RowDefinition Height="{StaticResource LandscapeHeightGridLength}"/>
             <RowDefinition Height="Auto"/>
@@ -24,7 +24,7 @@
             </VisualStateGroup>
         </VisualStateManager.VisualStateGroups>
         <Button x:Name="Root" Grid.RowSpan="2" Style="{StaticResource CardButtonStyle}" Click="OnClick" AutomationProperties.Name="{x:Bind Episode.Title, Mode=OneWay}">
-            <Grid x:Name="Visual">
+            <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="{StaticResource LandscapeHeightGridLength}"/>
                     <RowDefinition Height="Auto"/>

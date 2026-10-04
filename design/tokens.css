@@ -84,23 +84,15 @@
   --hero-max-width-ratio: .4; /* 高度上限 = max(hero-max-h, 内容区宽 × 这个值) */
 
   /* ---------- 动效 ---------- */
-  --ease-standard: cubic-bezier(.4, 0, .2, 1);
-  --ease-enter: cubic-bezier(0, 0, .2, 1);
-  --ease-exit: cubic-bezier(.4, 0, 1, 1);
-  --ease-fluid: cubic-bezier(.2, .8, .2, 1);
-  --ease-settle: cubic-bezier(.22, 1, .36, 1);
-  --dur-micro: 80ms;
-  --dur-fast: 160ms;
-  --dur-normal: 240ms;
-  --dur-route: 280ms;
-  --dur-image-ready: 140ms;
-  --dur-hero-exit: 180ms;
-  --dur-cover: 220ms;
-  --dur-hero-content: 320ms;
-  --dur-fold: 560ms;
-  --dur-player: 360ms;
-  --dur-hero: 480ms;
-  --dur-settle: 500ms;
+  --ease-out: cubic-bezier(.2, .8, .2, 1);
+  --ease-in: cubic-bezier(.4, 0, 1, 1);
+  --ease-symmetric: cubic-bezier(.33333333, 0, .66666667, 1);
+  --dur-press: 80ms;
+  --dur-exit: 120ms;
+  --dur-feedback: 160ms;
+  --dur-content: 240ms;
+  --dur-image: 400ms;
+  --dur-mode: 480ms;
 }
 
 /* ---------- 浅色主题（默认，贴近原版） ---------- */

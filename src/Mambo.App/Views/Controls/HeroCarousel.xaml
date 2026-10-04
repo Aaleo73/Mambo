@@ -1,36 +1,14 @@
 <UserControl
     x:Class="Mambo.App.Views.Controls.HeroCarousel"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Mambo.App.Views.Controls">
     <Button x:Name="Root" Style="{StaticResource CardButtonStyle}" Click="OnClick"
             PointerEntered="OnPointerEntered" PointerExited="OnPointerExited" GotFocus="OnFocusChanged" LostFocus="OnFocusChanged">
         <Grid x:Name="Stage" Background="{ThemeResource HeroBackgroundBrush}">
-            <Grid x:Name="ArtHost"/>
-            <!-- 文字块贴着 hero 底边：logo（或标题）在左，评分信息在它右侧同一行底对齐，下面是两行简介 -->
-            <Grid x:Name="Info" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="32,0,32,12" MaxWidth="860" IsHitTestVisible="False">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-                <Grid ColumnSpacing="20">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <Grid x:Name="LogoArea" Width="360" Height="130">
-                        <Border x:Name="TitleShadow"/>
-                        <Image x:Name="LogoImage" Stretch="Uniform" HorizontalAlignment="Left" VerticalAlignment="Center"/>
-                        <TextBlock x:Name="TitleText" Style="{StaticResource HeroTitleTextStyle}"/>
-                    </Grid>
-                    <Grid x:Name="MetaArea" Grid.Column="1" VerticalAlignment="Bottom" HorizontalAlignment="Left" Margin="0,0,0,8">
-                        <Border x:Name="MetaShadow"/>
-                        <StackPanel x:Name="MetaRow" Orientation="Horizontal" Spacing="12"/>
-                    </Grid>
-                </Grid>
-                <Grid x:Name="OverviewArea" Grid.Row="1" Height="48" MaxWidth="672" HorizontalAlignment="Left" Margin="0,10,0,0">
-                    <Border x:Name="OverviewShadow"/>
-                    <TextBlock x:Name="OverviewText" Style="{StaticResource HeroOverviewTextStyle}" VerticalAlignment="Top"/>
-                </Grid>
+            <Grid x:Name="InfoHost">
+                <controls:HeroInfoPanel x:Name="FirstInfo"/>
+                <controls:HeroInfoPanel x:Name="SecondInfo"/>
             </Grid>
         </Grid>
     </Button>

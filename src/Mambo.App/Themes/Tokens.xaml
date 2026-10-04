@@ -642,22 +642,14 @@
     <x:Double x:Key="PopupShadowBlurRadius">44</x:Double>
     <x:Double x:Key="PopupShadowOffsetY">18</x:Double>
 
-    <!-- 动效：格式与 WinUI 的 ControlFastAnimationDuration / ControlFastOutSlowInKeySpline 相同 -->
-    <x:String x:Key="MotionMicroDuration">00:00:00.080</x:String>
-    <x:String x:Key="MotionFastDuration">00:00:00.160</x:String>
-    <x:String x:Key="MotionNormalDuration">00:00:00.240</x:String>
-    <x:String x:Key="MotionRouteDuration">00:00:00.280</x:String>
-    <x:String x:Key="MotionImageReadyDuration">00:00:00.140</x:String>
-    <x:String x:Key="MotionHeroExitDuration">00:00:00.180</x:String>
-    <x:String x:Key="MotionCoverDuration">00:00:00.220</x:String>
-    <x:String x:Key="MotionHeroContentDuration">00:00:00.320</x:String>
-    <x:String x:Key="MotionFoldDuration">00:00:00.560</x:String>
-    <x:String x:Key="MotionPlayerDuration">00:00:00.360</x:String>
-    <x:String x:Key="MotionHeroDuration">00:00:00.480</x:String>
-    <x:String x:Key="MotionSettleDuration">00:00:00.500</x:String>
-    <x:String x:Key="MotionStandardKeySpline">0.4,0,0.2,1</x:String>
-    <x:String x:Key="MotionEnterKeySpline">0,0,0.2,1</x:String>
-    <x:String x:Key="MotionExitKeySpline">0.4,0,1,1</x:String>
-    <x:String x:Key="MotionFluidKeySpline">0.2,0.8,0.2,1</x:String>
-    <x:String x:Key="MotionSettleKeySpline">0.22,1,0.36,1</x:String>
+    <!-- 有限动效的六档语义；Timeline 在 C# 显式包装 Duration。 -->
+    <x:String x:Key="MotionPressDuration">00:00:00.080</x:String>
+    <x:String x:Key="MotionExitDuration">00:00:00.120</x:String>
+    <x:String x:Key="MotionFeedbackDuration">00:00:00.160</x:String>
+    <x:String x:Key="MotionContentDuration">00:00:00.240</x:String>
+    <x:String x:Key="MotionImageDuration">00:00:00.400</x:String>
+    <x:String x:Key="MotionModeDuration">00:00:00.480</x:String>
+    <x:String x:Key="MotionEaseOutKeySpline">0.2,0.8,0.2,1</x:String>
+    <x:String x:Key="MotionEaseInKeySpline">0.4,0,1,1</x:String>
+    <x:String x:Key="MotionSymmetricKeySpline">0.33333333,0,0.66666667,1</x:String>
 </ResourceDictionary>

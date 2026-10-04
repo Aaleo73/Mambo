@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Numerics;
 using Microsoft.UI.Composition;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Media;
 using Windows.UI.ViewManagement;
 
 namespace Mambo.App.Themes;
@@ -15,24 +16,62 @@ public static class Motion
 
     public static bool AnimationsEnabled => Settings.AnimationsEnabled;
 
-    public static TimeSpan Micro => Duration("MotionMicroDuration");
-    public static TimeSpan Fast => Duration("MotionFastDuration");
-    public static TimeSpan Normal => Duration("MotionNormalDuration");
-    public static TimeSpan Route => Duration("MotionRouteDuration");
-    public static TimeSpan Player => Duration("MotionPlayerDuration");
-    public static TimeSpan Hero => Duration("MotionHeroDuration");
-    public static TimeSpan ImageReady => Duration("MotionImageReadyDuration");
-    public static TimeSpan HeroExit => Duration("MotionHeroExitDuration");
-    public static TimeSpan HeroContent => Duration("MotionHeroContentDuration");
-    public static TimeSpan Cover => Duration("MotionCoverDuration");
-    public static TimeSpan Fold => Duration("MotionFoldDuration");
-    public static TimeSpan Settling => Duration("MotionSettleDuration");
+    public static TimeSpan Press => Duration("MotionPressDuration");
+    public static TimeSpan Exit => Duration("MotionExitDuration");
+    public static TimeSpan Feedback => Duration("MotionFeedbackDuration");
+    public static TimeSpan Content => Duration("MotionContentDuration");
+    public static TimeSpan Image => Duration("MotionImageDuration");
+    public static TimeSpan Mode => Duration("MotionModeDuration");
 
-    public static (Vector2 P1, Vector2 P2) Standard => Spline("MotionStandardKeySpline");
-    public static (Vector2 P1, Vector2 P2) Enter => Spline("MotionEnterKeySpline");
-    public static (Vector2 P1, Vector2 P2) Fluid => Spline("MotionFluidKeySpline");
-    public static (Vector2 P1, Vector2 P2) Settle => Spline("MotionSettleKeySpline");
-    public static (Vector2 P1, Vector2 P2) Exit => Spline("MotionExitKeySpline");
+    public static (Vector2 P1, Vector2 P2) EaseOut => Spline("MotionEaseOutKeySpline");
+    public static (Vector2 P1, Vector2 P2) EaseIn => Spline("MotionEaseInKeySpline");
+    public static (Vector2 P1, Vector2 P2) Symmetric => Spline("MotionSymmetricKeySpline");
+
+    private static readonly DependencyProperty EntranceSuppressedProperty = DependencyProperty.RegisterAttached(
+        "EntranceSuppressed", typeof(bool), typeof(Motion), new PropertyMetadata(false));
+    private static readonly DependencyProperty InactiveProperty = DependencyProperty.RegisterAttached(
+        "Inactive", typeof(bool), typeof(Motion), new PropertyMetadata(false));
+
+    internal static bool IsEntranceSuppressed(DependencyObject element) => HasAncestorFlag(element, EntranceSuppressedProperty);
+    internal static bool IsActive(DependencyObject element) => !HasAncestorFlag(element, InactiveProperty);
+
+    internal static void SetEntranceSuppressed(DependencyObject root, bool suppressed)
+    {
+        root.SetValue(EntranceSuppressedProperty, suppressed);
+        if (suppressed)
+        {
+            if (root is IMotionParticipant participant) participant.SettleMotion();
+            SettleDescendants(root);
+        }
+    }
+
+    internal static void SetActive(DependencyObject root, bool active)
+    {
+        root.SetValue(InactiveProperty, !active);
+        if (!active)
+        {
+            if (root is IMotionParticipant participant) participant.SettleMotion();
+            SettleDescendants(root);
+        }
+    }
+
+    // Only traverse realized children at ownership/lifecycle boundaries, never on animation frames.
+    internal static void SettleDescendants(DependencyObject root)
+    {
+        for (var index = 0; index < VisualTreeHelper.GetChildrenCount(root); index++)
+        {
+            var child = VisualTreeHelper.GetChild(root, index);
+            if (child is IMotionParticipant participant) participant.SettleMotion();
+            SettleDescendants(child);
+        }
+    }
+
+    private static bool HasAncestorFlag(DependencyObject element, DependencyProperty property)
+    {
+        for (DependencyObject? current = element; current is not null; current = VisualTreeHelper.GetParent(current))
+            if ((bool)current.GetValue(property)) return true;
+        return false;
+    }
 
     public static CubicBezierEasingFunction CreateEasing(Compositor compositor, (Vector2 P1, Vector2 P2) spline)
     {
@@ -60,4 +99,9 @@ public static class Motion
         }
         return value;
     }
+}
+
+internal interface IMotionParticipant
+{
+    void SettleMotion();
 }

@@ -8,6 +8,7 @@ namespace Mambo.App.Shell;
 public sealed class WindowContext : IDisposable, IAsyncDisposable
 {
     private WindowContrastSource? contrastSource;
+    private WindowMotionSource? motionSource;
     private bool disposed;
 
     internal WindowContrastSource GetContrastSource(DispatcherQueue queue)
@@ -18,18 +19,34 @@ public sealed class WindowContext : IDisposable, IAsyncDisposable
         return contrastSource ??= new WindowContrastSource(WindowId, queue);
     }
 
+    internal WindowMotionSource GetMotionSource(DispatcherQueue queue)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        ArgumentNullException.ThrowIfNull(queue);
+        if (!queue.HasThreadAccess) throw new InvalidOperationException("窗口动画设置必须在 UI 线程观察。");
+        return motionSource ??= new WindowMotionSource(queue);
+    }
+
     public void Dispose()
     {
+        motionSource?.Dispose();
         contrastSource?.Dispose();
         disposed = true;
         GC.SuppressFinalize(this);
     }
 
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         disposed = true;
         GC.SuppressFinalize(this);
-        return contrastSource?.DisposeAsync() ?? ValueTask.CompletedTask;
+        try
+        {
+            if (motionSource is not null) await motionSource.DisposeAsync();
+        }
+        finally
+        {
+            if (contrastSource is not null) await contrastSource.DisposeAsync();
+        }
     }
 
     public WindowId WindowId { get; internal set; }

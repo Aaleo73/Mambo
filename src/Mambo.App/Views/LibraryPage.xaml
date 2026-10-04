@@ -58,7 +58,7 @@
                                     <themes:LineIcon Grid.Column="2" Glyph="{StaticResource IconChevronDown}" Width="12" Height="12" StrokeWidth="2"/>
                                 </Grid>
                             </Button>
-                            <Popup x:Name="SortPopup" IsLightDismissEnabled="True" LightDismissOverlayMode="Off" Opened="OnSortPopupOpened" Closed="OnSortPopupClosed">
+                            <Popup x:Name="SortPopup" IsLightDismissEnabled="False" LightDismissOverlayMode="Off" Opened="OnSortPopupOpened" Closed="OnSortPopupClosed">
                                 <Grid x:Name="SortSurface" Width="144">
                                     <Border CornerRadius="{StaticResource PopupCornerRadius}" themes:SoftShadow.Kind="Popup"/>
                                     <Border Style="{StaticResource PopupSurfaceStyle}">
@@ -88,9 +88,12 @@
                 </controls:PageHeader.Actions>
             </controls:PageHeader>
 
+        </StackPanel>
+
+        <Grid x:Name="BodyHost" Grid.Row="1" SizeChanged="OnBodySizeChanged">
             <!-- 筛选面板：没有外框，上面一条细线，分组之间也用细线隔开；最多 180 高，超出滚动 -->
-            <Border x:Name="FilterPanel" Margin="0,-4,0,12" BorderBrush="{ThemeResource RuleBrush}" BorderThickness="0,1,0,0"
-                    Visibility="{x:Bind ViewModel.FiltersOpen, Mode=OneWay}">
+            <Border x:Name="FilterPanel" Margin="24,-4,24,12" BorderBrush="{ThemeResource RuleBrush}" BorderThickness="0,1,0,0"
+                    VerticalAlignment="Top" Visibility="Collapsed" SizeChanged="OnFilterSizeChanged">
                 <ScrollViewer MaxHeight="180" VerticalScrollBarVisibility="Auto">
                     <StackPanel Padding="0,10">
                         <Grid ColumnSpacing="12">
@@ -134,13 +137,12 @@
                     </StackPanel>
                 </ScrollViewer>
             </Border>
-        </StackPanel>
 
-        <ScrollViewer x:Name="Scroller" Grid.Row="1" Margin="0,4,0,0" VerticalScrollBarVisibility="Auto" ViewChanged="OnScrollViewChanged">
+        <ScrollViewer x:Name="Scroller" Margin="0,4,0,0" VerticalScrollBarVisibility="Auto" ViewChanged="OnScrollViewChanged">
             <!-- 上留 8：第一行卡片悬停上浮时不被裁掉 -->
             <StackPanel Padding="24,8,24,0">
                 <!-- 海报随宽度缩放：列间距固定，卡片填满整行，图片保持 150:220 -->
-                <ItemsRepeater x:Name="Grid" ItemsSource="{x:Bind ViewModel.Cards.Items, Mode=OneWay}" ElementPrepared="OnElementPrepared"
+                <ItemsRepeater x:Name="Grid" ItemsSource="{x:Bind ViewModel.Cards.Items, Mode=OneWay}"
                                XYFocusKeyboardNavigation="Enabled" SizeChanged="OnGridSizeChanged">
                     <ItemsRepeater.Layout>
                         <UniformGridLayout MinItemWidth="{StaticResource PosterWidth}" MinColumnSpacing="{StaticResource GridColumnSpacing}"
@@ -161,18 +163,19 @@
                 <Button Style="{StaticResource SoftButtonStyle}" Margin="0,24,0,8" HorizontalAlignment="Center" Content="重试加载" Click="OnLoadMoreClick"
                         Visibility="{x:Bind ViewModel.Cards.HasMoreError, Mode=OneWay}"/>
 
-                <controls:StateView Title="当前筛选没有内容" Visibility="{x:Bind ViewModel.ShowFilteredEmpty, Mode=OneWay}">
+                <controls:StateView x:Name="FilteredEmptyState" Title="当前筛选没有内容" Visibility="{x:Bind ViewModel.ShowFilteredEmpty, Mode=OneWay}">
                     <controls:StateView.Actions>
                         <Button Style="{StaticResource SoftButtonStyle}" Content="重置筛选" Click="OnResetClick"/>
                     </controls:StateView.Actions>
                 </controls:StateView>
-                <controls:StateView Title="暂无内容" Visibility="{x:Bind ViewModel.ShowEmpty, Mode=OneWay}"/>
-                <controls:StateView Title="资料库加载失败" Visibility="{x:Bind ViewModel.Cards.HasError, Mode=OneWay}">
+                <controls:StateView x:Name="EmptyState" Title="暂无内容" Visibility="{x:Bind ViewModel.ShowEmpty, Mode=OneWay}"/>
+                <controls:StateView x:Name="ErrorState" Title="资料库加载失败" Visibility="{x:Bind ViewModel.Cards.HasError, Mode=OneWay}">
                     <controls:StateView.Actions>
                         <Button Style="{StaticResource SoftButtonStyle}" Content="重试" Click="OnRetryClick"/>
                     </controls:StateView.Actions>
                 </controls:StateView>
             </StackPanel>
         </ScrollViewer>
+        </Grid>
     </Grid>
 </UserControl>

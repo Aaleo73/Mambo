@@ -65,6 +65,10 @@ internal static class PlaybackRefreshSmoke
         var scheduler = services.GetRequiredService<IUiScheduler>();
         var messenger = services.GetRequiredService<IMessenger>();
         var presentation = services.GetRequiredService<WindowContext>();
+        var fixtureNavigation = new Navigator();
+        using var fixtureTransitions = new BrowseTransitionCoordinator(fixtureNavigation, presentation);
+        fixtureNavigation.Navigate(Route.Detail(ItemId));
+        var detailEntry = fixtureNavigation.Current;
         var source = services.GetRequiredService<DemoCatalog>().Find(ItemId)!;
         var duration = source.RunTimeTicks ?? 0;
         Grid? mount = null;
@@ -107,16 +111,20 @@ internal static class PlaybackRefreshSmoke
             });
             preferences = new FakeLibraryPreferences(scheduler);
             detailModel = new DetailViewModel(library, services.GetRequiredService<PlaybackLauncher>(), playback, ItemId);
-            detail = new DetailPage(detailModel, presentation);
+            detail = new DetailPage(detailModel, presentation, fixtureTransitions);
             recentModel = new RecentViewModel(library);
             recent = new RecentPage(recentModel);
             libraryModel = new LibraryViewModel(library, preferences,
                 new MediaLibrary(DemoCatalog.MoviesLibraryId, "进度诊断", LibraryKind.Movies));
-            libraryPage = new LibraryPage(libraryModel);
+            libraryPage = new LibraryPage(libraryModel, presentation);
             mount = new Grid { IsHitTestVisible = false };
             for (var index = 0; index < 3; index++) mount.ColumnDefinitions.Add(new() { Width = new(1, GridUnitType.Star) });
             Grid.SetColumn(recent, 1);
             Grid.SetColumn(libraryPage, 2);
+            var isolatedBackdrop = new HeroBackdropPresenter();
+            fixtureTransitions.Attach(isolatedBackdrop);
+            fixtureTransitions.BeginNavigation(new NavigatedEventArgs(null, detailEntry, NavigationMode.New));
+            mount.Children.Add(isolatedBackdrop);
             mount.Children.Add(detail);
             mount.Children.Add(recent);
             mount.Children.Add(libraryPage);
@@ -128,7 +136,7 @@ internal static class PlaybackRefreshSmoke
             root.Children.Insert(playerIndex, mount);
             recent.OnNavigatedTo(new NavEntry(Route.Recent), NavigationMode.New, created: true);
             libraryPage.OnNavigatedTo(new NavEntry(Route.Library(DemoCatalog.MoviesLibraryId)), NavigationMode.New, created: true);
-            detail.OnNavigatedTo(new NavEntry(Route.Detail(ItemId)), NavigationMode.New, created: true);
+            detail.OnNavigatedTo(detailEntry, NavigationMode.New, created: true);
 
             report.Stage = "ObserveInitialXaml";
             var initialFraction = (double)InitialPosition / duration;
@@ -215,6 +223,7 @@ internal static class PlaybackRefreshSmoke
             Cleanup(() => { if (detail is not null) detail.Dispose(); else detailModel?.Dispose(); });
             Cleanup(() => { if (recent is not null) recent.Dispose(); else recentModel?.Dispose(); });
             Cleanup(() => { if (libraryPage is not null) libraryPage.Dispose(); else libraryModel?.Dispose(); });
+            Cleanup(fixtureTransitions.Clear);
             if (http is not null) Cleanup(() => messenger.UnregisterAll(http));
             if (library is not null) Cleanup(library.Dispose);
             if (cache is not null)

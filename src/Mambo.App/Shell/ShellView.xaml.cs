@@ -3,6 +3,7 @@ using System.ComponentModel;
 using Mambo.App.Images;
 using Mambo.App.ViewModels;
 using Mambo.App.Views;
+using Mambo.App.Themes;
 using Mambo.Core.Contracts;
 using Microsoft.UI.Composition;
 using Microsoft.UI.Input;
@@ -22,27 +23,31 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
     private readonly IPlaybackService playback;
     private readonly ISettingsService settings;
     private readonly WindowContext window;
+    private readonly BrowseTransitionCoordinator transitions;
+    private readonly WindowMotionObserver motionObserver;
+    private readonly PageInputScope browseInput;
     private readonly ToastService toasts;
     private readonly ToastHost toastHost;
     private readonly DialogService dialogs;
     private DetailViewModel? titledDetail;
     private Control? previousFocus;
-    private Control? coveredPage;
-    private bool coveredPageEnabled;
     private string pageTitle = "";
+    private string playerTitle = "";
+    private PlayerOverlay? retiringPlayer;
+    private double retiringPanelWidth;
     private PlayerOverlay? player;
     private IPlaybackSession? startingSession;
     private Task pendingPreferenceSaves = Task.CompletedTask;
     private int playerPresentationVersion;
     private readonly PlayerFoldTransition fold;
     private bool browseCovered;
-    private bool presentationChanging;
+    private bool playerFacing;
     private bool presentationPending;
     private CompositionRoundedRectangleGeometry? wellClip;
     private bool disposed;
 
     public ShellView(ShellViewModel viewModel, Navigator navigator, ToastService toasts, DialogService dialogs, Func<Route, FrameworkElement> pageFactory,
-        IPlaybackService playback, WindowContext window, ISettingsService settings, Action<Exception>? reportPageFailure = null)
+        IPlaybackService playback, WindowContext window, BrowseTransitionCoordinator transitions, ISettingsService settings, Action<Exception>? reportPageFailure = null)
     {
         ArgumentNullException.ThrowIfNull(dialogs);
         ViewModel = viewModel;
@@ -50,23 +55,30 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
         this.playback = playback;
         this.settings = settings;
         this.window = window;
+        this.transitions = transitions;
         this.toasts = toasts;
         this.dialogs = dialogs;
         InitializeComponent();
         fold = new PlayerFoldTransition(BrowseFace, PlayerSlot, BrowseShade, PlayerShade);
+        fold.FacingChanged += OnFacingChanged;
+        browseInput = new PageInputScope(BrowseFace, transitions.ReportFailure);
+        transitions.Attach(HeroBackdrop);
+        motionObserver = new WindowMotionObserver(window, DispatcherQueue, OnAnimationsChanged);
         Sidebar = new SidebarView(viewModel, navigator);
         SidebarSlot.Child = Sidebar;
-        toastHost = new ToastHost(toasts);
+        toastHost = new ToastHost(toasts, window);
         OverlayLayer.Children.Add(toastHost);
+        Dialogs.Initialize(window);
         dialogs.Attach(Dialogs);
-        CoverTransition.Attach(TransitionLayer);
-        Pages.Initialize(pageFactory, navigator, reportPageFailure);
+        Pages.Initialize(pageFactory, navigator, transitions, reportPageFailure);
+        Pages.ParkFocus = () => Sidebar.FocusNavigation();
         navigator.Navigated += OnNavigated;
         viewModel.AccountChanged += OnAccountChanged;
         playback.SessionStarted += OnSessionStarted;
         playback.SessionEnded += OnSessionEnded;
         playback.EntrySkipped += OnEntrySkipped;
         window.PresentationChanged += OnPresentationChanged;
+        window.ActiveChanged += OnWindowActiveChanged;
         Well.SizeChanged += (_, _) => UpdateWellClip();
         TitleBar.SizeChanged += OnTitleBarSizeChanged;
         Root.SizeChanged += OnRootSizeChanged;
@@ -86,6 +98,9 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
     public FrameworkElement TitleBarElement => TitleBar;
     public FrameworkElement MaximizeElement => MaximizeButton;
     internal PlayerOverlay? ActivePlayer => player;
+    internal PlayerOverlay? RetiringPlayer => retiringPlayer;
+    internal double FoldProgress => fold.Progress;
+    internal bool IsPlayerFacing => playerFacing;
     internal Task PendingPresentation { get; private set; } = Task.CompletedTask;
     internal bool IsTransitioning => presentationPending || fold.IsRunning;
     internal bool LastPlayerFocusRestoreSucceeded { get; private set; }
@@ -143,44 +158,60 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
     public void Dispose()
     {
         if (disposed) return;
+        fold.RequestTarget(false);
         ParkPlayerFocus();
         disposed = true;
         playerPresentationVersion++;
         startingSession = null;
+        fold.FacingChanged -= OnFacingChanged;
         fold.Dispose();
         presentationPending = false;
         browseCovered = false;
-        ClosingFace.Visibility = Visibility.Collapsed;
         PlayerSlot.Visibility = Visibility.Collapsed;
         Root.SizeChanged -= OnRootSizeChanged;
         TitleBar.SizeChanged -= OnTitleBarSizeChanged;
         Bindings.StopTracking();
-        CoverTransition.Detach(TransitionLayer);
+        motionObserver.Dispose();
         playback.SessionStarted -= OnSessionStarted;
         playback.SessionEnded -= OnSessionEnded;
         playback.EntrySkipped -= OnEntrySkipped;
         window.PresentationChanged -= OnPresentationChanged;
+        window.ActiveChanged -= OnWindowActiveChanged;
         navigator.Navigated -= OnNavigated;
         ViewModel.AccountChanged -= OnAccountChanged;
         DetachPageTitle();
         if (player is { } active)
         {
-            pendingPreferenceSaves = Task.WhenAll(pendingPreferenceSaves, active.PendingPreferenceSave);
+            PreservePreferences(active.PendingPreferenceSave);
             active.TitleChanged -= OnPlayerTitleChanged;
             active.LayoutChanged -= OnPlayerLayoutChanged;
             active.Dispose();
         }
         player = null;
+        ReleaseRetiringPlayer();
+        browseInput.Dispose();
         PlayerContent.Children.Clear();
         if (ReferenceEquals(navigator.BackInterceptor, this)) navigator.BackInterceptor = null;
         navigator.ForwardBlocked = false;
-        Pages.Clear();
-        var visual = ElementCompositionPreview.GetElementVisual(Pages);
+        Dialogs.Dispose();
+        toastHost.Dispose();
+        Pages.Dispose();
+        transitions.Dispose();
+        var visual = ElementCompositionPreview.GetElementVisual(WellContent);
         var clip = visual.Clip;
         visual.Clip = null;
         clip?.Dispose();
         wellClip?.Dispose();
         wellClip = null;
+    }
+
+    private void OnAnimationsChanged(bool enabled)
+    {
+        if (disposed || enabled) return;
+        Pages.SettleTransition();
+        transitions.SettleBackdrop();
+        SettlePlayerPresentation();
+        Motion.SettleDescendants(this);
     }
 
     private void OnSessionStarted(object? sender, PlaybackSessionEventArgs e) => ShowPlayer(e.Session);
@@ -192,45 +223,46 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
     }
     private async Task ShowPlayerAsync(IPlaybackSession session)
     {
-        var interrupted = IsTransitioning || player is not null;
         var version = ++playerPresentationVersion;
+        fold.RequestTarget(true);
         presentationPending = true;
-        fold.Settle();
-        DetachPlayer();
+        RetireActivePlayer();
         startingSession = session;
+        Pages.SettleTransition();
+        transitions.SettleBackdrop();
         if (!browseCovered)
         {
             browseCovered = true;
             pageTitle = ViewModel.TitleText;
             previousFocus = XamlRoot is null ? null : FocusManager.GetFocusedElement(XamlRoot) as Control;
-            coveredPage = Pages.CurrentPage as Control;
-            coveredPageEnabled = coveredPage?.IsEnabled ?? false;
             LastPlayerFocusRestoreSucceeded = false;
             LastPlayerFocusRestoredWithinShell = false;
         }
-        Well.IsHitTestVisible = SidebarSlot.IsHitTestVisible = false;
-        Sidebar.IsEnabled = false;
-        if (coveredPage is not null) coveredPage.IsEnabled = false;
+        if (XamlRoot is { } root && PageInputScope.Contains(BrowseFace, FocusManager.GetFocusedElement(root) as DependencyObject))
+            MinimizeButton.Focus(FocusState.Programmatic);
         (Pages.CurrentPage as HomePage)?.SetCovered(true);
-        CenterContent.Visibility = Visibility.Collapsed;
+        Motion.SetEntranceSuppressed(BrowseFace, true);
+        Motion.SetActive(BrowseFace, false);
+        browseInput.SetEnabled(false);
         navigator.BackInterceptor = this;
         navigator.ForwardBlocked = true;
-        // 等旧布局写入后再读取设置；整个等待期间仍持有导航锁。
+        // 新会话必须读到已经提交的布局偏好；等待期间保留导航锁和无活动资源的旧面。
         await pendingPreferenceSaves;
         if (disposed || version != playerPresentationVersion || !ReferenceEquals(playback.Current, session)) return;
         startingSession = null;
+        ReleaseRetiringPlayer();
         var current = new PlayerOverlay(session, window, toasts, settings);
         player = current;
         current.SetTransitionActive(true);
         current.TitleChanged += OnPlayerTitleChanged;
         current.LayoutChanged += OnPlayerLayoutChanged;
-        ClosingFace.Visibility = Visibility.Collapsed;
         PlayerContent.Children.Add(current);
         PlayerSlot.Visibility = Visibility.Visible;
         OnPlayerTitleChanged(null, EventArgs.Empty);
         UpdatePresentationLayout();
-        await fold.PlayAsync(true, !interrupted);
-        if (disposed || version != playerPresentationVersion || !ReferenceEquals(player, current)) return;
+        await fold.PlayAsync(true, animate: true);
+        if (disposed || version != playerPresentationVersion || !ReferenceEquals(player, current) ||
+            !ReferenceEquals(playback.Current, session)) return;
         current.SetTransitionActive(false);
         current.Focus(FocusState.Programmatic);
         UpdateTitleAlignment();
@@ -239,7 +271,18 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
 
     private void OnPlayerTitleChanged(object? sender, EventArgs e)
     {
-        if (player is not null) ViewModel.TitleText = player.ViewModel.ShellTitle;
+        if (player is null) return;
+        playerTitle = player.ViewModel.ShellTitle;
+        if (playerFacing) ViewModel.TitleText = playerTitle;
+    }
+
+    private void OnFacingChanged(bool facing)
+    {
+        if (disposed) return;
+        playerFacing = facing;
+        ViewModel.TitleText = facing ? playerTitle : pageTitle;
+        CenterContent.Visibility = facing ? Visibility.Collapsed : Visibility.Visible;
+        UpdateTitleAlignment();
     }
 
     private void OnSessionEnded(object? sender, PlaybackSessionEventArgs e)
@@ -261,31 +304,25 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
     private async Task HidePlayerAsync()
     {
         if (!browseCovered) return;
-        var interrupted = IsTransitioning;
-        var hadPlayer = player is not null;
-        var panelWidth = PlayerPanelWidth;
+        var hadPlayer = player is not null || retiringPlayer is not null;
         var version = ++playerPresentationVersion;
+        fold.RequestTarget(false);
         presentationPending = true;
-        fold.Settle();
-        // 释放和移除发生在第一个 await 之前；翻回去仅保留黑色几何占位。
-        DetachPlayer();
+        // 在首个 await 前移走原生表面；退场只保留已经绘制的纯 XAML。
+        RetireActivePlayer();
         startingSession = null;
-        ClosingVideo.Margin = new Thickness(0, 12, panelWidth, 0);
-        ClosingFace.Visibility = Visibility.Visible;
-        presentationChanging = true;
-        try { window.ExitFullscreen(); }
-        finally { presentationChanging = false; }
+        var closing = fold.PlayAsync(false, hadPlayer);
+        window.ExitFullscreen();
         UpdatePresentationLayout();
-        await fold.PlayAsync(false, hadPlayer && !interrupted);
+        await closing;
         if (disposed || version != playerPresentationVersion) return;
-        ClosingFace.Visibility = Visibility.Collapsed;
+        ReleaseRetiringPlayer();
         browseCovered = false;
-        Well.IsHitTestVisible = SidebarSlot.IsHitTestVisible = true;
-        Sidebar.IsEnabled = true;
-        if (coveredPage is not null) coveredPage.IsEnabled = coveredPageEnabled;
+        Motion.SetEntranceSuppressed(BrowseFace, false);
+        Motion.SetActive(BrowseFace, true);
+        browseInput.SetEnabled(true);
+        Pages.SettleTransition();
         (Pages.CurrentPage as HomePage)?.SetCovered(false);
-        CenterContent.Visibility = Visibility.Visible;
-        coveredPage = null;
         UpdatePageTitle();
         UpdateTitleAlignment();
         if (ReferenceEquals(navigator.BackInterceptor, this)) navigator.BackInterceptor = null;
@@ -299,17 +336,40 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
         presentationPending = false;
     }
 
-    private void DetachPlayer()
+    private void RetireActivePlayer()
     {
+        if (player is not { } old) return;
         ParkPlayerFocus();
-        var old = player;
-        player = null;
-        if (old is null) return;
-        pendingPreferenceSaves = Task.WhenAll(pendingPreferenceSaves, old.PendingPreferenceSave);
+        ReleaseRetiringPlayer();
+        retiringPanelWidth = PlayerPanelWidth;
         old.TitleChanged -= OnPlayerTitleChanged;
         old.LayoutChanged -= OnPlayerLayoutChanged;
+        old.FreezeForClose();
+        PreservePreferences(old.PendingPreferenceSave);
+        player = null;
+        retiringPlayer = old;
+    }
+
+    private void ReleaseRetiringPlayer()
+    {
+        if (retiringPlayer is not { } old) return;
+        retiringPlayer = null;
+        retiringPanelWidth = 0;
         old.Dispose();
-        PlayerContent.Children.Clear();
+        PlayerContent.Children.Remove(old);
+    }
+
+    private void PreservePreferences(Task pending)
+    {
+        if (pending.IsCompletedSuccessfully) return;
+        pendingPreferenceSaves = pendingPreferenceSaves.IsCompletedSuccessfully
+            ? pending : Task.WhenAll(pendingPreferenceSaves, pending);
+    }
+
+    private void SettlePlayerPresentation()
+    {
+        fold.Settle();
+        ReleaseRetiringPlayer();
     }
 
     private void ParkPlayerFocus()
@@ -317,9 +377,6 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
         if (player is null || XamlRoot is null || HasShellFocus()) return;
         // 原生视频树销毁前，焦点必须先落到仍可用的外壳控件。
         // 浏览面在翻折结束前仍禁用；标题栏按钮是这个阶段的稳定目标。
-        presentationChanging = true;
-        try { window.ExitFullscreen(); }
-        finally { presentationChanging = false; }
         TitleBar.Visibility = Visibility.Visible;
         Root.RowDefinitions[0].Height = (GridLength)Application.Current.Resources["TitleBarHeightGridLength"];
         TitleBar.UpdateLayout();
@@ -328,7 +385,7 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
 
     private double PlayerPanelWidth => player is { EpisodePanelVisible: true } active
         ? Math.Max(0, active.ActualWidth - active.ViewportElement.ActualWidth)
-        : ClosingFace.Visibility == Visibility.Visible ? ClosingVideo.Margin.Right : 0;
+        : retiringPlayer is not null ? retiringPanelWidth : 0;
 
     private bool CanRestoreFocus(Control? candidate) =>
         candidate is { IsLoaded: true, IsEnabled: true, IsTabStop: true }
@@ -353,8 +410,18 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
     private void OnPresentationChanged(object? sender, EventArgs e)
     {
         if (disposed) return;
-        if (!presentationChanging) fold.Settle();
+        SettlePlayerPresentation();
         UpdatePresentationLayout();
+    }
+
+    private void OnWindowActiveChanged(object? sender, EventArgs e)
+    {
+        if (disposed) return;
+        Motion.SetActive(this, window.IsActive);
+        if (window.IsActive) return;
+        Pages.SettleTransition();
+        transitions.SettleBackdrop();
+        SettlePlayerPresentation();
     }
 
     private void UpdatePresentationLayout()
@@ -372,7 +439,7 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
     private void OnRootSizeChanged(object sender, SizeChangedEventArgs e)
     {
         if (disposed) return;
-        fold.Settle();
+        SettlePlayerPresentation();
         UpdateTitleAlignment();
     }
 
@@ -381,10 +448,10 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
     private void UpdateTitleAlignment()
     {
         if (disposed) return;
-        Grid.SetColumn(CenterArea, browseCovered ? 0 : 1);
-        Grid.SetColumnSpan(CenterArea, browseCovered ? 3 : 2);
+        Grid.SetColumn(CenterArea, playerFacing ? 0 : 1);
+        Grid.SetColumnSpan(CenterArea, playerFacing ? 3 : 2);
         // 玩家视口是标题对齐的唯一尺寸来源，不把选集栏算入画面中心。
-        CenterArea.Margin = new Thickness(0, 0, PlayerPanelWidth, 0);
+        CenterArea.Margin = new Thickness(0, 0, playerFacing ? PlayerPanelWidth : 0, 0);
         TitleBarLayoutChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -392,6 +459,7 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
     public void SetCenterContent(UIElement? content)
     {
         CenterContent.Content = content;
+        CenterContent.Visibility = playerFacing ? Visibility.Collapsed : Visibility.Visible;
         TitleBarLayoutChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -431,12 +499,14 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
     {
         // 页面自己有大标题，标题栏只在详情页显示片名。
         pageTitle = Pages.CurrentPage is DetailPage detail ? detail.ViewModel.Title : "";
-        if (!CanHandle) ViewModel.TitleText = pageTitle;
+        if (!playerFacing) ViewModel.TitleText = pageTitle;
     }
 
     private void OnAccountChanged(object? sender, EventArgs e)
     {
+        SettlePlayerPresentation();
         ImageLoader.Current?.ClearDecodedCache();
+        transitions.Clear();
         DetachPageTitle();
         var keep = navigator.Current.Route.Kind == PageKind.Settings ? Route.Settings : Route.Home;
         Pages.Clear();
@@ -481,7 +551,7 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
 
     private void OnPointerPressed(object sender, PointerRoutedEventArgs e)
     {
-        if (e.Handled) return;
+        if (e.Handled || dialogs.IsOpen) return;
         var properties = e.GetCurrentPoint(this).Properties;
         if (properties.IsXButton1Pressed) { navigator.GoBack(); e.Handled = true; }
         else if (properties.IsXButton2Pressed) { navigator.GoForward(); e.Handled = true; }
@@ -489,7 +559,7 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
 
     private void OnKeyDown(object sender, KeyRoutedEventArgs e)
     {
-        if (e.Handled || player is not null) return;
+        if (e.Handled || dialogs.IsOpen || player is not null) return;
         if (startingSession is not null && e.Key == VirtualKey.Escape)
         {
             e.Handled = TryHandleBack();
@@ -508,7 +578,7 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
     private void UpdateWellClip()
     {
         if (disposed) return;
-        var visual = ElementCompositionPreview.GetElementVisual(Pages);
+        var visual = ElementCompositionPreview.GetElementVisual(WellContent);
         var compositor = visual.Compositor;
         if (wellClip is null)
         {
@@ -516,6 +586,6 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
             wellClip.CornerRadius = new Vector2(11, 11);
             visual.Clip = compositor.CreateGeometricClip(wellClip);
         }
-        wellClip.Size = new Vector2((float)Pages.ActualWidth, (float)Pages.ActualHeight + 12);
+        wellClip.Size = new Vector2((float)WellContent.ActualWidth, (float)WellContent.ActualHeight + 12);
     }
 }

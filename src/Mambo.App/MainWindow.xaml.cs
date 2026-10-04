@@ -67,20 +67,17 @@ public sealed partial class MainWindow : Window
         Debug.StartupTimeline.Mark("WindowPresenterProjected");
         presenter.SetBorderAndTitleBar(true, false);
         Debug.StartupTimeline.Mark("SystemTitleBarHidden");
-        ExtendsContentIntoTitleBar = true;
-        Debug.StartupTimeline.Mark("CustomTitleBarEnabled");
         Debug.StartupTimeline.Mark("WindowPresenterConfigured");
 
         var pages = services.GetRequiredService<PageFactory>();
         shell = new ShellView(services.GetRequiredService<ShellViewModel>(), services.GetRequiredService<Navigator>(),
             services.GetRequiredService<ToastService>(), services.GetRequiredService<DialogService>(), pages.Create,
-            services.GetRequiredService<IPlaybackService>(), context, services.GetRequiredService<ISettingsService>(),
+            services.GetRequiredService<IPlaybackService>(), context, services.GetRequiredService<BrowseTransitionCoordinator>(), services.GetRequiredService<ISettingsService>(),
             services.GetRequiredService<AppShutdownCoordinator>().ReportPageFailure);
         Debug.StartupTimeline.Mark("ShellCreated");
         Content = shell;
         Debug.StartupTimeline.Mark("WindowContentAssigned");
         services.GetRequiredService<TitleBarService>().Attach(shell.SetCenterContent);
-        SetTitleBar(shell.TitleBarElement);
         backdrop = new MamboBackdrop();
         backdrop.AvailabilityChanged += OnBackdropAvailabilityChanged;
         SystemBackdrop = backdrop;
@@ -119,16 +116,8 @@ public sealed partial class MainWindow : Window
     private void SetFullscreen(bool enabled)
     {
         if (context.IsFullscreen == enabled) return;
-        if (enabled)
-        {
-            SetTitleBar(null);
-            AppWindow.SetPresenter(AppWindowPresenterKind.FullScreen);
-        }
-        else
-        {
-            AppWindow.SetPresenter(presenter);
-            SetTitleBar(shell.TitleBarElement);
-        }
+        if (enabled) AppWindow.SetPresenter(AppWindowPresenterKind.FullScreen);
+        else AppWindow.SetPresenter(presenter);
         UpdatePresentation();
         chrome.UpdateRegions();
     }

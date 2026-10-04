@@ -18,6 +18,7 @@ public static class UiServices
         services.AddSingleton(p => new ThemeService(p.GetRequiredService<ISettingsService>()));
         services.AddSingleton(_ => new WindowContext());
         services.AddSingleton(_ => new TitleBarService());
+        services.AddSingleton(p => new BrowseTransitionCoordinator(p.GetRequiredService<Navigator>(), p.GetRequiredService<WindowContext>()));
         services.AddSingleton(p => new ShellViewModel(p.GetRequiredService<ISessionService>(), p.GetRequiredService<ILibraryService>(),
             p.GetRequiredService<Navigator>()));
         services.AddSingleton(p => new ImageLoader(p.GetRequiredService<IImageService>()));

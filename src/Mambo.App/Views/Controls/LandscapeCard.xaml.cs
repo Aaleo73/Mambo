@@ -11,7 +11,6 @@ namespace Mambo.App.Views.Controls;
 /// </summary>
 public sealed partial class LandscapeCard : CardBase
 {
-    private bool hovering;
     public static readonly DependencyProperty ShowPlayButtonProperty = DependencyProperty.Register(nameof(ShowPlayButton), typeof(bool), typeof(LandscapeCard),
         new PropertyMetadata(true));
     public static readonly DependencyProperty IsAdaptiveProperty = DependencyProperty.Register(nameof(IsAdaptive), typeof(bool), typeof(LandscapeCard),
@@ -20,11 +19,13 @@ public sealed partial class LandscapeCard : CardBase
     public LandscapeCard()
     {
         InitializeComponent();
+        TrackMotion(Layout);
         ApplySizing();
         TrackReveal(Picture, Copy, Progress);
-        Root.AddHandler(PointerPressedEvent, new PointerEventHandler(OnPressed), true);
-        Root.AddHandler(PointerReleasedEvent, new PointerEventHandler(OnReleased), true);
-        Root.AddHandler(PointerCaptureLostEvent, new PointerEventHandler(OnReleased), true);
+        Layout.AddHandler(PointerPressedEvent, new PointerEventHandler(OnPressed), true);
+        Layout.AddHandler(PointerReleasedEvent, new PointerEventHandler(OnReleased), true);
+        Layout.AddHandler(PointerCaptureLostEvent, new PointerEventHandler(OnReleased), true);
+        Layout.AddHandler(PointerCanceledEvent, new PointerEventHandler(OnCanceled), true);
     }
 
     public bool ShowPlayButton { get => (bool)GetValue(ShowPlayButtonProperty); set => SetValue(ShowPlayButtonProperty, value); }
@@ -57,7 +58,7 @@ public sealed partial class LandscapeCard : CardBase
         if (PlayButton.Margin != margin) PlayButton.Margin = margin;
     }
 
-    private void OnClick(object sender, RoutedEventArgs e) => HandleClick(Art, Picture);
+    private void OnClick(object sender, RoutedEventArgs e) => HandleClick();
 
     private async void OnPlayClick(object sender, RoutedEventArgs e)
     {
@@ -66,8 +67,8 @@ public sealed partial class LandscapeCard : CardBase
 
     private void OnPointerEntered(object sender, PointerRoutedEventArgs e)
     {
-        hovering = true;
-        HandleHover(true, Visual, PlayButton);
+        Hovering = true;
+        HandleHover(true);
     }
 
     private void OnPointerExited(object sender, PointerRoutedEventArgs e)
@@ -75,13 +76,13 @@ public sealed partial class LandscapeCard : CardBase
         // 子元素的离开事件会冒泡上来；指针仍在卡片范围内（例如移到播放钮上）时不算离开。
         var point = e.GetCurrentPoint(Layout).Position;
         if (point.X >= 0 && point.Y >= 0 && point.X < Layout.ActualWidth && point.Y < Layout.ActualHeight) return;
-        hovering = false;
-        HandleHover(IsCardFocused(), Visual, PlayButton);
+        Hovering = false;
+        HandleHover(IsCardFocused());
     }
 
-    private bool IsCardFocused() => Root.FocusState == FocusState.Keyboard || PlayButton.FocusState == FocusState.Keyboard;
-    private void OnFocusChanged(object sender, RoutedEventArgs e) =>
-        DispatcherQueue.TryEnqueue(() => HandleHover(hovering || IsCardFocused(), Visual, PlayButton));
-    private void OnPressed(object sender, PointerRoutedEventArgs e) => HandlePress(true, Visual, PlayButton);
-    private void OnReleased(object sender, PointerRoutedEventArgs e) => HandlePress(false, Visual, PlayButton);
+    protected override bool IsCardFocused() => Root is not null && (Root.FocusState == FocusState.Keyboard || PlayButton.FocusState == FocusState.Keyboard);
+    private void OnFocusChanged(object sender, RoutedEventArgs e) => QueueFocusUpdate();
+    private void OnPressed(object sender, PointerRoutedEventArgs e) => HandlePress(true);
+    private void OnReleased(object sender, PointerRoutedEventArgs e) => HandlePress(false);
+    private void OnCanceled(object sender, PointerRoutedEventArgs e) => HandleCancel();
 }

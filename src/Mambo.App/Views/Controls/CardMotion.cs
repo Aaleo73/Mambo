@@ -1,38 +1,47 @@
 using System.Numerics;
 using Mambo.App.Themes;
+using Microsoft.UI.Composition;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Hosting;
 
 namespace Mambo.App.Views.Controls;
 
-/// <summary>
-/// 卡片的上浮与按下：悬停或键盘聚焦上移 6px（220ms，fluid 缓动），按下回落到上移 2px（80ms）。
-/// 原版按下时还有 .995 的缩放，300px 的卡片上不到 2px，这里不做。
-/// </summary>
+/// <summary>Quiet card feedback: hover/focus −2 DIP, press −1 DIP, release with Feedback/EaseOut.</summary>
 internal static class CardMotion
 {
-    private const float HoverLift = -6;
-    private const float PressLift = -2;
+    private const float HoverLift = -2;
+    private const float PressLift = -1;
 
-    public static void Lift(UIElement element, bool up) => Move(element, up ? HoverLift : 0, TimeSpan.FromMilliseconds(220));
+    public static void Lift(UIElement element, bool up) => Move(element, up ? HoverLift : 0, Motion.Feedback);
 
     public static void Press(UIElement element, bool pressed, bool hovering) =>
-        Move(element, pressed ? PressLift : hovering ? HoverLift : 0, pressed ? Motion.Micro : TimeSpan.FromMilliseconds(220));
+        Move(element, pressed ? PressLift : hovering ? HoverLift : 0, pressed ? Motion.Press : Motion.Feedback);
+
+    public static void Reset(UIElement element)
+    {
+        var visual = ElementCompositionPreview.GetElementVisual(element);
+        if (visual.Properties.TryGetVector3("Translation", out _) != CompositionGetValueStatus.Succeeded) return;
+        visual.Properties.StopAnimation("Translation");
+        visual.Properties.InsertVector3("Translation", Vector3.Zero);
+    }
 
     private static void Move(UIElement element, float y, TimeSpan duration)
     {
         ElementCompositionPreview.SetIsTranslationEnabled(element, true);
         var visual = ElementCompositionPreview.GetElementVisual(element);
+        if (visual.Properties.TryGetVector3("Translation", out _) != CompositionGetValueStatus.Succeeded)
+            visual.Properties.InsertVector3("Translation", Vector3.Zero);
         var target = new Vector3(0, y, 0);
-        if (!Motion.AnimationsEnabled)
+        if (!Motion.AnimationsEnabled || !Motion.IsActive(element) || Motion.IsEntranceSuppressed(element))
         {
-            visual.Properties.InsertVector3("Translation", target);
+            Reset(element);
             return;
         }
         var compositor = visual.Compositor;
-        var animation = compositor.CreateVector3KeyFrameAnimation();
-        animation.InsertKeyFrame(1, target, Motion.CreateEasing(compositor, Motion.Fluid));
+        using var animation = compositor.CreateVector3KeyFrameAnimation();
+        using var easing = Motion.CreateEasing(compositor, Motion.EaseOut);
+        animation.InsertKeyFrame(1, target, easing);
         animation.Duration = duration;
-        visual.StartAnimation("Translation", animation);
+        visual.Properties.StartAnimation("Translation", animation);
     }
 }

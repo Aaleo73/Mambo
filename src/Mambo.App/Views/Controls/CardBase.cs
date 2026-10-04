@@ -4,29 +4,40 @@ using Mambo.App.ViewModels;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media.Animation;
 using Mambo.App.Themes;
 
 namespace Mambo.App.Views.Controls;
 
 /// <summary>
 /// 海报卡与横版卡共用：Item 依赖属性、点击进详情、悬停或键盘聚焦时整张卡上浮、按下回落、300ms 预取，
-/// 以及"图片有了结果后文字和角标再一起淡入"。
+/// 以及图片有了结果后同步显示文字和角标，不叠加另一层淡入。
 /// </summary>
-public partial class CardBase : UserControl
+public partial class CardBase : UserControl, IMotionParticipant
 {
     public static readonly DependencyProperty ItemProperty = DependencyProperty.Register(nameof(Item), typeof(MediaCardViewModel), typeof(CardBase),
-        new PropertyMetadata(null));
+        new PropertyMetadata(null, (d, _) => ((CardBase)d).SettleMotion()));
 
     private DispatcherQueueTimer? prefetch;
     private UIElement[] revealed = [];
     private bool active;
     private bool pressed;
+    private UIElement? motionTarget;
+    private int focusGeneration;
+    protected bool Hovering { get; set; }
+    protected virtual bool IsCardFocused() => false;
+    internal bool IsMotionPressed => pressed;
+    internal bool IsMotionHovered => Hovering;
+    internal UIElement? MotionTarget => motionTarget;
 
-    public CardBase() => Unloaded += OnUnloaded;
+    public CardBase()
+    {
+        Loaded += (_, _) => SettleMotion();
+        Unloaded += OnUnloaded;
+    }
 
     private void OnUnloaded(object sender, RoutedEventArgs args)
     {
+        SettleMotion();
         if (prefetch is null) return;
         prefetch.Stop();
         prefetch.Tick -= OnPrefetch;
@@ -35,45 +46,68 @@ public partial class CardBase : UserControl
 
     private void OnPrefetch(DispatcherQueueTimer sender, object args)
     {
-        if (Item is { } item) CardActions.Current?.Prefetch(item.Id);
+        if (IsLoaded && Motion.IsActive(this) && Item is { } item) CardActions.Current?.Prefetch(item.Id);
     }
 
     public MediaCardViewModel? Item { get => (MediaCardViewModel?)GetValue(ItemProperty); set => SetValue(ItemProperty, value); }
 
-    /// <summary>进详情：被点的封面留在原位放大淡出，盖在换入的详情页上。</summary>
-    protected void HandleClick(FrameworkElement cover, RemoteImage picture)
+    /// <summary>整卡只发起轻量导航，详情前景由 PageHost 统一呈现。</summary>
+    protected void HandleClick()
     {
-        ArgumentNullException.ThrowIfNull(picture);
-        CoverTransition.Play(cover, picture.CurrentImage);
         if (Item is { } item) CardActions.Current?.Open(item.Id);
     }
 
-    /// <summary>文字、角标、进度条在图片有结果之前保持隐藏，之后一起出现；图已在缓存里时不做淡入。</summary>
+    /// <summary>文字、角标、进度条跟随图片的 Pending/Settled 状态直接显示。</summary>
     protected void TrackReveal(RemoteImage picture, params UIElement[] targets)
     {
         ArgumentNullException.ThrowIfNull(picture);
         revealed = targets;
-        SetRevealed(false, animate: false);
-        picture.Pending += (_, _) => SetRevealed(false, animate: false);
-        picture.Settled += (_, animate) => SetRevealed(true, animate);
+        SetRevealed(false);
+        picture.Pending += (_, _) => SetRevealed(false);
+        picture.Settled += (_, _) => SetRevealed(true);
     }
 
-    private void SetRevealed(bool visible, bool animate)
+    private void SetRevealed(bool visible)
     {
         foreach (var target in revealed)
         {
-            target.OpacityTransition = animate && Motion.AnimationsEnabled ? new ScalarTransition { Duration = Motion.ImageReady } : null;
             target.Opacity = visible ? 1 : 0;
         }
     }
 
-    /// <summary>悬停或键盘聚焦：描边加深，<paramref name="lifted"/> 上浮；离开时回落。</summary>
-    protected void HandleHover(bool hover, params UIElement[] lifted)
+    protected void TrackMotion(UIElement target) => motionTarget = target;
+    protected void HandleCancel() => SettleMotion();
+
+    void IMotionParticipant.SettleMotion() => SettleMotion();
+
+    private void SettleMotion()
     {
-        ArgumentNullException.ThrowIfNull(lifted);
+        focusGeneration++;
+        Hovering = pressed = false;
+        active = IsCardFocused();
+        prefetch?.Stop();
+        if (motionTarget is null) return;
+        CardMotion.Reset(motionTarget);
+        VisualStateManager.GoToState(this, active ? "Hover" : "Rest", false);
+    }
+
+    protected void QueueFocusUpdate()
+    {
+        var generation = ++focusGeneration;
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            if (generation == focusGeneration && IsLoaded && Motion.IsActive(this))
+                HandleHover(Hovering || IsCardFocused());
+        });
+    }
+
+    /// <summary>Hover and actual keyboard focus share one card feedback root.</summary>
+    protected void HandleHover(bool hover)
+    {
+        if (!IsLoaded || !Motion.IsActive(this)) { SettleMotion(); return; }
         active = hover;
         VisualStateManager.GoToState(this, hover ? "Hover" : "Rest", true);
-        if (!pressed) foreach (var element in lifted) CardMotion.Lift(element, hover);
+        if (!pressed && motionTarget is not null) CardMotion.Lift(motionTarget, hover);
         if (!hover)
         {
             prefetch?.Stop();
@@ -89,10 +123,10 @@ public partial class CardBase : UserControl
         prefetch.Start();
     }
 
-    protected void HandlePress(bool down, params FrameworkElement[] lifted)
+    protected void HandlePress(bool down)
     {
-        ArgumentNullException.ThrowIfNull(lifted);
+        if (!IsLoaded || !Motion.IsActive(this)) { SettleMotion(); return; }
         pressed = down;
-        foreach (var element in lifted) CardMotion.Press(element, down, active);
+        if (motionTarget is not null) CardMotion.Press(motionTarget, down, active);
     }
 }

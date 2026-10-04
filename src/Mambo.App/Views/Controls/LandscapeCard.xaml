@@ -7,7 +7,7 @@
     xmlns:themes="using:Mambo.App.Themes">
     <Grid x:Name="Layout" Background="Transparent"
           GotFocus="OnFocusChanged" LostFocus="OnFocusChanged"
-          PointerEntered="OnPointerEntered" PointerExited="OnPointerExited" PointerCanceled="OnPointerExited">
+          PointerEntered="OnPointerEntered" PointerExited="OnPointerExited">
         <Grid.RowDefinitions>
             <RowDefinition x:Name="ArtRow" Height="{StaticResource LandscapeHeightGridLength}"/>
             <RowDefinition Height="Auto"/>
@@ -24,8 +24,8 @@
             </VisualStateGroup>
         </VisualStateManager.VisualStateGroups>
         <Button x:Name="Root" Grid.RowSpan="2" Style="{StaticResource CardButtonStyle}" Click="OnClick" AutomationProperties.Name="{x:Bind Item.Title, Mode=OneWay}">
-            <!-- 整张卡（图和文字）一起上浮；播放钮是按钮的兄弟元素，由代码一起带上去 -->
-            <Grid x:Name="Visual">
+            <!-- 图片、文字和兄弟播放钮由共同 Layout 根一起移动。 -->
+            <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="{x:Bind ArtRow.Height, Mode=OneWay}"/>
                     <RowDefinition Height="Auto"/>

@@ -31,7 +31,7 @@ function Test-UiOnlyRetainedFailure($Report, [DateTimeOffset]$ProcessStartUtc) {
             [Globalization.DateTimeStyles]::None, [ref]$completed)) { return $false }
     if ($completed -lt $ProcessStartUtc) { return $false }
     foreach ($field in @('Home', 'Library', 'Recent', 'Detail', 'Theme', 'Cache', 'Search', 'Overlay',
-            'NavigationLocked', 'Controls', 'Fullscreen', 'Closed')) {
+            'NavigationLocked', 'Controls', 'Fullscreen', 'Closed', 'PlayerPresentationReleased')) {
         if ($Report.$field -isnot [bool] -or -not $Report.$field) { return $false }
     }
     if (($Report.SessionsClosed -isnot [int] -and $Report.SessionsClosed -isnot [long]) -or $Report.SessionsClosed -ne 50 -or
@@ -42,7 +42,8 @@ function Test-UiOnlyRetainedFailure($Report, [DateTimeOffset]$ProcessStartUtc) {
             (($Report.$field -isnot [int] -and $Report.$field -isnot [long]) -or
              $Report.$field -ne 50)) { return $false }
     }
-    foreach ($component in @('PlayerControls', 'Navigation', 'PageRecovery', 'PlaybackRefresh')) {
+    if ($Report.AnimationsEnabled -isnot [bool]) { return $false }
+    foreach ($component in @('PlayerControls', 'Navigation', 'PageRecovery', 'PlaybackRefresh', 'Motion')) {
         if ($null -eq $Report.$component -or $Report.$component.Passed -isnot [bool] -or -not $Report.$component.Passed) { return $false }
     }
     foreach ($field in @('CaptionCloseCancelled', 'CaptionCloseReentryIgnored', 'CaptionCloseConfirmed', 'CaptionCloseCleanupCompleted')) {
@@ -60,7 +61,7 @@ try {
     $env:MAMBO_UI_LAB_REPORT = $effectiveReportPath
     $env:MAMBO_FAKE_DELAY_MS = '10'
     $env:MAMBO_FAKE_FAILURE_RATE = '0'
-    $process = Start-Process -FilePath (Join-Path $outputRoot 'Mambo.exe') -ArgumentList '--ui-smoke' -WorkingDirectory $repoRoot -WindowStyle Hidden -PassThru
+    $process = Start-Process -FilePath (Join-Path $outputRoot 'Mambo.exe') -ArgumentList '--ui-smoke' -WorkingDirectory $repoRoot -PassThru
     # Retain this launch's process handle; cleanup never looks up or terminates another process by name.
     $null = $process.Handle
     if (-not $process.WaitForExit(210000)) { throw '界面验证超时。' }
@@ -74,9 +75,11 @@ try {
             $failure.Data['UiOnlyRetainedFailure'] = $true
             throw $failure
         }
-        throw "界面验证未通过（$($report.Stage)，$($report.ErrorKind)，$($report.HResult)）。"
+        throw "界面验证未通过（$($report.Stage)，$($report.ErrorKind)，$($report.HResult)，$($report.FailureStage)，$($report.Motion.Stage)，$($report.Motion.FailureKind)）。"
     }
-    Write-Host "页面 / 主题 / 播放控制 / 全屏 / 50次关闭通过：$effectiveReportPath"
+    if ($report.AnimationsEnabled -isnot [bool] -or $report.Motion.Passed -isnot [bool] -or
+        $report.PlayerPresentationReleased -isnot [bool]) { throw '界面报告缺少完整的动效验收字段。' }
+    Write-Host "页面 / 动效 / 主题 / 播放控制 / 全屏 / 50次关闭通过：$effectiveReportPath"
 } finally {
     try {
         if ($process -and -not $process.HasExited) {

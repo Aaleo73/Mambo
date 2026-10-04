@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Mambo.App.Images;
 using Mambo.App.Shell;
 using Mambo.App.Views;
 using Mambo.Core.Contracts;
@@ -21,7 +22,7 @@ using WinRT;
 namespace Mambo.App.Debug;
 
 /// <summary>通过实际 XAML 外壳验证导航与播放；只允许假服务，不读取本机凭据。</summary>
-internal static class UiLabSmoke
+internal static partial class UiLabSmoke
 {
     public static async Task RunAsync(MainWindow window, string reportPath)
     {
@@ -46,6 +47,7 @@ internal static class UiLabSmoke
             return;
         }
         var shotRoot = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(reportPath))!, Path.GetFileNameWithoutExtension(reportPath));
+        using var input = new UiInputProbe(window);
         // 六项假服务已验证；只为本轮合成页面保存构造错误，不订阅真实页面。
         void OnPageFailure(Exception error)
         {
@@ -61,6 +63,9 @@ internal static class UiLabSmoke
             if (window.Shell.PageHost.CurrentPage is ErrorPage) navigation.RetryCurrent();
             await SaveReportAsync(report, reportPath);
             await WaitAsync(() => window.Shell.IsLoaded && window.Shell.ActualWidth > 0, token);
+            report.Stage = "取得本轮窗口输入";
+            await input.AcquireAsync(token);
+            report.AnimationsEnabled = Themes.Motion.AnimationsEnabled;
             using var libraries = library.ObserveLibraries(token);
             await libraries.RefreshAsync(token);
             await WaitAsync(() => libraries.IsInitialized && libraries.Current.Length > 0, token);
@@ -68,7 +73,7 @@ internal static class UiLabSmoke
             var series = libraries.Current.First(item => item.Kind == LibraryKind.TvShows);
             report.Stage = "首页";
             await SaveReportAsync(report, reportPath);
-            await ShotAsync(window, shotRoot, "home", token);
+            await ShotAsync(window, shotRoot, "home", report, token);
             report.Accessibility.Add(await AccessibilityProbe.RunAsync(window));
             report.Home = window.Shell.PageHost.CurrentPage is HomePage;
             report.WindowLoadedMilliseconds = StartupTimeline.WindowLoadedMilliseconds;
@@ -79,19 +84,19 @@ internal static class UiLabSmoke
             navigation.Navigate(Route.Library(movies.Id));
             if (window.Shell.PageHost.CurrentPage is ErrorPage)
             {
-                await ShotAsync(window, shotRoot, "library-error", token);
+                await ShotAsync(window, shotRoot, "library-error", report, token);
                 throw new InvalidOperationException("FakeLibraryPageConstructionFailed");
             }
             await WaitAsync(() => window.Shell.PageHost.CurrentPage is LibraryPage page && page.ViewModel.Cards.IsInitialized, token);
             var moviePage = (LibraryPage)window.Shell.PageHost.CurrentPage!;
             report.Library = moviePage.ViewModel.Cards.Items.Count > 0;
-            await ShotAsync(window, shotRoot, "library", token);
+            await ShotAsync(window, shotRoot, "library", report, token);
             report.Accessibility.Add(await AccessibilityProbe.RunAsync(window));
             report.Performance = await UiPerformanceProbe.RunAsync(moviePage, token);
             navigation.Navigate(Route.Recent);
             await WaitAsync(() => window.Shell.PageHost.CurrentPage is RecentPage page && page.ViewModel.Cards.IsInitialized, token);
             report.Recent = ((RecentPage)window.Shell.PageHost.CurrentPage!).ViewModel.Cards.Items.Count > 0;
-            await ShotAsync(window, shotRoot, "recent", token);
+            await ShotAsync(window, shotRoot, "recent", report, token);
 
             report.Stage = "详情与换季";
             await SaveReportAsync(report, reportPath);
@@ -103,7 +108,7 @@ internal static class UiLabSmoke
             var detail = (DetailPage)window.Shell.PageHost.CurrentPage!;
             await WaitAsync(() => detail.ViewModel.Seasons.Count > 0 && detail.ViewModel.Episodes.Count > 0, token);
             report.Detail = detail.ViewModel.Title.Length > 0;
-            await ShotAsync(window, shotRoot, "detail", token);
+            await ShotAsync(window, shotRoot, "detail", report, token);
             report.Accessibility.Add(await AccessibilityProbe.RunAsync(window));
 
             report.Stage = "主题与设置";
@@ -111,15 +116,15 @@ internal static class UiLabSmoke
             navigation.Navigate(Route.Settings);
             await settings.UpdateAsync(value => value with { ThemeMode = SettingsThemeMode.Dark }, token);
             await WaitAsync(() => services.GetRequiredService<ThemeService>().Mode == ThemeMode.Dark, token);
-            await ShotAsync(window, shotRoot, "settings-dark", token);
+            await ShotAsync(window, shotRoot, "settings-dark", report, token);
             await settings.UpdateAsync(value => value with { ThemeMode = SettingsThemeMode.Light }, token);
             await WaitAsync(() => services.GetRequiredService<ThemeService>().Mode == ThemeMode.Light, token);
             report.Theme = true;
             report.Cache = await settings.GetCacheSizeAsync(token) > 0 && settings.LogDirectory == "";
-            await ShotAsync(window, shotRoot, "settings-light", token);
+            await ShotAsync(window, shotRoot, "settings-light", report, token);
             report.Accessibility.Add(await AccessibilityProbe.RunAsync(window));
             navigation.Navigate(Route.Search("星"));
-            await ShotAsync(window, shotRoot, "search", token);
+            await ShotAsync(window, shotRoot, "search", report, token);
             report.Search = window.Shell.PageHost.CurrentPage is SearchPage;
             report.Stage = "页面淘汰与深滚动恢复";
             await SaveReportAsync(report, reportPath);
@@ -137,6 +142,11 @@ internal static class UiLabSmoke
             report.PlaybackRefresh = await PlaybackRefreshSmoke.RunAsync(window,
                 Path.Combine(shotRoot, "playback-refresh-" + Guid.NewGuid().ToString("N")), token);
 
+            report.Stage = "动效中断与呈现生命周期";
+            await SaveReportAsync(report, reportPath);
+            report.Motion = new MotionReport();
+            await RunMotionAsync(window, input, report.Motion, token);
+
             report.Stage = "播放层与控制";
             await SaveReportAsync(report, reportPath);
             var session = await playback.PreviewAsync(token);
@@ -153,12 +163,12 @@ internal static class UiLabSmoke
             await WaitAsync(() => session.Snapshot.IsPaused && session.Snapshot.PlaybackRate == 1.5 && session.Snapshot.Volume == 47, token);
             report.Controls = session.Snapshot.PositionTicks >= TimeSpan.FromSeconds(30).Ticks;
             window.Shell.ActivePlayer!.ShowControlsForSmoke();
-            await ShotAsync(window, shotRoot, "player", token);
+            await ShotAsync(window, shotRoot, "player", report, token);
             report.Accessibility.Add(await AccessibilityProbe.RunAsync(window));
             presentation.ToggleFullscreen();
             await WaitAsync(() => presentation.IsFullscreen, token);
             window.Shell.ActivePlayer!.ShowControlsForSmoke();
-            await ShotAsync(window, shotRoot, "player-fullscreen", token);
+            await ShotAsync(window, shotRoot, "player-fullscreen", report, token);
             presentation.ExitFullscreen();
             report.Fullscreen = !presentation.IsFullscreen;
             await session.CloseAsync(token);
@@ -233,6 +243,8 @@ internal static class UiLabSmoke
             report.RetainedPlayerIndices = closedPlayers.Select((reference, index) => (reference, index))
                 .Where(item => item.reference.IsAlive).Select(item => item.index).ToArray();
             report.LibMpvLoaded = process.Modules.Cast<ProcessModule>().Any(module => module.ModuleName.Equals("libmpv-2.dll", StringComparison.OrdinalIgnoreCase));
+            report.PlayerPresentationReleased = window.Shell.ActivePlayer is null && window.Shell.RetiringPlayer is null &&
+                !window.Shell.IsTransitioning && !navigation.ForwardBlocked;
             report.Passed = report.Home && report.Library && report.Recent && report.Detail && report.Theme && report.Cache &&
                 report.Search && report.Overlay && report.NavigationLocked && report.Controls && report.Fullscreen && report.Closed &&
                 report.SessionsClosed == 50 && report.FocusRestoresSucceeded == 50 &&
@@ -240,7 +252,8 @@ internal static class UiLabSmoke
                 report.CollectionSamples.LastOrDefault() is
                     { ElapsedMilliseconds: <= 10_000, PlayersAlive: 0, SurfacesAlive: 0, CleanupFrameCycles: >= 4 } &&
                 report.RetainedPlayers == 0 && report.RetainedSurfaces == 0 &&
-                !report.LibMpvLoaded && report.PlayerControls?.Passed == true &&
+                !report.LibMpvLoaded && report.PlayerControls?.Passed == true && report.Motion?.Passed == true &&
+                report.PlayerPresentationReleased &&
                 report.Accessibility.Count == 5 && report.Accessibility.All(item => item.Status == "Passed") &&
                 report.Navigation?.Passed == true && report.PageRecovery?.Passed == true && report.PlaybackRefresh?.Passed == true;
             report.Stage = report.Passed ? "完成" : "界面检查未通过";
@@ -259,7 +272,8 @@ internal static class UiLabSmoke
         catch (Exception error)
         {
             report.Passed = false;
-            report.ErrorKind = error.GetType().Name;
+            report.FailureStage = report.Stage;
+            report.ErrorKind = error is UiInputProbe.InputFailure ? error.Message : error.GetType().Name;
             report.HResult = error.HResult.ToString("X8", CultureInfo.InvariantCulture);
         }
         finally
@@ -331,7 +345,7 @@ internal static class UiLabSmoke
         }
     }
 
-    private static async Task AwaitNextRenderingAsync(CancellationToken token)
+    internal static async Task AwaitNextRenderingAsync(CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token);
@@ -386,17 +400,31 @@ internal static class UiLabSmoke
         while (!ready()) await Task.Delay(20, token);
     }
 
-    private static async Task ShotAsync(MainWindow window, string directory, string name, CancellationToken token)
+    private static async Task ShotAsync(MainWindow window, string directory, string name, UiLabReport report, CancellationToken token)
     {
+        report.Stage = $"截图/{name}/页面交接";
+        await window.Shell.PageHost.PendingTransition.WaitAsync(token);
+        report.Stage = $"截图/{name}/Hero前景";
+        if (window.Shell.PageHost.CurrentPage is HomePage home) await home.PendingPresentation.WaitAsync(token);
+        report.Stage = $"截图/{name}/共享背景";
+        await window.Services.GetRequiredService<BrowseTransitionCoordinator>().PendingBackdrop.WaitAsync(token);
+        report.Stage = $"截图/{name}/播放面";
+        await window.Shell.PendingPresentation.WaitAsync(token);
+        report.Stage = $"截图/{name}/图片就绪";
+        await WaitAsync(() => !HasPendingImage(window.Shell), token);
+        report.Stage = $"截图/{name}/实际布局帧";
         // RenderTargetBitmap 不包含窗口的原生系统 backdrop；用同主题底色保证离屏截图可读。
         var snapshotRoot = (Microsoft.UI.Xaml.Controls.Grid)window.Shell.FindName("Root");
         var oldBackground = snapshotRoot.Background;
         var dark = window.Shell.ActualTheme == ElementTheme.Dark;
         snapshotRoot.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(dark
             ? Windows.UI.Color.FromArgb(255, 24, 26, 31) : Windows.UI.Color.FromArgb(255, 246, 247, 249));
-        await Task.Delay(400, token);
         var bitmap = new RenderTargetBitmap();
-        try { await bitmap.RenderAsync(window.Shell); }
+        try
+        {
+            await AwaitNextRenderingAsync(token);
+            await bitmap.RenderAsync(window.Shell);
+        }
         finally { snapshotRoot.Background = oldBackground; }
         var pixels = await bitmap.GetPixelsAsync();
         Directory.CreateDirectory(directory);
@@ -409,6 +437,14 @@ internal static class UiLabSmoke
             (uint)bitmap.PixelWidth, (uint)bitmap.PixelHeight, 96, 96, pixels.ToArray());
         await encoder.FlushAsync();
     }
+
+    private static bool HasPendingImage(DependencyObject root)
+    {
+        if (root is RemoteImage { IsLoaded: true } image && (image.IsLoading || image.IsRevealing)) return true;
+        for (var index = 0; index < VisualTreeHelper.GetChildrenCount(root); index++)
+            if (HasPendingImage(VisualTreeHelper.GetChild(root, index))) return true;
+        return false;
+    }
 }
 
 internal sealed class UiLabReport
@@ -420,7 +456,10 @@ internal sealed class UiLabReport
     public DateTimeOffset StartedAtUtc { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? CompletedAtUtc { get; set; }
     public bool Passed { get; set; }
+    public bool AnimationsEnabled { get; set; }
+    public bool PlayerPresentationReleased { get; set; }
     public string Stage { get; set; } = "等待外壳";
+    public string FailureStage { get; set; } = "";
     public string ErrorKind { get; set; } = "";
     public string HResult { get; set; } = "";
     public string ReportWriteErrorKind { get; set; } = "";
@@ -468,6 +507,17 @@ internal sealed class UiLabReport
     public NavigationReport? Navigation { get; set; }
     public PageRecoveryReport? PageRecovery { get; set; }
     public PlaybackRefreshReport? PlaybackRefresh { get; set; }
+    public MotionReport? Motion { get; set; }
+}
+
+internal sealed class MotionReport
+{
+    public bool Passed { get; set; }
+    public string Stage { get; set; } = "AcquireWindow";
+    public string FailureKind { get; set; } = "";
+    public Dictionary<string, bool> Checks { get; set; } = [];
+    public Dictionary<string, double> Measurements { get; set; } = [];
+    public double ElapsedMilliseconds { get; set; }
 }
 
 // CleanupFrameCycles 是本次回收窗口中明确等待完成的累计 XAML Rendering 次数，不是 GPU 帧数。

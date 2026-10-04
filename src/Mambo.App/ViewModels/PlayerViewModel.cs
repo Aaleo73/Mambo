@@ -18,6 +18,7 @@ public sealed partial class PlayerViewModel : ObservableObject, IDisposable
     private bool upNextDismissed;
     private long openingSince;
     private bool slowOpeningNotified;
+    private bool disposed;
 
     public PlayerViewModel(IPlaybackSession session)
     {
@@ -70,6 +71,7 @@ public sealed partial class PlayerViewModel : ObservableObject, IDisposable
 
     public void Tick()
     {
+        if (disposed) return;
         if (IsSlowOpening != slowOpeningNotified)
         {
             slowOpeningNotified = IsSlowOpening;
@@ -96,19 +98,37 @@ public sealed partial class PlayerViewModel : ObservableObject, IDisposable
 
     public void PreviewSeek(double seconds)
     {
+        if (disposed) return;
         seekPreview = ClampPosition((long)(Math.Max(0, seconds) * TimeSpan.TicksPerSecond));
         seekHoldUntil = 0;
         Tick();
     }
 
-    public void CommitSeekPreview() => seekHoldUntil = Environment.TickCount64 + 1200;
-    public void CancelSeekPreview() { seekPreview = null; seekHoldUntil = 0; Tick(); }
-    public void DismissUpNext() { upNextDismissed = true; ShowUpNext = false; }
+    public void CommitSeekPreview() { if (!disposed) seekHoldUntil = Environment.TickCount64 + 1200; }
+    public void CancelSeekPreview()
+    {
+        if (disposed) return;
+        seekPreview = null;
+        seekHoldUntil = 0;
+        Tick();
+    }
+    public void DismissUpNext()
+    {
+        if (disposed) return;
+        upNextDismissed = true;
+        ShowUpNext = false;
+    }
 
-    public void Dispose() => session.SnapshotChanged -= OnSnapshotChanged;
+    public void Dispose()
+    {
+        if (disposed) return;
+        disposed = true;
+        session.SnapshotChanged -= OnSnapshotChanged;
+    }
 
     private void OnSnapshotChanged(object? sender, EventArgs e)
     {
+        if (disposed) return;
         snapshot = session.Snapshot;
         ApplySnapshot();
     }

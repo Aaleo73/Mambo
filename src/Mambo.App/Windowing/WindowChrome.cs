@@ -8,7 +8,7 @@ using Windows.Graphics;
 namespace Mambo.App.Windowing;
 
 /// <summary>
-/// 自绘标题栏的非客户区：标题栏整体可拖动（SetTitleBar），按钮登记为 Passthrough，
+/// 自绘标题栏的非客户区：显式登记 Caption 拖动区域，按钮登记为 Passthrough，
 /// 最大化按钮登记为 Maximize 区域以获得贴靠布局；悬停视觉由非客户区指针事件驱动。
 /// </summary>
 internal sealed class WindowChrome : IDisposable
@@ -51,12 +51,14 @@ internal sealed class WindowChrome : IDisposable
         if (shell.XamlRoot is not { } root || shell.ActualWidth <= 0) return;
         if (window.AppWindow.Presenter.Kind == AppWindowPresenterKind.FullScreen)
         {
+            source.SetRegionRects(NonClientRegionKind.Caption, []);
             source.SetRegionRects(NonClientRegionKind.Passthrough, []);
             source.SetRegionRects(NonClientRegionKind.Maximize, []);
             return;
         }
         var scale = root.RasterizationScale;
         var passthrough = shell.PassthroughElements.Where(e => e.ActualWidth > 0 && e.ActualHeight > 0).Select(e => ToRect(e, scale)).ToArray();
+        source.SetRegionRects(NonClientRegionKind.Caption, [ToRect(shell.TitleBarElement, scale)]);
         source.SetRegionRects(NonClientRegionKind.Passthrough, passthrough);
         source.SetRegionRects(NonClientRegionKind.Maximize, [ToRect(shell.MaximizeElement, scale)]);
     }
@@ -74,6 +76,9 @@ internal sealed class WindowChrome : IDisposable
         hook.MaximizePressedChanged -= OnMaximizePressed;
         hook.MaximizeClicked -= ToggleMaximize;
         hook.Dispose();
+        source.SetRegionRects(NonClientRegionKind.Caption, []);
+        source.SetRegionRects(NonClientRegionKind.Passthrough, []);
+        source.SetRegionRects(NonClientRegionKind.Maximize, []);
     }
 
     private void OnTitleBarLayoutChanged(object? sender, EventArgs args) => UpdateRegions();

@@ -9,6 +9,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Hosting;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Windows.System;
@@ -59,7 +60,8 @@ internal static class PlayerControlsSmoke
             var browsingEntry = navigation.Current;
             navigation.Navigate(originalRoute.Kind == PageKind.Home ? Route.Settings : Route.Home);
             Mark(report, "NavigationLocked", navigation.ForwardBlocked && ReferenceEquals(navigation.Current, browsingEntry) && !navigation.GoForward());
-            Mark(report, "CoveredPageDisabled", window.Shell.PageHost.CurrentPage is Control { IsEnabled: false });
+            Mark(report, "CoveredBrowseCannotReceiveFocus",
+                FocusManager.FindFirstFocusableElement(window.Shell.FindName("BrowseFace").As<FrameworkElement>()) is null);
 
             async Task KeyAsync(string name, VirtualKey key, Func<bool> state)
             {
@@ -359,24 +361,7 @@ internal static class PlayerControlsSmoke
             await layoutReplacement.CloseAsync(cancellationToken: token);
             await WaitAsync(() => playback.Current is null && window.Shell.ActivePlayer is null && !navigation.ForwardBlocked && !window.Shell.IsTransitioning, token);
 
-            report.Stage = "InterruptedPlayerFold";
-            var interrupted = await playback.PreviewAsync(token);
-            report.SessionsOpened++;
-            await WaitAsync(() => window.Shell.ActivePlayer is { IsLoaded: true } active &&
-                ReferenceEquals(active.Session, interrupted), token);
-            if (Motion.AnimationsEnabled)
-                Mark(report, "OpeningFoldDefersVideoSurface", window.Shell.IsTransitioning &&
-                    !window.Shell.ActivePlayer!.VideoSurface.IsDemoAttached);
-            await interrupted.CloseAsync(cancellationToken: token);
-            var replacement = await playback.PreviewAsync(token);
-            report.SessionsOpened++;
-            await CheckAsync(report, "InterruptedFoldReopensCurrentSession", () => !window.Shell.IsTransitioning &&
-                window.Shell.ActivePlayer is { IsLoaded: true } active && ReferenceEquals(active.Session, replacement) &&
-                active.VideoSurface.IsDemoAttached && active.ViewModel.CanControl, token);
-            await replacement.CloseAsync(cancellationToken: token);
-            await CheckAsync(report, "InterruptedFoldRestoresBrowser", () => playback.Current is null &&
-                window.Shell.ActivePlayer is null && !window.Shell.IsTransitioning && !navigation.ForwardBlocked &&
-                window.Shell.LastPlayerFocusRestoreSucceeded && window.Shell.LastPlayerFocusRestoredWithinShell, token);
+            await ProbeFoldInterruptionsAsync(window, playback, navigation, report, token);
 
             foreach (var close in new[] { "AltLeftCloses", "MouseBackCloses", "NavigatorBackCloses", "CloseButtonCloses" })
             {
@@ -437,6 +422,111 @@ internal static class PlayerControlsSmoke
         }
         return report;
     }
+
+    private static async Task ProbeFoldInterruptionsAsync(MainWindow window, IPlaybackService playback, Navigator navigation,
+        PlayerControlsReport report, CancellationToken token)
+    {
+        var shell = window.Shell;
+        foreach (var threshold in new[] { .15, .49, .51, .85 })
+        {
+            var label = "Fold" + ((int)(threshold * 100)).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            report.Stage = label;
+            var interrupted = await playback.PreviewAsync(token);
+            report.SessionsOpened++;
+            await WaitAsync(() => shell.ActivePlayer is { IsLoaded: true } active && ReferenceEquals(active.Session, interrupted), token);
+            if (Motion.AnimationsEnabled)
+            {
+                var deadline = Stopwatch.StartNew();
+                // 给 SessionEnded 留出一帧；半程前用例必须真的发生在换面前。
+                var observedThreshold = threshold == .49 ? .45 : threshold;
+                while (shell.FoldProgress < observedThreshold)
+                {
+                    if (deadline.Elapsed > TimeSpan.FromSeconds(3)) throw new TimeoutException();
+                    await UiLabSmoke.AwaitNextRenderingAsync(token);
+                }
+            }
+            else await shell.PendingPresentation;
+            var old = shell.ActivePlayer!;
+            var surface = old.VideoSurface;
+            var sample = new FoldInterruptionSample { RequestedProgress = threshold, CloseProgress = shell.FoldProgress };
+            report.FoldInterruptions.Add(sample);
+            if (Motion.AnimationsEnabled)
+            {
+                Mark(report, label + "InterruptsLiveOpening", shell.IsTransitioning && sample.CloseProgress is > 0 and < 1 &&
+                    !surface.IsDemoAttached);
+                Mark(report, label + "OpeningFaceRemainsReadable", ReadableFoldControls(old) &&
+                    !old.IsClockRunning && !old.StateAnimationsRunning);
+            }
+
+            var releaseObserved = false;
+            var retainedVisual = false;
+            var readableClosingFace = false;
+            void OnEnded(object? sender, PlaybackSessionEventArgs args)
+            {
+                if (!ReferenceEquals(args.Session, interrupted)) return;
+                // Shell 的处理器先执行；这里观察的是其首个 await 前已经完成的解绑和冻结。
+                releaseObserved = shell.ActivePlayer is null && old.IsPresentationFrozen &&
+                    !old.HasAttachedSurface && !old.HasVideoSurface && !old.IsClockRunning &&
+                    !old.IsSingleClickPending && !old.StateAnimationsRunning &&
+                    !surface.IsDemoAttached && VisualTreeHelper.GetParent(surface) is null;
+                retainedVisual = Motion.AnimationsEnabled
+                    ? ReferenceEquals(shell.RetiringPlayer, old) && old.Content is not null && !old.IsHitTestVisible
+                    : shell.RetiringPlayer is null;
+                readableClosingFace = !Motion.AnimationsEnabled || ReadableFoldControls(old);
+                sample.ReverseProgress = shell.FoldProgress;
+            }
+            playback.SessionEnded += OnEnded;
+            try { await interrupted.CloseAsync(cancellationToken: token); }
+            finally { playback.SessionEnded -= OnEnded; }
+            Mark(report, label + "ReleasesSurfaceBeforeAwait", releaseObserved);
+            Mark(report, label + "RetainsOnlyFrozenXaml", retainedVisual);
+            Mark(report, label + "ClosingFaceRemainsReadable", readableClosingFace);
+            if (Motion.AnimationsEnabled)
+                Mark(report, label + "ReverseAvoidsEndpointJump",
+                    sample.ReverseProgress is > 0 and < 1 && Math.Abs(sample.ReverseProgress - sample.CloseProgress) < .15);
+            if (Motion.AnimationsEnabled && threshold == .49)
+                Mark(report, label + "ReversesBeforeFacingChange", sample.ReverseProgress < .5 && !shell.IsPlayerFacing);
+            if (Motion.AnimationsEnabled && threshold == .51)
+                Mark(report, label + "ReversesAfterFacingChange", sample.ReverseProgress > .5 && shell.IsPlayerFacing);
+
+            var replacement = await playback.PreviewAsync(token);
+            report.SessionsOpened++;
+            sample.ResumeProgress = shell.FoldProgress;
+            await CheckAsync(report, label + "OnlyCurrentSessionAttaches", () => !shell.IsTransitioning &&
+                shell.ActivePlayer is { IsLoaded: true } active && ReferenceEquals(active.Session, replacement) &&
+                active.VideoSurface.IsDemoAttached && !surface.IsDemoAttached && shell.RetiringPlayer is null, token);
+            Mark(report, label + "PlayerFaceOwnsTitle", shell.IsPlayerFacing &&
+                shell.ViewModel.TitleText == shell.ActivePlayer!.ViewModel.ShellTitle);
+            Mark(report, label + "FrozenCommandsIgnored", !await old.DispatchSmokeKeyAsync(VirtualKey.Space));
+            if (threshold == .15)
+            {
+                var idlePlayer = shell.ActivePlayer!;
+                await CheckAsync(report, "IdleBeforeFoldClose", () => !idlePlayer.ControlsVisible, token);
+                var readableIdleClose = false;
+                void OnIdleEnded(object? sender, PlaybackSessionEventArgs args)
+                {
+                    if (ReferenceEquals(args.Session, replacement))
+                        readableIdleClose = idlePlayer.IsPresentationFrozen && !idlePlayer.HasVideoSurface &&
+                            (!Motion.AnimationsEnabled || ReadableFoldControls(idlePlayer));
+                }
+                playback.SessionEnded += OnIdleEnded;
+                try { await replacement.CloseAsync(cancellationToken: token); }
+                finally { playback.SessionEnded -= OnIdleEnded; }
+                Mark(report, "IdleCloseRetainsReadableXaml", readableIdleClose);
+            }
+            else
+                await replacement.CloseAsync(cancellationToken: token);
+            await CheckAsync(report, label + "RestoresBrowser", () => playback.Current is null &&
+                shell.ActivePlayer is null && shell.RetiringPlayer is null && !shell.IsTransitioning && !shell.IsPlayerFacing &&
+                !navigation.ForwardBlocked && shell.LastPlayerFocusRestoreSucceeded && shell.LastPlayerFocusRestoredWithinShell, token);
+        }
+    }
+
+    private static bool ReadableFoldControls(PlayerOverlay player) =>
+        player.ControlsVisible && !player.IsHitTestVisible &&
+        player.FindName("Chrome") is FrameworkElement { Visibility: Visibility.Visible, Opacity: 1 } chrome &&
+        chrome.ActualWidth > 0 && chrome.ActualHeight > 0 &&
+        ElementCompositionPreview.GetElementVisual(chrome).Opacity >= .99f;
 
     private static async Task ProbeSnapshotPanelsAsync(MainWindow window, PlayerOverlay parent, PlayerControlsReport report, CancellationToken token)
     {
@@ -570,7 +660,16 @@ internal sealed class PlayerControlsReport
     public string Scope { get; set; } = "Local fake service; real XAML shared event paths and button AutomationPeer; no physical input device claim";
     public Dictionary<string, bool> Checks { get; set; } = [];
     public int SeriesEpisodeCount { get; set; }
+    public List<FoldInterruptionSample> FoldInterruptions { get; set; } = [];
     public int SessionsOpened { get; set; }
     public bool SessionClosed { get; set; }
     public double ElapsedMilliseconds { get; set; }
+}
+
+internal sealed class FoldInterruptionSample
+{
+    public double RequestedProgress { get; set; }
+    public double CloseProgress { get; set; }
+    public double ReverseProgress { get; set; }
+    public double ResumeProgress { get; set; }
 }

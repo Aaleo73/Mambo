@@ -1,4 +1,3 @@
-using System.Numerics;
 using Mambo.App.Images;
 using Mambo.App.Shell;
 using Mambo.App.Themes;
@@ -17,464 +16,556 @@ using Windows.Foundation;
 
 namespace Mambo.App.Views.Controls;
 
-/// <summary>
-/// 首页 hero：背景图用 Composition 绘制，渐变遮罩让底部向下多延伸 96px 并渐隐，不叠纯色；
-/// 两层交叉淡化，7 秒自动切换。悬停、获得焦点、滚出视口、窗口失焦、离开首页、
-/// 悬停在标题栏分页点上或系统关闭动画时暂停。
-/// </summary>
-public sealed partial class HeroCarousel : UserControl, IDisposable
+/// <summary>Two fixed text panels commit with the shared backdrop; only a committed slide is clickable.</summary>
+public sealed partial class HeroCarousel : UserControl, IDisposable, IMotionParticipant
 {
     private static readonly TimeSpan Interval = TimeSpan.FromSeconds(7);
     private readonly DispatcherQueueTimer timer;
     private readonly List<HeroSlideViewModel> slides = [];
-    private ContainerVisual? container;
-    private ContainerVisual? images;
-    private SpriteVisual? scrim;
-    private SpriteVisual? front;
-    private SpriteVisual? back;
-    private CompositionLinearGradientBrush? mask;
-    private CancellationTokenSource? loading;
     private WindowContext? window;
+    private BrowseTransitionCoordinator? transitions;
     private WindowContrastObserver? contrastObserver;
-    private HeroSlideViewModel? shownSlide;
-    private (string Id, ImageSource? Bitmap)? loadedLogo;
-    private int infoVersion;
-    private int index = -1;
+    private WindowMotionObserver? motionObserver;
+    private XamlRoot? observedRoot;
+    private NavEntry? owner;
+    private HeroSlideViewModel? displayedSlide;
+    private HeroSlideViewModel? requestedSlide;
+    private HeroSlideViewModel? restoredSlide;
+    private HeroInfoPanel? displayedPanel;
+    private CancellationTokenSource? loading;
+    private CompositionScopedBatch? foregroundBatch;
+    private TaskCompletionSource<bool>? foregroundCompletion;
+    private int generation;
+    private int requestedIndex = -1;
+    private int requestedWidth;
+    private long timerStartedAt;
+    private bool requestPending;
     private bool hovering;
     private bool focused;
     private bool dotsHovering;
-    private bool pageActive = true;
+    private bool dotsFocused;
+    private bool pageActive;
     private bool visibleEnough = true;
-    private bool disposed;
     private bool highContrast;
+    private bool disposed;
 
     public HeroCarousel()
     {
         InitializeComponent();
-        // 原版的文字阴影：标题 0 2px 10px .65，评分信息 0 1px 3px .65，简介 0 1px 4px .6。
-        SoftShadow.AttachDrop(TitleShadow, TitleText, 10, 2, 0.65f);
-        SoftShadow.AttachDrop(MetaShadow, MetaRow, 3, 1, 0.65f);
-        SoftShadow.AttachDrop(OverviewShadow, OverviewText, 4, 1, 0.6f);
+        FirstInfo.Opacity = SecondInfo.Opacity = 0;
+        SetPanelAccessible(FirstInfo, false);
+        SetPanelAccessible(SecondInfo, false);
         Dots = new HeroDots();
-        Dots.DotClicked += (_, i) => GoTo(i);
-        Dots.StepRequested += (_, step) => { if (slides.Count > 1) GoTo((index + step + slides.Count) % slides.Count); };
-        Dots.HoverChanged += (_, hover) => { dotsHovering = hover; UpdateTimer(); };
+        Dots.DotClicked += OnDotClicked;
+        Dots.StepRequested += OnStepRequested;
+        Dots.HoverChanged += OnDotsHoverChanged;
+        Dots.FocusChanged += OnDotsFocusChanged;
         timer = DispatcherQueue.CreateTimer();
         timer.Interval = Interval;
+        timer.IsRepeating = false;
         timer.Tick += OnTimer;
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
-        SizeChanged += (_, _) => UpdateLayerSize();
+        SizeChanged += OnSizeChanged;
     }
 
-    /// <summary>标题栏中间的分页点，幻灯片少于 2 张时不显示。</summary>
     public HeroDots Dots { get; }
-    private void OnTimer(DispatcherQueueTimer sender, object args) => GoTo((index + 1) % Math.Max(1, slides.Count));
-    public int Count => slides.Count;
+    public int Count => Math.Max(slides.Count, restoredSlide is null ? 0 : 1);
+    internal HeroSlideViewModel? DisplayedSlide => displayedSlide;
+    internal HeroSlideViewModel? RequestedSlide => requestedSlide;
+    internal int PresentedInfoCount => (FirstInfo.Visibility == Visibility.Visible && FirstInfo.Slide is not null ? 1 : 0)
+        + (SecondInfo.Visibility == Visibility.Visible && SecondInfo.Slide is not null ? 1 : 0);
+    internal bool IsTimerRunning => timer.IsRunning;
+    internal bool IsRequestPending => requestPending;
+    internal Task PendingTransition { get; private set; } = Task.CompletedTask;
+    internal Task PendingForeground => foregroundCompletion?.Task ?? Task.CompletedTask;
 
-    public void Initialize(WindowContext windowContext)
+    public void Initialize(WindowContext windowContext, BrowseTransitionCoordinator coordinator)
     {
         ArgumentNullException.ThrowIfNull(windowContext);
+        ArgumentNullException.ThrowIfNull(coordinator);
         if (window is not null) window.ActiveChanged -= OnWindowActiveChanged;
+        if (transitions is not null) transitions.NavigationCompleted -= OnNavigationCompleted;
         contrastObserver?.Dispose();
-        contrastObserver = null;
+        motionObserver?.Dispose();
         window = windowContext;
+        transitions = coordinator;
+        transitions.NavigationCompleted += OnNavigationCompleted;
         window.ActiveChanged += OnWindowActiveChanged;
-        if (IsLoaded) AttachContrastObserver();
+        contrastObserver = new WindowContrastObserver(window, DispatcherQueue, ApplyContrast);
+        motionObserver = new WindowMotionObserver(window, DispatcherQueue, ApplyMotion);
+        ApplyContrast(contrastObserver.HighContrast);
+        ApplyMotion(motionObserver.AnimationsEnabled);
+    }
+
+    internal void SetOwner(NavEntry entry)
+    {
+        CancelRequest();
+        owner = entry;
+        restoredSlide = transitions?.RestoredHero(entry);
+        if (restoredSlide is not null) requestedSlide = restoredSlide;
     }
 
     public void SetSlides(IReadOnlyList<HeroSlideViewModel> items)
     {
         ArgumentNullException.ThrowIfNull(items);
-        var limited = items.Take(8).ToList();
-        if (limited.Count == slides.Count && limited.Where((slide, i) => !slide.HasSameContent(slides[i])).Any() == false) return;
-        var currentId = index >= 0 && index < slides.Count ? slides[index].Id : null;
+        var count = Math.Min(8, items.Count);
+        var unchanged = count == slides.Count;
+        for (var i = 0; unchanged && i < count; i++) unchanged = items[i].HasSameContent(slides[i]);
+        if (unchanged) return;
         slides.Clear();
-        slides.AddRange(limited);
-        Dots.Build(slides.Count);
-        index = -1;
-        if (slides.Count > 0) GoTo(Math.Max(0, slides.FindIndex(s => s.Id == currentId)));
+        for (var i = 0; i < count; i++) slides.Add(items[i]);
+        Dots.Build(count);
+        Dots.SetActive(IndexOf(displayedSlide), animate: false);
+        if (count == 0 && restoredSlide is null)
+        {
+            CancelRequest();
+            displayedSlide = requestedSlide = null;
+            displayedPanel = null;
+            SettleForeground();
+            FirstInfo.Clear();
+            SecondInfo.Clear();
+            Root.IsHitTestVisible = false;
+            AutomationProperties.SetName(Root, "首页推荐");
+            if (pageActive && owner is not null) RequestEmptyBackdrop(owner);
+            return;
+        }
+        var next = restoredSlide ?? FindById(requestedSlide?.Id ?? displayedSlide?.Id) ?? slides.FirstOrDefault();
+        if (next is not null) Request(next, animate: false);
         UpdateTimer();
     }
 
     public void SetPageActive(bool active)
     {
         pageActive = active;
-        if (!active) CancelLoading();
-        else if (IsLoaded && index >= 0) _ = ShowAsync(index, animate: false);
+        Root.IsHitTestVisible = active && displayedSlide is not null;
+        Dots.SetInteractionActive(active);
+        if (!active)
+        {
+            CancelRequest();
+            requestedSlide = displayedSlide;
+            SettleForeground();
+            transitions?.SettleBackdrop();
+            Dots.Settle();
+            focused = dotsFocused = false;
+        }
+        else Resume();
         UpdateTimer();
     }
 
-    /// <summary>hero 在视口内不足 15% 时暂停。</summary>
     public void SetVisibleFraction(double fraction)
     {
         visibleEnough = fraction >= 0.15;
         UpdateTimer();
     }
 
-    public void Dispose()
+    private HeroSlideViewModel? FindById(string? id)
     {
-        if (disposed) return;
-        disposed = true;
-        infoVersion++;
-        timer.Stop();
-        timer.Tick -= OnTimer;
-        Loaded -= OnLoaded;
-        Unloaded -= OnUnloaded;
-        contrastObserver?.Dispose();
-        contrastObserver = null;
-        CancelLoading();
-        if (window is not null) window.ActiveChanged -= OnWindowActiveChanged;
-        if (front?.Brush is CompositionMaskBrush frontMask) ((frontMask.Source as CompositionSurfaceBrush)?.Surface as LoadedImageSurface)?.Dispose();
-        if (back?.Brush is CompositionMaskBrush backMask) ((backMask.Source as CompositionSurfaceBrush)?.Surface as LoadedImageSurface)?.Dispose();
-        front?.Dispose(); back?.Dispose(); scrim?.Dispose(); container?.Dispose();
+        foreach (var slide in slides) if (slide.Id == id) return slide;
+        return null;
+    }
+    private int IndexOf(HeroSlideViewModel? slide)
+    {
+        if (slide is not null)
+            for (var i = 0; i < slides.Count; i++) if (slides[i].Id == slide.Id) return i;
+        return -1;
+    }
+    private int PixelWidth => (int)Math.Ceiling(Math.Max(ActualWidth, 960) * (XamlRoot?.RasterizationScale ?? 1));
+    private bool CanPresent => !disposed && pageActive && IsLoaded && owner is not null && transitions is not null && (window?.IsActive ?? true);
+    private bool CanAnimate => CanPresent && !highContrast && (motionObserver?.AnimationsEnabled ?? Motion.AnimationsEnabled)
+        && Motion.IsActive(this) && !Motion.IsEntranceSuppressed(this);
+
+    private void Resume()
+    {
+        if (!CanPresent) return;
+        var slide = restoredSlide ?? FindById(requestedSlide?.Id ?? displayedSlide?.Id) ?? displayedSlide ?? slides.FirstOrDefault();
+        if (slide is not null) Request(slide, animate: false, force: true);
     }
 
-    private void CancelLoading()
+    private void Select(int index)
     {
+        if (!pageActive || index < 0 || index >= slides.Count) return;
+        restoredSlide = null;
+        Request(slides[index], animate: true);
+    }
+
+    private void Request(HeroSlideViewModel slide, bool animate, bool force = false)
+    {
+        if (disposed) return;
+        if (!force && requestedSlide is { } requested && slide.HasSameContent(requested)
+            && (requestPending || displayedSlide is { } displayed && slide.HasSameContent(displayed))) return;
+        requestedSlide = slide;
+        requestedIndex = IndexOf(slide);
+        if (!CanPresent) return;
+        CancelRequest();
+        requestedWidth = PixelWidth;
+        var cancellation = new CancellationTokenSource();
+        loading = cancellation;
+        var request = new SlideRequest(slide, owner!, generation, animate && CanAnimate, requestedWidth, cancellation.Token);
+        requestPending = true;
+        if (displayedSlide is null)
+        {
+            FirstInfo.Show(slide, null, highContrast);
+            FirstInfo.Visibility = Visibility.Visible;
+            FirstInfo.Opacity = 1;
+            ElementCompositionPreview.GetElementVisual(FirstInfo).Opacity = 1;
+            SecondInfo.Visibility = Visibility.Collapsed;
+        }
+        timer.Stop();
+        var logo = LoadLogoAsync(request);
+        var presentation = PresentAsync(request);
+        PendingTransition = presentation;
+        ObserveRequest(Task.WhenAll(logo, presentation), request, cancellation);
+    }
+
+    private bool IsCurrent(SlideRequest request) => !disposed && pageActive && request.Generation == generation
+        && ReferenceEquals(request.Owner, owner) && !request.Token.IsCancellationRequested;
+
+    private async Task LoadLogoAsync(SlideRequest request)
+    {
+        if (highContrast || request.Slide.Logo is not { } logo || ImageLoader.Current is not { } loader) return;
+        request.Logo = await loader.LoadAsync(logo, 360, XamlRoot?.RasterizationScale ?? 1, ImagePriority.Hero, request.Token);
+        if (IsCurrent(request) && !highContrast && displayedSlide?.HasSameContent(request.Slide) == true)
+            displayedPanel?.SetLogo(request.Logo);
+    }
+
+    private async Task PresentAsync(SlideRequest request)
+    {
+        PreparedBackdrop? prepared = null;
+        try
+        {
+            prepared = await transitions!.PrepareBackdropAsync(request.Owner, request.Slide.Backdrop, request.DecodeWidth, request.Token);
+            if (prepared is null) return;
+            if (!IsCurrent(request)) return;
+            // The background also gates third-image commits. This gate handles distinct titles sharing one image.
+            if (foregroundBatch is not null && FindPanel(request.Slide) is null)
+            {
+                await PendingForeground.WaitAsync(request.Token);
+                if (!IsCurrent(request)) return;
+            }
+            var adopted = prepared;
+            prepared = null;
+            var committed = await transitions.CommitBackdropAsync(request.Owner, adopted, request.Animate && CanAnimate, () =>
+            {
+                if (!IsCurrent(request)) return;
+                CommitInfo(request);
+            });
+            if (!committed || !IsCurrent(request)) return;
+            await PendingForeground.WaitAsync(request.Token);
+        }
+        finally
+        {
+            prepared?.Dispose();
+            if (IsCurrent(request))
+            {
+                requestPending = false;
+                UpdateTimer();
+            }
+        }
+    }
+
+    private async void ObserveRequest(Task task, SlideRequest request, CancellationTokenSource cancellation)
+    {
+        try { await task; }
+        catch (OperationCanceledException) when (request.Token.IsCancellationRequested) { }
+        catch (Exception error)
+        {
+            if (IsCurrent(request)) transitions?.ReportFailure(error);
+        }
+        finally
+        {
+            if (ReferenceEquals(loading, cancellation)) loading = null;
+            cancellation.Dispose();
+        }
+    }
+
+    private async void RequestEmptyBackdrop(NavEntry entry)
+    {
+        var requestGeneration = generation;
+        var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        PendingTransition = completion.Task;
+        try
+        {
+            var prepared = await transitions!.PrepareBackdropAsync(entry, null, PixelWidth, CancellationToken.None);
+            if (prepared is null) return;
+            if (disposed || !pageActive || requestGeneration != generation) { prepared.Dispose(); return; }
+            await transitions.CommitBackdropAsync(entry, prepared, animate: false);
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception error)
+        {
+            if (!disposed && pageActive && requestGeneration == generation) transitions?.ReportFailure(error);
+        }
+        finally { completion.TrySetResult(true); }
+    }
+
+    private HeroInfoPanel? FindPanel(HeroSlideViewModel slide)
+    {
+        if (FirstInfo.Slide?.HasSameContent(slide) == true) return FirstInfo;
+        if (SecondInfo.Slide?.HasSameContent(slide) == true) return SecondInfo;
+        return null;
+    }
+
+    private void CommitInfo(SlideRequest request)
+    {
+        var panel = FindPanel(request.Slide);
+        var previous = displayedPanel;
+        var same = displayedSlide?.HasSameContent(request.Slide) == true;
+        panel ??= ReferenceEquals(displayedPanel, FirstInfo) ? SecondInfo : FirstInfo;
+        if (panel.Slide?.HasSameContent(request.Slide) != true) panel.Show(request.Slide, request.Logo, highContrast);
+        else if (request.Logo is not null) panel.SetLogo(request.Logo);
+        displayedSlide = request.Slide;
+        displayedPanel = panel;
+        transitions!.CommitHero(request.Owner, request.Slide);
+        AutomationProperties.SetName(Root, request.Slide.Title);
+        Root.IsHitTestVisible = pageActive;
+        Dots.SetActive(IndexOf(displayedSlide), request.Animate && CanAnimate);
+        SetPanelAccessible(FirstInfo, ReferenceEquals(panel, FirstInfo));
+        SetPanelAccessible(SecondInfo, ReferenceEquals(panel, SecondInfo));
+        if (same) return;
+        if (!request.Animate || !CanAnimate || previous is null)
+        {
+            SettleForeground();
+            return;
+        }
+        var wasVisible = panel.Visibility == Visibility.Visible;
+        ReleaseForegroundBatch();
+        panel.Visibility = Visibility.Visible;
+        previous.Visibility = Visibility.Visible;
+        var incoming = ElementCompositionPreview.GetElementVisual(panel);
+        var outgoing = ElementCompositionPreview.GetElementVisual(previous);
+        if (!wasVisible) incoming.Opacity = 0;
+        Motion.SetEntranceSuppressed(InfoHost, true);
+        var compositor = incoming.Compositor;
+        foregroundBatch = compositor.CreateScopedBatch(CompositionBatchTypes.Animation);
+        foregroundBatch.Completed += OnForegroundCompleted;
+        foregroundCompletion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var easing = Motion.CreateEasing(compositor, Motion.EaseOut);
+        using var fadeIn = compositor.CreateScalarKeyFrameAnimation();
+        fadeIn.Duration = Motion.Content;
+        fadeIn.InsertKeyFrame(1, 1, easing);
+        using var fadeOut = compositor.CreateScalarKeyFrameAnimation();
+        fadeOut.Duration = Motion.Content;
+        fadeOut.InsertKeyFrame(1, 0, easing);
+        incoming.StartAnimation("Opacity", fadeIn);
+        outgoing.StartAnimation("Opacity", fadeOut);
+        foregroundBatch.End();
+    }
+
+    private static void SetPanelAccessible(HeroInfoPanel panel, bool active) => panel.SetPresented(active);
+
+    private void OnForegroundCompleted(object sender, CompositionBatchCompletedEventArgs args)
+    {
+        if (ReferenceEquals(sender, foregroundBatch)) SettleForeground();
+    }
+
+    private void ReleaseForegroundBatch()
+    {
+        if (foregroundBatch is not null)
+        {
+            foregroundBatch.Completed -= OnForegroundCompleted;
+            foregroundBatch.Dispose();
+            foregroundBatch = null;
+        }
+        var completion = foregroundCompletion;
+        foregroundCompletion = null;
+        completion?.TrySetResult(true);
+    }
+
+    private void SettleForeground()
+    {
+        ReleaseForegroundBatch();
+        SettlePanel(FirstInfo);
+        SettlePanel(SecondInfo);
+        Motion.SetEntranceSuppressed(InfoHost, false);
+    }
+
+    private void SettlePanel(HeroInfoPanel panel)
+    {
+        var visual = ElementCompositionPreview.GetElementVisual(panel);
+        visual.StopAnimation("Opacity");
+        var active = ReferenceEquals(panel, displayedPanel);
+        panel.Opacity = 1;
+        visual.Opacity = active ? 1 : 0;
+        panel.Visibility = active ? Visibility.Visible : Visibility.Collapsed;
+        SetPanelAccessible(panel, active);
+    }
+
+    void IMotionParticipant.SettleMotion() { SettleForeground(); Dots.Settle(); UpdateTimer(); }
+
+    private void CancelRequest()
+    {
+        generation++;
         loading?.Cancel();
-        loading?.Dispose();
         loading = null;
-    }
-
-    private void OnUnloaded(object sender, RoutedEventArgs e)
-    {
+        requestPending = false;
+        PendingTransition = Task.CompletedTask;
         timer.Stop();
-        CancelLoading();
-        contrastObserver?.Dispose();
-        contrastObserver = null;
-    }
-
-    private void OnLoaded(object sender, RoutedEventArgs e)
-    {
-        if (disposed) return;
-        AttachContrastObserver();
-        if (container is not null) { UpdateTimer(); if (index >= 0) _ = ShowAsync(index, animate: false); return; }
-        var compositor = ElementCompositionPreview.GetElementVisual(ArtHost).Compositor;
-        mask = HeroArt.CreateEdgeFade(compositor);
-        container = compositor.CreateContainerVisual();
-        images = compositor.CreateContainerVisual();
-        back = CreateLayer(compositor);
-        front = CreateLayer(compositor);
-        images.Children.InsertAtTop(back);
-        images.Children.InsertAtTop(front);
-        container.Children.InsertAtTop(images);
-        scrim = HeroArt.CreateCopyScrim(compositor, mask);
-        container.Children.InsertAtTop(scrim);
-        ElementCompositionPreview.SetElementChildVisual(ArtHost, container);
-        UpdateLayerSize();
-        if (index >= 0) _ = ShowAsync(index, animate: false);
-        UpdateTimer();
-    }
-
-    private void AttachContrastObserver()
-    {
-        if (window is null || contrastObserver is not null || disposed) return;
-        contrastObserver = new WindowContrastObserver(window, DispatcherQueue, ApplyContrast);
-        ApplyContrast(contrastObserver.HighContrast);
     }
 
     private void ApplyContrast(bool value)
     {
         if (disposed) return;
-        var changed = highContrast != value;
+        var changed = value != highContrast;
         highContrast = value;
-        ArtHost.Visibility = highContrast ? Visibility.Collapsed : Visibility.Visible;
-        LogoImage.Visibility = highContrast ? Visibility.Collapsed : Visibility.Visible;
-        if (highContrast)
+        FirstInfo.SetContrast(value);
+        SecondInfo.SetContrast(value);
+        Dots.SetMotionEnabled(!value && (motionObserver?.AnimationsEnabled ?? Motion.AnimationsEnabled));
+        if (value)
         {
-            CancelLoading();
-            LogoImage.Source = null;
-            TitleText.Visibility = Visibility.Visible;
-            ClearImageLayers();
+            CancelRequest();
+            SettleForeground();
+            Dots.Settle();
         }
-        else if (changed && index >= 0)
-        {
-            ShowInfo(slides[index], animate: false);
-            _ = ShowAsync(index, animate: false);
-        }
+        if (changed) Resume();
         UpdateTimer();
     }
 
-    private void ClearImageLayers()
+    private void ApplyMotion(bool enabled)
     {
-        foreach (var layer in new[] { front, back })
+        Dots.SetMotionEnabled(enabled && !highContrast);
+        if (!enabled) SettleForeground();
+        UpdateTimer();
+    }
+
+    private void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        if (observedRoot is not null) observedRoot.Changed -= OnXamlRootChanged;
+        observedRoot = XamlRoot;
+        if (observedRoot is not null) observedRoot.Changed += OnXamlRootChanged;
+        Resume();
+        UpdateTimer();
+    }
+    private void OnUnloaded(object sender, RoutedEventArgs e)
+    {
+        if (observedRoot is not null) observedRoot.Changed -= OnXamlRootChanged;
+        observedRoot = null;
+        CancelRequest();
+        SettleForeground();
+        Dots.Settle();
+    }
+    private void OnSizeChanged(object sender, SizeChangedEventArgs e) => UpgradeResolution();
+    private void OnXamlRootChanged(XamlRoot sender, XamlRootChangedEventArgs args) => UpgradeResolution();
+    private void UpgradeResolution()
+    {
+        if (CanPresent && !highContrast && requestedSlide is { } slide && PixelWidth > requestedWidth)
+            Request(slide, animate: false, force: true);
+    }
+    private void OnNavigationCompleted(NavEntry entry)
+    {
+        if (ReferenceEquals(entry, owner)) UpdateTimer();
+    }
+    private void OnWindowActiveChanged(object? sender, EventArgs e)
+    {
+        if (window?.IsActive == false)
         {
-            if (layer is null) continue;
-            layer.StopAnimation("Opacity");
-            layer.StopAnimation("Scale");
-            layer.Opacity = 0;
-            if (layer.Brush is not CompositionMaskBrush masked) continue;
-            var brush = masked.Source as CompositionSurfaceBrush;
-            masked.Source = null;
-            if (brush is not null)
-            {
-                (brush.Surface as LoadedImageSurface)?.Dispose();
-                brush.Dispose();
-            }
+            CancelRequest();
+            SettleForeground();
+            Dots.Settle();
         }
+        else Resume();
+        UpdateTimer();
     }
 
-    private SpriteVisual CreateLayer(Compositor compositor)
-    {
-        var maskBrush = compositor.CreateMaskBrush();
-        maskBrush.Mask = mask;
-        var layer = compositor.CreateSpriteVisual();
-        layer.Brush = maskBrush;
-        layer.Opacity = 0;
-        return layer;
-    }
-
-    private void UpdateLayerSize()
-    {
-        if (front is null || back is null || scrim is null) return;
-        var size = new Vector2((float)ActualWidth, (float)(ActualHeight + HeroArt.FadeExtent));
-        front.Size = size;
-        back.Size = size;
-        scrim.Size = size;
-        front.CenterPoint = back.CenterPoint = new Vector3(size / 2, 0);
-    }
-
-    private void GoTo(int target)
-    {
-        if (target < 0 || target >= slides.Count) return;
-        var animate = index >= 0;
-        index = target;
-        Dots.SetActive(index);
-        ShowInfo(slides[index], animate);
-        _ = ShowAsync(index, animate);
-        if (timer.IsRunning) { timer.Stop(); timer.Start(); }
-    }
-
-    /// <summary>换幻灯片时，旧文字先上移淡出（180ms），再换成新内容入场。</summary>
-    private void ShowInfo(HeroSlideViewModel slide, bool animate)
-    {
-        var version = ++infoVersion;
-        AutomationProperties.SetName(Root, slide.Title);
-        var visual = ElementCompositionPreview.GetElementVisual(Info);
-        if (!animate || !Motion.AnimationsEnabled || highContrast)
-        {
-            ApplyInfo(slide);
-            visual.StopAnimation("Opacity");
-            visual.Opacity = 1;
-            return;
-        }
-        ElementCompositionPreview.SetIsTranslationEnabled(Info, true);
-        var compositor = visual.Compositor;
-        var easing = Motion.CreateEasing(compositor, Motion.Exit);
-        var batch = compositor.CreateScopedBatch(CompositionBatchTypes.Animation);
-        var fade = compositor.CreateScalarKeyFrameAnimation();
-        fade.InsertKeyFrame(1, 0, easing);
-        fade.Duration = Motion.HeroExit;
-        var move = compositor.CreateVector3KeyFrameAnimation();
-        move.InsertKeyFrame(1, new Vector3(0, -4, 0), easing);
-        move.Duration = Motion.HeroExit;
-        visual.StartAnimation("Opacity", fade);
-        visual.StartAnimation("Translation", move);
-        batch.End();
-        batch.Completed += (_, _) =>
-        {
-            if (disposed || version != infoVersion) return;
-            ApplyInfo(slide);
-            Enter();
-        };
-    }
-
-    private void ApplyInfo(HeroSlideViewModel slide)
-    {
-        shownSlide = slide;
-        TitleText.Text = slide.Title;
-        OverviewText.Text = slide.Overview;
-        BuildMeta(slide);
-        ApplyLogo();
-    }
-
-    /// <summary>有 logo 时显示 logo；没有，或 logo 加载失败时显示文字标题。</summary>
-    private void ApplyLogo()
-    {
-        if (shownSlide is not { } slide) return;
-        var ready = loadedLogo is { } logo && logo.Id == slide.Id;
-        LogoImage.Source = ready && !highContrast ? loadedLogo!.Value.Bitmap : null;
-        var failed = ready && loadedLogo!.Value.Bitmap is null;
-        TitleText.Visibility = highContrast || slide.Logo is null || failed ? Visibility.Visible : Visibility.Collapsed;
-    }
-
-    private void BuildMeta(HeroSlideViewModel slide) =>
-        MetaArea.Visibility = HeroArt.BuildMeta(MetaRow, slide.RatingText, slide.Year, slide.Genres, slide.OfficialRating)
-            ? Visibility.Visible : Visibility.Collapsed;
-    private async Task ShowAsync(int slideIndex, bool animate)
-    {
-        if (disposed || highContrast || !IsLoaded || !pageActive || front is null || back is null || ImageLoader.Current is not { } loader || XamlRoot is null) return;
-        CancelLoading();
-        var cts = new CancellationTokenSource();
-        loading = cts;
-        var token = cts.Token;
-        var slide = slides[slideIndex];
-        var scale = XamlRoot.RasterizationScale;
-        try
-        {
-            if (slide.Logo is { } logo)
-            {
-                var bitmap = await loader.LoadAsync(logo, 360, scale, ImagePriority.Hero, token);
-                if (cts.IsCancellationRequested || highContrast) return;
-                loadedLogo = (slide.Id, bitmap);
-                // 文字还在退场时先不换；退场结束后 ApplyInfo 会用到这张图。
-                if (shownSlide?.Id == slide.Id) ApplyLogo();
-            }
-            var surface = slide.Backdrop is { } backdrop ? await LoadSurfaceAsync(loader, backdrop, scale, ImagePriority.Hero, token) : null;
-            if (token.IsCancellationRequested || highContrast) { surface?.Dispose(); return; }
-            Present(surface, animate);
-            if (slides.Count > 1 && slides[(slideIndex + 1) % slides.Count].Backdrop is { } next)
-                (await loader.FetchStreamAsync(next, PixelWidth(scale), ImagePriority.Prefetch, token))?.Dispose();
-        }
-        catch (OperationCanceledException)
-        {
-        }
-    }
-
-    private int PixelWidth(double scale) => (int)Math.Ceiling(Math.Max(ActualWidth, 960) * scale);
-
-    private async Task<LoadedImageSurface?> LoadSurfaceAsync(ImageLoader loader, ImageRef image, double scale, ImagePriority priority, CancellationToken token)
-    {
-        var width = PixelWidth(scale);
-        using var stream = await loader.FetchStreamAsync(image, width, priority, token);
-        if (stream is null) return null;
-        var completion = new TaskCompletionSource<bool>();
-        var surface = LoadedImageSurface.StartLoadFromStream(stream, new Size(width, width * 9 / 16.0));
-        void OnCompleted(LoadedImageSurface sender, LoadedImageSourceLoadCompletedEventArgs args) => completion.TrySetResult(args.Status == LoadedImageSourceLoadStatus.Success);
-        surface.LoadCompleted += OnCompleted;
-        try
-        {
-            bool ok;
-            try { ok = await completion.Task.WaitAsync(token); }
-            finally { surface.LoadCompleted -= OnCompleted; }
-            token.ThrowIfCancellationRequested();
-            if (ok) return surface;
-            surface.Dispose();
-            return null;
-        }
-        catch { surface.Dispose(); throw; }
-    }
-
-    /// <summary>新图一边淡入一边从 1.04 落回 1（500ms，settle 缓动），旧图只淡出（300ms）。</summary>
-    private void Present(LoadedImageSurface? surface, bool animate)
-    {
-        if (front is null || back is null) return;
-        var compositor = back.Compositor;
-        var brush = compositor.CreateSurfaceBrush(surface);
-        brush.Stretch = CompositionStretch.UniformToFill;
-        var old = ((CompositionMaskBrush)back.Brush).Source as CompositionSurfaceBrush;
-        ((CompositionMaskBrush)back.Brush).Source = brush;
-        (old?.Surface as LoadedImageSurface)?.Dispose();
-        old?.Dispose();
-        (front, back) = (back, front);
-        images?.Children.Remove(front);
-        images?.Children.InsertAtTop(front);
-        if (!animate || !Motion.AnimationsEnabled)
-        {
-            front.Opacity = 1;
-            front.Scale = Vector3.One;
-            back.Opacity = 0;
-            return;
-        }
-        var settle = Motion.CreateEasing(compositor, Motion.Settle);
-        var fadeIn = compositor.CreateScalarKeyFrameAnimation();
-        fadeIn.InsertKeyFrame(0, 0);
-        fadeIn.InsertKeyFrame(1, 1, settle);
-        fadeIn.Duration = Motion.Settling;
-        var zoom = compositor.CreateVector3KeyFrameAnimation();
-        zoom.InsertKeyFrame(0, new Vector3(1.04f, 1.04f, 1));
-        zoom.InsertKeyFrame(1, Vector3.One, settle);
-        zoom.Duration = Motion.Settling;
-        var fadeOut = compositor.CreateScalarKeyFrameAnimation();
-        fadeOut.InsertKeyFrame(1, 0, Motion.CreateEasing(compositor, Motion.Fluid));
-        fadeOut.Duration = TimeSpan.FromMilliseconds(300);
-        front.StartAnimation("Opacity", fadeIn);
-        front.StartAnimation("Scale", zoom);
-        back.StartAnimation("Opacity", fadeOut);
-    }
-
-    /// <summary>入场：整块从下方 8px 淡入（320ms），里面三块再各自上浮 5px（240ms），依次错开 40ms。</summary>
-    private void Enter()
-    {
-        var visual = ElementCompositionPreview.GetElementVisual(Info);
-        var compositor = visual.Compositor;
-        var easing = Motion.CreateEasing(compositor, Motion.Fluid);
-        Animate(Info, 8, Motion.HeroContent, TimeSpan.Zero, easing);
-        var delay = TimeSpan.Zero;
-        foreach (var block in new FrameworkElement[] { LogoArea, MetaArea, OverviewArea })
-        {
-            if (block.Visibility != Visibility.Visible) continue;
-            Animate(block, 5, Motion.Normal, delay, easing);
-            delay += TimeSpan.FromMilliseconds(40);
-        }
-    }
-
-    private static void Animate(UIElement element, float fromY, TimeSpan duration, TimeSpan delay, CompositionEasingFunction easing)
-    {
-        ElementCompositionPreview.SetIsTranslationEnabled(element, true);
-        var visual = ElementCompositionPreview.GetElementVisual(element);
-        var compositor = visual.Compositor;
-        var opacity = compositor.CreateScalarKeyFrameAnimation();
-        opacity.InsertKeyFrame(0, 0);
-        opacity.InsertKeyFrame(1, 1, easing);
-        opacity.Duration = duration;
-        opacity.DelayTime = delay;
-        opacity.DelayBehavior = AnimationDelayBehavior.SetInitialValueBeforeDelay;
-        var offset = compositor.CreateVector3KeyFrameAnimation();
-        offset.InsertKeyFrame(0, new Vector3(0, fromY, 0));
-        offset.InsertKeyFrame(1, Vector3.Zero, easing);
-        offset.Duration = duration;
-        offset.DelayTime = delay;
-        offset.DelayBehavior = AnimationDelayBehavior.SetInitialValueBeforeDelay;
-        visual.StartAnimation("Opacity", opacity);
-        visual.StartAnimation("Translation", offset);
-    }
+    private bool ShouldRunTimer => CanAnimate && (slides.Count > 1 || slides.Count > 0 && restoredSlide is not null && IndexOf(displayedSlide) < 0)
+        && !requestPending && foregroundBatch is null && !(transitions?.Backdrop?.IsTransitioning ?? false)
+        && !hovering && !focused && !dotsHovering && !dotsFocused && visibleEnough;
 
     private void UpdateTimer()
     {
-        var run = !disposed && !highContrast && IsLoaded && slides.Count > 1 && !hovering && !focused && !dotsHovering && pageActive && visibleEnough
-            && (window?.IsActive ?? true) && Motion.AnimationsEnabled;
-        if (run && !timer.IsRunning) timer.Start();
-        else if (!run && timer.IsRunning) timer.Stop();
+        if (ShouldRunTimer)
+        {
+            if (timer.IsRunning) return;
+            timerStartedAt = System.Diagnostics.Stopwatch.GetTimestamp();
+            timer.Interval = Interval;
+            timer.Start();
+        }
+        else timer.Stop();
     }
-
-    private void OnWindowActiveChanged(object? sender, EventArgs e) => UpdateTimer();
-
-    private void OnPointerEntered(object sender, PointerRoutedEventArgs e)
+    private void OnTimer(DispatcherQueueTimer sender, object args)
     {
-        hovering = true;
-        UpdateTimer();
+        timer.Stop();
+        if (!ShouldRunTimer) return;
+        var elapsed = System.Diagnostics.Stopwatch.GetElapsedTime(timerStartedAt);
+        if (elapsed < Interval)
+        {
+            timer.Interval = Interval - elapsed;
+            timer.Start();
+            return;
+        }
+        var current = IndexOf(displayedSlide);
+        Select((current + 1) % slides.Count);
     }
-
-    private void OnPointerExited(object sender, PointerRoutedEventArgs e)
+    private void OnDotClicked(object? sender, int index) => Select(index);
+    private void OnStepRequested(object? sender, int step)
     {
-        hovering = false;
-        UpdateTimer();
+        if (slides.Count > 1) Select(((requestPending ? requestedIndex : IndexOf(displayedSlide)) + step + slides.Count) % slides.Count);
     }
-
-    private void OnFocusChanged(object sender, RoutedEventArgs e)
-    {
-        focused = Root.FocusState != FocusState.Unfocused;
-        UpdateTimer();
-    }
-
+    private void OnDotsHoverChanged(object? sender, bool hover) { dotsHovering = hover; UpdateTimer(); }
+    private void OnDotsFocusChanged(object? sender, bool focus) { dotsFocused = focus; UpdateTimer(); }
+    private void OnPointerEntered(object sender, PointerRoutedEventArgs e) { hovering = true; UpdateTimer(); }
+    private void OnPointerExited(object sender, PointerRoutedEventArgs e) { hovering = false; UpdateTimer(); }
+    private void OnFocusChanged(object sender, RoutedEventArgs e) { focused = Root.FocusState != FocusState.Unfocused; UpdateTimer(); }
     private void OnClick(object sender, RoutedEventArgs e)
     {
-        if (index >= 0 && index < slides.Count) CardActions.Current?.Open(slides[index].Id);
+        if (!disposed && pageActive && displayedSlide is { } slide) transitions?.OpenHero(slide);
+    }
+
+    public void Dispose()
+    {
+        if (disposed) return;
+        disposed = true;
+        CancelRequest();
+        SettleForeground();
+        timer.Tick -= OnTimer;
+        Loaded -= OnLoaded;
+        Unloaded -= OnUnloaded;
+        SizeChanged -= OnSizeChanged;
+        if (window is not null) window.ActiveChanged -= OnWindowActiveChanged;
+        if (observedRoot is not null) observedRoot.Changed -= OnXamlRootChanged;
+        observedRoot = null;
+        if (transitions is not null) transitions.NavigationCompleted -= OnNavigationCompleted;
+        contrastObserver?.Dispose();
+        motionObserver?.Dispose();
+        Dots.DotClicked -= OnDotClicked;
+        Dots.StepRequested -= OnStepRequested;
+        Dots.HoverChanged -= OnDotsHoverChanged;
+        Dots.FocusChanged -= OnDotsFocusChanged;
+        Dots.Dispose();
+        FirstInfo.Clear();
+        SecondInfo.Clear();
+        displayedSlide = requestedSlide = restoredSlide = null;
+        owner = null;
+        transitions = null;
+        window = null;
+    }
+
+    private sealed class SlideRequest(HeroSlideViewModel slide, NavEntry owner, int generation, bool animate, int decodeWidth, CancellationToken token)
+    {
+        internal HeroSlideViewModel Slide { get; } = slide;
+        internal NavEntry Owner { get; } = owner;
+        internal int Generation { get; } = generation;
+        internal CancellationToken Token { get; } = token;
+        internal bool Animate { get; } = animate;
+        internal int DecodeWidth { get; } = decodeWidth;
+        internal ImageSource? Logo { get; set; }
     }
 }
 
-/// <summary>
-/// 标题栏中间的 hero 分页：两侧是上一张、下一张箭头，中间是 6px 圆点，当前项拉长到 22px 并加深（240ms）。
-/// </summary>
-public sealed partial class HeroDots : StackPanel
+/// <summary>Title-bar recommendation controls; focus, like hover, pauses a complete seven-second cycle.</summary>
+public sealed partial class HeroDots : StackPanel, IDisposable
 {
     private const double DotWidth = 6;
     private const double ActiveWidth = 22;
-    private readonly List<(Grid Pill, Border Active)> dots = [];
+    private readonly List<(Grid Pill, Border Active, Button Button)> dots = [];
+    private readonly List<Storyboard> animations = [];
     private readonly Button previous;
     private readonly Button next;
+    private int activeIndex = -1;
+    private int focusGeneration;
+    private bool motionEnabled = true;
+    private bool interactionActive = true;
+    private bool disposed;
 
     public HeroDots()
     {
@@ -483,13 +574,17 @@ public sealed partial class HeroDots : StackPanel
         VerticalAlignment = VerticalAlignment.Center;
         previous = Arrow("IconChevronLeft", "上一张推荐", -1);
         next = Arrow("IconChevronRight", "下一张推荐", 1);
-        PointerEntered += (_, _) => HoverChanged?.Invoke(this, true);
-        PointerExited += (_, _) => HoverChanged?.Invoke(this, false);
+        PointerEntered += OnPointerEntered;
+        PointerExited += OnPointerExited;
+        GotFocus += OnFocusChanged;
+        LostFocus += OnFocusChanged;
+        Unloaded += OnUnloaded;
     }
 
     public event EventHandler<int>? DotClicked;
     public event EventHandler<int>? StepRequested;
     public event EventHandler<bool>? HoverChanged;
+    public event EventHandler<bool>? FocusChanged;
 
     private Button Arrow(string icon, string name, int step)
     {
@@ -497,19 +592,17 @@ public sealed partial class HeroDots : StackPanel
         var button = new Button
         {
             Style = XamlResources.Style(resources, "IconButtonStyle"),
-            Width = 24,
-            Height = 24,
-            CornerRadius = new CornerRadius(12),
-            IsTabStop = false,
+            Width = 24, Height = 24, CornerRadius = new CornerRadius(12),
             Content = new LineIcon { Glyph = (string)resources[icon], Width = 13, Height = 13, StrokeWidth = 2.45 },
         };
         AutomationProperties.SetName(button, name);
-        button.Click += (_, _) => StepRequested?.Invoke(this, step);
+        button.Click += (_, _) => { if (interactionActive) StepRequested?.Invoke(this, step); };
         return button;
     }
 
     public void Build(int count)
     {
+        Settle();
         var resources = Application.Current.Resources;
         Children.Clear();
         dots.Clear();
@@ -521,46 +614,105 @@ public sealed partial class HeroDots : StackPanel
             var pill = new Grid { Width = DotWidth, Height = 6, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
             pill.Children.Add(new Border { Style = XamlResources.Style(resources, "HeroDotStyle") });
             pill.Children.Add(active);
-            var button = new Button { Style = XamlResources.Style(resources, "HeroDotButtonStyle"), Content = pill };
+            var button = new Button { Style = XamlResources.Style(resources, "HeroDotButtonStyle"), Content = pill, IsTabStop = interactionActive };
             AutomationProperties.SetName(button, $"切换到第 {i + 1} 个推荐");
-            button.Click += (_, _) => DotClicked?.Invoke(this, number);
+            button.Click += (_, _) => { if (interactionActive) DotClicked?.Invoke(this, number); };
             Children.Add(button);
-            dots.Add((pill, active));
+            dots.Add((pill, active, button));
         }
         Children.Add(next);
         Visibility = count >= 2 ? Visibility.Visible : Visibility.Collapsed;
+        SetActive(activeIndex, animate: false);
     }
 
-    public void SetActive(int index)
+    public void SetActive(int index, bool animate = true)
     {
+        activeIndex = index;
+        // Preserve each dependent animation's current width before detaching its clock.
+        Span<double> widths = stackalloc double[dots.Count];
+        for (var i = 0; i < dots.Count; i++) widths[i] = dots[i].Pill.ActualWidth > 0 ? dots[i].Pill.ActualWidth : dots[i].Pill.Width;
+        StopAnimations();
         for (var i = 0; i < dots.Count; i++)
         {
-            var (pill, active) = dots[i];
+            var (pill, active, _) = dots[i];
             var on = i == index;
             var width = on ? ActiveWidth : DotWidth;
-            if (!Motion.AnimationsEnabled || !pill.IsLoaded)
+            active.OpacityTransition = animate && motionEnabled && Motion.AnimationsEnabled && pill.IsLoaded
+                ? new ScalarTransition { Duration = Motion.Feedback } : null;
+            active.Opacity = on ? 1 : 0;
+            if (!animate || !motionEnabled || !Motion.AnimationsEnabled || !pill.IsLoaded)
             {
-                active.OpacityTransition = null;
-                active.Opacity = on ? 1 : 0;
                 pill.Width = width;
                 continue;
             }
-            active.OpacityTransition = new ScalarTransition { Duration = Motion.Normal };
-            active.Opacity = on ? 1 : 0;
-            if (pill.Width == width) continue;
-            // 宽度参与布局，只能用依赖动画；一共不超过 8 个点，开销可以忽略。
+            pill.Width = widths[i];
             var frames = new DoubleAnimationUsingKeyFrames { EnableDependentAnimation = true };
             frames.KeyFrames.Add(new SplineDoubleKeyFrame
             {
-                KeyTime = KeyTime.FromTimeSpan(Motion.Normal),
-                Value = width,
+                KeyTime = KeyTime.FromTimeSpan(Motion.Feedback), Value = width,
                 KeySpline = new KeySpline { ControlPoint1 = new Point(0.2, 0.8), ControlPoint2 = new Point(0.2, 1) },
             });
             Storyboard.SetTarget(frames, pill);
             Storyboard.SetTargetProperty(frames, "Width");
             var storyboard = new Storyboard();
             storyboard.Children.Add(frames);
+            animations.Add(storyboard);
             storyboard.Begin();
         }
+    }
+
+    internal void SetMotionEnabled(bool enabled) { motionEnabled = enabled; if (!enabled) Settle(); }
+    internal void SetInteractionActive(bool active)
+    {
+        interactionActive = active;
+        IsHitTestVisible = active;
+        previous.IsTabStop = next.IsTabStop = active;
+        foreach (var (_, _, button) in dots) button.IsTabStop = active;
+        if (!active) { focusGeneration++; Settle(); }
+    }
+    private void StopAnimations()
+    {
+        foreach (var animation in animations) animation.Stop();
+        animations.Clear();
+    }
+    internal void Settle()
+    {
+        StopAnimations();
+        for (var i = 0; i < dots.Count; i++)
+        {
+            var (pill, active, _) = dots[i];
+            active.OpacityTransition = null;
+            active.Opacity = i == activeIndex ? 1 : 0;
+            pill.Width = i == activeIndex ? ActiveWidth : DotWidth;
+        }
+    }
+    private void OnPointerEntered(object sender, PointerRoutedEventArgs e) => HoverChanged?.Invoke(this, true);
+    private void OnPointerExited(object sender, PointerRoutedEventArgs e) => HoverChanged?.Invoke(this, false);
+    private void OnFocusChanged(object sender, RoutedEventArgs e)
+    {
+        var generation = ++focusGeneration;
+        if (e.OriginalSource is Control { FocusState: not FocusState.Unfocused }) FocusChanged?.Invoke(this, true);
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            if (disposed || generation != focusGeneration) return;
+            DependencyObject? current = XamlRoot is null ? null : FocusManager.GetFocusedElement(XamlRoot) as DependencyObject;
+            while (current is not null && !ReferenceEquals(current, this)) current = VisualTreeHelper.GetParent(current);
+            FocusChanged?.Invoke(this, current is not null);
+        });
+    }
+    private void OnUnloaded(object sender, RoutedEventArgs e) { focusGeneration++; Settle(); FocusChanged?.Invoke(this, false); }
+    public void Dispose()
+    {
+        if (disposed) return;
+        disposed = true;
+        focusGeneration++;
+        Settle();
+        PointerEntered -= OnPointerEntered;
+        PointerExited -= OnPointerExited;
+        GotFocus -= OnFocusChanged;
+        LostFocus -= OnFocusChanged;
+        Unloaded -= OnUnloaded;
+        Children.Clear();
+        dots.Clear();
     }
 }

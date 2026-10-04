@@ -3,7 +3,7 @@ using Microsoft.UI.Xaml.Automation.Peers;
 
 namespace Mambo.App.Debug;
 
-/// <summary>仅在已核验的父进程窗口子树查询模式接口，完全不读取 Value 或 Text。</summary>
+/// <summary>只在已核验的父进程子树查询模式；不读取 Value/Text，不注入按键。</summary>
 internal static unsafe partial class NativeUiaClient
 {
     private static readonly Guid AutomationClass = new("ff48dba4-60ef-4201-aa87-54103eef594e");

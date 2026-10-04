@@ -254,6 +254,9 @@
                     </Grid>
                 </StackPanel>
             </Grid>
+            <Button x:Name="BigPlay" Style="{StaticResource PlayerButton}" Tag="Center" Width="80" Height="80" CornerRadius="40" Background="{ThemeResource PlayerBigPlayBackgroundBrush}" BorderBrush="{ThemeResource PlayerBigPlayStrokeBrush}" BorderThickness="1"
+                    AllowFocusOnInteraction="False" Foreground="{ThemeResource PlayerTextPrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" Click="OnPauseClick"
+                    Visibility="Collapsed" IsHitTestVisible="True" AutomationProperties.Name="继续播放"><themes:LineIcon Glyph="{StaticResource IconPlay}" Width="32" Height="32" Filled="True"/></Button>
         </Grid>
 
         <Grid x:Name="StateLayer">
@@ -261,7 +264,7 @@
                 <Grid Width="40" Height="40">
                     <Border x:Name="OpeningPing" CornerRadius="20" BorderThickness="1" BorderBrush="{ThemeResource PlayerBigPlayStrokeBrush}" IsHitTestVisible="False"/>
                     <Border CornerRadius="20" Background="{ThemeResource PlayerBigPlayBackgroundBrush}" BorderBrush="{ThemeResource PlayerBigPlayStrokeBrush}" BorderThickness="1"/>
-                    <ProgressRing IsActive="{x:Bind ViewModel.IsOpening, Mode=OneWay}" Width="24" Height="24" Foreground="{ThemeResource PlayerTextPrimaryBrush}"/>
+                    <ProgressRing x:Name="OpeningSpinner" IsActive="False" Width="24" Height="24" Foreground="{ThemeResource PlayerTextPrimaryBrush}"/>
                 </Grid>
                 <TextBlock Text="正在打开" Foreground="{ThemeResource PlayerTextPrimaryBrush}" FontSize="18" HorizontalAlignment="Center"/>
                 <TextBlock x:Name="SlowOpeningHint" Text="片源响应较慢" Foreground="{ThemeResource PlayerTextSecondaryBrush}" Visibility="{x:Bind ViewModel.IsSlowOpening, Mode=OneWay}"/>
@@ -274,9 +277,6 @@
             <Border x:Name="KeyHint" Background="{ThemeResource PlayerPillBrush}" BorderBrush="{ThemeResource PlayerPanelStrokeBrush}" BorderThickness="1" CornerRadius="18" Padding="16,8" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,32,0,0" Visibility="Collapsed" IsHitTestVisible="False">
                 <TextBlock x:Name="KeyHintLabel" Foreground="{ThemeResource PlayerTextPrimaryBrush}" AutomationProperties.LiveSetting="Polite"/>
             </Border>
-            <Button x:Name="BigPlay" Style="{StaticResource PlayerButton}" Tag="Center" Width="80" Height="80" CornerRadius="40" Background="{ThemeResource PlayerBigPlayBackgroundBrush}" BorderBrush="{ThemeResource PlayerBigPlayStrokeBrush}" BorderThickness="1"
-                    AllowFocusOnInteraction="False" Foreground="{ThemeResource PlayerTextPrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" Click="OnPauseClick"
-                    Visibility="Collapsed" IsHitTestVisible="True" AutomationProperties.Name="继续播放"><themes:LineIcon Glyph="{StaticResource IconPlay}" Width="32" Height="32" Filled="True"/></Button>
             <Border x:Name="ErrorPanel" Width="380" Padding="26" Background="{ThemeResource PlayerFailureBrush}" BorderBrush="{ThemeResource PlayerPanelStrokeBrush}"
                     BorderThickness="1" CornerRadius="16" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="{x:Bind ViewModel.IsFailed, Mode=OneWay}">
                 <StackPanel Spacing="14" IsHitTestVisible="True">

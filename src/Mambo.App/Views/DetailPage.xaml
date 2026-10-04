@@ -173,10 +173,9 @@
     </UserControl.Resources>
     <Grid>
         <!-- 详情页的滚动条不显示，和原版一样 -->
-        <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Hidden" Visibility="{x:Bind ViewModel.HasContent, Mode=OneWay}">
+        <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Hidden" Visibility="{x:Bind ViewModel.HasContent, Mode=OneWay}" ViewChanged="OnScrollViewChanged">
             <StackPanel Padding="0,0,0,32">
                 <Grid x:Name="Hero" Height="560" Background="{ThemeResource HeroBackgroundBrush}">
-                    <Grid x:Name="ArtHost" IsHitTestVisible="False"/>
                     <!-- 文字块贴着 hero 底边；播放钮在右下角 -->
                     <Grid x:Name="Info" VerticalAlignment="Bottom" Margin="32,0,32,12" MinHeight="72" ColumnSpacing="24">
                         <Grid.ColumnDefinitions>
@@ -282,10 +281,11 @@
                         <TextBlock Style="{StaticResource BodySmallTextStyle}" Foreground="{ThemeResource TextSecondaryBrush}" Text="{x:Bind ViewModel.SeriesErrorText, Mode=OneWay}" VerticalAlignment="Center" TextWrapping="Wrap"/>
                         <Button Style="{StaticResource SoftButtonStyle}" Content="重试" Click="OnRetryClick"/>
                     </StackPanel>
-                    <ScrollView x:Name="EpisodeScroller" Height="238" Margin="4,-8,4,0" ContentOrientation="Horizontal"
-                                HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden"
-                                VerticalScrollMode="Disabled" IgnoredInputKinds="MouseWheel"
-                                ViewChanged="OnEpisodeViewChanged" ExtentChanged="OnEpisodeExtentChanged" SizeChanged="OnEpisodeScrollerSizeChanged">
+                    <Grid Height="238" Margin="4,-8,4,0">
+                        <ScrollView x:Name="EpisodeScroller" Height="238" ContentOrientation="Horizontal"
+                                    HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden"
+                                    VerticalScrollMode="Disabled" IgnoredInputKinds="MouseWheel"
+                                    ViewChanged="OnEpisodeViewChanged" ExtentChanged="OnEpisodeExtentChanged" SizeChanged="OnEpisodeScrollerSizeChanged">
                         <ItemsRepeater x:Name="EpisodeRepeater" Margin="20,8,20,8" ItemsSource="{x:Bind ViewModel.Episodes}">
                             <ItemsRepeater.Layout><StackLayout Orientation="Horizontal" Spacing="{StaticResource RailSpacing}"/></ItemsRepeater.Layout>
                             <ItemsRepeater.ItemTemplate>
@@ -294,9 +294,10 @@
                                 </DataTemplate>
                             </ItemsRepeater.ItemTemplate>
                         </ItemsRepeater>
-                    </ScrollView>
-                    <!-- 季信息或这一季的剧集还在加载：一行骨架卡片 -->
-                    <StackPanel x:Name="EpisodeSkeleton" Orientation="Horizontal" Spacing="{StaticResource RailSpacing}" Padding="24,0" Visibility="{x:Bind ViewModel.IsEpisodesLoading, Mode=OneWay}"/>
+                        </ScrollView>
+                        <!-- 骨架与剧集共用固定轨道，不额外撑高一行。 -->
+                        <StackPanel x:Name="EpisodeSkeleton" Orientation="Horizontal" Spacing="{StaticResource RailSpacing}" Padding="20,8,20,8" Visibility="Collapsed"/>
+                    </Grid>
                     <controls:StateView Title="剧集加载失败" Visibility="{x:Bind ViewModel.HasEpisodesError, Mode=OneWay}">
                         <controls:StateView.Actions><Button Style="{StaticResource SoftButtonStyle}" Content="重试" Click="OnRetryClick"/></controls:StateView.Actions>
                     </controls:StateView>

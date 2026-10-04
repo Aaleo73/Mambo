@@ -8,6 +8,7 @@ using System.Text.Json.Serialization;
 using CommunityToolkit.Mvvm.Messaging;
 using Mambo.App.Composition;
 using Mambo.App.Shell;
+using Mambo.App.Themes;
 using Mambo.App.Views;
 using Mambo.Core.Contracts;
 using Mambo.Core.Fakes;
@@ -62,6 +63,7 @@ internal static class NativeOverlaySmoke
         {
             RunId = fixture.RunId, ProcessId = currentProcess.Id,
             ProcessStartUtcTicks = currentProcess.StartTime.ToUniversalTime().Ticks,
+            AnimationsEnabled = Motion.AnimationsEnabled,
         };
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(55));
         var token = deadline.Token;
@@ -162,12 +164,31 @@ internal static class NativeOverlaySmoke
             report.FullscreenViewportMatched = true;
             report.FullscreenPixelWidth = player.VideoSurface.BufferSize.Width;
             report.FullscreenPixelHeight = player.VideoSurface.BufferSize.Height;
+            InvokeButton(player, "切换全屏");
+            await WaitAsync(() => !services.GetRequiredService<WindowContext>().IsFullscreen &&
+                ViewportMatched(player) && player.VideoSurface.BufferSize == (report.BufferWidth, report.BufferHeight), token);
+            report.RestoredViewportMatched = true;
 
             report.Stage = "真实关闭按钮和交换链解绑";
             var surface = player.VideoSurface;
-            InvokeButton(player, "关闭播放");
-            await WaitAsync(() => session.Snapshot.Phase == PlayerPhase.Closed && fixture.Playback.Current is null
-                && window.Shell.ActivePlayer is null && !window.Shell.IsTransitioning, token);
+            void OnEnded(object? sender, PlaybackSessionEventArgs args)
+            {
+                if (!ReferenceEquals(args.Session, session)) return;
+                report.NativeReleaseBeforeShellAwait = window.Shell.ActivePlayer is null && player.IsPresentationFrozen &&
+                    surface.BufferSize == (0, 0) && VisualTreeHelper.GetParent(surface) is null;
+            }
+            fixture.Playback.SessionEnded += OnEnded;
+            try
+            {
+                InvokeButton(player, "关闭播放");
+                await WaitAsync(() => report.NativeReleaseBeforeShellAwait, token);
+                await UiLabSmoke.AwaitNextRenderingAsync(token);
+                report.FrozenFaceRenderingObserved = ReferenceEquals(window.Shell.RetiringPlayer, player) &&
+                    player.Content is not null && !player.IsHitTestVisible;
+                await WaitAsync(() => session.Snapshot.Phase == PlayerPhase.Closed && fixture.Playback.Current is null
+                    && window.Shell.ActivePlayer is null && window.Shell.RetiringPlayer is null && !window.Shell.IsTransitioning, token);
+            }
+            finally { fixture.Playback.SessionEnded -= OnEnded; }
             report.Closed = true;
             report.Detached = surface.BufferSize == (0, 0);
             await WaitAsync(() => fixture.Handler.Count("Stopped") == 1 && fixture.Outbox.Snapshot.IsEmpty, token);
@@ -203,6 +224,8 @@ internal static class NativeOverlaySmoke
             report.Passed = report.ErrorKind.Length == 0 && report.CleanupErrorKind.Length == 0
                 && report.IsolatedServicesVerified && report.FormalOverlayLoaded && report.RealEmbeddedEngine
                 && report.ProductionEngineParameters && report.TitleBound && report.Playing && report.Bound && report.SizeMatched && report.ViewportMatched && report.FullscreenViewportMatched
+                && report.RestoredViewportMatched && report.NativeReleaseBeforeShellAwait &&
+                    (!report.AnimationsEnabled || report.FrozenFaceRenderingObserved)
                 && report.AudioFixtureGenerated && report.AudioOutputAvailable && report.AudioTrackSelected && report.ExternalAudioTrackSelected
                 && report.AudioOutputSampleRate > 0 && report.AudioOutputChannels > 0 && report.AudioPlaybackAdvanced
                 && report.VolumeControl && report.MuteButton && report.UnmuteButton && report.NativeUnmuted && Math.Abs(report.NativeVolume - 10) < .01
@@ -429,6 +452,7 @@ internal sealed class NativeOverlayReport
     public int ProcessId { get; set; }
     public long ProcessStartUtcTicks { get; set; }
     public bool Passed { get; set; }
+    public bool AnimationsEnabled { get; set; }
     public string Stage { get; set; } = "开始";
     public bool IsolatedServicesVerified { get; set; }
     public bool ProductionEngineParameters { get; set; }
@@ -447,6 +471,9 @@ internal sealed class NativeOverlayReport
     public int ExpectedPixelHeight { get; set; }
     public bool ViewportMatched { get; set; }
     public bool FullscreenViewportMatched { get; set; }
+    public bool RestoredViewportMatched { get; set; }
+    public bool NativeReleaseBeforeShellAwait { get; set; }
+    public bool FrozenFaceRenderingObserved { get; set; }
     public int FullscreenPixelWidth { get; set; }
     public int FullscreenPixelHeight { get; set; }
     public bool AudioOutputAvailable { get; set; }

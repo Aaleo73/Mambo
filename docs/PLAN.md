@@ -593,7 +593,7 @@ public interface IPlayerEngine : IAsyncDisposable {
 
 ### 8.2 窗口、标题栏、背景
 
-- **窗口**：`OverlappedPresenter`，`SetBorderAndTitleBar(true,false)`，`ExtendsContentIntoTitleBar=true`，`SetTitleBar(拖动区域)`。
+- **窗口**：`OverlappedPresenter`，`SetBorderAndTitleBar(true,false)`；完整自绘标题栏由 `InputNonClientPointerSource` 登记 Caption/Passthrough/Maximize 区域，不混用 `ExtendsContentIntoTitleBar` / `SetTitleBar` 的系统窗口按钮路径。切换原因与本轮证据见 `docs/decisions/P9-visual-parity.md`。
 - **标题栏**：自绘 40px 高，含后退/前进按钮，以及自绘的 46×40 窗口按钮。
   - **不用** WinAppSDK 自带的 `TitleBar` 控件：它只有 32/48px 两种高度。
 - **非客户区**（`InputNonClientPointerSource`）：
@@ -632,9 +632,13 @@ public interface IPlayerEngine : IAsyncDisposable {
 
 ### 8.5 动效
 
-- **卡片 → 详情**：`PrepareConnectedAnimation("poster", item, "PosterImage")` → 导航 → 详情页在图片就绪后 `TryStart`；返回时用 `TryStartConnectedAnimationAsync`，它会先把卡片滚动到可见。
-- **hero 轮播**：两层图片交叉淡化，7 秒自动切换；页面不可见或窗口最小化时暂停。
-- **时长与缓动**：来自 `Tokens.xaml`；系统关闭动画（`UISettings.AnimationsEnabled`）时动画瞬间完成。
+- **现行规范**：用户确认「克制、有辨识度」，浏览↔播放翻折是唯一强动效；本节取代附录 B 的旧动效参数，完整决定见 `docs/decisions/P9-visual-parity.md`。
+- **页面与详情**：普通导航 240ms 原位交叉淡变；详情前景整体进入 240ms/Y4→0、退出 120ms/Y0→4，缓存返回只淡变。库首屏未就绪保留旧页；删除封面 ConnectedAnimation/克隆残影和逐块、逐卡错峰。
+- **hero**：背景由唯一宿主 400ms 纯淡变，整组文字 240ms；图片、文字、圆点与点击目标原子提交。同图往返复用 surface；7 秒自动轮播在交接落稳/暂停恢复后重新计时。
+- **播放**：480ms 中心 Y 轴翻折，1400 透视、.18 遮罩峰值；半程换面，快速反向从当前值接续。关闭先解绑释放原生表面，再短暂保留无活动资源的冻结 XAML，终态释放退场树。
+- **轻反馈**：筛选占位 240ms；排序、确认卡片、Toast 与控制栏 160ms 进入、120ms 退出；卡片 hover Y−2、按下 Y−1，普通按钮无缩放。逻辑关闭立即禁输入，物理卸载等真实完成；父级转场不叠冷图入场。
+- **时长与缓动**：Press/Exit/Feedback/Content/Image/Mode = 80/120/160/240/400/480ms，来自 `Tokens.xaml`，与 CSS 同步。自定义曲线仅 EaseOut/EaseIn/Symmetric；平台刷色、按距离滚动和状态周期另行标明。
+- **收尾**：每窗口唯一 `UISettings.AnimationsEnabledChanged` 订阅；离页、非活动、禁动画和释放直接落最新有效终态，恢复仅影响后续动作。页面/背景最多两层，过期完成不得覆盖新目标。
 
 ### 8.6 播放层（外壳里的一层覆盖，不是导航页面；底下的页面一直活着）
 
@@ -1125,7 +1129,7 @@ PlayerOverlay（Grid，RequestedTheme=Dark，IsTabStop=True，持有焦点）
 
 **网格**
 - 海报卡片：标题、「年份 · 进度%」、评分徽标、进度条。
-- 首屏卡片错开淡入。
+- 网格没有逐卡入场；冷图仅 160ms 就绪淡入，父级交接、缓存和缺图直接终态。
 - 接近末尾自动加载下一页，Limit=60。
 - 空状态：有筛选时显示「当前筛选没有内容」+「重置筛选」，否则显示「暂无内容」。
 - 排序或筛选改变时，旧结果保留到新结果到达，然后滚回顶部。
@@ -1428,7 +1432,7 @@ PlayerOverlay（Grid，RequestedTheme=Dark，IsTabStop=True，持有焦点）
   - 间距：海报网格 20/24，横版网格 12/24；
   - 人物卡：宽 132，圆角 16。
 - **hero 与详情**：hero 高度为窗口高度的 62%，限制在 500–600 之间；logo 区 360×130；详情页播放按钮 72px。
-- **动效**：
+- **动效（原版历史记录，非现行参数；现行见 §8.5）**：
   - 缓动曲线：enter [0,0,.2,1]、standard [.4,0,.2,1]、fluid [.2,.8,.2,1]、exit [.4,0,1,1]、settle [.22,1,.36,1]；
   - 时长（ms）：micro 80、interaction 160、imageReady 140、surface 240、route 280、heroContent 320、heroTransition 480、backdropSettle 500、shellFold 560、coverTransition 220。
 - **播放层**：
@@ -1502,3 +1506,4 @@ PlayerOverlay（Grid，RequestedTheme=Dark，IsTabStop=True，持有焦点）
 - [ ] P6 打磨与加固（程序化关闭绕过清理的原生崩溃与自绘关闭按钮已修复；Debug/AOT/安装目录完整界面回归、实际关闭按钮四项、五项原生 UIA、50 次假播放关闭零留存通过；最新窗口 Loaded 为 881/865/774 ms，600 ms 目标未通过；讲述人实际朗读及 P0 原生硬件资源遗留保留）
 - [x] P7 外部播放器（后端、设置与面板接入完成；Debug/AOT IPC、真实外部进程终止/停止补报/文件替换重新批准及界面自动回归通过；经用户授权采用本机真实进程自动验证，未把先前暂缓的人工 Emby 后台观察记成通过，见 `docs/decisions/P7-external-process-smoke.md`）
 - [x] P8 本地打包交付（Native AOT、自包含便携/安装/源码包与许可记录完成；最终候选首次安装、安装 UI、升级正常关闭及卸载保留全部用户文件通过；专用 VM 已按用户要求取消。此项不代表已公开发布；完整原生对应源码缺口及清理受阻见 `docs/decisions/P8-packaging.md`）
+- [ ] P9 统一动效语言（六档时长/三条曲线、浏览交接、共享背景与 Hero 原子提交、可反向播放翻折、弹层及控件生命周期、公共 CSS/历史原型已迁移；最终 Debug/AOT 完整门禁通过，均包含 Motion 90 项、50 次开关/焦点恢复及播放器/Surface 零留存；实际原生播放通过。标题栏所有权切换后完整门禁未再出现原生释放异常；两种尺寸动态对比、物理最小化/恢复与标题栏操作已记录，不声称性能提升。Windows 动画设置切换、真实媒体观感及 Snap 弹出层人工确认仍待完成，见 `docs/decisions/P9-visual-parity.md`）

@@ -1,33 +1,30 @@
 using System.ComponentModel;
-using Mambo.App.Themes;
 using Mambo.App.ViewModels;
-using Microsoft.UI.Composition;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Hosting;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 
 namespace Mambo.App.Views.Controls;
 
 /// <summary>
-/// 网格的增量加载与首屏错开淡入：距末尾不足 1.5 屏时加载下一页；
-/// 首屏（前 24 张）在首次加载和条件改变后依次淡入。
+/// 网格的增量加载与历史滚动恢复；距末尾不足 1.5 屏时加载下一页。
 /// </summary>
 internal sealed class GridLoader : IDisposable
 {
-    private static readonly TimeSpan RevealWindow = TimeSpan.FromMilliseconds(800);
     private readonly ScrollViewer scroller;
     private readonly Func<PagedCards> cards;
-    private DateTime revealUntil = DateTime.UtcNow + RevealWindow;
+    private CancellationTokenSource presentation = new();
+    private TaskCompletionSource sourceChanged = NewSourceSignal();
+    private Task pendingRestore = Task.CompletedTask;
     private CancellationTokenSource? restoration;
     private bool checkQueued;
     private bool active = true;
     private bool disposed;
 
-    public GridLoader(ScrollViewer scroller, ItemsRepeater grid, Func<PagedCards> cards)
+    public GridLoader(ScrollViewer scroller, Func<PagedCards> cards)
     {
-        ArgumentNullException.ThrowIfNull(grid);
         this.scroller = scroller;
         this.cards = cards;
         scroller.AddHandler(UIElement.PointerWheelChangedEvent, new PointerEventHandler(OnUserScroll), true);
@@ -51,12 +48,63 @@ internal sealed class GridLoader : IDisposable
         if (remaining < scroller.ViewportHeight * 1.5) _ = source.LoadMoreAsync();
     }
 
-    public void Reveal() => revealUntil = DateTime.UtcNow + RevealWindow;
+    internal Task PendingRestore => pendingRestore;
+
+    public void NotifySourceChanged()
+    {
+        var previous = sourceChanged;
+        sourceChanged = NewSourceSignal();
+        previous.TrySetResult();
+    }
+
+    private static TaskCompletionSource NewSourceSignal() => new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    public async Task WaitForPresentationAsync(CancellationToken cancellationToken)
+    {
+        using var operation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, presentation.Token);
+        var token = operation.Token;
+        while (true)
+        {
+            token.ThrowIfCancellationRequested();
+            var source = cards();
+            var changed = sourceChanged.Task;
+            using (var ready = CancellationTokenSource.CreateLinkedTokenSource(token))
+            {
+                var readiness = WaitForReadyAsync(source, ready.Token, waitForMore: false);
+                try
+                {
+                    if (await Task.WhenAny(readiness, changed).WaitAsync(token) == changed) continue;
+                    await readiness;
+                }
+                finally
+                {
+                    ready.Cancel();
+                    try { await readiness; }
+                    catch (OperationCanceledException) when (ready.IsCancellationRequested) { }
+                }
+            }
+            var restoring = pendingRestore;
+            await restoring.WaitAsync(token);
+            await NextRenderAsync(token);
+            if (ReferenceEquals(source, cards()) && ReferenceEquals(restoring, pendingRestore)) return;
+        }
+    }
 
     public void SetActive(bool value)
     {
+        if (disposed || active == value) return;
         active = value;
-        if (!value) CancelRestore();
+        if (value)
+        {
+            presentation.Dispose();
+            presentation = new CancellationTokenSource();
+            Check();
+        }
+        else
+        {
+            presentation.Cancel();
+            CancelRestore();
+        }
     }
 
     public void CancelRestore()
@@ -69,9 +117,9 @@ internal sealed class GridLoader : IDisposable
     public Task RestoreAsync(double offset)
     {
         CancelRestore();
-        if (offset <= 0 || disposed) return Task.CompletedTask;
+        if (offset <= 0 || disposed || !active) return pendingRestore = Task.CompletedTask;
         restoration = new CancellationTokenSource();
-        return RestoreCoreAsync(offset, restoration);
+        return pendingRestore = RestoreCoreAsync(offset, restoration);
     }
 
     private async Task RestoreCoreAsync(double offset, CancellationTokenSource operation)
@@ -109,51 +157,57 @@ internal sealed class GridLoader : IDisposable
         }
     }
 
-    private static async Task WaitForReadyAsync(PagedCards source, CancellationToken token)
+    private static async Task WaitForReadyAsync(PagedCards source, CancellationToken token, bool waitForMore = true)
     {
-        if ((source.IsInitialized || source.HasError) && !source.IsLoadingMore) return;
+        if ((source.IsInitialized || source.HasError) && (!waitForMore || !source.IsLoadingMore)) return;
         var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         void OnChanged(object? sender, PropertyChangedEventArgs e)
         {
-            if ((source.IsInitialized || source.HasError) && !source.IsLoadingMore) ready.TrySetResult();
+            if ((source.IsInitialized || source.HasError) && (!waitForMore || !source.IsLoadingMore)) ready.TrySetResult();
         }
         source.PropertyChanged += OnChanged;
-        try { OnChanged(null, new PropertyChangedEventArgs(null)); await ready.Task.WaitAsync(token); }
+        using var canceled = token.Register(() =>
+        {
+            source.PropertyChanged -= OnChanged;
+            ready.TrySetCanceled(token);
+        });
+        try { OnChanged(null, new PropertyChangedEventArgs(null)); await ready.Task; }
         finally { source.PropertyChanged -= OnChanged; }
     }
 
-    private static async Task NextRenderAsync(CancellationToken token)
+    internal static async Task NextRenderAsync(CancellationToken token)
     {
         // 等实际布局/渲染帧，不在查询的 PropertyChanged 或布局事件内同步 UpdateLayout。
+        token.ThrowIfCancellationRequested();
+        var queue = DispatcherQueue.GetForCurrentThread();
         var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        void OnRendering(object? sender, object args) => completion.TrySetResult();
+        void Unsubscribe() => CompositionTarget.Rendering -= OnRendering;
+        void OnRendering(object? sender, object args)
+        {
+            Unsubscribe();
+            completion.TrySetResult();
+        }
         CompositionTarget.Rendering += OnRendering;
-        try { await completion.Task.WaitAsync(token); }
-        finally { CompositionTarget.Rendering -= OnRendering; }
+        using var canceled = token.Register(() =>
+        {
+            if (queue.HasThreadAccess) Unsubscribe();
+            else queue.TryEnqueue(Unsubscribe);
+            completion.TrySetCanceled(token);
+        });
+        try { await completion.Task; }
+        finally { Unsubscribe(); }
     }
 
     public void Dispose()
     {
         if (disposed) return;
         disposed = true;
+        presentation.Cancel();
+        presentation.Dispose();
         CancelRestore();
         scroller.RemoveHandler(UIElement.PointerWheelChangedEvent, new PointerEventHandler(OnUserScroll));
     }
 
     private void OnUserScroll(object sender, PointerRoutedEventArgs e) => CancelRestore();
 
-    public void Prepare(ItemsRepeaterElementPreparedEventArgs args)
-    {
-        if (args.Index >= 24 || DateTime.UtcNow > revealUntil || !Motion.AnimationsEnabled) return;
-        // 只做透明度（240ms），前 8 张每张错开 20ms，之后的一起出现。
-        var visual = ElementCompositionPreview.GetElementVisual(args.Element);
-        var compositor = visual.Compositor;
-        var opacity = compositor.CreateScalarKeyFrameAnimation();
-        opacity.InsertKeyFrame(0, 0);
-        opacity.InsertKeyFrame(1, 1, Motion.CreateEasing(compositor, Motion.Fluid));
-        opacity.Duration = Motion.Normal;
-        opacity.DelayTime = TimeSpan.FromMilliseconds(Math.Min(args.Index, 8) * 20);
-        opacity.DelayBehavior = AnimationDelayBehavior.SetInitialValueBeforeDelay;
-        visual.StartAnimation("Opacity", opacity);
-    }
 }

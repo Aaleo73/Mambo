@@ -157,8 +157,10 @@ try {
         'TitleBound', 'Playing', 'Bound', 'SizeMatched', 'ViewportMatched', 'FullscreenViewportMatched', 'AudioFixtureGenerated', 'AudioOutputAvailable',
         'AudioTrackSelected', 'ExternalAudioTrackSelected', 'AudioPlaybackAdvanced', 'VolumeControl', 'MuteButton', 'UnmuteButton', 'NativeUnmuted',
         'PauseButton', 'SeekControl', 'ResumeButton', 'Closed', 'Detached',
+        'RestoredViewportMatched', 'NativeReleaseBeforeShellAwait',
         'Stopped', 'OutboxEmpty', 'ReportSequenceOrdered', 'ShutdownCompleted')
     $overlayAllChecks = $true
+    $overlayAllChecks = $overlayAllChecks -and (-not $overlayReport.AnimationsEnabled -or $overlayReport.FrozenFaceRenderingObserved)
     foreach ($overlayCheck in $overlayChecks) { $overlayAllChecks = $overlayAllChecks -and $overlayReport.$overlayCheck -eq $true }
     if ($overlayProcess.ExitCode -ne 0 -or -not $overlayReport.Passed -or -not $overlayAllChecks -or
         $overlayReport.InitialEngineWidth -ne 1 -or $overlayReport.InitialEngineHeight -ne 1 -or

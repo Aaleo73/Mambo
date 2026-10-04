@@ -14,7 +14,7 @@
         <ScrollViewer x:Name="Scroller" Grid.Row="1" Margin="0,4,0,0" VerticalScrollBarVisibility="Auto" ViewChanged="OnScrollViewChanged">
             <StackPanel Padding="24,8,24,0">
                 <!-- 列数随宽度变化，卡片拉伸填满整行，图片保持 16:9 -->
-                <ItemsRepeater x:Name="Grid" ItemsSource="{x:Bind ViewModel.Cards.Items}" ElementPrepared="OnElementPrepared"
+                <ItemsRepeater x:Name="Grid" ItemsSource="{x:Bind ViewModel.Cards.Items}"
                                XYFocusKeyboardNavigation="Enabled" SizeChanged="OnGridSizeChanged">
                     <ItemsRepeater.Layout>
                         <UniformGridLayout MinItemWidth="{StaticResource LandscapeMinWidth}" MinColumnSpacing="{StaticResource RailSpacing}"

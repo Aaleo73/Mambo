@@ -25,7 +25,7 @@ public sealed class ImageLoader : IDisposable
     }
 
     /// <summary>XAML 中直接声明的 RemoteImage 无法注入服务，经此取得。</summary>
-    public static ImageLoader? Current { get; private set; }
+    public static ImageLoader? Current { get; internal set; }
 
     internal long FetchStartedCount => Interlocked.Read(ref fetchStartedCount);
     internal long DecodedHitCount => Interlocked.Read(ref decodedHitCount);

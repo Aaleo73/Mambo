@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Mambo.App.Shell;
+using Mambo.App.Themes;
 using Mambo.App.ViewModels;
 using Mambo.App.Views;
 using Mambo.Core.Contracts;
@@ -7,6 +8,7 @@ using Mambo.Core.Fakes;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 
 namespace Mambo.App.Debug;
 
@@ -67,6 +69,8 @@ internal static class NavigationSmoke
         try
         {
             await CheckpointAsync("Started");
+            await CheckpointAsync("InterruptedPresentation");
+            await PresentationAsync(window, navigation, report, token);
             await ScenarioAsync(report, "LibraryBack", async scenario =>
             {
                 // 先淘汰可能已被性能探针加载了全部元数据的同路由旧页。
@@ -220,6 +224,86 @@ internal static class NavigationSmoke
         return report;
     }
 
+    private static async Task PresentationAsync(MainWindow window, Navigator navigation, NavigationReport report, CancellationToken token)
+    {
+        var host = window.Shell.PageHost;
+        await NavigateAsync<HomePage>(window, navigation, Route.Home, token);
+        var home = navigation.Current;
+        var homePage = host.CurrentPage;
+        navigation.Navigate(Route.Search("星"));
+        Mark(report, "PresentationLogicalTargetIsImmediate", host.CurrentPage is SearchPage && !ReferenceEquals(homePage, host.CurrentPage));
+        if (Motion.AnimationsEnabled)
+        {
+            await PairFrameAsync(host, report, token);
+            Mark(report, "OrdinaryNavigationRetainsBothPages", host.PresentedPageCount == 2 && host.Children.Contains(homePage!));
+            Mark(report, "OutgoingPageRejectsPointer", homePage is { IsHitTestVisible: false });
+            Mark(report, "BackInterruptsActivePresentation", host.IsTransitioning && navigation.GoBack() && ReferenceEquals(navigation.Current, home));
+            Mark(report, "BackKeepsLogicalHome", ReferenceEquals(host.CurrentPage, homePage));
+            await host.PendingTransition.WaitAsync(token);
+            Mark(report, "ReversalPresentsHome", ReferenceEquals(host.PresentedPage, homePage));
+        }
+        else
+        {
+            navigation.GoBack();
+            await host.PendingTransition.WaitAsync(token);
+        }
+
+        navigation.Navigate(Route.Search("星"));
+        if (Motion.AnimationsEnabled) await PairFrameAsync(host, report, token);
+        navigation.Navigate(Route.Settings);
+        var latest = host.CurrentPage;
+        var latestEntry = navigation.Current;
+        Mark(report, "ThirdRequestBecomesLogicalTarget", latest is SettingsPage);
+        var eventsBefore = report.NavigationEvents;
+        var pending = host.PendingTransition;
+        navigation.Navigate(Route.Settings);
+        Mark(report, "SameTargetDoesNotRestartPresentation", report.NavigationEvents == eventsBefore && ReferenceEquals(host.PendingTransition, pending));
+        var watch = Stopwatch.StartNew();
+        var bounded = true;
+        while (host.IsTransitioning)
+        {
+            if (watch.Elapsed > StepBudget) throw new ProbeFailure("LatestPresentationTimedOut");
+            await PresentationFrameAsync(token);
+            report.PresentationFrames++;
+            report.MaximumPresentedPages = Math.Max(report.MaximumPresentedPages, host.PresentedPageCount);
+            bounded &= host.PresentedPageCount <= 2 && ReferenceEquals(host.CurrentPage, latest) &&
+                ReferenceEquals(navigation.Current, latestEntry);
+        }
+        Mark(report, "LatestPresentationBounded", bounded && report.MaximumPresentedPages <= 2);
+        await host.PendingTransition.WaitAsync(token);
+        Mark(report, "LatestTargetActuallyPresented", ReferenceEquals(host.PresentedPage, latest));
+        Mark(report, "PresentationReturnsToCacheLimit", host.CachedPageCount <= 4);
+        await NavigateAsync<SearchPage>(window, navigation, Route.Search("电影"), token);
+        navigation.Navigate(Route.Search("电影 0"));
+        Mark(report, "SearchReplaceDoesNotReplayEntrance", !host.IsTransitioning && host.CurrentPage is SearchPage);
+        await host.PendingTransition.WaitAsync(token);
+    }
+
+    private static async Task PairFrameAsync(PageHost host, NavigationReport report, CancellationToken token)
+    {
+        var watch = Stopwatch.StartNew();
+        do
+        {
+            await PresentationFrameAsync(token);
+            report.PresentationFrames++;
+            report.MaximumPresentedPages = Math.Max(report.MaximumPresentedPages, host.PresentedPageCount);
+            if (host.IsTransitioning && host.PresentedPageCount == 2) return;
+        } while (watch.Elapsed < StepBudget && host.IsTransitioning);
+        throw new ProbeFailure("NoOverlappingPresentationFrame");
+    }
+
+    private static async Task PresentationFrameAsync(CancellationToken token)
+    {
+        var frame = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token);
+        deadline.CancelAfter(StepBudget);
+        using var cancellation = deadline.Token.Register(() => frame.TrySetCanceled(deadline.Token));
+        void Rendered(object? sender, object args) => frame.TrySetResult();
+        CompositionTarget.Rendering += Rendered;
+        try { await frame.Task; }
+        finally { CompositionTarget.Rendering -= Rendered; }
+    }
+
     private static Route[] Fillers() =>
         [Route.Settings, Route.Library(DemoCatalog.ShowsLibraryId), Route.Detail("demo-movie-0001"), Route.Detail("demo-movie-0002"), Route.Home];
 
@@ -228,7 +312,12 @@ internal static class NavigationSmoke
         var scenario = new NavigationScrollScenario { Name = name };
         report.Scenarios.Add(scenario);
         try { await action(scenario); scenario.Status = "Passed"; }
-        catch (ProbeFailure error) { scenario.Status = error.Status; scenario.Reason = error.Reason; }
+        catch (ProbeFailure error)
+        {
+            scenario.Status = error.Status;
+            scenario.Reason = error.Reason;
+            scenario.FailureStage = $"{report.Stage}/{report.StepIndex}";
+        }
         catch (OperationCanceledException) { scenario.Status = "Failed"; scenario.Reason = "Cancelled"; throw; }
         catch (Exception error) when (error is not OperationCanceledException)
         {
@@ -249,7 +338,7 @@ internal static class NavigationSmoke
             if (checkpoint is not null) await checkpoint(index);
             var route = routes[index];
             navigation.Navigate(route);
-            await WaitAsync(() => PageMatches(window.Shell.PageHost.CurrentPage, route.Kind), "VisitPageLayout", token);
+            await WaitAsync(() => !window.Shell.PageHost.IsTransitioning && PageMatches(window.Shell.PageHost.CurrentPage, route.Kind), "VisitPageLayout", token);
         }
     }
 
@@ -261,7 +350,7 @@ internal static class NavigationSmoke
 
     private static async Task<T> CurrentAsync<T>(MainWindow window, CancellationToken token) where T : FrameworkElement
     {
-        await WaitAsync(() => window.Shell.PageHost.CurrentPage is T page && Visible(page), "CurrentPageLayout", token);
+        await WaitAsync(() => !window.Shell.PageHost.IsTransitioning && window.Shell.PageHost.CurrentPage is T page && Visible(page), "CurrentPageLayout", token);
         return (T)window.Shell.PageHost.CurrentPage!;
     }
 
@@ -379,7 +468,7 @@ internal static class NavigationSmoke
             if (checkpoint is not null) await checkpoint(index);
             if (!(forward ? navigation.GoForward() : navigation.GoBack())) throw new ProbeFailure("HistoryTraversalUnavailable");
             var kind = navigation.Current.Route.Kind;
-            await WaitAsync(() => PageMatches(window.Shell.PageHost.CurrentPage, kind), "HistoryPageLayout", token);
+            await WaitAsync(() => !window.Shell.PageHost.IsTransitioning && PageMatches(window.Shell.PageHost.CurrentPage, kind), "HistoryPageLayout", token);
         }
     }
 
@@ -441,6 +530,8 @@ internal sealed class NavigationReport
     public string Reason { get; set; } = "";
     public string ErrorKind { get; set; } = "";
     public int NavigationEvents { get; set; }
+    public int PresentationFrames { get; set; }
+    public int MaximumPresentedPages { get; set; }
     public bool LayoutCycleTracingEnabled { get; set; }
     public int ActivePageKind { get; set; }
     public int StepIndex { get; set; }

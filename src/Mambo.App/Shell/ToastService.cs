@@ -33,6 +33,7 @@ public sealed partial class ToastItem : ObservableObject
     internal Action? Action { get; }
     internal DispatcherQueueTimer? Timer { get; set; }
     internal Windows.Foundation.TypedEventHandler<DispatcherQueueTimer, object>? TickHandler { get; set; }
+    internal bool IsDismissed { get; set; }
 
     public string Glyph => Kind switch
     {
@@ -63,7 +64,7 @@ public sealed class ToastService : IDisposable
             Dismiss(oldest);
         }
         Items.Add(item);
-        if (kind == ToastKind.Error || queue is null) return;
+        if (item.IsDismissed || !Items.Contains(item) || kind == ToastKind.Error || queue is null) return;
         item.Timer = queue.CreateTimer();
         item.Timer.Interval = duration ?? DefaultDuration;
         item.Timer.IsRepeating = false;
@@ -75,6 +76,7 @@ public sealed class ToastService : IDisposable
     public void Dismiss(ToastItem item)
     {
         ArgumentNullException.ThrowIfNull(item);
+        item.IsDismissed = true;
         item.Timer?.Stop();
         if (item.Timer is { } timer && item.TickHandler is { } handler) timer.Tick -= handler;
         item.Timer = null;
@@ -91,6 +93,8 @@ public sealed class ToastService : IDisposable
     public void Invoke(ToastItem item)
     {
         ArgumentNullException.ThrowIfNull(item);
+        // UI Automation can retain an old button after its toast has begun leaving.
+        if (item.IsDismissed || !Items.Contains(item)) return;
         Dismiss(item);
         item.Action?.Invoke();
     }

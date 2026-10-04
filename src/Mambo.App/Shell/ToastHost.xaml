@@ -4,20 +4,8 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:shell="using:Mambo.App.Shell"
     xmlns:themes="using:Mambo.App.Themes">
-    <!-- 右下角，最多 384 宽；没有类型图标，重试按钮单独一行靠右 -->
-    <ItemsControl ItemsSource="{x:Bind Toasts.Items}" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,16,16">
-        <ItemsControl.ItemContainerTransitions>
-            <TransitionCollection>
-                <AddDeleteThemeTransition/>
-            </TransitionCollection>
-        </ItemsControl.ItemContainerTransitions>
-        <ItemsControl.ItemsPanel>
-            <ItemsPanelTemplate>
-                <StackPanel Spacing="8"/>
-            </ItemsPanelTemplate>
-        </ItemsControl.ItemsPanel>
-        <ItemsControl.ItemTemplate>
-            <DataTemplate x:DataType="shell:ToastItem">
+    <UserControl.Resources>
+        <DataTemplate x:Key="ToastTemplate" x:DataType="shell:ToastItem">
                 <Grid Width="384">
                     <Border CornerRadius="{StaticResource PopupCornerRadius}" themes:SoftShadow.Kind="Popup"/>
                     <Border Style="{StaticResource PopupSurfaceStyle}" Padding="20,16,16,16" Tag="{x:Bind}"
@@ -39,7 +27,8 @@
                         </StackPanel>
                     </Border>
                 </Grid>
-            </DataTemplate>
-        </ItemsControl.ItemTemplate>
-    </ItemsControl>
+        </DataTemplate>
+    </UserControl.Resources>
+    <!-- 右下角，最多 384 宽；没有类型图标，重试按钮单独一行靠右 -->
+    <StackPanel x:Name="ToastStack" Spacing="8" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,16,16"/>
 </UserControl>

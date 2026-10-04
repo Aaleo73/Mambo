@@ -1,16 +1,18 @@
 using Mambo.App.Themes;
 using Mambo.Core.Contracts;
+using Microsoft.UI.Composition;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Hosting;
 
 namespace Mambo.App.Images;
 
 /// <summary>
-/// 远程图片：占位底色上淡入（140ms）；图片铺满并跟随圆角。卸载或换图时取消加载，
-/// 列表回收容器时同样会因 Source 改变而取消。
+/// 远程图片：只有冷图就绪时淡入；父级交接、缓存与非活动页面直接落终态。
+/// 换绑和卸载使旧加载失效，不为每张卡片订阅原生设置。
 /// </summary>
-public sealed partial class RemoteImage : Grid
+public sealed partial class RemoteImage : Grid, IMotionParticipant
 {
     public static readonly DependencyProperty SourceProperty = DependencyProperty.Register(nameof(Source), typeof(object), typeof(RemoteImage),
         new PropertyMetadata(null, (d, _) => ((RemoteImage)d).Reload()));
@@ -23,15 +25,16 @@ public sealed partial class RemoteImage : Grid
 
     private readonly Border picture = new() { Opacity = 0 };
     private readonly ImageBrush brush = new() { Stretch = Stretch.UniformToFill };
-    private readonly ScalarTransition fade = new();
+    private CompositionScopedBatch? fadeBatch;
     private CancellationTokenSource? loading;
+    private int generation;
 
     public RemoteImage()
     {
         picture.Background = brush;
         Children.Add(picture);
         Loaded += (_, _) => Reload();
-        Unloaded += (_, _) => { Cancel(); brush.ImageSource = null; picture.Opacity = 0; };
+        Unloaded += (_, _) => { Cancel(); brush.ImageSource = null; SettleMotion(); };
         SizeChanged += (_, e) => { if (e.PreviousSize.Width <= 0 && DecodeWidth <= 0) Reload(); };
         RegisterPropertyChangedCallback(CornerRadiusProperty, (_, _) => picture.CornerRadius = CornerRadius);
     }
@@ -57,6 +60,8 @@ public sealed partial class RemoteImage : Grid
 
     private void Cancel()
     {
+        generation++;
+        SettleMotion();
         loading?.Cancel();
         loading?.Dispose();
         loading = null;
@@ -65,7 +70,6 @@ public sealed partial class RemoteImage : Grid
     private async void Reload()
     {
         Cancel();
-        picture.OpacityTransition = null;
         picture.Opacity = 0;
         brush.ImageSource = null;
         Pending?.Invoke(this, EventArgs.Empty);
@@ -84,29 +88,69 @@ public sealed partial class RemoteImage : Grid
             return;
         }
         var cts = new CancellationTokenSource();
+        var version = generation;
+        var token = cts.Token;
         loading = cts;
         try
         {
-            var bitmap = await loader.LoadAsync(image, width, XamlRoot?.RasterizationScale ?? 1, Priority, cts.Token);
-            if (cts.IsCancellationRequested) return;
+            var bitmap = await loader.LoadAsync(image, width, XamlRoot?.RasterizationScale ?? 1, Priority, token);
+            if (token.IsCancellationRequested || version != generation || !IsLoaded) return;
             if (bitmap is not null) Show(bitmap, animate: true);
-            else Settled?.Invoke(this, true);
+            else Settled?.Invoke(this, false);
         }
         catch (OperationCanceledException)
         {
+        }
+        finally
+        {
+            if (ReferenceEquals(loading, cts)) loading = null;
+            cts.Dispose();
         }
     }
 
     private void Show(ImageSource source, bool animate)
     {
         brush.ImageSource = source;
-        if (animate && Motion.AnimationsEnabled)
-        {
-            fade.Duration = TimeSpan.FromMilliseconds(140);
-            picture.OpacityTransition = fade;
-        }
+        var reveal = animate && IsLoaded && Motion.IsActive(this) && Motion.AnimationsEnabled && !Motion.IsEntranceSuppressed(this);
         picture.Opacity = 1;
+        var visual = ElementCompositionPreview.GetElementVisual(picture);
+        if (reveal)
+        {
+            visual.Opacity = 0;
+            var compositor = visual.Compositor;
+            using var easing = Motion.CreateEasing(compositor, Motion.EaseOut);
+            using var animation = compositor.CreateScalarKeyFrameAnimation();
+            animation.InsertKeyFrame(1, 1, easing);
+            animation.Duration = Motion.Feedback;
+            fadeBatch = compositor.CreateScopedBatch(CompositionBatchTypes.Animation);
+            fadeBatch.Completed += OnFadeCompleted;
+            visual.StartAnimation("Opacity", animation);
+            fadeBatch.End();
+        }
+        else visual.Opacity = 1;
         ImageOpened?.Invoke(this, EventArgs.Empty);
-        Settled?.Invoke(this, animate);
+        Settled?.Invoke(this, reveal);
+    }
+
+    internal bool IsRevealing => fadeBatch is not null;
+    internal bool IsLoading => loading is not null;
+
+    public void SettleMotion()
+    {
+        if (fadeBatch is { } batch)
+        {
+            fadeBatch = null;
+            batch.Completed -= OnFadeCompleted;
+            batch.Dispose();
+        }
+        var visual = ElementCompositionPreview.GetElementVisual(picture);
+        visual.StopAnimation("Opacity");
+        picture.Opacity = brush.ImageSource is null ? 0 : 1;
+        visual.Opacity = (float)picture.Opacity;
+    }
+
+    private void OnFadeCompleted(object sender, CompositionBatchCompletedEventArgs args)
+    {
+        if (ReferenceEquals(sender, fadeBatch)) SettleMotion();
     }
 }

@@ -7,7 +7,7 @@
     xmlns:themes="using:Mambo.App.Themes"
     Width="{StaticResource PosterWidth}">
     <Button x:Name="Root" Style="{StaticResource CardButtonStyle}" Click="OnClick" AutomationProperties.Name="{x:Bind Item.Title, Mode=OneWay}"
-            PointerEntered="OnPointerEntered" PointerExited="OnPointerExited" PointerCanceled="OnPointerExited"
+            PointerEntered="OnPointerEntered" PointerExited="OnPointerExited"
             GotFocus="OnFocusChanged" LostFocus="OnFocusChanged">
         <VisualStateManager.VisualStateGroups>
             <VisualStateGroup x:Name="HoverStates">
@@ -43,7 +43,6 @@
                     <Border Height="3" VerticalAlignment="Bottom" CornerRadius="1.5" Background="#F5FFFFFF"/>
                 </Grid>
                 <Border x:Name="Stroke" CornerRadius="{StaticResource PosterCornerRadius}" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeBrush}">
-                    <Border.BackgroundTransition><BrushTransition Duration="0:0:0.16"/></Border.BackgroundTransition>
                 </Border>
                 <Border x:Name="InnerStroke" Margin="1" CornerRadius="13" BorderThickness="1" BorderBrush="#1AFFFFFF" Opacity="0"/>
             </Grid>

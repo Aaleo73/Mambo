@@ -13,15 +13,16 @@ public sealed partial class PosterCard : CardBase
     public static readonly DependencyProperty IsAdaptiveProperty = DependencyProperty.Register(nameof(IsAdaptive), typeof(bool), typeof(PosterCard),
         new PropertyMetadata(false, (d, _) => ((PosterCard)d).ApplySizing()));
 
-    private bool hovering;
 
     public PosterCard()
     {
         InitializeComponent();
+        TrackMotion(Visual);
         TrackReveal(Picture, Copy, RatingTab, Progress);
         Root.AddHandler(PointerPressedEvent, new PointerEventHandler(OnPressed), true);
         Root.AddHandler(PointerReleasedEvent, new PointerEventHandler(OnReleased), true);
         Root.AddHandler(PointerCaptureLostEvent, new PointerEventHandler(OnReleased), true);
+        Root.AddHandler(PointerCanceledEvent, new PointerEventHandler(OnCanceled), true);
     }
 
     public bool IsAdaptive { get => (bool)GetValue(IsAdaptiveProperty); set => SetValue(IsAdaptiveProperty, value); }
@@ -51,23 +52,25 @@ public sealed partial class PosterCard : CardBase
             ArtRow.Height = new GridLength(height);
     }
 
-    private void OnClick(object sender, RoutedEventArgs e) => HandleClick(Art, Picture);
+    private void OnClick(object sender, RoutedEventArgs e) => HandleClick();
 
     private void OnPointerEntered(object sender, PointerRoutedEventArgs e)
     {
-        hovering = true;
-        HandleHover(true, Visual);
+        Hovering = true;
+        HandleHover(true);
     }
 
     private void OnPointerExited(object sender, PointerRoutedEventArgs e)
     {
         var point = e.GetCurrentPoint(Root).Position;
         if (point.X >= 0 && point.Y >= 0 && point.X < Root.ActualWidth && point.Y < Root.ActualHeight) return;
-        hovering = false;
-        HandleHover(Root.FocusState == FocusState.Keyboard, Visual);
+        Hovering = false;
+        HandleHover(IsCardFocused());
     }
 
-    private void OnFocusChanged(object sender, RoutedEventArgs e) => HandleHover(hovering || Root.FocusState == FocusState.Keyboard, Visual);
-    private void OnPressed(object sender, PointerRoutedEventArgs e) => HandlePress(true, Visual);
-    private void OnReleased(object sender, PointerRoutedEventArgs e) => HandlePress(false, Visual);
+    protected override bool IsCardFocused() => Root is not null && Root.FocusState == FocusState.Keyboard;
+    private void OnFocusChanged(object sender, RoutedEventArgs e) => HandleHover(Hovering || IsCardFocused());
+    private void OnPressed(object sender, PointerRoutedEventArgs e) => HandlePress(true);
+    private void OnReleased(object sender, PointerRoutedEventArgs e) => HandlePress(false);
+    private void OnCanceled(object sender, PointerRoutedEventArgs e) => HandleCancel();
 }

@@ -15,15 +15,15 @@ public sealed class PageFactory(IServiceProvider services)
         return route.Kind switch
         {
             PageKind.Home => new HomePage(Get<ShellViewModel>(), Get<ISessionService>(), Get<ILibraryService>(), Get<Navigator>(),
-                Get<TitleBarService>(), Get<WindowContext>()),
+                Get<TitleBarService>(), Get<WindowContext>(), Get<BrowseTransitionCoordinator>()),
             PageKind.Settings => CreateOwned(
                 new SettingsViewModel(Get<ISessionService>(), Get<ISettingsService>(), Get<IPlaybackService>(), Get<Navigator>(),
                     Get<ToastService>(), Get<DialogService>(), Get<ThemeService>()),
                 model => new SettingsPage(model, Get<WindowContext>(), Get<ToastService>(), Get<DialogService>())),
             PageKind.Recent => CreateOwned(new RecentViewModel(Get<ILibraryService>()), model => new RecentPage(model)),
-            PageKind.Library => CreateOwned(new LibraryViewModel(Get<ILibraryService>(), Get<ILibraryPreferences>(), Library(route.Parameter ?? "")), model => new LibraryPage(model)),
+            PageKind.Library => CreateOwned(new LibraryViewModel(Get<ILibraryService>(), Get<ILibraryPreferences>(), Library(route.Parameter ?? "")), model => new LibraryPage(model, Get<WindowContext>())),
             PageKind.Search => CreateOwned(new SearchViewModel(Get<ILibraryService>(), route.Parameter ?? ""), model => new SearchPage(model)),
-            PageKind.Detail => CreateOwned(new DetailViewModel(Get<ILibraryService>(), Get<PlaybackLauncher>(), Get<IPlaybackService>(), route.Parameter ?? ""), model => new DetailPage(model, Get<WindowContext>())),
+            PageKind.Detail => CreateOwned(new DetailViewModel(Get<ILibraryService>(), Get<PlaybackLauncher>(), Get<IPlaybackService>(), route.Parameter ?? ""), model => new DetailPage(model, Get<WindowContext>(), Get<BrowseTransitionCoordinator>())),
             _ => throw new ArgumentOutOfRangeException(nameof(route)),
         };
     }

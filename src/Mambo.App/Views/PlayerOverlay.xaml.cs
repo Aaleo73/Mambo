@@ -10,6 +10,8 @@ using Microsoft.UI.Composition;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
+using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Hosting;
@@ -32,17 +34,22 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     private readonly DispatcherQueueTimer singleClick;
     private readonly InputSystemCursor arrow = InputSystemCursor.Create(InputSystemCursorShape.Arrow);
     private readonly CancellationTokenSource lifetime = new();
+    private readonly WindowMotionObserver motionObserver;
     private readonly List<MenuFlyout> openFlyouts = [];
     private readonly Dictionary<MenuFlyout, List<(MenuFlyoutItem Item, RoutedEventHandler Handler)>> menuHandlers = [];
     private readonly List<WeakReference<Button>> episodeButtons = [];
     private readonly List<(UIElement Element, RoutedEvent Event, object Handler)> routedHandlers = [];
     private ScalarKeyFrameAnimation? chromeAnimation;
     private CubicBezierEasingFunction? chromeEasing;
+    private CompositionScopedBatch? chromeBatch;
     private ScalarKeyFrameAnimation? hintAnimation;
+    private CubicBezierEasingFunction? hintEasing;
+    private CompositionScopedBatch? hintBatch;
     private ScalarKeyFrameAnimation? pulseAnimation;
     private ScalarKeyFrameAnimation? pingFadeAnimation;
     private Vector3KeyFrameAnimation? pingAnimation;
-    private bool stateAnimationsRunning;
+    private bool openingAnimationRunning;
+    private bool bufferingAnimationRunning;
     private long hintUntil;
     private bool hintFading;
     private bool transitionActive;
@@ -58,6 +65,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     private bool settingControls;
     private bool draggingSeek;
     private bool disposed;
+    private bool presentationFrozen;
     private bool closing;
     private bool attached;
     private int openMenus;
@@ -77,6 +85,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         ViewModel = new(session);
         InitializeComponent();
         episodePanelCollapsed = settings.Current.EpisodePanelCollapsed;
+        motionObserver = new(window, DispatcherQueue, OnMotionChanged);
         EpisodeListScroll.Visibility = settings.Current.UseEpisodeGrid ? Visibility.Collapsed : Visibility.Visible;
         EpisodeGridScroll.Visibility = settings.Current.UseEpisodeGrid ? Visibility.Visible : Visibility.Collapsed;
         clock = DispatcherQueue.CreateTimer();
@@ -107,6 +116,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         session.SnapshotChanged += OnSnapshotChanged;
         ViewModel.PropertyChanged += OnProjectionChanged;
         window.PresentationChanged += OnPresentationChanged;
+        window.ActiveChanged += OnWindowActiveChanged;
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
         EpisodeList.ElementPrepared += OnEpisodeElementPrepared;
@@ -133,11 +143,18 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     internal bool SeekTipVisible => SeekTip.Visibility == Visibility.Visible;
     internal double DisplayedSeekSeconds => SeekSlider.Value;
     internal Task PendingPreferenceSave => layoutSave;
+    internal bool IsPresentationFrozen => presentationFrozen;
+    internal bool HasAttachedSurface => attached;
+    internal bool HasVideoSurface => VideoHost.Children.Contains(Surface);
+    internal bool IsClockRunning => clock.IsRunning;
+    internal bool IsSingleClickPending => singleClick.IsRunning;
+    internal bool StateAnimationsRunning => openingAnimationRunning || bufferingAnimationRunning;
     public event EventHandler? TitleChanged;
     public event EventHandler? LayoutChanged;
 
     internal void ShowControlsForSmoke()
     {
+        if (disposed || presentationFrozen || closing) return;
         pointerInside = true;
         Activity();
     }
@@ -201,6 +218,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
 
     internal void BeginSmokeSeek(double seconds)
     {
+        if (disposed || presentationFrozen || closing || transitionActive) return;
         BeginSeek();
         SeekSlider.Value = seconds;
     }
@@ -231,100 +249,166 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
 
     internal async Task DispatchSmokeVolumeAsync(double volume)
     {
+        if (disposed || presentationFrozen || closing || transitionActive) return;
         VolumeSlider.Value = Math.Clamp(volume, 0, 100);
         await lastCommand;
     }
 
-    public void SetLiveResize(bool active) => Surface.SetLiveResize(active);
+    public void SetLiveResize(bool active)
+    {
+        if (!disposed && !presentationFrozen) Surface.SetLiveResize(active);
+    }
 
     public void SetTransitionActive(bool active)
     {
-        if (disposed || transitionActive == active) return;
+        if (disposed || presentationFrozen || transitionActive == active) return;
         transitionActive = active;
+        IsHitTestVisible = !active;
         if (active)
         {
             Surface.Detach();
             attached = false;
             Surface.Visibility = Visibility.Collapsed;
+            clock.Stop();
+            singleClick.Stop();
             HideMenus();
-            SetChrome(false);
-            StopChromeAnimation(ElementCompositionPreview.GetElementVisual(Chrome));
-            Chrome.Opacity = 0;
+            // The fold presents this XAML, not the detached video. Keep the existing
+            // controls readable without starting a second entrance animation.
+            SetChrome(true, animate: false);
             StopHintAnimation();
             KeyHint.Visibility = Visibility.Collapsed;
         }
-        else OnSnapshotChanged(null, EventArgs.Empty);
-        UpdateTransitionVisibility();
-    }
-
-    private void UpdateTransitionVisibility()
-    {
-        StateLayer.Visibility = transitionActive ? Visibility.Collapsed : Visibility.Visible;
-        ExternalPanel.Visibility = !transitionActive && ViewModel.ShowExternalPanel ? Visibility.Visible : Visibility.Collapsed;
+        else
+        {
+            SetChrome(ShouldShowChrome(), animate: false);
+            OnSnapshotChanged(null, EventArgs.Empty);
+            if (IsLoaded && !closing) clock.Start();
+        }
         UpdateStatus();
     }
 
     public async Task CloseAsync()
     {
-        if (closing || disposed) return;
+        if (closing || disposed || presentationFrozen) return;
         closing = true;
         singleClick.Stop();
         HideMenus();
-        window.ExitFullscreen();
         window.SetPlaybackActive(false);
         Surface.Detach();
         attached = false;
         Surface.Visibility = Visibility.Collapsed;
         StopHintAnimation();
         KeyHint.Visibility = Visibility.Collapsed;
+        SetChrome(true, animate: false);
+        StopStateAnimations();
         try
         {
             await FlushPreferencesAsync();
+            if (disposed || presentationFrozen) return;
             await session.CloseAsync();
         }
-        catch (AppException ex) { toasts.Show(ToastKind.Error, ex.Error.Message); closing = false; OnSnapshotChanged(null, EventArgs.Empty); }
-        catch (OperationCanceledException) { closing = false; OnSnapshotChanged(null, EventArgs.Empty); }
+        catch (AppException ex)
+        {
+            toasts.Show(ToastKind.Error, ex.Error.Message);
+            if (disposed || presentationFrozen) return;
+            closing = false;
+            OnSnapshotChanged(null, EventArgs.Empty);
+        }
+        catch (OperationCanceledException)
+        {
+            if (disposed || presentationFrozen) return;
+            closing = false;
+            OnSnapshotChanged(null, EventArgs.Empty);
+        }
     }
 
-    public void Dispose()
+    /// <summary>先释放活动资源，只留下翻折退场所需的静态 XAML；此方法不等待任何异步操作。</summary>
+    internal void FreezeForClose()
     {
-        if (disposed) return;
-        disposed = true;
+        if (disposed || presentationFrozen) return;
+        ReleaseActiveResources();
+    }
+
+    private void ReleaseActiveResources()
+    {
+        if (presentationFrozen) return;
+        closing = true;
+        // An idle player can have no visible controls. Resolve its static closing
+        // face before freezing; otherwise detaching video leaves only black canvas.
+        SetChrome(true, animate: false);
+        presentationFrozen = true;
+        seekEditVersion++;
+        Bindings.StopTracking();
+        session.SnapshotChanged -= OnSnapshotChanged;
+        ViewModel.PropertyChanged -= OnProjectionChanged;
+        ViewModel.Dispose();
+        window.PresentationChanged -= OnPresentationChanged;
+        window.ActiveChanged -= OnWindowActiveChanged;
+        motionObserver.Dispose();
+        Loaded -= OnLoaded;
+        Unloaded -= OnUnloaded;
         foreach (var registration in routedHandlers)
             registration.Element.RemoveHandler(registration.Event, registration.Handler);
         routedHandlers.Clear();
-        Loaded -= OnLoaded;
-        Unloaded -= OnUnloaded;
+        DetachXamlEvents();
         clock.Stop();
         singleClick.Stop();
         clock.Tick -= OnClock;
         singleClick.Tick -= OnSingleClick;
-        StopChromeAnimation(ElementCompositionPreview.GetElementVisual(Chrome));
-        StopHintAnimation();
+        SettleChrome();
+        SettleHint();
         StopStateAnimations();
         DisposeMenus();
-        DetachXamlEvents();
-        Bindings.StopTracking();
-        EpisodeList.ItemsSource = null;
-        EpisodeGrid.ItemsSource = null;
+        IsHitTestVisible = false;
+        DisableFrozenInput(this);
+        draggingSeek = false;
+        dragVolume = false;
+        pointerPressed = false;
+        Surface.Detach();
+        attached = false;
+        Surface.Dispose();
+        VideoHost.Children.Remove(Surface);
+        // 已确认的布局写入不使用 lifetime，Shell 仍可等待 PendingPreferenceSave。
         lifetime.Cancel();
         lifetime.Dispose();
-        session.SnapshotChanged -= OnSnapshotChanged;
-        window.PresentationChanged -= OnPresentationChanged;
-        ViewModel.PropertyChanged -= OnProjectionChanged;
-        ViewModel.Dispose();
-        Surface.Dispose();
         ProtectedCursor = null;
         window.SetPlaybackActive(false);
         arrow.Dispose();
         TitleChanged = null;
         LayoutChanged = null;
+    }
+
+    public void Dispose()
+    {
+        if (disposed) return;
+        ReleaseActiveResources();
+        disposed = true;
+        EpisodeList.ElementPrepared -= OnEpisodeElementPrepared;
+        EpisodeGrid.ElementPrepared -= OnEpisodeElementPrepared;
+        DetachXamlEvents();
+        EpisodeList.ItemsSource = null;
+        EpisodeGrid.ItemsSource = null;
         Content = null;
+    }
+
+    private static void DisableFrozenInput(DependencyObject node)
+    {
+        AutomationProperties.SetAccessibilityView(node, AccessibilityView.Raw);
+        if (node is Control control) control.IsTabStop = false;
+        if (node is UIElement element) element.ReleasePointerCaptures();
+        for (var index = 0; index < VisualTreeHelper.GetChildrenCount(node); index++)
+            DisableFrozenInput(VisualTreeHelper.GetChild(node, index));
     }
 
     private void OnEpisodeElementPrepared(ItemsRepeater sender, ItemsRepeaterElementPreparedEventArgs args)
     {
-        if (disposed) return;
+        // 退场树首次布局仍可能实现模板；冻结后只隔离新节点，最终 Dispose 才移除此钩子。
+        if (disposed || presentationFrozen)
+        {
+            if (args.Element is Button retired) retired.Click -= OnEpisodeClick;
+            DisableFrozenInput(args.Element);
+            return;
+        }
         // Both episode templates have a Button as their root.
         var button = args.Element.As<Button>();
         if (!episodeButtons.Any(reference => reference.TryGetTarget(out var existing) && ReferenceEquals(existing, button)))
@@ -351,8 +435,6 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         VolumeHost.PointerExited -= OnVolumeExited;
         VolumeHost.GotFocus -= OnVolumeGotFocus;
         VolumeHost.LostFocus -= OnVolumeLostFocus;
-        EpisodeList.ElementPrepared -= OnEpisodeElementPrepared;
-        EpisodeGrid.ElementPrepared -= OnEpisodeElementPrepared;
         ExternalStopButton.Click -= OnCloseClick;
         CloseButton.Click -= OnCloseClick;
         PreviousButton.Click -= OnPreviousClick;
@@ -376,6 +458,15 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         foreach (var reference in episodeButtons)
             if (reference.TryGetTarget(out var button)) button.Click -= OnEpisodeClick;
         episodeButtons.Clear();
+        DetachEpisodeTemplateEvents(EpisodeList);
+        DetachEpisodeTemplateEvents(EpisodeGrid);
+    }
+
+    private void DetachEpisodeTemplateEvents(DependencyObject node)
+    {
+        if (node is Button button) button.Click -= OnEpisodeClick;
+        for (var index = 0; index < VisualTreeHelper.GetChildrenCount(node); index++)
+            DetachEpisodeTemplateEvents(VisualTreeHelper.GetChild(node, index));
     }
 
     private void RegisterRoutedHandler(UIElement element, RoutedEvent routedEvent, object handler)
@@ -397,17 +488,17 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
-        if (disposed) return;
-        Focus(FocusState.Programmatic);
+        if (disposed || presentationFrozen) return;
+        if (!transitionActive) Focus(FocusState.Programmatic);
         OnSnapshotChanged(null, EventArgs.Empty);
         UpdateControls();
-        clock.Start();
+        if (!transitionActive && !closing) clock.Start();
         OnPresentationChanged(null, EventArgs.Empty);
     }
 
     private void OnUnloaded(object sender, RoutedEventArgs e)
     {
-        if (disposed) return;
+        if (disposed || presentationFrozen) return;
         clock.Stop();
         singleClick.Stop();
         Surface.Detach();
@@ -417,20 +508,20 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         StopHintAnimation();
         KeyHint.Visibility = Visibility.Collapsed;
         StopStateAnimations();
-        StopChromeAnimation(ElementCompositionPreview.GetElementVisual(Chrome));
+        SettleChrome();
         ProtectedCursor = arrow;
     }
 
     private void AttachSurface()
     {
-        if (disposed || closing || transitionActive || !IsLoaded || attached || ViewModel.IsExternal) return;
+        if (disposed || presentationFrozen || closing || transitionActive || !IsLoaded || attached || ViewModel.IsExternal) return;
         try { Surface.Attach(session); attached = true; }
         catch (AppException ex) { toasts.Show(ToastKind.Error, ex.Error.Message); }
     }
 
     private void OnSnapshotChanged(object? sender, EventArgs e)
     {
-        if (disposed) return;
+        if (disposed || presentationFrozen) return;
         if ((ViewModel.IsExternal || transitionActive || closing) && attached) { Surface.Detach(); attached = false; }
         else AttachSurface();
         Surface.Visibility = !transitionActive && !closing && !ViewModel.IsExternal ? Visibility.Visible : Visibility.Collapsed;
@@ -441,7 +532,6 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         UpdateStatus();
         DrawBuffers();
         UpdateEpisodePanel();
-        UpdateTransitionVisibility();
         TitleChanged?.Invoke(this, EventArgs.Empty);
         if (ViewModel.IsFailed && ViewModel.Snapshot.Error is { } error && error.Code != previousErrorCode)
         {
@@ -449,7 +539,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
             var weakOwner = new WeakReference<PlayerOverlay>(this);
             toasts.Show(ToastKind.Error, "播放失败：" + error.Message, "重试", () =>
             {
-                if (weakOwner.TryGetTarget(out var owner) && !owner.disposed) owner.Retry();
+                if (weakOwner.TryGetTarget(out var owner) && !owner.disposed && !owner.presentationFrozen) owner.Retry();
             });
         }
         else if (!ViewModel.IsFailed) previousErrorCode = null;
@@ -457,6 +547,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
 
     private void OnProjectionChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (disposed || presentationFrozen) return;
         if (e.PropertyName is nameof(PlayerViewModel.DisplayPositionTicks) or nameof(PlayerViewModel.ShowUpNext))
         {
             UpdateControls();
@@ -466,63 +557,116 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
 
     private void OnClock(DispatcherQueueTimer sender, object args)
     {
-        if (disposed) return;
+        if (disposed || presentationFrozen || closing || transitionActive || !IsLoaded) return;
         ViewModel.Tick();
         UpdateKeyHint();
+        SetChrome(ShouldShowChrome());
+    }
+
+    private bool ShouldShowChrome()
+    {
         var focused = XamlRoot is null ? null : FocusManager.GetFocusedElement(XamlRoot) as DependencyObject;
-        var focusInControls = IsWithin(focused, Chrome) || IsWithin(focused, BigPlay) || IsWithin(focused, UpNext);
-        var visible = ViewModel.IsExternal || ViewModel.IsFailed || pointerPressed || openMenus > 0 || focusInControls
+        var focusInControls = IsWithin(focused, Chrome) || IsWithin(focused, UpNext);
+        return ViewModel.IsExternal || ViewModel.IsFailed || pointerPressed || openMenus > 0 || focusInControls
             || pointerInside && Environment.TickCount64 - lastActivity < 3000;
-        SetChrome(visible);
     }
 
     private void OnSingleClick(DispatcherQueueTimer sender, object args)
     {
+        if (disposed || presentationFrozen || closing || transitionActive || !IsLoaded) return;
         if (ViewModel.CanControl) Run(() => session.TogglePauseAsync(lifetime.Token));
     }
 
     private void Activity()
     {
+        if (disposed || presentationFrozen || closing || transitionActive) return;
         lastActivity = Environment.TickCount64;
         SetChrome(true);
     }
 
-    private void SetChrome(bool visible)
+    private void SetChrome(bool visible, bool animate = true)
     {
-        if (disposed) return;
-        visible &= !transitionActive;
-        if (chromeVisible == visible) { UpdateCursor(); return; }
+        if (disposed || presentationFrozen) return;
+        visible |= transitionActive || closing;
+        var changed = chromeVisible != visible;
         chromeVisible = visible;
-        Chrome.IsHitTestVisible = visible;
-        var visual = ElementCompositionPreview.GetElementVisual(Chrome);
-        StopChromeAnimation(visual);
-        Chrome.Opacity = visible ? 1 : 0;
-        if (!transitionActive && Motion.AnimationsEnabled)
+        Chrome.IsHitTestVisible = visible && !transitionActive && !closing;
+        var canAnimate = animate && IsLoaded && window.IsActive && motionObserver.AnimationsEnabled && !transitionActive && !closing;
+        if (!canAnimate) SettleChrome();
+        else if (changed)
         {
+            var visual = ElementCompositionPreview.GetElementVisual(Chrome);
+            // 替换动画时不 Stop、不写旧端点；仅目标帧从当前合成器呈现值续接。
+            ReleaseChromeAnimation();
             chromeAnimation = visual.Compositor.CreateScalarKeyFrameAnimation();
-            chromeEasing = Motion.CreateEasing(visual.Compositor, Motion.Enter);
-            chromeAnimation.InsertKeyFrame(0, visible ? 0 : 1);
+            chromeEasing = Motion.CreateEasing(visual.Compositor, visible ? Motion.EaseOut : Motion.EaseIn);
             chromeAnimation.InsertKeyFrame(1, visible ? 1 : 0, chromeEasing);
-            chromeAnimation.Duration = TimeSpan.FromMilliseconds(240);
+            chromeAnimation.Duration = visible ? Motion.Feedback : Motion.Exit;
+            chromeBatch = visual.Compositor.CreateScopedBatch(CompositionBatchTypes.Animation);
+            chromeBatch.Completed += OnChromeCompleted;
             visual.StartAnimation("Opacity", chromeAnimation);
+            chromeBatch.End();
         }
-        Chrome.TabFocusNavigation = visible ? KeyboardNavigationMode.Local : KeyboardNavigationMode.Once;
-        UpdateStatus();
+        Chrome.TabFocusNavigation = Chrome.IsHitTestVisible ? KeyboardNavigationMode.Local : KeyboardNavigationMode.Once;
+        if (changed) UpdateStatus();
         UpdateCursor();
     }
 
-    private void StopChromeAnimation(Visual visual)
+    private void OnChromeCompleted(object sender, CompositionBatchCompletedEventArgs args)
     {
-        // Visual 属于 XAML；这里只释放本播放层创建的动画与 easing。
+        if (disposed || presentationFrozen || !ReferenceEquals(sender, chromeBatch)) return;
+        SettleChrome();
+    }
+
+    private void SettleChrome()
+    {
+        var visual = ElementCompositionPreview.GetElementVisual(Chrome);
         visual.StopAnimation("Opacity");
+        ReleaseChromeAnimation();
+        Chrome.Opacity = chromeVisible ? 1 : 0;
+        visual.Opacity = chromeVisible ? 1 : 0;
+    }
+
+    private void ReleaseChromeAnimation()
+    {
+        // Visual 属于 XAML；这里只释放本播放层创建的动画、batch 与 easing。
+        if (chromeBatch is not null)
+        {
+            chromeBatch.Completed -= OnChromeCompleted;
+            chromeBatch.Dispose();
+            chromeBatch = null;
+        }
         chromeAnimation?.Dispose();
         chromeAnimation = null;
         chromeEasing?.Dispose();
         chromeEasing = null;
     }
 
+    private void OnMotionChanged(bool enabled)
+    {
+        if (disposed || presentationFrozen) return;
+        if (!enabled)
+        {
+            SettleChrome();
+            SettleHint();
+        }
+        UpdateStateAnimations();
+    }
+
+    private void OnWindowActiveChanged(object? sender, EventArgs args)
+    {
+        if (disposed || presentationFrozen) return;
+        if (!window.IsActive)
+        {
+            SettleChrome();
+            SettleHint();
+        }
+        UpdateStateAnimations();
+    }
+
     private void UpdateCursor()
     {
+        if (disposed || presentationFrozen) return;
         var hide = !transitionActive && ViewModel.CanControl && !ViewModel.IsPaused && !chromeVisible && pointerInside;
         ProtectedCursor = hide ? null : arrow;
         Surface.HideCursor(hide);
@@ -530,13 +674,15 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
 
     private void UpdateStatus()
     {
-        BigPlay.Visibility = ViewModel.IsPaused && !ViewModel.IsExternal && !transitionActive ? Visibility.Visible : Visibility.Collapsed;
-        UpNext.Visibility = ViewModel.ShowUpNext && !transitionActive ? Visibility.Visible : Visibility.Collapsed;
+        if (disposed || presentationFrozen) return;
+        BigPlay.Visibility = ViewModel.IsPaused && !ViewModel.IsExternal ? Visibility.Visible : Visibility.Collapsed;
+        UpNext.Visibility = ViewModel.ShowUpNext ? Visibility.Visible : Visibility.Collapsed;
         UpdateStateAnimations();
     }
 
     private void UpdateControls()
     {
+        if (disposed || presentationFrozen) return;
         settingControls = true;
         try
         {
@@ -548,7 +694,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
 
     private void OnPresentationChanged(object? sender, EventArgs e)
     {
-        if (disposed) return;
+        if (disposed || presentationFrozen) return;
         TopBar.Visibility = window.IsFullscreen ? Visibility.Visible : Visibility.Collapsed;
         FullscreenGlyph.Glyph = (string)Application.Current.Resources[window.IsFullscreen ? "IconFullscreenExit" : "IconFullscreen"];
         MaximizeGlyph.Glyph = (string)Application.Current.Resources[window.IsMaximized ? "CaptionRestore" : "CaptionMaximize"];
@@ -562,6 +708,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
 
     private void OnEpisodePanelPointerEntered(object sender, PointerRoutedEventArgs e)
     {
+        if (disposed || presentationFrozen) return;
         pointerInside = false;
         UpdateCursor();
     }
@@ -571,6 +718,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     private void OnSurfacePointerExited(object sender, PointerRoutedEventArgs e) => pointerInside = false;
     private void OnSurfacePointerPressed(object sender, PointerRoutedEventArgs e)
     {
+        if (disposed || presentationFrozen || closing || transitionActive) return;
         if (!e.GetCurrentPoint(InputSurface).Properties.IsLeftButtonPressed) return;
         pointerPressed = true;
         Activity();
@@ -583,7 +731,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     }
     private bool HandleSurfaceTap()
     {
-        if (disposed || !ViewModel.CanControl || Environment.TickCount64 < ignoreTapUntil) return false;
+        if (disposed || presentationFrozen || closing || transitionActive || !ViewModel.CanControl || Environment.TickCount64 < ignoreTapUntil) return false;
         Activity();
         singleClick.Stop();
         singleClick.Start();
@@ -596,7 +744,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     }
     private void HandleSurfaceDoubleTap()
     {
-        if (disposed) return;
+        if (disposed || presentationFrozen || closing || transitionActive) return;
         singleClick.Stop();
         ignoreTapUntil = Environment.TickCount64 + 300;
         if (ViewModel.CanControl) window.ToggleFullscreen();
@@ -604,6 +752,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
 
     private void OnAnyPointerPressed(object sender, PointerRoutedEventArgs e)
     {
+        if (disposed || presentationFrozen || closing || transitionActive) return;
         var properties = e.GetCurrentPoint(this).Properties;
         if (properties.IsXButton1Pressed) { HandleMouseButton(back: true); e.Handled = true; }
         else if (properties.IsXButton2Pressed) { HandleMouseButton(back: false); e.Handled = true; }
@@ -612,6 +761,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
 
     private void OnPreviewKeyDown(object sender, KeyRoutedEventArgs e)
     {
+        if (disposed || presentationFrozen || closing || transitionActive) return;
         // Tab reveals the controls before normal focus navigation; the episode panel is not a focus trap.
         if (e.Key == VirtualKey.Tab) Activity();
         var alt = (InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Menu) & Windows.UI.Core.CoreVirtualKeyStates.Down) != 0;
@@ -621,7 +771,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
 
     private bool HandleKey(VirtualKey key, bool alt, bool control)
     {
-        if (disposed || closing) return false;
+        if (disposed || presentationFrozen || closing || transitionActive) return false;
         lastCommand = Task.CompletedTask;
         if (key == VirtualKey.F11) { HideMenus(); window.ToggleFullscreen(); return true; }
         if (key == VirtualKey.Escape)
@@ -667,10 +817,11 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
 
     private void ShowKeyHint(string text)
     {
-        if (disposed || transitionActive) return;
+        if (disposed || presentationFrozen || closing || transitionActive) return;
         StopHintAnimation();
         KeyHintLabel.Text = text;
         KeyHint.Opacity = 1;
+        ElementCompositionPreview.GetElementVisual(KeyHint).Opacity = 1;
         KeyHint.Visibility = Visibility.Visible;
         hintUntil = Environment.TickCount64 + 1200;
         hintFading = false;
@@ -678,69 +829,112 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
 
     private void UpdateKeyHint()
     {
-        if (!KeyHintVisible) return;
+        if (disposed || presentationFrozen || !KeyHintVisible || hintFading) return;
         var remaining = hintUntil - Environment.TickCount64;
-        if (remaining <= 0)
+        if (remaining > Motion.Exit.TotalMilliseconds) return;
+        if (!motionObserver.AnimationsEnabled || !window.IsActive)
         {
-            StopHintAnimation();
-            KeyHint.Visibility = Visibility.Collapsed;
+            if (remaining <= 0) KeyHint.Visibility = Visibility.Collapsed;
+            return;
         }
-        else if (remaining <= 200 && !hintFading && Motion.AnimationsEnabled)
-        {
-            hintFading = true;
-            var visual = ElementCompositionPreview.GetElementVisual(KeyHint);
-            hintAnimation = visual.Compositor.CreateScalarKeyFrameAnimation();
-            hintAnimation.InsertKeyFrame(0, 1);
-            hintAnimation.InsertKeyFrame(1, 0);
-            hintAnimation.Duration = TimeSpan.FromMilliseconds(remaining);
-            visual.StartAnimation("Opacity", hintAnimation);
-        }
+        hintFading = true;
+        var visual = ElementCompositionPreview.GetElementVisual(KeyHint);
+        hintAnimation = visual.Compositor.CreateScalarKeyFrameAnimation();
+        hintEasing = Motion.CreateEasing(visual.Compositor, Motion.EaseIn);
+        hintAnimation.InsertKeyFrame(1, 0, hintEasing);
+        hintAnimation.Duration = Motion.Exit;
+        hintBatch = visual.Compositor.CreateScopedBatch(CompositionBatchTypes.Animation);
+        hintBatch.Completed += OnHintCompleted;
+        visual.StartAnimation("Opacity", hintAnimation);
+        hintBatch.End();
+    }
+
+    private void OnHintCompleted(object sender, CompositionBatchCompletedEventArgs args)
+    {
+        if (disposed || presentationFrozen || !ReferenceEquals(sender, hintBatch)) return;
+        SettleHint();
     }
 
     private void StopHintAnimation()
     {
         ElementCompositionPreview.GetElementVisual(KeyHint).StopAnimation("Opacity");
+        if (hintBatch is not null)
+        {
+            hintBatch.Completed -= OnHintCompleted;
+            hintBatch.Dispose();
+            hintBatch = null;
+        }
         hintAnimation?.Dispose();
         hintAnimation = null;
+        hintEasing?.Dispose();
+        hintEasing = null;
+    }
+
+    private void SettleHint()
+    {
+        StopHintAnimation();
+        if (hintFading) KeyHint.Visibility = Visibility.Collapsed;
+        hintFading = false;
+        KeyHint.Opacity = 1;
+        ElementCompositionPreview.GetElementVisual(KeyHint).Opacity = 1;
     }
 
     private void UpdateStateAnimations()
     {
-        var active = IsLoaded && !transitionActive && !disposed && Motion.AnimationsEnabled && (ViewModel.IsOpening || ViewModel.IsBuffering);
-        if (active == stateAnimationsRunning) return;
-        if (!active) { StopStateAnimations(); return; }
-        stateAnimationsRunning = true;
-        var dot = ElementCompositionPreview.GetElementVisual(BufferingDot);
-        var ping = ElementCompositionPreview.GetElementVisual(OpeningPing);
-        pulseAnimation = dot.Compositor.CreateScalarKeyFrameAnimation();
-        pulseAnimation.InsertKeyFrame(0, .4f);
-        pulseAnimation.InsertKeyFrame(.5f, 1);
-        pulseAnimation.InsertKeyFrame(1, .4f);
-        pulseAnimation.Duration = TimeSpan.FromMilliseconds(1200);
-        pulseAnimation.IterationBehavior = AnimationIterationBehavior.Forever;
-        dot.StartAnimation("Opacity", pulseAnimation);
-        pingFadeAnimation = ping.Compositor.CreateScalarKeyFrameAnimation();
-        pingFadeAnimation.InsertKeyFrame(0, 1);
-        pingFadeAnimation.InsertKeyFrame(1, 0);
-        pingFadeAnimation.Duration = TimeSpan.FromMilliseconds(1200);
-        pingFadeAnimation.IterationBehavior = AnimationIterationBehavior.Forever;
-        ping.StartAnimation("Opacity", pingFadeAnimation);
-        ping.CenterPoint = new Vector3(20, 20, 0);
-        pingAnimation = ping.Compositor.CreateVector3KeyFrameAnimation();
-        pingAnimation.InsertKeyFrame(0, Vector3.One);
-        pingAnimation.InsertKeyFrame(1, new Vector3(1.65f, 1.65f, 1));
-        pingAnimation.Duration = TimeSpan.FromMilliseconds(1200);
-        pingAnimation.IterationBehavior = AnimationIterationBehavior.Forever;
-        ping.StartAnimation("Scale", pingAnimation);
+        if (disposed || presentationFrozen) return;
+        var active = IsLoaded && Visibility == Visibility.Visible && XamlRoot?.IsHostVisible == true
+            && window.IsActive && !transitionActive && !closing && motionObserver.AnimationsEnabled;
+        var opening = active && ViewModel.IsOpening && OpeningPanel.Visibility == Visibility.Visible;
+        var buffering = active && ViewModel.IsBuffering && BufferingPill.Visibility == Visibility.Visible;
+        if (opening == openingAnimationRunning && buffering == bufferingAnimationRunning) return;
+        StopStateAnimations();
+        openingAnimationRunning = opening;
+        bufferingAnimationRunning = buffering;
+        OpeningSpinner.IsActive = opening;
+        if (buffering)
+        {
+            var dot = ElementCompositionPreview.GetElementVisual(BufferingDot);
+            pulseAnimation = dot.Compositor.CreateScalarKeyFrameAnimation();
+            pulseAnimation.InsertKeyFrame(0, .4f);
+            pulseAnimation.InsertKeyFrame(.5f, 1);
+            pulseAnimation.InsertKeyFrame(1, .4f);
+            // 可见缓冲状态的指示周期，不属于有限过渡 token。
+            pulseAnimation.Duration = TimeSpan.FromMilliseconds(1200);
+            pulseAnimation.IterationBehavior = AnimationIterationBehavior.Forever;
+            dot.StartAnimation("Opacity", pulseAnimation);
+        }
+        if (opening)
+        {
+            var ping = ElementCompositionPreview.GetElementVisual(OpeningPing);
+            pingFadeAnimation = ping.Compositor.CreateScalarKeyFrameAnimation();
+            pingFadeAnimation.InsertKeyFrame(0, 1);
+            pingFadeAnimation.InsertKeyFrame(1, 0);
+            pingFadeAnimation.Duration = TimeSpan.FromMilliseconds(1200);
+            pingFadeAnimation.IterationBehavior = AnimationIterationBehavior.Forever;
+            ping.StartAnimation("Opacity", pingFadeAnimation);
+            ping.CenterPoint = new Vector3(20, 20, 0);
+            pingAnimation = ping.Compositor.CreateVector3KeyFrameAnimation();
+            pingAnimation.InsertKeyFrame(0, Vector3.One);
+            pingAnimation.InsertKeyFrame(1, new Vector3(1.65f, 1.65f, 1));
+            pingAnimation.Duration = TimeSpan.FromMilliseconds(1200);
+            pingAnimation.IterationBehavior = AnimationIterationBehavior.Forever;
+            ping.StartAnimation("Scale", pingAnimation);
+        }
     }
 
     private void StopStateAnimations()
     {
-        stateAnimationsRunning = false;
-        ElementCompositionPreview.GetElementVisual(BufferingDot).StopAnimation("Opacity");
+        openingAnimationRunning = false;
+        bufferingAnimationRunning = false;
+        OpeningSpinner.IsActive = false;
+        var dot = ElementCompositionPreview.GetElementVisual(BufferingDot);
+        dot.StopAnimation("Opacity");
+        dot.Opacity = 1;
         var ping = ElementCompositionPreview.GetElementVisual(OpeningPing);
         ping.StopAnimation("Opacity");
         ping.StopAnimation("Scale");
+        ping.Opacity = 1;
+        ping.Scale = Vector3.One;
         pulseAnimation?.Dispose();
         pulseAnimation = null;
         pingFadeAnimation?.Dispose();
@@ -786,12 +980,12 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
 
     private void OnSeekPressed(object sender, PointerRoutedEventArgs e)
     {
-        if (!ViewModel.CanControl || !e.GetCurrentPoint(SeekSlider).Properties.IsLeftButtonPressed) return;
+        if (disposed || presentationFrozen || closing || transitionActive || !ViewModel.CanControl || !e.GetCurrentPoint(SeekSlider).Properties.IsLeftButtonPressed) return;
         BeginSeek();
     }
     private void BeginSeek()
     {
-        if (disposed || closing || !ViewModel.CanControl) return;
+        if (disposed || presentationFrozen || closing || transitionActive || !ViewModel.CanControl) return;
         seekEditVersion++;
         draggingSeek = true;
         pointerPressed = true;
@@ -802,7 +996,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     }
     private void OnSeekValueChanged(object sender, RangeBaseValueChangedEventArgs e)
     {
-        if (settingControls || !ViewModel.CanControl) return;
+        if (disposed || presentationFrozen || closing || transitionActive || settingControls || !ViewModel.CanControl) return;
         ViewModel.PreviewSeek(e.NewValue);
         if (draggingSeek) UpdateSeekTip();
         else
@@ -815,7 +1009,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     private async Task CommitNonPointerSeekAsync(int version, long ticks)
     {
         await Task.Yield();
-        if (disposed || closing || draggingSeek || version != seekEditVersion) return;
+        if (disposed || presentationFrozen || closing || transitionActive || draggingSeek || version != seekEditVersion) return;
         ViewModel.CommitSeekPreview();
         if (XamlRoot is not null && IsWithin(FocusManager.GetFocusedElement(XamlRoot) as DependencyObject, SeekSlider))
             ShowKeyHint("跳转至 " + PlayerViewModel.FormatTicks(ticks));
@@ -825,7 +1019,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     private void OnSeekCaptureLost(object sender, PointerRoutedEventArgs e) => CommitSeek();
     private void CommitSeek()
     {
-        if (!draggingSeek) return;
+        if (disposed || presentationFrozen || closing || transitionActive || !draggingSeek) return;
         seekEditVersion++;
         draggingSeek = false;
         pointerPressed = false;
@@ -843,7 +1037,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     private void OnSeekPointerExited(object sender, PointerRoutedEventArgs e) => ExitSeekHover();
     private void PreviewSeekHover(double fraction)
     {
-        if (disposed || closing || !ViewModel.CanControl) return;
+        if (disposed || presentationFrozen || closing || transitionActive || !ViewModel.CanControl) return;
         seekPointerInside = true;
         seekHoverFraction = Math.Clamp(fraction, 0, 1);
         SeekTip.Visibility = Visibility.Visible;
@@ -851,11 +1045,13 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     }
     private void ExitSeekHover()
     {
+        if (disposed || presentationFrozen) return;
         seekPointerInside = false;
         if (!draggingSeek) SeekTip.Visibility = Visibility.Collapsed;
     }
     private void UpdateSeekTip()
     {
+        if (disposed || presentationFrozen) return;
         seekTipSeconds = draggingSeek ? SeekSlider.Value : seekHoverFraction * SeekSlider.Maximum;
         SeekTipText.Text = PlayerViewModel.FormatTicks((long)(seekTipSeconds * TimeSpan.TicksPerSecond));
         // 外层 DesiredSize 包含上次定位的 Margin；只量内容，避免连续悬停时气泡向左漂移。
@@ -867,11 +1063,13 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     }
     private void OnSeekHostSizeChanged(object sender, SizeChangedEventArgs e)
     {
+        if (disposed || presentationFrozen) return;
         DrawBuffers();
         if (SeekTipVisible) UpdateSeekTip();
     }
     private void DrawBuffers()
     {
+        if (disposed || presentationFrozen) return;
         var duration = ViewModel.Snapshot.DurationTicks;
         var width = Math.Max(0, SeekHost.ActualWidth - 14);
         var used = 0;
@@ -898,28 +1096,32 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     }
     private void OnVolumeEntered(object sender, PointerRoutedEventArgs e)
     {
+        if (disposed || presentationFrozen || closing || transitionActive) return;
         volumePointerInside = true;
         VolumeSlider.Visibility = Visibility.Visible;
         Activity();
     }
     private void OnVolumeExited(object sender, PointerRoutedEventArgs e)
     {
+        if (disposed || presentationFrozen) return;
         volumePointerInside = false;
         HideVolumeIfIdle();
     }
     private void OnVolumeGotFocus(object sender, RoutedEventArgs e)
     {
+        if (disposed || presentationFrozen || closing || transitionActive) return;
         VolumeSlider.Visibility = Visibility.Visible;
         Activity();
     }
     private void OnVolumeLostFocus(object sender, RoutedEventArgs e)
     {
+        if (disposed || presentationFrozen) return;
         // 焦点先离开静音按钮再进入滑块；等焦点路由完成后决定是否收起。
         DispatcherQueue.TryEnqueue(HideVolumeIfIdle);
     }
     private void HideVolumeIfIdle()
     {
-        if (disposed || volumePointerInside || pointerPressed) return;
+        if (disposed || presentationFrozen || volumePointerInside || pointerPressed) return;
         var focused = XamlRoot is null ? null : FocusManager.GetFocusedElement(XamlRoot) as DependencyObject;
         while (focused is not null)
         {
@@ -930,7 +1132,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     }
     private void OnVolumeChanged(object sender, RangeBaseValueChangedEventArgs e)
     {
-        if (settingControls || !ViewModel.CanControl) return;
+        if (disposed || presentationFrozen || closing || transitionActive || settingControls || !ViewModel.CanControl) return;
         if (!dragVolume && XamlRoot is not null && IsWithin(FocusManager.GetFocusedElement(XamlRoot) as DependencyObject, VolumeSlider))
             ShowKeyHint("音量 " + e.NewValue.ToString("0", CultureInfo.InvariantCulture) + "%");
         Run(() => session.SetVolumeAsync(e.NewValue, lifetime.Token));
@@ -942,28 +1144,41 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     private void OnNextClick(object sender, RoutedEventArgs e) => NavigateEpisode(next: true);
     private void NavigateEpisode(bool next)
     {
-        if (!(next ? ViewModel.CanNext : ViewModel.CanPrevious)) return;
+        if (disposed || presentationFrozen || closing || transitionActive || !(next ? ViewModel.CanNext : ViewModel.CanPrevious)) return;
         Run(() => next ? session.NextAsync(lifetime.Token) : session.PreviousAsync(lifetime.Token));
     }
     private void OnRetryClick(object sender, RoutedEventArgs e) => Retry();
     private void Retry() => Run(() => session.RetryAsync(lifetime.Token));
-    private void OnCloseClick(object sender, RoutedEventArgs e) => _ = CloseAsync();
-    private void OnFullscreenClick(object sender, RoutedEventArgs e) => window.ToggleFullscreen();
-    private void OnMaximizeClick(object sender, RoutedEventArgs e) => window.ToggleMaximize();
-    private void OnDismissUpNextClick(object sender, RoutedEventArgs e) => ViewModel.DismissUpNext();
+    private void OnCloseClick(object sender, RoutedEventArgs e)
+    {
+        if (!transitionActive) _ = CloseAsync();
+    }
+    private void OnFullscreenClick(object sender, RoutedEventArgs e)
+    {
+        if (!disposed && !presentationFrozen && !closing && !transitionActive) window.ToggleFullscreen();
+    }
+    private void OnMaximizeClick(object sender, RoutedEventArgs e)
+    {
+        if (!disposed && !presentationFrozen && !closing && !transitionActive) window.ToggleMaximize();
+    }
+    private void OnDismissUpNextClick(object sender, RoutedEventArgs e)
+    {
+        if (!disposed && !presentationFrozen && !closing && !transitionActive) ViewModel.DismissUpNext();
+    }
     private void OnEpisodesClick(object sender, RoutedEventArgs e)
     {
         ToggleEpisodePanel();
     }
     private void ToggleEpisodePanel()
     {
-        if (disposed || closing || !ViewModel.HasEpisodes) return;
+        if (disposed || presentationFrozen || closing || transitionActive || !ViewModel.HasEpisodes) return;
         episodePanelCollapsed = !episodePanelCollapsed;
         UpdateEpisodePanel();
         layoutSave = SaveEpisodePreferenceAsync(null, episodePanelCollapsed, layoutSave);
     }
     private void UpdateEpisodePanel()
     {
+        if (disposed || presentationFrozen) return;
         var visible = ViewModel.HasEpisodes && !window.IsFullscreen && !episodePanelCollapsed;
         if (visible == EpisodePanelVisible) return;
         if (!visible && XamlRoot is not null && IsWithin(FocusManager.GetFocusedElement(XamlRoot) as DependencyObject, EpisodePanel))
@@ -971,12 +1186,15 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         EpisodePanel.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
         LayoutChanged?.Invoke(this, EventArgs.Empty);
     }
-    private void OnViewportSizeChanged(object sender, SizeChangedEventArgs e) => LayoutChanged?.Invoke(this, EventArgs.Empty);
+    private void OnViewportSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (!disposed && !presentationFrozen) LayoutChanged?.Invoke(this, EventArgs.Empty);
+    }
     private void OnEpisodeListClick(object sender, RoutedEventArgs e) => SetEpisodeLayout(false);
     private void OnEpisodeGridClick(object sender, RoutedEventArgs e) => SetEpisodeLayout(true);
     private void SetEpisodeLayout(bool grid)
     {
-        if (disposed || closing) return;
+        if (disposed || presentationFrozen || closing || transitionActive) return;
         EpisodeListScroll.Visibility = grid ? Visibility.Collapsed : Visibility.Visible;
         EpisodeGridScroll.Visibility = grid ? Visibility.Visible : Visibility.Collapsed;
         // 写入按点击次序串行；原子变换保留同时修改的其他设置。关闭播放页不取消已确认的偏好。
@@ -1005,16 +1223,19 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     }
     private void OnEpisodeClick(object sender, RoutedEventArgs e)
     {
-        if (!ViewModel.CanControl || sender is not Button { Tag: string id }) return;
+        if (disposed || presentationFrozen || closing || transitionActive || !ViewModel.CanControl || sender is not Button { Tag: string id }) return;
         SelectEpisode(id);
     }
     private void SelectEpisode(string itemId)
     {
-        if (!ViewModel.CanControl || !ViewModel.Episodes.Any(episode => episode.ItemId == itemId)) return;
+        if (disposed || presentationFrozen || closing || transitionActive || !ViewModel.CanControl || !ViewModel.Episodes.Any(episode => episode.ItemId == itemId)) return;
         Run(() => session.SelectEntryAsync(itemId, lifetime.Token));
     }
 
-    private void OnRateClick(object sender, RoutedEventArgs e) => CreateRateMenu().ShowAt(RateButton);
+    private void OnRateClick(object sender, RoutedEventArgs e)
+    {
+        if (!disposed && !presentationFrozen && !closing && !transitionActive) CreateRateMenu().ShowAt(RateButton);
+    }
     private MenuFlyout CreateRateMenu()
     {
         var menu = CreateMenu();
@@ -1027,7 +1248,10 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         }
         return menu;
     }
-    private void OnTracksClick(object sender, RoutedEventArgs e) => CreateTracksMenu().ShowAt(TracksButton);
+    private void OnTracksClick(object sender, RoutedEventArgs e)
+    {
+        if (!disposed && !presentationFrozen && !closing && !transitionActive) CreateTracksMenu().ShowAt(TracksButton);
+    }
     private MenuFlyout CreateTracksMenu()
     {
         var menu = CreateMenu();
@@ -1052,16 +1276,19 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     }
     private void SelectRate(double rate)
     {
+        if (disposed || presentationFrozen || closing || transitionActive) return;
         HideMenus();
         Run(() => session.SetRateAsync(rate, lifetime.Token));
     }
     private void SelectTrack(string? trackId, bool subtitle)
     {
+        if (disposed || presentationFrozen || closing || transitionActive) return;
         HideMenus();
         Run(() => subtitle ? session.SelectSubtitleTrackAsync(trackId, lifetime.Token) : session.SelectAudioTrackAsync(trackId, lifetime.Token));
     }
     private MenuFlyout CreateMenu()
     {
+        if (disposed || presentationFrozen || closing) throw new InvalidOperationException("播放页已关闭，无法打开菜单。");
         var menu = new MenuFlyout { MenuFlyoutPresenterStyle = XamlResources.Style(Resources, "PlayerMenuPresenter") };
         menuHandlers.Add(menu, []);
         menu.Opened += OnMenuOpened;
@@ -1081,7 +1308,12 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     {
         if (sender is null) return;
         var menu = sender.As<MenuFlyout>();
-        if (disposed || closing) { menu.Hide(); return; }
+        if (disposed || presentationFrozen || closing || transitionActive || !IsLoaded)
+        {
+            DetachMenu(menu);
+            menu.Hide();
+            return;
+        }
         if (!openFlyouts.Contains(menu)) openFlyouts.Add(menu);
         openMenus = openFlyouts.Count;
         Activity();
@@ -1094,7 +1326,8 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         var removed = openFlyouts.Remove(menu);
         openMenus = openFlyouts.Count;
         DetachMenu(menu);
-        if (removed && openMenus == 0 && !disposed && !closing)
+        if (disposed || presentationFrozen || closing || transitionActive || !IsLoaded) return;
+        if (removed && openMenus == 0)
         {
             Focus(FocusState.Programmatic);
             lastActivity = Environment.TickCount64;
@@ -1119,8 +1352,8 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     {
         foreach (var menu in menuHandlers.Keys.ToArray())
         {
-            menu.Hide();
             DetachMenu(menu);
+            menu.Hide();
         }
         openFlyouts.Clear();
         openMenus = 0;
@@ -1129,10 +1362,18 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
 
     private async Task RunAsync(Func<Task> action, bool cancelSeekOnError)
     {
-        if (disposed || closing) return;
+        if (disposed || presentationFrozen || closing || transitionActive) return;
         try { await action(); }
-        catch (OperationCanceledException) { if (cancelSeekOnError) ViewModel.CancelSeekPreview(); }
-        catch (AppException ex) { if (cancelSeekOnError) ViewModel.CancelSeekPreview(); toasts.Show(ToastKind.Error, ex.Error.Message); }
+        catch (OperationCanceledException)
+        {
+            if (cancelSeekOnError && !disposed && !presentationFrozen) ViewModel.CancelSeekPreview();
+        }
+        catch (AppException ex)
+        {
+            if (disposed || presentationFrozen) return;
+            if (cancelSeekOnError) ViewModel.CancelSeekPreview();
+            toasts.Show(ToastKind.Error, ex.Error.Message);
+        }
     }
     private static bool IsWithin(DependencyObject? element, DependencyObject parent)
     {

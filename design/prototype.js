@@ -345,6 +345,26 @@ const S = {
 const win = () => $('#window');
 const host = () => $('#page');
 const systemDark = window.matchMedia('(prefers-color-scheme: dark)');
+const systemReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+const effectiveReduced = () => S.reduceMotion || systemReducedMotion.matches;
+function applyMotionPreference() {
+  const reduced = effectiveReduced(), w = win();
+  if (w.classList.contains('reduce-motion') === reduced) return;
+  w.classList.toggle('reduce-motion', reduced);
+  if (reduced) {
+    S._entering = false;
+    if (pendingPlayerClose) finishPlayerClose(pendingPlayerClose);
+    else if (S.player) $('#player').classList.add('open');
+    for (const el of [host(), ...w.querySelectorAll('.rail-track')]) {
+      el.scrollTo({ left: el.scrollLeft, top: el.scrollTop, behavior: 'instant' });
+    }
+  }
+  // Removing the reduced rule must not replay animations on existing content.
+  // Later state changes and newly rendered nodes can animate normally.
+  for (const animation of w.getAnimations({ subtree: true })) animation.cancel();
+  resetHeroTimer();
+}
+systemReducedMotion.addEventListener('change', applyMotionPreference);
 const resolveTheme = () => S.themeMode === 'system' ? (systemDark.matches ? 'dark' : 'light') : S.themeMode;
 S.theme = resolveTheme();
 systemDark.addEventListener('change', () => { if (S.themeMode === 'system') { S.theme = resolveTheme(); render({ page: false }); } });
@@ -426,9 +446,9 @@ function renderSidebar() {
 }
 
 /* ================= 卡片 ================= */
-function posterCard(item, reveal = false, k = 0) {
+function posterCard(item) {
   const sub = item.kind === 'series' ? `${item.year} · ${item.seasons} 季` : item.played ? `${item.year} · 已看完` : progressOf(item) ? `${item.year} · 已看 ${Math.round(item.progress * 100)}%` : `${item.year} · ${item.genres[0]}`;
-  return `<div class="card card-poster ${reveal ? 'reveal' : ''}" ${reveal ? `style="animation-delay:${Math.min(k, 8) * 20}ms"` : ''} data-act="detail" data-id="${item.id}" role="button" tabindex="0">
+  return `<div class="card card-poster" data-act="detail" data-id="${item.id}" role="button" tabindex="0">
     <div class="card-art" style='background-image:${art(item.id, 'poster', motifOf(item))}'>
       <span class="badge-rating">${icon('star')}${item.rating}</span>
       ${item.played ? `<span class="badge-played" title="已看完">${icon('check')}</span>` : ''}
@@ -443,7 +463,7 @@ function landscapeCard(item, opts = {}) {
   const left = item.runtime * (1 - progressOf(item));
   const sub = isEp ? `S${pad2(item.season)}E${pad2(item.number)} · ${item.title}` : progressOf(item) ? `剩余 ${fmtMinutes(Math.round(left))}` : `${item.year} · ${item.genres[0]}`;
   const target = isEp ? item.seriesId : item.id;
-  return `<div class="card card-landscape ${opts.reveal ? 'reveal' : ''}" data-act="detail" data-id="${target}" role="button" tabindex="0">
+  return `<div class="card card-landscape" data-act="detail" data-id="${target}" role="button" tabindex="0">
     <div class="card-art" style='background-image:${art(item.id, 'wide', motifOf(item))}'>
       ${progressOf(item) ? `<div class="progress"><i style="width:${progressOf(item) * 100}%"></i></div>` : ''}
       <button class="card-play" data-act="play" data-id="${item.id}" aria-label="从这里播放" title="从这里播放">${icon('play')}</button>
@@ -479,12 +499,12 @@ function metaRow(item) {
   else if (item.runtime) parts.push(`<span>${fmtMinutes(item.runtime)}</span>`);
   return `<div class="meta-row">${parts.join('<i class="meta-sep"></i>')}<span class="badge-cert">${item.cert}</span></div>`;
 }
-function heroHtml(item) {
+function heroHtml(item, enter = false) {
   return `<section class="hero" data-hero="${item.id}">
-    <div class="hero-art settle" style='background-image:${art(item.id, 'wide', motifOf(item))}'></div>
+    <div class="hero-art" style='background-image:${art(item.id, 'wide', motifOf(item))}'></div>
     <div class="hero-scrim"></div>
-    <div class="hero-click" data-act="detail" data-id="${item.id}" data-hero-src="1"></div>
-    <div class="hero-content enter">
+    <div class="hero-click" data-act="detail" data-id="${item.id}"></div>
+    <div class="hero-content${enter && !effectiveReduced() ? ' enter' : ''}">
       ${logoHtml(item)}
       ${metaRow(item)}
       <p class="hero-overview">${esc(item.overview)}</p>
@@ -513,9 +533,8 @@ function homeError() {
 }
 const stateIcon = name => `<div class="state-icon">${icon(name)}</div>`;
 function pageOnboard() {
-  const chars = (s, cls = '') => [...s].map(c => `<span class="ch ${cls}">${c === ' ' ? '&nbsp;' : esc(c)}</span>`).join('');
   return `<div class="onboard">
-    <h1 class="onboard-title" data-act="go-settings"><span class="line">${chars('前往连接你的')}</span><span class="line">${chars('Emby', 'accent')}${chars(' 服务器')}</span></h1></div>`;
+    <h1 class="onboard-title" data-act="go-settings"><span class="line">前往连接你的</span><span class="line"><span class="accent">Emby</span>&nbsp;服务器</span></h1></div>`;
 }
 
 /* ================= 页面：最近播放、资料库、搜索 ================= */
@@ -524,7 +543,7 @@ function pageHead(eyebrow, title, count, actions = '') {
 }
 function pageRecent() {
   const list = [...RESUME, ...[...ITEMS.values()].filter(i => (i.kind === 'episode' || i.kind === 'movie') && progressOf(i) && !RESUME.includes(i))];
-  return `<div class="page">${pageHead('RECENT', '最近播放', `${list.length} 项`)}<div class="grid grid-landscape">${list.map(i => landscapeCard(i, { reveal: true })).join('')}</div></div>`;
+  return `<div class="page">${pageHead('RECENT', '最近播放', `${list.length} 项`)}<div class="grid grid-landscape">${list.map(i => landscapeCard(i)).join('')}</div></div>`;
 }
 const SORTS = [['added', '添加日期'], ['name', '名称'], ['rating', '评分'], ['year', '年份'], ['runtime', '时长']];
 function filterCount() { return S.filters.genre.size + S.filters.decade.size + S.filters.cert.size; }
@@ -556,7 +575,7 @@ function pageLibrary() {
       <div class="filter-row"><span class="filter-label">分级</span><div class="chips">${chipGroup('cert', certs)}</div></div>
       ${fc ? `<div class="filter-foot"><button class="link-btn" data-act="filter-reset">重置筛选</button></div>` : ''}</div>` : '';
   const count = S.libVariant === 'empty' ? '0 项' : fc ? `${items.length} 项` : `${lib.count.toLocaleString('zh-CN')} 项`;
-  const grid = items.length ? `<div class="grid grid-poster">${items.map((i, k) => posterCard(i, S._enter && k < 24, k)).join('')}</div>
+  const grid = items.length ? `<div class="grid grid-poster">${items.map(i => posterCard(i)).join('')}</div>
       ${lib.id === 'movies' && !fc ? `<div class="load-more"><span class="p-spinner" style="width:14px;height:14px;border-width:2px;border-color:var(--skeleton);border-top-color:var(--text-2)"></span></div>` : ''}`
     : `<div class="state">${stateIcon('filter')}<h3 class="state-title">当前筛选没有内容</h3><div class="state-actions"><button class="btn btn-accent" data-act="filter-reset">重置筛选</button></div></div>`;
   return `<div class="page">${pageHead('LIBRARY', lib.name, count, actions)}${panel}${grid}</div>`;
@@ -653,16 +672,15 @@ function pageSettings() {
 /* ================= 渲染总入口 ================= */
 function renderPage(opts = {}) {
   const r = S.route.name;
-  S._enter = !!opts.enter;
   const html ={ home: pageHome, recent: pageRecent, library: pageLibrary, detail: pageDetail, search: pageSearch, settings: pageSettings }[r]();
   const el = host();
-  el.innerHTML = `<div class="${opts.enter ? 'page-enter' : ''}" style="min-height:100%">${html}</div>`;
+  el.innerHTML = `<div class="${opts.enter && !effectiveReduced() ? 'page-enter' : ''}" style="min-height:100%">${html}</div>`;
   if (opts.scroll != null) el.scrollTop = opts.scroll;
 }
 function render(opts = {}) {
   const w = win();
   w.dataset.theme = S.theme; w.dataset.size = S.size;
-  w.classList.toggle('reduce-motion', S.reduceMotion);
+  w.classList.toggle('reduce-motion', effectiveReduced());
   w.classList.toggle('annotate', S.annotate);
   w.classList.toggle('playing', !!S.player);
   w.classList.toggle('fullscreen', !!S.player?.fullscreen);
@@ -674,6 +692,28 @@ function render(opts = {}) {
 }
 
 /* ================= 播放层 ================= */
+let playerGeneration = 0;
+let pendingPlayerClose = null;
+let surfaceClickTimer = null;
+function resetPlayerRequest() {
+  ++playerGeneration;
+  clearTimeout(openPlayer.timer);
+  clearTimeout(surfaceClickTimer);
+  if (pendingPlayerClose) {
+    pendingPlayerClose.resolve(false);
+    pendingPlayerClose = null;
+  }
+  return playerGeneration;
+}
+function queuePlayerReady(p, delay) {
+  clearTimeout(openPlayer.timer);
+  const generation = playerGeneration;
+  openPlayer.timer = setTimeout(() => {
+    if (generation !== playerGeneration || S.player !== p || S._closing || p.phase !== 'opening' || p.pinned) return;
+    p.phase = 'playing';
+    renderPlayer(); renderTitlebar();
+  }, delay);
+}
 function buildEntries(id) {
   const item = ITEMS.get(id);
   const toEntry = e => ({ id: e.id, title: e.title, seriesTitle: e.seriesTitle, season: e.season, number: e.number, runtime: e.runtime * 60, played: e.played, progress: progressOf(e), motif: e.motif });
@@ -683,7 +723,7 @@ function buildEntries(id) {
 }
 function requestPlay(id) {
   const current = S.player?.entries[S.player.index];
-  if (S.player && current && current.id !== id) {
+  if (S.player && !S._closing && current && current.id !== id) {
     return openDialog({ title: '切换播放？', text: '当前播放将结束并保存进度。', confirm: '切换', danger: true, onConfirm: () => openPlayer(id) });
   }
   openPlayer(id);
@@ -691,27 +731,56 @@ function requestPlay(id) {
 function openPlayer(id, state = {}) {
   const { entries, index } = buildEntries(id);
   const e = entries[index];
+  const generation = resetPlayerRequest();
   S.player = { entries, index, phase: 'opening', slow: false, pos: e.progress * e.runtime, paused: false, buffering: false, rate: 1, volume: 80, muted: false,
     chrome: true, menu: null, drawer: false, drawerStyle: S.player?.drawerStyle || 'list', upNext: false, fullscreen: false, sub: 's1', audio: 'a1', pinned: false, lastMove: Date.now(), ...state };
-  S.dialog = null; S._closing = false; S._entering = true;
+  const p = S.player;
+  S.dialog = null; S._closing = false; S._entering = !effectiveReduced();
   render({ page: false });
-  requestAnimationFrame(() => requestAnimationFrame(() => { S._entering = false; if (S.player && !S._closing) $('#player').classList.add('open'); }));
-  clearTimeout(openPlayer.timer);
-  if (!S.player.pinned) openPlayer.timer = setTimeout(() => { if (S.player?.phase === 'opening' && !S.player.pinned) { S.player.phase = 'playing'; renderPlayer(); renderTitlebar(); } }, 1400);
+  if (S._entering) requestAnimationFrame(() => requestAnimationFrame(() => {
+    if (generation !== playerGeneration || S.player !== p || S._closing || !S._entering) return;
+    S._entering = false;
+    $('#player').classList.add('open');
+  }));
+  if (!p.pinned) queuePlayerReady(p, 1400);
 }
 function requestClosePlayer() { closePlayer(); }
 function closePlayer() {
-  if (!S.player || S._closing) return;
-  S._closing = true;
-  const el = $('#player'); el.classList.remove('open');
+  const generation = ++playerGeneration;
+  clearTimeout(openPlayer.timer);
+  clearTimeout(surfaceClickTimer);
+  if (!S.player) return Promise.resolve(true);
+  if (pendingPlayerClose) {
+    pendingPlayerClose.generation = generation;
+    return pendingPlayerClose.promise;
+  }
+  let resolve;
+  const promise = new Promise(done => { resolve = done; });
+  const closing = { player: S.player, generation, promise, resolve };
+  pendingPlayerClose = closing;
+  S._closing = true; S._entering = false;
+  const el = $('#player');
+  el.inert = true;
+  el.classList.remove('open');
   S.player.fullscreen = false; win().classList.remove('fullscreen');
-  setTimeout(() => { S.player = null; S._closing = false; render({ page: false }); }, S.reduceMotion ? 0 : 300);
+  const animations = el.getAnimations().filter(a => Number.isFinite(a.effect.getComputedTiming().endTime));
+  if (effectiveReduced() || !animations.length) finishPlayerClose(closing);
+  else Promise.allSettled(animations.map(a => a.finished)).then(() => finishPlayerClose(closing));
+  return promise;
+}
+function finishPlayerClose(closing) {
+  if (pendingPlayerClose !== closing || closing.generation !== playerGeneration || S.player !== closing.player) return;
+  pendingPlayerClose = null;
+  S.player = null; S._closing = false; S._entering = false;
+  render({ page: false });
+  closing.resolve(true);
 }
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 const SUBS = [{ id: 's1', label: '简体中文', lang: '中文' }, { id: 's2', label: '繁體中文', lang: '中文' }, { id: 's3', label: 'English', lang: '英语' }];
 const AUDIOS = [{ id: 'a1', label: '原声 · 5.1', lang: '中文' }, { id: 'a2', label: '导演评论', lang: '中文' }, { id: 'a3', label: 'English · 立体声', lang: '英语' }];
 function renderPlayer() {
   const el = $('#player'), p = S.player;
+  el.inert = !!p && !!S._closing;
   if (!p) { el.className = 'player'; el.innerHTML = ''; return; }
   const e = p.entries[p.index], canPrev = p.index > 0, canNext = p.index < p.entries.length - 1, hasEps = p.entries.length > 1;
   let center = '';
@@ -785,7 +854,7 @@ function updatePlayerTime() {
   const left = q('.t-left'); if (left) left.textContent = fmtTime(dur - pos);
 }
 function setChrome(visible) {
-  const p = S.player; if (!p) return;
+  const p = S.player; if (!p || S._closing) return;
   if (p.chrome === visible) return;
   p.chrome = visible;
   const el = $('#player');
@@ -793,7 +862,7 @@ function setChrome(visible) {
   if (p.paused) renderPlayer();
 }
 setInterval(() => {
-  const p = S.player; if (!p || p.pinned) return;
+  const p = S.player; if (!p || p.pinned || S._closing) return;
   const e = p.entries[p.index];
   if (p.phase === 'playing' && !p.paused && !p.buffering) {
     p.pos += .25 * p.rate;
@@ -806,20 +875,18 @@ setInterval(() => {
   if (p.chrome && p.phase === 'playing' && !p.paused && !p.menu && !p.drawer && Date.now() - p.lastMove > 3000) setChrome(false);
 }, 250);
 function switchEntry(i) {
-  const p = S.player; if (!p) return;
+  const p = S.player; if (!p || S._closing) return;
   p.index = i; p.pos = 0; p.phase = 'opening'; p.paused = false; p.buffering = false; p.upNext = false; p.upNextDismissed = false; p.menu = null;
   renderPlayer(); renderTitlebar();
-  clearTimeout(openPlayer.timer);
-  openPlayer.timer = setTimeout(() => { if (S.player?.phase === 'opening' && !S.player.pinned) { S.player.phase = 'playing'; renderPlayer(); } }, 900);
+  queuePlayerReady(p, 900);
 }
-let surfaceClickTimer = null;
 function playerAct(act, el) {
-  const p = S.player; if (!p) return;
+  const p = S.player; if (!p || S._closing) return;
   p.pinned = false; p.lastMove = Date.now();
   switch (act) {
     case 'p-surface':
       clearTimeout(surfaceClickTimer);
-      surfaceClickTimer = setTimeout(() => { if (p.menu) { p.menu = null; renderPlayer(); return; } if (p.phase === 'playing') { p.paused = !p.paused; renderPlayer(); } }, 250);
+      surfaceClickTimer = setTimeout(() => { if (S.player !== p || S._closing) return; if (p.menu) { p.menu = null; renderPlayer(); return; } if (p.phase === 'playing') { p.paused = !p.paused; renderPlayer(); } }, 250);
       return;
     case 'p-toggle': if (p.phase === 'playing') { p.paused = !p.paused; renderPlayer(); } return;
     case 'p-prev': if (p.index > 0) switchEntry(p.index - 1); return;
@@ -833,7 +900,7 @@ function playerAct(act, el) {
     case 'p-drawer': p.drawer = !p.drawer; p.menu = null; renderPlayer(); return;
     case 'p-drawer-style': p.drawerStyle = el.dataset.v; renderPlayer(); return;
     case 'p-fullscreen': p.fullscreen = !p.fullscreen; render({ page: false }); return;
-    case 'p-retry': p.phase = 'opening'; renderPlayer(); setTimeout(() => { if (S.player?.phase === 'opening') { S.player.phase = 'playing'; renderPlayer(); } }, 1000); return;
+    case 'p-retry': p.phase = 'opening'; renderPlayer(); queuePlayerReady(p, 1000); return;
     case 'p-upnext-dismiss': p.upNext = false; p.upNextDismissed = true; renderPlayer(); return;
     case 'p-seek': {
       const track = el.querySelector('.scrub-track').getBoundingClientRect();
@@ -867,42 +934,17 @@ function renderToasts() {
     <button class="toast-close" data-act="toast-dismiss" data-id="${t.id}" aria-label="关闭">${icon('close', 'ico-14')}</button></div>`).join('');
 }
 
-/* ================= 卡片 → 详情的连接动画 ================= */
-function openDetail(id, sourceEl) {
-  const fromHero = sourceEl?.dataset.heroSrc === '1';
-  const artEl = sourceEl?.closest('.card')?.querySelector('.card-art');
-  if (!artEl || fromHero || S.reduceMotion) { nav('detail', { id }); return; }
-  const wr = win().getBoundingClientRect(), s = S.scale, r0 = artEl.getBoundingClientRect();
-  const clone = document.createElement('div');
-  clone.className = 'fx-clone';
-  clone.style.cssText = `left:${(r0.left - wr.left) / s}px;top:${(r0.top - wr.top) / s}px;width:${r0.width / s}px;height:${r0.height / s}px;border-radius:12px;background-image:${getComputedStyle(artEl).backgroundImage}`;
-  $('#fx').appendChild(clone);
-  nav('detail', { id });
-  const target = host().querySelector('.hero-art');
-  if (!target) { clone.remove(); return; }
-  target.style.opacity = '0';
-  const r1 = target.getBoundingClientRect();
-  const to = { left: (r1.left - wr.left) / s, top: (r1.top - wr.top) / s, width: r1.width / s, height: (r1.height - 96) / s };
-  const anim = clone.animate([
-    { opacity: 1 },
-    { left: to.left + 'px', top: to.top + 'px', width: to.width + 'px', height: to.height + 'px', borderRadius: '0px', opacity: 1, offset: .82 },
-    { left: to.left + 'px', top: to.top + 'px', width: to.width + 'px', height: to.height + 'px', borderRadius: '0px', opacity: 0 },
-  ], { duration: 460, easing: 'cubic-bezier(.22,1,.36,1)', fill: 'forwards' });
-  setTimeout(() => { target.style.transition = 'opacity 200ms ease'; target.style.opacity = '1'; }, 300);
-  anim.onfinish = () => clone.remove();
-}
-
 /* ================= 事件 ================= */
 const ACT = {
   noop() {},
   back: goBack, forward: goForward,
   'go-home'() { nav('home'); }, 'go-recent'() { nav('recent'); }, 'go-settings'() { nav('settings'); },
   'go-lib'(el) { S.filtersOpen = false; nav('library', { lib: el.dataset.lib }); },
-  detail(el) { openDetail(el.dataset.id, el); },
+  detail(el) { nav('detail', { id: el.dataset.id }); },
   play(el) { requestPlay(el.dataset.id); },
   'select-ep'(el) { const ep = ITEMS.get(el.dataset.id); S.selectedEp[ep.seriesId] = ep.id; rerenderKeepingScroll(); },
   season(el) { S.season[el.dataset.sid] = +el.dataset.season; rerenderKeepingScroll(0); },
-  'rail-scroll'(el) { const track = el.parentElement.querySelector('.rail-track'); track.scrollBy({ left: +el.dataset.dir * track.clientWidth * .82, behavior: S.reduceMotion ? 'auto' : 'smooth' }); },
+  'rail-scroll'(el) { const track = el.parentElement.querySelector('.rail-track'); track.scrollBy({ left: +el.dataset.dir * track.clientWidth * .82, behavior: effectiveReduced() ? 'auto' : 'smooth' }); },
   'hero-go'(el) { setHero(+el.dataset.i); }, 'hero-prev'() { setHero(S.heroIndex - 1); }, 'hero-next'() { setHero(S.heroIndex + 1); },
   'toggle-filters'() { S.filtersOpen = !S.filtersOpen; S.sortOpen = false; renderPage(); },
   'toggle-sort'() { S.sortOpen = !S.sortOpen; renderPage(); },
@@ -949,9 +991,12 @@ function rerenderKeepingScroll(resetRail = -1) {
   });
 }
 function setHero(i) {
-  S.heroIndex = (i + HERO.length) % HERO.length;
+  const next = (i + HERO.length) % HERO.length;
+  if (next === S.heroIndex) return;
+  S.heroIndex = next;
   const old = host().querySelector('.home > .hero');
-  if (old) old.outerHTML = heroHtml(HERO[S.heroIndex]);
+  const pageEntering = host().firstElementChild?.getAnimations().some(a => a.playState === 'running');
+  if (old) old.outerHTML = heroHtml(HERO[S.heroIndex], !pageEntering);
   renderTitlebar();
 }
 function validateMpv() {
@@ -961,7 +1006,7 @@ function validateMpv() {
 }
 document.addEventListener('pointermove', e => {
   lastPointer = { x: e.clientX, y: e.clientY };
-  if (S.player && e.target.closest('#player')) {
+  if (S.player && !S._closing && e.target.closest('#player')) {
     S.player.lastMove = Date.now();
     if (!S.player.chrome && !e.target.closest('.p-drawer')) setChrome(true);
     const scrub = e.target.closest('.scrub');
@@ -985,7 +1030,7 @@ document.addEventListener('click', e => {
   ACT[act]?.(el, e);
 });
 document.addEventListener('dblclick', e => {
-  if (e.target.closest('[data-act="p-surface"]') && S.player) { clearTimeout(surfaceClickTimer); S.player.fullscreen = !S.player.fullscreen; render({ page: false }); }
+  if (e.target.closest('[data-act="p-surface"]') && S.player && !S._closing) { clearTimeout(surfaceClickTimer); S.player.fullscreen = !S.player.fullscreen; render({ page: false }); }
 });
 document.addEventListener('mouseup', e => {
   if (e.button === 3) { e.preventDefault(); goBack(); }
@@ -999,6 +1044,7 @@ document.addEventListener('keydown', e => {
   if (e.altKey && e.key === 'ArrowLeft') { e.preventDefault(); goBack(); return; }
   if (e.altKey && e.key === 'ArrowRight') { e.preventDefault(); goForward(); return; }
   const p = S.player;
+  if (p && S._closing) return;
   if (p && !typing) {
     const keys = {
       ' ': () => playerAct('p-toggle'), k: () => playerAct('p-toggle'), f: () => playerAct('p-fullscreen'), F11: () => playerAct('p-fullscreen'),
@@ -1020,9 +1066,15 @@ document.addEventListener('keydown', e => {
 document.addEventListener('input', e => { if (e.target.id === 'mpv-path') { S.mpvPath = e.target.value; } });
 document.addEventListener('mouseover', e => { if (e.target.closest?.('.home > .hero')) S.heroHover = true; });
 document.addEventListener('mouseout', e => { if (e.target.closest?.('.home > .hero') && !e.relatedTarget?.closest?.('.home > .hero')) S.heroHover = false; });
-setInterval(() => {
-  if (S.route.name === 'home' && S.loggedIn && S.homeVariant === 'normal' && !S.player && !S.heroHover && !S.reduceMotion && !S.dialog) setHero(S.heroIndex + 1);
-}, 7000);
+let heroTimer = null;
+function resetHeroTimer() {
+  clearInterval(heroTimer);
+  heroTimer = null;
+  if (effectiveReduced()) return;
+  heroTimer = setInterval(() => {
+    if (S.route.name === 'home' && S.loggedIn && S.homeVariant === 'normal' && !S.player && !S.heroHover && !effectiveReduced() && !S.dialog) setHero(S.heroIndex + 1);
+  }, 7000);
+}
 
 /* ================= 缩放适配 ================= */
 function fit() {
@@ -1076,10 +1128,21 @@ function renderReview() {
       ${DECISIONS.map(([id, title, verdict, go]) => `<div class="rv-prop"><b>${id}</b><strong>${title}</strong><span class="rv-verdict">${verdict}</span>${go ? `<span class="rv-go">${rvBtn('查看', go)}</span>` : ''}</div>`).join('')}</div>`;
 }
 function playerState(kind) {
-  const base = id => { if (!S.player) openPlayer(id || 's1e1x3', { pinned: true }); S.player.pinned = true; return S.player; };
+  const base = id => {
+    if (!S.player || S._closing) openPlayer(id || S.player?.entries[S.player.index].id || 's1e1x3', { pinned: true });
+    else resetPlayerRequest();
+    S._entering = false;
+    S.player.pinned = true;
+    return S.player;
+  };
   let p;
   switch (kind) {
-    case 'open': if (S.player) closePlayer(); setTimeout(() => openPlayer('s1e1x3'), S.player ? 320 : 0); return;
+    case 'open': {
+      if (!S.player) { openPlayer('s1e1x3'); return; }
+      const closed = closePlayer(), generation = playerGeneration;
+      closed.then(completed => { if (completed && generation === playerGeneration && !S.player) openPlayer('s1e1x3'); });
+      return;
+    }
     case 'close': closePlayer(); return;
     case 'opening': p = base(); Object.assign(p, { phase: 'opening', slow: false, menu: null, drawer: false, upNext: false, chrome: true }); break;
     case 'slow': p = base(); Object.assign(p, { phase: 'opening', slow: true, menu: null, drawer: false, upNext: false, chrome: true }); break;
@@ -1098,7 +1161,8 @@ function playerState(kind) {
   render({ page: false });
 }
 function pageState(kind) {
-  if (S.player) { S.player = null; }
+  resetPlayerRequest();
+  S.player = null; S._closing = false; S._entering = false;
   S.homeVariant = 'normal'; S.libVariant = 'normal';
   const setFilters = (genre, decade) => { Object.values(S.filters).forEach(s => s.clear()); if (genre) S.filters.genre.add(genre); if (decade) S.filters.decade.add(decade); };
   const go = (name, params) => { S.route = { name, params: params || {} }; S.back = S.route.name === 'home' ? [] : [{ name: 'home', params: {}, scroll: 0 }]; S.fwd = []; };
@@ -1128,7 +1192,7 @@ $('#review').addEventListener('click', e => {
     case 'fit': S.fit = arg === 'on'; break;
     case 'theme': S.themeMode = arg; S.theme = resolveTheme(); break;
     case 'annotate': S.annotate = !S.annotate; break;
-    case 'motion': S.reduceMotion = !S.reduceMotion; break;
+    case 'motion': S.reduceMotion = !S.reduceMotion; applyMotionPreference(); renderReview(); return;
     case 'login': S.loggedIn = !S.loggedIn; if (!S.loggedIn) { S.route = { name: 'home', params: {} }; S.back = []; S.fwd = []; } break;
     case 'page': pageState(arg); return;
     case 'player': playerState(arg); return;
@@ -1155,5 +1219,6 @@ window.addEventListener('resize', autoReview);
 
 /* ================= 启动 ================= */
 autoReview();
-render({ scroll: 0 });
+render({ scroll: 0, enter: true });
+resetHeroTimer();
 if (document.fonts?.ready) document.fonts.ready.then(fit);

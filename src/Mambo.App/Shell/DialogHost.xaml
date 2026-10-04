@@ -3,11 +3,13 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:themes="using:Mambo.App.Themes"
-    Visibility="Collapsed">
-    <Grid x:Name="Scrim" Background="{ThemeResource ScrimBrush}" Tapped="OnScrimTapped">
+    IsTabStop="True" TabFocusNavigation="Cycle" KeyDown="OnPanelKeyDown" Visibility="Collapsed">
+    <Grid x:Name="ModalRoot" Background="Transparent" Tapped="OnScrimTapped">
+        <Border x:Name="Scrim" Background="{ThemeResource ScrimBrush}" IsHitTestVisible="False"
+                AutomationProperties.AccessibilityView="Raw"/>
         <!-- 弹出面：半透明浅底、白色描边、圆角 18、柔和投影；按钮靠右，取消在前 -->
         <Grid x:Name="Panel" Width="384" HorizontalAlignment="Center" VerticalAlignment="Center" TabFocusNavigation="Cycle"
-              Tapped="OnPanelTapped" KeyDown="OnPanelKeyDown">
+              Tapped="OnPanelTapped">
             <Border CornerRadius="{StaticResource PopupCornerRadius}" themes:SoftShadow.Kind="Popup"/>
             <Border Style="{StaticResource PopupSurfaceStyle}" Padding="20,16">
                 <StackPanel>

@@ -20,6 +20,8 @@ public sealed class DialogService : IDisposable
 {
     private readonly SemaphoreSlim gate = new(1, 1);
     private IDialogPresenter? presenter;
+    private int pendingRequests;
+    private bool disposed;
 
     public bool IsOpen { get; private set; }
 
@@ -28,19 +30,35 @@ public sealed class DialogService : IDisposable
     public async Task<bool> ConfirmAsync(ConfirmRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
-        if (presenter is null) return false;
-        await gate.WaitAsync();
+        if (disposed || presenter is null) return false;
+        pendingRequests++;
         try
         {
-            IsOpen = true;
-            return await presenter.PresentAsync(request);
+            await gate.WaitAsync();
+            try
+            {
+                if (disposed || presenter is null) return false;
+                IsOpen = true;
+                return await presenter.PresentAsync(request);
+            }
+            finally
+            {
+                IsOpen = false;
+                gate.Release();
+            }
         }
         finally
         {
-            IsOpen = false;
-            gate.Release();
+            if (--pendingRequests == 0 && disposed) gate.Dispose();
         }
     }
 
-    public void Dispose() => gate.Dispose();
+    public void Dispose()
+    {
+        if (disposed) return;
+        disposed = true;
+        presenter = null;
+        // Host disposal completes the active request; queued callers then drain without presenting.
+        if (pendingRequests == 0) gate.Dispose();
+    }
 }
