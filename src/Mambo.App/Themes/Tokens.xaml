@@ -160,21 +160,21 @@
             <SolidColorBrush x:Key="ScrollBarButtonBackgroundPressed" Color="Transparent"/>
             <SolidColorBrush x:Key="WindowBackgroundBrush" Color="Transparent"/>
             <SolidColorBrush x:Key="WindowOpaqueFallbackBrush" Color="#FFF3F6FA"/>
-            <!-- 播放层：常规主题使用深色，高对比度另行映射系统颜色 -->
+            <!-- 播放层：常规主题使用深色，高对比度另行映射系统颜色。浮层一律是不透明深灰实底、没有描边 -->
             <SolidColorBrush x:Key="PlayerCanvasBrush" Color="#FF000000"/>
             <SolidColorBrush x:Key="PlayerTextPrimaryBrush" Color="#F5FFFFFF"/>
             <SolidColorBrush x:Key="PlayerTextSecondaryBrush" Color="#B8FFFFFF"/>
             <SolidColorBrush x:Key="PlayerTextTertiaryBrush" Color="#80FFFFFF"/>
-            <SolidColorBrush x:Key="PlayerPanelBrush" Color="#D9000000"/>
-            <SolidColorBrush x:Key="PlayerPanelStrokeBrush" Color="#26FFFFFF"/>
+            <SolidColorBrush x:Key="PlayerPanelBrush" Color="#FF1C1D21"/>
+            <SolidColorBrush x:Key="PlayerPanelStrokeBrush" Color="Transparent"/>
             <SolidColorBrush x:Key="PlayerMenuSelectedBrush" Color="#26FFFFFF"/>
             <SolidColorBrush x:Key="PlayerHoverBrush" Color="#26FFFFFF"/>
             <SolidColorBrush x:Key="PlayerPressedBrush" Color="#0FFFFFFF"/>
             <SolidColorBrush x:Key="PlayerTrackBrush" Color="#33FFFFFF"/>
             <SolidColorBrush x:Key="PlayerBufferBrush" Color="#70FFFFFF"/>
             <SolidColorBrush x:Key="PlayerFillBrush" Color="#FFFFFFFF"/>
-            <SolidColorBrush x:Key="PlayerPillBrush" Color="#99000000"/>
-            <SolidColorBrush x:Key="PlayerFailureBrush" Color="#99000000"/>
+            <SolidColorBrush x:Key="PlayerPillBrush" Color="#FF1C1D21"/>
+            <SolidColorBrush x:Key="PlayerFailureBrush" Color="#FF1C1D21"/>
             <SolidColorBrush x:Key="PlayerSeekGlowBrush" Color="#26FFFFFF"/>
             <LinearGradientBrush x:Key="PlayerScrimBottomBrush" StartPoint="0,1" EndPoint="0,0">
                 <GradientStop Color="#E6000000" Offset="0"/>
@@ -353,21 +353,21 @@
             <SolidColorBrush x:Key="ScrollBarButtonBackgroundPressed" Color="Transparent"/>
             <SolidColorBrush x:Key="WindowBackgroundBrush" Color="Transparent"/>
             <SolidColorBrush x:Key="WindowOpaqueFallbackBrush" Color="#FF1E2024"/>
-            <!-- 播放层：常规主题使用深色，高对比度另行映射系统颜色 -->
+            <!-- 播放层：常规主题使用深色，高对比度另行映射系统颜色。浮层一律是不透明深灰实底、没有描边 -->
             <SolidColorBrush x:Key="PlayerCanvasBrush" Color="#FF000000"/>
             <SolidColorBrush x:Key="PlayerTextPrimaryBrush" Color="#F5FFFFFF"/>
             <SolidColorBrush x:Key="PlayerTextSecondaryBrush" Color="#B8FFFFFF"/>
             <SolidColorBrush x:Key="PlayerTextTertiaryBrush" Color="#80FFFFFF"/>
-            <SolidColorBrush x:Key="PlayerPanelBrush" Color="#D9000000"/>
-            <SolidColorBrush x:Key="PlayerPanelStrokeBrush" Color="#26FFFFFF"/>
+            <SolidColorBrush x:Key="PlayerPanelBrush" Color="#FF1C1D21"/>
+            <SolidColorBrush x:Key="PlayerPanelStrokeBrush" Color="Transparent"/>
             <SolidColorBrush x:Key="PlayerMenuSelectedBrush" Color="#26FFFFFF"/>
             <SolidColorBrush x:Key="PlayerHoverBrush" Color="#26FFFFFF"/>
             <SolidColorBrush x:Key="PlayerPressedBrush" Color="#0FFFFFFF"/>
             <SolidColorBrush x:Key="PlayerTrackBrush" Color="#33FFFFFF"/>
             <SolidColorBrush x:Key="PlayerBufferBrush" Color="#70FFFFFF"/>
             <SolidColorBrush x:Key="PlayerFillBrush" Color="#FFFFFFFF"/>
-            <SolidColorBrush x:Key="PlayerPillBrush" Color="#99000000"/>
-            <SolidColorBrush x:Key="PlayerFailureBrush" Color="#99000000"/>
+            <SolidColorBrush x:Key="PlayerPillBrush" Color="#FF1C1D21"/>
+            <SolidColorBrush x:Key="PlayerFailureBrush" Color="#FF1C1D21"/>
             <SolidColorBrush x:Key="PlayerSeekGlowBrush" Color="#26FFFFFF"/>
             <LinearGradientBrush x:Key="PlayerScrimBottomBrush" StartPoint="0,1" EndPoint="0,0">
                 <GradientStop Color="#E6000000" Offset="0"/>

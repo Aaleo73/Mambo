@@ -104,7 +104,8 @@
         <Style x:Key="PlayerMenuPresenter" TargetType="MenuFlyoutPresenter">
             <Setter Property="Background" Value="{ThemeResource PlayerPanelBrush}"/>
             <Setter Property="BorderBrush" Value="{ThemeResource PlayerPanelStrokeBrush}"/>
-            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="CornerRadius" Value="18"/>
+            <Setter Property="Padding" Value="6"/>
             <Setter Property="MaxHeight" Value="340"/>
             <Setter Property="Width" Value="224"/>
             <Setter Property="Foreground" Value="{ThemeResource PlayerTextPrimaryBrush}"/>
@@ -116,7 +117,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ToggleMenuFlyoutItem">
-                        <Grid x:Name="MenuRow" MinHeight="36" CornerRadius="8" Background="Transparent">
+                        <Grid x:Name="MenuRow" MinHeight="36" CornerRadius="12" Background="Transparent">
                             <VisualStateManager.VisualStateGroups>
                                 <VisualStateGroup x:Name="CommonStates">
                                     <VisualState x:Name="Normal"/>
@@ -129,7 +130,7 @@
                                     <VisualState x:Name="Checked"><VisualState.Setters><Setter Target="SelectedMenuRow.Visibility" Value="Visible"/><Setter Target="SelectedMenuMark.Visibility" Value="Visible"/></VisualState.Setters></VisualState>
                                 </VisualStateGroup>
                             </VisualStateManager.VisualStateGroups>
-                            <Border x:Name="SelectedMenuRow" Visibility="Collapsed" Background="{ThemeResource PlayerMenuSelectedBrush}" BorderBrush="{ThemeResource PlayerEpisodeSelectedStrokeBrush}" BorderThickness="1" CornerRadius="8"/>
+                            <Border x:Name="SelectedMenuRow" Visibility="Collapsed" Background="{ThemeResource PlayerMenuSelectedBrush}" BorderBrush="{ThemeResource PlayerEpisodeSelectedStrokeBrush}" BorderThickness="1" CornerRadius="12"/>
                             <Grid Padding="12,6">
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="24"/></Grid.ColumnDefinitions>
                                 <TextBlock Text="{TemplateBinding Text}" Foreground="{TemplateBinding Foreground}" FontSize="13" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
@@ -245,7 +246,7 @@
                                 IsEnabled="{x:Bind ViewModel.CanControl, Mode=OneWay}" ValueChanged="OnSeekValueChanged" AllowFocusOnInteraction="False"
                                 AutomationProperties.Name="播放进度" ThumbToolTipValueConverter="{x:Null}"/>
                         <Border x:Name="SeekTip" Background="{ThemeResource PlayerPanelBrush}" BorderBrush="{ThemeResource PlayerPanelStrokeBrush}" BorderThickness="1"
-                                CornerRadius="6" Padding="8,4" VerticalAlignment="Top" HorizontalAlignment="Left" Margin="0,-28,0,0" Visibility="Collapsed" IsHitTestVisible="False">
+                                CornerRadius="8" Padding="8,4" VerticalAlignment="Top" HorizontalAlignment="Left" Margin="0,-28,0,0" Visibility="Collapsed" IsHitTestVisible="False">
                             <TextBlock x:Name="SeekTipText" FontSize="12" Foreground="{ThemeResource PlayerTextPrimaryBrush}"/>
                         </Border>
                     </Grid>
@@ -298,7 +299,6 @@
             <StackPanel x:Name="OpeningPanel" Spacing="14" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="{x:Bind ViewModel.IsOpening, Mode=OneWay}">
                 <Grid Width="40" Height="40">
                     <Border x:Name="OpeningPing" CornerRadius="20" BorderThickness="1" BorderBrush="{ThemeResource PlayerBigPlayStrokeBrush}" IsHitTestVisible="False"/>
-                    <Border CornerRadius="20" Background="{ThemeResource PlayerBigPlayBackgroundBrush}" BorderBrush="{ThemeResource PlayerBigPlayStrokeBrush}" BorderThickness="1"/>
                     <ProgressRing x:Name="OpeningSpinner" IsActive="False" Width="24" Height="24" Foreground="{ThemeResource PlayerTextPrimaryBrush}"/>
                 </Grid>
                 <TextBlock Text="正在打开" Foreground="{ThemeResource PlayerTextPrimaryBrush}" FontSize="18" HorizontalAlignment="Center"/>
@@ -312,8 +312,9 @@
             <Border x:Name="KeyHint" Background="{ThemeResource PlayerPillBrush}" BorderBrush="{ThemeResource PlayerPanelStrokeBrush}" BorderThickness="1" CornerRadius="18" Padding="16,8" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,32,0,0" Visibility="Collapsed" IsHitTestVisible="False">
                 <TextBlock x:Name="KeyHintLabel" Foreground="{ThemeResource PlayerTextPrimaryBrush}" AutomationProperties.LiveSetting="Polite"/>
             </Border>
-            <Border x:Name="ErrorPanel" Width="380" Padding="26" Background="{ThemeResource PlayerFailureBrush}" BorderBrush="{ThemeResource PlayerPanelStrokeBrush}"
-                    BorderThickness="1" CornerRadius="16" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="{x:Bind ViewModel.IsFailed, Mode=OneWay}">
+            <Grid x:Name="ErrorPanel" Width="380" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="{x:Bind ViewModel.IsFailed, Mode=OneWay}">
+                <Border CornerRadius="18" themes:SoftShadow.Kind="Popup" IsHitTestVisible="False"/>
+                <Border Padding="26" Background="{ThemeResource PlayerFailureBrush}" BorderBrush="{ThemeResource PlayerPanelStrokeBrush}" BorderThickness="1" CornerRadius="18">
                 <StackPanel Spacing="14" IsHitTestVisible="True">
                     <themes:LineIcon Glyph="{StaticResource IconAlertCircle}" Width="32" Height="32" Foreground="{ThemeResource PlayerTextPrimaryBrush}"/>
                     <TextBlock Text="这部片子暂时打不开" Foreground="{ThemeResource PlayerTextPrimaryBrush}" FontSize="18" FontWeight="SemiBold" TextAlignment="Center"/>
@@ -323,17 +324,20 @@
                         <Button x:Name="ErrorCloseButton" Style="{ThemeResource PlayerButton}" Content="关闭" AutomationProperties.Name="关闭播放" Click="OnCloseClick"/>
                     </StackPanel>
                 </StackPanel>
-            </Border>
+                </Border>
+            </Grid>
         </Grid>
 
-        <Border x:Name="UpNext" Width="360" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,24,112" Padding="16"
-                CornerRadius="12" Background="{ThemeResource PlayerPanelBrush}" BorderBrush="{ThemeResource PlayerPanelStrokeBrush}" BorderThickness="1" Visibility="Collapsed">
+        <Grid x:Name="UpNext" Width="360" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,24,112" Visibility="Collapsed">
+            <Border CornerRadius="18" themes:SoftShadow.Kind="Popup" IsHitTestVisible="False"/>
+            <Border Padding="16" CornerRadius="18" Background="{ThemeResource PlayerPanelBrush}" BorderBrush="{ThemeResource PlayerPanelStrokeBrush}" BorderThickness="1">
             <StackPanel Spacing="8">
                 <TextBlock Text="即将播放" Foreground="{ThemeResource PlayerTextSecondaryBrush}" FontSize="12"/>
                 <TextBlock Text="{x:Bind ViewModel.NextTitle, Mode=OneWay}" Foreground="{ThemeResource PlayerTextPrimaryBrush}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
                 <StackPanel Orientation="Horizontal" Spacing="8"><Button x:Name="UpNextPlayButton" Content="立即播放" AutomationProperties.Name="立即播放下一集" Style="{ThemeResource PlayerButton}" Click="OnNextClick"/><Button x:Name="UpNextCancelButton" Content="取消" AutomationProperties.Name="取消即将播放提示" Style="{ThemeResource PlayerButton}" Click="OnDismissUpNextClick"/><TextBlock Text="{x:Bind ViewModel.RemainingText, Mode=OneWay}" Foreground="{ThemeResource PlayerTextSecondaryBrush}" VerticalAlignment="Center"/></StackPanel>
             </StackPanel>
-        </Border>
+            </Border>
+        </Grid>
 
         </Grid>
         <Grid x:Name="EpisodePanel" Grid.Column="1" Width="208" Margin="0,12,0,0" Background="Transparent" Visibility="Collapsed">
