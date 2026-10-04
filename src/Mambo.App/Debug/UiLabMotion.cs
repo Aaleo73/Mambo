@@ -178,11 +178,13 @@ internal static partial class UiLabSmoke
         MotionCheck(report, "SortReopenRejectsOldClose", page.IsSortOpen && page.IsSortPresented && page.GlobalSortHandlersAttached);
         var entry = navigation.Current;
         await input.KeyAsync(VirtualKey.Escape, token);
+        await MotionUntilAsync(() => !page.IsSortOpen, token);
         await page.PendingSortTransition.WaitAsync(token);
         MotionCheck(report, "SortPopupEscapeStaysOnPage", !page.IsSortPresented && !page.GlobalSortHandlersAttached && ReferenceEquals(entry, navigation.Current));
         await OpenSortAsync("SortReopenAfterPopupEscape");
         window.Shell.FindName("MinimizeButton").As<Button>().Focus(FocusState.Programmatic);
         await input.KeyAsync(VirtualKey.Escape, token);
+        await MotionUntilAsync(() => !page.IsSortOpen, token);
         await page.PendingSortTransition.WaitAsync(token);
         MotionCheck(report, "SortRootEscapeStaysOnPage", !page.IsSortPresented && !page.GlobalSortHandlersAttached && ReferenceEquals(entry, navigation.Current));
         await OpenSortAsync("SortReopenAfterRootEscape");
@@ -201,6 +203,8 @@ internal static partial class UiLabSmoke
         finally { page.ViewModel.ResultsReplaced -= Replaced; }
         await OpenSortAsync("SortReopenAfterSelection");
         await input.ClickAsync(page, new Point(12, 12), token);
+        // Observe the queued input before capturing the close transition task.
+        await MotionUntilAsync(() => !page.IsSortOpen, token);
         await page.PendingSortTransition.WaitAsync(token);
         MotionCheck(report, "SortOutsidePressDismisses", !page.IsSortPresented && !page.GlobalSortHandlersAttached);
         await OpenSortAsync("SortReopenAfterOutsidePress");

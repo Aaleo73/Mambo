@@ -174,6 +174,13 @@
 
 自动化与桌面动态对比已完成；剩余用户参与项如下。不沿用旧候选的人工通过结论，不据此勾选 P9 或此前尚未完成的关卡。
 
+### 合并筛选与搜索分支后的复验（2026-10-04）
+
+- 合并前全部工作区改动的 Debug 构建、360 项测试及完整界面冒烟通过，报告为 `artifacts/pre-merge-ui.json`。
+- 合并 `fix/library-filter-search` 后，Debug 构建为 0 警告、0 错误，372/372 项测试通过且无跳过；最终完整界面报告 `artifacts/post-merge-ui-input-synchronized.json` 为 Passed，50 次实际开关与焦点恢复通过，播放器/Surface 留存为 0/0，播放呈现资源已释放。
+- 保留两轮失败报告：`artifacts/post-merge-ui.json` 记录 `IdleChromeHides` 与 `UiInputForegroundUnavailable`；`artifacts/post-merge-ui-final.json` 的播放控件通过，但 `SortOutsidePressDismisses` 失败。排序烟测发送真实点击或 Escape 后，现先等待 `IsSortOpen` 变为 false，再读取关闭动画任务，避免输入消息尚未处理时等待旧任务；业务代码、超时与最终断言不变。最终通过不代表已定位首轮前台丢失及空闲隐藏失败的原因。
+- 本次合并复验未重跑 Native AOT、真实服务器或原生视频验收，不替代前述人工验收边界。
+
 ## 验收边界
 
 离屏截图只用于检查布局、字体和间距，不能证明亚克力、原生视频或实际桌面合成效果。真实窗口检查使用独立假数据进程，原生播放使用本地样片和隔离诊断服务；都不需要记录真实服务器、令牌或密码。

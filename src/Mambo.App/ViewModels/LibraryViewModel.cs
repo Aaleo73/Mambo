@@ -80,6 +80,7 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
             filters.Updated += OnFiltersUpdated;
             Cards = Observe(query);
             Cards.PropertyChanged += OnCardsPropertyChanged;
+            Cards.Items.CollectionChanged += OnCardItemsChanged;
             BuildChips();
             ApplyQueryState();
         }
@@ -87,6 +88,7 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
         {
             FailedConstruction.Release(scope.Cancel,
                 () => { if (Cards is not null) Cards.PropertyChanged -= OnCardsPropertyChanged; },
+                () => { if (Cards is not null) Cards.Items.CollectionChanged -= OnCardItemsChanged; },
                 () => Cards?.Dispose(),
                 () => { if (filters is not null) filters.Updated -= OnFiltersUpdated; },
                 () => filters?.Dispose(), scope.Dispose);
@@ -176,6 +178,7 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
     {
         scope.Cancel();
         Cards.PropertyChanged -= OnCardsPropertyChanged;
+        Cards.Items.CollectionChanged -= OnCardItemsChanged;
         Cards.Dispose();
         pending?.Dispose();
         filters.Updated -= OnFiltersUpdated;
@@ -207,9 +210,11 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
         if (pending is null || (!pending.IsInitialized && !pending.HasError)) return;
         var previous = Cards;
         previous.PropertyChanged -= OnCardsPropertyChanged;
+        previous.Items.CollectionChanged -= OnCardItemsChanged;
         pending.PropertyChanged -= OnPendingPropertyChanged;
         Cards = pending;
         Cards.PropertyChanged += OnCardsPropertyChanged;
+        Cards.Items.CollectionChanged += OnCardItemsChanged;
         pending = null;
         previous.Dispose();
         UpdateCount();
@@ -219,13 +224,15 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
 
     private void OnCardsPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(PagedCards.TotalCount) or nameof(PagedCards.IsInitialized)) UpdateCount();
+        if (e.PropertyName is nameof(PagedCards.TotalCount) or nameof(PagedCards.IsInitialized) or nameof(PagedCards.HasMore)) UpdateCount();
         if (e.PropertyName is nameof(PagedCards.IsEmpty)) UpdateStates();
     }
 
+    private void OnCardItemsChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) => UpdateCount();
+
     private void UpdateCount() =>
         CountText = Cards.TotalCount is { } total ? $"{total.ToString("N0", CultureInfo.GetCultureInfo("zh-CN"))} 项"
-            : Cards.IsInitialized ? $"{Cards.Items.Count} 项" : "";
+            : !Cards.IsInitialized ? "" : Cards.HasMore ? $"已加载 {Cards.Items.Count} 项" : $"{Cards.Items.Count} 项";
 
     private void ApplyQueryState()
     {

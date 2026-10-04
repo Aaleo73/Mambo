@@ -116,6 +116,34 @@ public sealed class FakeLibraryTests
         Assert.False(empty.HasMore);
     }
 
+    [Theory]
+    [InlineData("海", "demo-series-002", "demo-series-003")]
+    [InlineData("第 ０１ 集！", "demo-series-001", "demo-series-002", "demo-series-003")]
+    public async Task SearchKeepsEqualRankOrderAcrossPageBoundariesAfterFoldingAndRefresh(
+        string searchText, params string[] expectedIds)
+    {
+        var service = Create();
+        using var query = service.ObserveSearch(DemoCatalog.ShowsLibraryId, searchText, 1,
+            TestContext.Current.CancellationToken);
+        await query.RefreshAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(expectedIds.Length, query.TotalCount);
+        Assert.Equal(expectedIds[0], Assert.Single(query.Items).Id);
+        Assert.True(query.HasMore);
+        for (var count = 2; count <= expectedIds.Length; count++)
+        {
+            await query.LoadMoreAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(expectedIds.Take(count), query.Items.Select(item => item.Id));
+            Assert.Equal(count < expectedIds.Length, query.HasMore);
+        }
+        Assert.All(query.Items, item => Assert.Equal(MediaKind.Series, item.Kind));
+
+        await query.RefreshAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(expectedIds[0], Assert.Single(query.Items).Id);
+        Assert.True(query.HasMore);
+        await query.LoadMoreAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(expectedIds.Take(2), query.Items.Select(item => item.Id));
+    }
+
     [Fact]
     public async Task InvalidReadSetsContractErrorAndConfiguredFailuresStayIndependent()
     {

@@ -988,7 +988,7 @@ PlayerOverlay（Grid，RequestedTheme=Dark，IsTabStop=True，持有焦点）
 | GET /Users/{uid}/Items（浏览） | Fields=ITEM_FIELDS；ParentId、IncludeItemTypes、SortBy、SortOrder、StartIndex、Limit、Recursive、Filters、Genres（`\|` 分隔）、Years（`,` 分隔）、OfficialRatings（`\|` 分隔） |
 | GET /Users/{uid}/Items（继续观看） | Recursive=true、SortBy=DatePlayed、SortOrder=Descending、Filters=IsResumable、IncludeItemTypes=Movie,Episode,Video、Fields=RESUME_FIELDS、Limit、StartIndex |
 | GET /Users/{uid}/Items/Latest | ParentId、Limit、Fields=LATEST_FIELDS；返回数组 |
-| GET /Users/{uid}/Items（搜索） | SearchTerm（去首尾空白）、Recursive=true、IncludeItemTypes 默认 Movie,Series,Video、Limit、StartIndex、ParentId、Fields=ITEM_FIELDS |
+| GET /Users/{uid}/Items（搜索） | SearchTerm（规范化后加双引号，按完整短语查询，避免中文逐字宽泛匹配）、Recursive=true、IncludeItemTypes 默认 Movie,Series,Video、Limit、StartIndex、ParentId、Fields=ITEM_FIELDS |
 | GET /Users/{uid}/Items/{id} | Fields=DETAIL_FIELDS |
 | GET /Shows/NextUp | UserId、SeriesId、Limit=1，用精简字段 |
 | GET /Users/{uid}/Items（季） | ParentId=剧集 id、IncludeItemTypes=Season、SortBy=IndexNumber、SortOrder=Ascending、Limit=100 |
@@ -1112,13 +1112,14 @@ PlayerOverlay（Grid，RequestedTheme=Dark，IsTabStop=True，持有焦点）
 ### A.5 资料库页
 
 **页头**
-- 标题为库名，右侧是筛选栏，并显示服务器返回的 TotalRecordCount（「N 项」）。
+- 标题为库名，右侧是筛选栏。无筛选时显示服务器返回的 TotalRecordCount（「N 项」）；有筛选时显示已验证的卡片数量，未读完显示「已加载 N 项」，读完显示「N 项」，不把服务器可能忽略筛选的总数当成匹配数。
 - 切换库时，旧内容一直保留到新库的首屏数据到达。
 
 **筛选面板**
 - 三组：类型（genres）、年份（按年代显示，如「2020年代」，请求时展开成具体年份）、分级。
 - 组内是"或"，组间是"与"。
 - 每组都有「全部」，选中即清空该组；只要有任何筛选，就出现「重置」。
+- 列表接口可能忽略筛选参数：请求仍携带条件，客户端按返回元数据再次校验；类型与分级忽略大小写，年份精确匹配。按服务器原始条数推进分页，连续无匹配页继续读取，直到找到匹配项或真正读完；刷新从原始首条重新开始。
 
 **排序**
 - 添加日期：DateCreated 降序，默认
@@ -1172,8 +1173,8 @@ PlayerOverlay（Grid，RequestedTheme=Dark，IsTabStop=True，持有焦点）
   - 搜索框在侧栏：按 Enter 或点搜索图标触发，有清除按钮；
   - 未登录时禁用，悬停提示「连接服务器后可用」；
   - 页面标题为「搜索」。
-- **规范化**：做 NFKC 规范化，去掉标点和符号后至少剩 1 个字符才搜索。
-- **分组**：每个可播放库一组，按库的顺序排列。
+- **规范化**：做 NFKC 规范化，去掉标点和符号后至少剩 1 个字符才搜索；以带双引号的完整短语提交，不要求用户手动加引号。
+- **分组**：每个可播放库一组。按已加载标题与搜索词的相关性排列：完整片名、片名前缀、片名包含、其它；同级保持媒体库原顺序。迟到结果及加载更多可以提升分组，移动原有分组而不丢弃其分页状态；刷新库列表不重建未变更的分组。
   - 最多 4 组并发，前 2 个库的请求是前台优先级；
   - 每组请求 Limit=24，「加载更多」按钮翻页，不自动加载。
 - **结果处理**：只搜 Movie,Series,Video；单集折叠成所属剧集（用剧集的 id 和剧名）；空组隐藏；某组失败时只在该组显示错误和「重试」。
@@ -1507,3 +1508,4 @@ PlayerOverlay（Grid，RequestedTheme=Dark，IsTabStop=True，持有焦点）
 - [x] P7 外部播放器（后端、设置与面板接入完成；Debug/AOT IPC、真实外部进程终止/停止补报/文件替换重新批准及界面自动回归通过；经用户授权采用本机真实进程自动验证，未把先前暂缓的人工 Emby 后台观察记成通过，见 `docs/decisions/P7-external-process-smoke.md`）
 - [x] P8 本地打包交付（Native AOT、自包含便携/安装/源码包与许可记录完成；最终候选首次安装、安装 UI、升级正常关闭及卸载保留全部用户文件通过；专用 VM 已按用户要求取消。此项不代表已公开发布；完整原生对应源码缺口及清理受阻见 `docs/decisions/P8-packaging.md`）
 - [ ] P9 统一动效语言（六档时长/三条曲线、浏览交接、共享背景与 Hero 原子提交、可反向播放翻折、弹层及控件生命周期、公共 CSS/历史原型已迁移；最终 Debug/AOT 完整门禁通过，均包含 Motion 90 项、50 次开关/焦点恢复及播放器/Surface 零留存；实际原生播放通过。标题栏所有权切换后完整门禁未再出现原生释放异常；两种尺寸动态对比、物理最小化/恢复与标题栏操作已记录，不声称性能提升。Windows 动画设置切换、真实媒体观感及 Snap 弹出层人工确认仍待完成，见 `docs/decisions/P9-visual-parity.md`）
+- [x] 筛选与搜索专项修复（2026-10-04：独立分支兼容服务器忽略筛选参数；完整短语搜索、精确片名分组优先及动态计数；372 项回归、真实服务器原生页面自动化与渲染截图通过，见 `docs/handoff/backend-status.md`）

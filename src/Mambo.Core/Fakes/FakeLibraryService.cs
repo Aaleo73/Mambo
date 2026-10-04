@@ -108,10 +108,18 @@ public sealed class FakeLibraryService : ILibraryService
             if (normalized.Length == 0) return [];
             return catalog.AllItems.Where(item => item.LibraryId == libraryId && item.Kind is
                     MediaKind.Movie or MediaKind.Series or MediaKind.Video or MediaKind.Episode)
-                .Where(item => NormalizeSearch(item.Name).Contains(normalized, StringComparison.OrdinalIgnoreCase) ||
-                    (item.SeriesName is { } seriesName && NormalizeSearch(seriesName).Contains(normalized, StringComparison.OrdinalIgnoreCase)))
-                .Select(item => item.Kind == MediaKind.Episode && item.SeriesId is { } seriesId ? RequireItem(seriesId) : item)
-                .DistinctBy(item => item.Id, StringComparer.Ordinal).ToImmutableArray();
+                .Select(item => (Item: item, Rank: SearchRank(item.Name, normalized)))
+                .Where(match => match.Rank < 3 ||
+                    (match.Item.SeriesName is { } seriesName && NormalizeSearch(seriesName).Contains(normalized, StringComparison.OrdinalIgnoreCase)))
+                .Select(match =>
+                {
+                    if (match.Item.Kind != MediaKind.Episode || match.Item.SeriesId is not { } seriesId) return match;
+                    var series = RequireItem(seriesId);
+                    return (Item: series, Rank: SearchRank(series.Name, normalized));
+                })
+                .DistinctBy(match => match.Item.Id, StringComparer.Ordinal)
+                .OrderBy(match => match.Rank)
+                .Select(match => match.Item).ToImmutableArray();
         }, pageSize, scopeToken);
     }
 
@@ -180,6 +188,14 @@ public sealed class FakeLibraryService : ILibraryService
             _ => descending ? items.OrderByDescending(item => item.PremiereDate) : items.OrderBy(item => item.PremiereDate),
         };
         return sorted.ThenBy(item => item.Id, StringComparer.Ordinal);
+    }
+
+    private static int SearchRank(string title, string normalizedSearch)
+    {
+        var normalizedTitle = NormalizeSearch(title);
+        return normalizedTitle.Equals(normalizedSearch, StringComparison.OrdinalIgnoreCase) ? 0
+            : normalizedTitle.StartsWith(normalizedSearch, StringComparison.OrdinalIgnoreCase) ? 1
+            : normalizedTitle.Contains(normalizedSearch, StringComparison.OrdinalIgnoreCase) ? 2 : 3;
     }
 
     private static string NormalizeSearch(string value)

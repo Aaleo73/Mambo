@@ -197,6 +197,197 @@ public sealed class RealLibraryTests
         Assert.DoesNotContain(harness.Accounts.Current!.Secret.AccessToken, persisted);
     }
 
+    [Theory]
+    [InlineData("genres")]
+    [InlineData("years")]
+    [InlineData("ratings")]
+    [InlineData("combined")]
+    public async Task IgnoredLibraryFiltersMatchMetadataWithOrWithinGroupsAndAndBetweenGroups(string selection)
+    {
+        EmbyItem[] rows =
+        [
+            Movie("first") with { Genres = ["Drama"], ProductionYear = 1990, OfficialRating = "PG" },
+            Movie("second") with { Genres = ["Family", "COMEDY"], ProductionYear = 1999, OfficialRating = "r" },
+            Movie("other-genre") with { Genres = ["Action"], ProductionYear = 1990, OfficialRating = "PG" },
+            Movie("other-year") with { Genres = ["Drama"], ProductionYear = 2000, OfficialRating = "PG" },
+            Movie("other-rating") with { Genres = ["Drama"], ProductionYear = 1990, OfficialRating = "NC-17" },
+            Movie("missing-metadata"),
+        ];
+        using var harness = new LibraryHarness((request, _) => Task.FromResult(
+            request.RequestUri!.AbsolutePath.EndsWith("/Views", StringComparison.Ordinal)
+                ? Items([View("movies", "movies")]) : Items(rows, rows.Length)));
+        var filters = new LibraryQuery
+        {
+            Genres = selection is "genres" or "combined" ? ["drama", "comedy"] : [],
+            Years = selection is "years" or "combined" ? [1990, 1999] : [],
+            OfficialRatings = selection is "ratings" or "combined" ? ["pg", "R"] : [],
+        };
+        using var query = harness.Library.ObserveLibrary("movies", filters, scopeToken: TestContext.Current.CancellationToken);
+        await InitializedAsync(query);
+        string[] expected = selection switch
+        {
+            "genres" => ["first", "second", "other-year", "other-rating"],
+            "years" => ["first", "second", "other-genre", "other-rating"],
+            "ratings" => ["first", "second", "other-genre", "other-year"],
+            _ => ["first", "second"],
+        };
+        Assert.Null(query.Error);
+        Assert.Equal(expected, query.Items.Select(item => item.Id));
+        Assert.False(query.HasMore);
+        Assert.Null(query.TotalCount);
+    }
+
+    [Fact]
+    public async Task FilteredPagingSkipsEmptyBatchesUsesRawCappedOffsetsAndRefreshesFromStart()
+    {
+        var offsets = new ConcurrentQueue<int>();
+        var refreshed = false;
+        using var harness = new LibraryHarness((request, _) =>
+        {
+            if (request.RequestUri!.AbsolutePath.EndsWith("/Views", StringComparison.Ordinal))
+                return Task.FromResult(Items([View("movies", "movies")]));
+            var parameters = Parameters(request);
+            var offset = int.Parse(parameters["StartIndex"], System.Globalization.CultureInfo.InvariantCulture);
+            offsets.Enqueue(offset);
+            var rows = Enumerable.Range(offset, Math.Min(2, 9 - offset)).Select(index => Movie("movie-" + index) with
+            {
+                Genres = [(Volatile.Read(ref refreshed) ? index == 3 : index is 0 or 1 or 7) ? "动画" : "剧情"],
+            }).ToArray();
+            return Task.FromResult(Items(rows, 9));
+        });
+        using var query = harness.Library.ObserveLibrary("movies", new() { Genres = ["动画"] }, 3,
+            TestContext.Current.CancellationToken);
+        await InitializedAsync(query);
+        Assert.Null(query.Error);
+        Assert.Equal(["movie-0", "movie-1"], query.Items.Select(item => item.Id));
+        Assert.Equal([0], offsets.ToArray());
+        Assert.True(query.HasMore);
+        Assert.Null(query.TotalCount);
+
+        await query.LoadMoreAsync(TestContext.Current.CancellationToken);
+        Assert.Null(query.Error);
+        Assert.Equal(["movie-0", "movie-1", "movie-7"], query.Items.Select(item => item.Id));
+        Assert.Equal([0, 2, 4, 6], offsets.ToArray());
+        Assert.True(query.HasMore);
+        Assert.Null(query.TotalCount);
+
+        await query.LoadMoreAsync(TestContext.Current.CancellationToken);
+        Assert.Null(query.Error);
+        Assert.Equal(["movie-0", "movie-1", "movie-7"], query.Items.Select(item => item.Id));
+        Assert.Equal([0, 2, 4, 6, 8], offsets.ToArray());
+        Assert.False(query.HasMore);
+        Assert.Null(query.TotalCount);
+        await query.LoadMoreAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(5, offsets.Count);
+
+        Volatile.Write(ref refreshed, true);
+        await query.RefreshAsync(TestContext.Current.CancellationToken);
+        Assert.Null(query.Error);
+        Assert.Equal("movie-3", Assert.Single(query.Items).Id);
+        Assert.Equal([0, 2, 4, 6, 8, 0, 2], offsets.ToArray());
+        Assert.True(query.HasMore);
+        Assert.Null(query.TotalCount);
+    }
+
+    [Fact]
+    public async Task FilteredPagingFindsMatchOnlyOnFinalRawPage()
+    {
+        var offsets = new ConcurrentQueue<int>();
+        using var harness = new LibraryHarness((request, _) =>
+        {
+            if (request.RequestUri!.AbsolutePath.EndsWith("/Views", StringComparison.Ordinal))
+                return Task.FromResult(Items([View("movies", "movies")]));
+            var offset = int.Parse(Parameters(request)["StartIndex"], System.Globalization.CultureInfo.InvariantCulture);
+            offsets.Enqueue(offset);
+            return Task.FromResult(Items(Enumerable.Range(offset, Math.Min(2, 5 - offset)).Select(index =>
+                Movie("movie-" + index) with { ProductionYear = index == 4 ? 1999 : 2000 }).ToArray(), 5));
+        });
+        using var query = harness.Library.ObserveLibrary("movies", new() { Years = [1999] }, 2,
+            TestContext.Current.CancellationToken);
+        await InitializedAsync(query);
+        Assert.Null(query.Error);
+        Assert.Equal("movie-4", Assert.Single(query.Items).Id);
+        Assert.Equal([0, 2, 4], offsets.ToArray());
+        Assert.False(query.HasMore);
+        Assert.Null(query.TotalCount);
+    }
+
+    [Fact]
+    public async Task FilteredPagingWithNoMatchesInitializesAnEmptyTerminalPage()
+    {
+        using var harness = new LibraryHarness((request, _) => Task.FromResult(
+            request.RequestUri!.AbsolutePath.EndsWith("/Views", StringComparison.Ordinal)
+                ? Items([View("movies", "movies")]) : Items([Movie("unrated")], 1)));
+        using var query = harness.Library.ObserveLibrary("movies", new() { OfficialRatings = ["PG"] },
+            scopeToken: TestContext.Current.CancellationToken);
+        await InitializedAsync(query);
+        Assert.Null(query.Error);
+        Assert.True(query.IsInitialized);
+        Assert.Empty(query.Items);
+        Assert.False(query.HasMore);
+        Assert.Null(query.TotalCount);
+    }
+
+    [Fact]
+    public async Task CancellingFilteredPagingStopsScanningAndDoesNotPublishLateMatches()
+    {
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var response = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var offsets = new ConcurrentQueue<int>();
+        using var scope = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        using var harness = new LibraryHarness((request, _) =>
+        {
+            if (request.RequestUri!.AbsolutePath.EndsWith("/Views", StringComparison.Ordinal))
+                return Task.FromResult(Items([View("movies", "movies")]));
+            var offset = int.Parse(Parameters(request)["StartIndex"], System.Globalization.CultureInfo.InvariantCulture);
+            offsets.Enqueue(offset);
+            if (offset == 1) { started.TrySetResult(); return response.Task; }
+            return Task.FromResult(Items([Movie("movie-" + offset) with { Genres = ["动画"] }], 3));
+        });
+        using var query = harness.Library.ObserveLibrary("movies", new() { Genres = ["动画"] }, 1, scope.Token);
+        await InitializedAsync(query);
+        Assert.Equal("movie-0", Assert.Single(query.Items).Id);
+        var loading = query.LoadMoreAsync(TestContext.Current.CancellationToken);
+        await started.Task.WaitAsync(TestContext.Current.CancellationToken);
+        scope.Cancel();
+        response.SetResult(Items([Movie("late-match") with { Genres = ["动画"] }], 3));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => loading);
+        Assert.Equal("movie-0", Assert.Single(query.Items).Id);
+        Assert.Equal([0, 1], offsets.ToArray());
+        Assert.Null(query.Error);
+    }
+
+    [Fact]
+    public async Task PhraseSearchDoesNotPublishBroadTokenMatches()
+    {
+        using var harness = new LibraryHarness((request, _) =>
+        {
+            var phrase = Parameters(request)["SearchTerm"] == "\"斗破苍穹\"";
+            EmbyItem[] rows = phrase ? [Movie("exact") with { Name = "斗破苍穹" }] :
+                [Movie("unrelated") with { Name = "苍天有泪" }, Movie("exact") with { Name = "斗破苍穹" }];
+            return Task.FromResult(Items(rows, rows.Length));
+        });
+        using var query = harness.Library.ObserveSearch("shows", "  “斗破苍穹”！  ",
+            scopeToken: TestContext.Current.CancellationToken);
+        await InitializedAsync(query);
+        Assert.Null(query.Error);
+        Assert.Equal("exact", Assert.Single(query.Items).Id);
+        Assert.False(query.HasMore);
+    }
+
+    [Fact]
+    public async Task PunctuationOnlySearchInitializesEmptyWithoutHttp()
+    {
+        using var harness = new LibraryHarness((_, _) => throw new InvalidOperationException("空搜索不应启动 HTTP。"));
+        using var query = harness.Library.ObserveSearch("shows", "  “！？……”  ",
+            scopeToken: TestContext.Current.CancellationToken);
+        await InitializedAsync(query);
+        Assert.Null(query.Error);
+        Assert.True(query.IsInitialized);
+        Assert.Empty(query.Items);
+        Assert.False(query.HasMore);
+    }
+
     [Fact]
     public async Task SearchFoldsEpisodesAndKeepsRawServerPaginationCursor()
     {
@@ -206,7 +397,6 @@ public sealed class RealLibraryTests
             if (request.RequestUri!.AbsolutePath.EndsWith("/Items/series-a", StringComparison.Ordinal)) return Task.FromResult(Item(new() { Id = "series-a", Name = "剧集A", Type = "Series" }));
             if (request.RequestUri.AbsolutePath.EndsWith("/Items/series-b", StringComparison.Ordinal)) return Task.FromResult(Item(new() { Id = "series-b", Name = "剧集B", Type = "Series" }));
             var parameters = Parameters(request);
-            Assert.Equal("测试", parameters["SearchTerm"]);
             var offset = int.Parse(parameters["StartIndex"], System.Globalization.CultureInfo.InvariantCulture);
             offsets.Enqueue(offset);
             return Task.FromResult(Items(offset == 0 ? [Episode("a1", "series-a", 1), Episode("a2", "series-a", 2)] :
