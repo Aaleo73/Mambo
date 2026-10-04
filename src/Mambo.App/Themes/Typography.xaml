@@ -177,19 +177,10 @@
         <Setter Property="VerticalAlignment" Value="Center"/>
         <Setter Property="Background" Value="{ThemeResource HeroSeparatorBrush}"/>
     </Style>
-    <Style x:Key="HeroRatingIconStyle" TargetType="FontIcon">
-        <Setter Property="FontSize" Value="13"/>
-        <Setter Property="Foreground" Value="{ThemeResource RatingBrush}"/>
-    </Style>
     <Style x:Key="HeroBadgeTextStyle" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource MiSansRegularFontFamily}"/>
         <Setter Property="FontSize" Value="{StaticResource BodySmallFontSize}"/>
         <Setter Property="Foreground" Value="{ThemeResource HeroMetaForegroundBrush}"/>
-        <Setter Property="VerticalAlignment" Value="Center"/>
-    </Style>
-    <Style x:Key="HeroStarTextStyle" TargetType="TextBlock">
-        <Setter Property="FontSize" Value="15"/>
-        <Setter Property="Foreground" Value="{ThemeResource RatingBrush}"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
     <Style x:Key="OnboardingTitleStyle" TargetType="TextBlock">

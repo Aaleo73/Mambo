@@ -697,7 +697,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         if (disposed || presentationFrozen) return;
         TopBar.Visibility = window.IsFullscreen ? Visibility.Visible : Visibility.Collapsed;
         FullscreenGlyph.Glyph = (string)Application.Current.Resources[window.IsFullscreen ? "IconFullscreenExit" : "IconFullscreen"];
-        MaximizeGlyph.Glyph = (string)Application.Current.Resources[window.IsMaximized ? "CaptionRestore" : "CaptionMaximize"];
+        MaximizeGlyph.Glyph = (string)Application.Current.Resources[window.IsMaximized ? "IconRestore" : "IconMaximize"];
         VideoViewport.Margin = window.IsFullscreen ? new Thickness(0) : new Thickness(0, 12, 0, 0);
         VideoViewport.CornerRadius = window.IsFullscreen ? new CornerRadius(0) : new CornerRadius(12, 12, 0, 0);
         VideoHost.CornerRadius = VideoViewport.CornerRadius;

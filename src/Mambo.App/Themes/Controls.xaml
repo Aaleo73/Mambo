@@ -8,7 +8,7 @@
     <!-- BrushTransition uses Feedback (160ms) with the platform brush curve, not Motion.EaseOut. -->
 
     <!-- 线条图标 -->
-    <Style TargetType="themes:LineIcon">
+    <Style x:Key="LineIconStyle" TargetType="themes:LineIcon">
         <Setter Property="Width" Value="18"/>
         <Setter Property="Height" Value="18"/>
         <Setter Property="IsHitTestVisible" Value="False"/>
@@ -28,6 +28,15 @@
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
+    </Style>
+    <Style TargetType="themes:LineIcon" BasedOn="{StaticResource LineIconStyle}"/>
+    <!-- hero 评分前的星：和其他实心图标同一套圆角 -->
+    <Style x:Key="HeroStarIconStyle" TargetType="themes:LineIcon" BasedOn="{StaticResource LineIconStyle}">
+        <Setter Property="Width" Value="14"/>
+        <Setter Property="Height" Value="14"/>
+        <Setter Property="Filled" Value="True"/>
+        <Setter Property="Glyph" Value="{StaticResource IconStar}"/>
+        <Setter Property="Foreground" Value="{ThemeResource RatingBrush}"/>
     </Style>
 
     <!--

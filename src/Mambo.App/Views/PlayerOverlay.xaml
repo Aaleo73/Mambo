@@ -47,6 +47,8 @@
             <Setter Property="Padding" Value="10,0"/>
             <Setter Property="CornerRadius" Value="18"/>
             <Setter Property="AllowFocusOnInteraction" Value="False"/>
+            <Setter Property="FontFamily" Value="{StaticResource MiSansSemiboldFontFamily}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -133,7 +135,7 @@
                             <Border x:Name="SelectedMenuRow" Visibility="Collapsed" Background="{ThemeResource PlayerMenuSelectedBrush}" BorderBrush="{ThemeResource PlayerEpisodeSelectedStrokeBrush}" BorderThickness="1" CornerRadius="12"/>
                             <Grid Padding="12,6">
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="24"/></Grid.ColumnDefinitions>
-                                <TextBlock Text="{TemplateBinding Text}" Foreground="{TemplateBinding Foreground}" FontSize="13" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock FontFamily="{StaticResource MiSansRegularFontFamily}" Text="{TemplateBinding Text}" Foreground="{TemplateBinding Foreground}" FontSize="13" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                                 <themes:LineIcon x:Name="SelectedMenuMark" Grid.Column="1" Visibility="Collapsed" Width="16" Height="16" Glyph="{StaticResource IconCheck}" Foreground="{TemplateBinding Foreground}"/>
                             </Grid>
                         </Grid>
@@ -145,7 +147,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="MenuFlyoutItem">
-                        <TextBlock Text="{TemplateBinding Text}" Margin="12,8" FontSize="12" Foreground="{ThemeResource PlayerTextSecondaryBrush}"/>
+                        <TextBlock FontFamily="{StaticResource MiSansRegularFontFamily}" Text="{TemplateBinding Text}" Margin="12,8" FontSize="12" Foreground="{ThemeResource PlayerTextSecondaryBrush}"/>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
@@ -162,6 +164,7 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Grid x:Name="EpisodeButtonRoot" CornerRadius="8" Background="Transparent">
+                            <Grid.BackgroundTransition><BrushTransition Duration="0:0:0.16"/></Grid.BackgroundTransition>
                             <VisualStateManager.VisualStateGroups>
                                 <VisualStateGroup x:Name="CommonStates">
                                     <VisualState x:Name="Normal"/>
@@ -223,7 +226,7 @@
         <StackPanel x:Name="ExternalPanel" Spacing="12" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="440"
                     Visibility="{x:Bind ViewModel.ShowExternalPanel, Mode=OneWay}">
             <themes:LineIcon Glyph="{StaticResource IconTv}" Width="44" Height="44" Foreground="{ThemeResource PlayerTextSecondaryBrush}"/>
-            <TextBlock Text="正在外部播放" FontSize="24" FontWeight="SemiBold" Foreground="{ThemeResource PlayerTextPrimaryBrush}" HorizontalAlignment="Center"/>
+            <TextBlock FontFamily="{StaticResource MiSansSemiboldFontFamily}" Text="正在外部播放" FontSize="24" FontWeight="SemiBold" Foreground="{ThemeResource PlayerTextPrimaryBrush}" HorizontalAlignment="Center"/>
             <Button x:Name="ExternalStopButton" Content="停止播放" AutomationProperties.Name="停止外部播放" HorizontalAlignment="Center" Style="{ThemeResource PlayerButton}" Click="OnCloseClick"/>
         </StackPanel>
 
@@ -231,8 +234,8 @@
             <Grid x:Name="TopBar" VerticalAlignment="Top" Background="{ThemeResource PlayerScrimTopBrush}" Padding="24,18,24,48">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <StackPanel x:Name="FullscreenTitles" Spacing="2">
-                    <TextBlock Text="{x:Bind ViewModel.Title, Mode=OneWay}" FontSize="18" FontWeight="SemiBold" Foreground="{ThemeResource PlayerTextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
-                    <TextBlock Text="{x:Bind ViewModel.Subtitle, Mode=OneWay}" FontSize="13" Foreground="{ThemeResource PlayerTextSecondaryBrush}" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock FontFamily="{StaticResource MiSansSemiboldFontFamily}" Text="{x:Bind ViewModel.Title, Mode=OneWay}" FontSize="18" FontWeight="SemiBold" Foreground="{ThemeResource PlayerTextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock FontFamily="{StaticResource MiSansRegularFontFamily}" Text="{x:Bind ViewModel.Subtitle, Mode=OneWay}" FontSize="13" Foreground="{ThemeResource PlayerTextSecondaryBrush}" TextTrimming="CharacterEllipsis"/>
                 </StackPanel>
                 <Button x:Name="CloseButton" Grid.Column="1" Style="{ThemeResource PlayerButton}" Click="OnCloseClick" AutomationProperties.Name="关闭播放" ToolTipService.ToolTip="关闭播放（Esc）">
                     <themes:LineIcon Glyph="{StaticResource IconClose}" Width="18" Height="18"/>
@@ -247,7 +250,7 @@
                                 AutomationProperties.Name="播放进度" ThumbToolTipValueConverter="{x:Null}"/>
                         <Border x:Name="SeekTip" Background="{ThemeResource PlayerPanelBrush}" BorderBrush="{ThemeResource PlayerPanelStrokeBrush}" BorderThickness="1"
                                 CornerRadius="8" Padding="8,4" VerticalAlignment="Top" HorizontalAlignment="Left" Margin="0,-28,0,0" Visibility="Collapsed" IsHitTestVisible="False">
-                            <TextBlock x:Name="SeekTipText" FontSize="12" Foreground="{ThemeResource PlayerTextPrimaryBrush}"/>
+                            <TextBlock FontFamily="{StaticResource MiSansRegularFontFamily}" x:Name="SeekTipText" FontSize="12" Foreground="{ThemeResource PlayerTextPrimaryBrush}"/>
                         </Border>
                     </Grid>
                     <Grid>
@@ -262,30 +265,30 @@
                             <Button x:Name="NextButton" Style="{ThemeResource PlayerButton}" Click="OnNextClick" IsEnabled="{x:Bind ViewModel.CanNext, Mode=OneWay}"
                                     Visibility="{x:Bind ViewModel.HasEpisodes, Mode=OneWay}" AutomationProperties.Name="下一集" ToolTipService.ToolTip="下一集"><themes:LineIcon Glyph="{StaticResource IconSkipNext}" Width="18" Height="18" Filled="True"/></Button>
                             <StackPanel Orientation="Horizontal" Spacing="4" Margin="10,0,0,0" VerticalAlignment="Center">
-                                <TextBlock Text="{x:Bind ViewModel.PositionText, Mode=OneWay}" Foreground="{ThemeResource PlayerTextPrimaryBrush}" FontSize="12" FontWeight="Medium" Typography.NumeralAlignment="Tabular"/>
-                                <TextBlock Text="/" Foreground="{ThemeResource PlayerTextSecondaryBrush}" FontSize="12"/>
-                                <TextBlock Text="{x:Bind ViewModel.DurationText, Mode=OneWay}" Foreground="{ThemeResource PlayerTextSecondaryBrush}" FontSize="12" FontWeight="Medium" Typography.NumeralAlignment="Tabular"/>
+                                <TextBlock FontFamily="{StaticResource MiSansMediumFontFamily}" Text="{x:Bind ViewModel.PositionText, Mode=OneWay}" Foreground="{ThemeResource PlayerTextPrimaryBrush}" FontSize="12" FontWeight="Medium" Typography.NumeralAlignment="Tabular"/>
+                                <TextBlock FontFamily="{StaticResource MiSansRegularFontFamily}" Text="/" Foreground="{ThemeResource PlayerTextSecondaryBrush}" FontSize="12"/>
+                                <TextBlock FontFamily="{StaticResource MiSansMediumFontFamily}" Text="{x:Bind ViewModel.DurationText, Mode=OneWay}" Foreground="{ThemeResource PlayerTextSecondaryBrush}" FontSize="12" FontWeight="Medium" Typography.NumeralAlignment="Tabular"/>
                             </StackPanel>
                         </StackPanel>
                         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                             <Button x:Name="RateButton" Style="{ThemeResource PlayerButton}" Content="{x:Bind ViewModel.RateText, Mode=OneWay}" Click="OnRateClick"
                                     IsEnabled="{x:Bind ViewModel.CanControl, Mode=OneWay}" AutomationProperties.Name="播放速度" ToolTipService.ToolTip="倍速（[ / ]）"/>
                             <Button x:Name="TracksButton" Style="{ThemeResource PlayerButton}" Click="OnTracksClick" IsEnabled="{x:Bind ViewModel.CanControl, Mode=OneWay}"
-                                    AutomationProperties.Name="字幕和音轨" Content="轨道" ToolTipService.ToolTip="字幕 / 音轨（C / V）"/>
+                                    AutomationProperties.Name="字幕和音轨" ToolTipService.ToolTip="字幕 / 音轨（C / V）"><themes:LineIcon Glyph="{StaticResource IconSubtitles}" Width="18" Height="18"/></Button>
                             <!-- 音量：收起时和其他按钮一样没有底，展开滑块时才出现胶囊底 -->
                             <Grid x:Name="VolumeHost" Background="Transparent" PointerEntered="OnVolumeEntered" PointerExited="OnVolumeExited" GotFocus="OnVolumeGotFocus" LostFocus="OnVolumeLostFocus">
                                 <Border x:Name="VolumeFill" Background="{ThemeResource PlayerHoverBrush}" CornerRadius="18" Opacity="0" IsHitTestVisible="False"/>
                                 <StackPanel Orientation="Horizontal">
                                 <Button x:Name="MuteButton" Style="{ThemeResource PlayerButton}" Click="OnMuteClick" IsEnabled="{x:Bind ViewModel.CanControl, Mode=OneWay}"
                                         AutomationProperties.Name="{x:Bind ViewModel.MuteAccessibleName, Mode=OneWay}" ToolTipService.ToolTip="静音（M）"><Grid Width="20" Height="20"><themes:LineIcon Glyph="{StaticResource IconVolumeBody}" Filled="True"/><themes:LineIcon Glyph="{x:Bind ViewModel.VolumeGlyph, Mode=OneWay}"/></Grid></Button>
-                                <Slider x:Name="VolumeSlider" Width="84" Margin="2,0,14,0" Minimum="0" Maximum="100" SmallChange="5" LargeChange="10" Visibility="Collapsed" AllowFocusOnInteraction="False"
+                                <Slider x:Name="VolumeSlider" Style="{StaticResource PlayerSeek}" IsThumbToolTipEnabled="False" Width="84" Margin="2,0,14,0" VerticalAlignment="Center" Minimum="0" Maximum="100" SmallChange="5" LargeChange="10" Visibility="Collapsed" AllowFocusOnInteraction="False"
                                         ValueChanged="OnVolumeChanged" IsEnabled="{x:Bind ViewModel.CanControl, Mode=OneWay}" AutomationProperties.Name="音量"/>
                                 </StackPanel>
                             </Grid>
                             <Button x:Name="EpisodesButton" Style="{ThemeResource PlayerButton}" Click="OnEpisodesClick" Visibility="{x:Bind ViewModel.HasEpisodes, Mode=OneWay}"
                                     AutomationProperties.Name="收起或展开选集面板" ToolTipService.ToolTip="收起 / 展开选集"><themes:LineIcon Glyph="{StaticResource IconPanelRight}" Width="18" Height="18"/></Button>
                             <Button x:Name="FullscreenButton" Style="{ThemeResource PlayerButton}" Click="OnFullscreenClick" AutomationProperties.Name="切换全屏" ToolTipService.ToolTip="全屏（F11）"><themes:LineIcon x:Name="FullscreenGlyph" Glyph="{StaticResource IconFullscreen}" Width="18" Height="18"/></Button>
-                            <Button x:Name="MaximizeButton" Style="{ThemeResource PlayerButton}" Click="OnMaximizeClick" AutomationProperties.Name="最大化或还原" ToolTipService.ToolTip="最大化 / 还原"><themes:LineIcon x:Name="MaximizeGlyph" Glyph="{StaticResource CaptionMaximize}" Box="10" Width="16" Height="16" StrokeWidth="1"/></Button>
+                            <Button x:Name="MaximizeButton" Style="{ThemeResource PlayerButton}" Click="OnMaximizeClick" AutomationProperties.Name="最大化或还原" ToolTipService.ToolTip="最大化 / 还原"><themes:LineIcon x:Name="MaximizeGlyph" Glyph="{StaticResource IconMaximize}" Width="18" Height="18"/></Button>
                         </StackPanel>
                     </Grid>
                 </StackPanel>
@@ -301,24 +304,24 @@
                     <Border x:Name="OpeningPing" CornerRadius="20" BorderThickness="1" BorderBrush="{ThemeResource PlayerBigPlayStrokeBrush}" IsHitTestVisible="False"/>
                     <ProgressRing x:Name="OpeningSpinner" IsActive="False" Width="24" Height="24" Foreground="{ThemeResource PlayerTextPrimaryBrush}"/>
                 </Grid>
-                <TextBlock Text="正在打开" Foreground="{ThemeResource PlayerTextPrimaryBrush}" FontSize="18" HorizontalAlignment="Center"/>
-                <TextBlock x:Name="SlowOpeningHint" Text="片源响应较慢" Foreground="{ThemeResource PlayerTextSecondaryBrush}" Visibility="{x:Bind ViewModel.IsSlowOpening, Mode=OneWay}"/>
+                <TextBlock FontFamily="{StaticResource MiSansRegularFontFamily}" Text="正在打开" Foreground="{ThemeResource PlayerTextPrimaryBrush}" FontSize="18" HorizontalAlignment="Center"/>
+                <TextBlock FontFamily="{StaticResource MiSansRegularFontFamily}" x:Name="SlowOpeningHint" Text="片源响应较慢" Foreground="{ThemeResource PlayerTextSecondaryBrush}" Visibility="{x:Bind ViewModel.IsSlowOpening, Mode=OneWay}"/>
                 <Button x:Name="SlowOpeningCloseButton" Content="关闭播放页" AutomationProperties.Name="关闭播放页" Style="{ThemeResource PlayerButton}" Click="OnCloseClick" HorizontalAlignment="Center" IsHitTestVisible="True" Visibility="{x:Bind ViewModel.IsSlowOpening, Mode=OneWay}"/>
             </StackPanel>
             <Border x:Name="BufferingPill" Background="{ThemeResource PlayerPillBrush}" BorderBrush="{ThemeResource PlayerPanelStrokeBrush}" BorderThickness="1" CornerRadius="18" Padding="16,8" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,32,0,0"
                     Visibility="{x:Bind ViewModel.IsBuffering, Mode=OneWay}">
-                <StackPanel Orientation="Horizontal" Spacing="10"><Ellipse x:Name="BufferingDot" Width="6" Height="6" Fill="{ThemeResource PlayerFillBrush}"/><TextBlock Text="缓冲中…" Foreground="{ThemeResource PlayerTextPrimaryBrush}"/></StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="10"><Ellipse x:Name="BufferingDot" Width="6" Height="6" Fill="{ThemeResource PlayerFillBrush}"/><TextBlock FontFamily="{StaticResource MiSansRegularFontFamily}" Text="缓冲中…" Foreground="{ThemeResource PlayerTextPrimaryBrush}"/></StackPanel>
             </Border>
             <Border x:Name="KeyHint" Background="{ThemeResource PlayerPillBrush}" BorderBrush="{ThemeResource PlayerPanelStrokeBrush}" BorderThickness="1" CornerRadius="18" Padding="16,8" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,32,0,0" Visibility="Collapsed" IsHitTestVisible="False">
-                <TextBlock x:Name="KeyHintLabel" Foreground="{ThemeResource PlayerTextPrimaryBrush}" AutomationProperties.LiveSetting="Polite"/>
+                <TextBlock FontFamily="{StaticResource MiSansRegularFontFamily}" x:Name="KeyHintLabel" Foreground="{ThemeResource PlayerTextPrimaryBrush}" AutomationProperties.LiveSetting="Polite"/>
             </Border>
             <Grid x:Name="ErrorPanel" Width="380" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="{x:Bind ViewModel.IsFailed, Mode=OneWay}">
                 <Border CornerRadius="18" themes:SoftShadow.Kind="Popup" IsHitTestVisible="False"/>
                 <Border Padding="26" Background="{ThemeResource PlayerFailureBrush}" BorderBrush="{ThemeResource PlayerPanelStrokeBrush}" BorderThickness="1" CornerRadius="18">
                 <StackPanel Spacing="14" IsHitTestVisible="True">
                     <themes:LineIcon Glyph="{StaticResource IconAlertCircle}" Width="32" Height="32" Foreground="{ThemeResource PlayerTextPrimaryBrush}"/>
-                    <TextBlock Text="这部片子暂时打不开" Foreground="{ThemeResource PlayerTextPrimaryBrush}" FontSize="18" FontWeight="SemiBold" TextAlignment="Center"/>
-                    <TextBlock Text="{x:Bind ViewModel.ErrorText, Mode=OneWay}" TextWrapping="Wrap" TextAlignment="Center" Foreground="{ThemeResource PlayerTextSecondaryBrush}"/>
+                    <TextBlock FontFamily="{StaticResource MiSansSemiboldFontFamily}" Text="这部片子暂时打不开" Foreground="{ThemeResource PlayerTextPrimaryBrush}" FontSize="18" FontWeight="SemiBold" TextAlignment="Center"/>
+                    <TextBlock FontFamily="{StaticResource MiSansRegularFontFamily}" Text="{x:Bind ViewModel.ErrorText, Mode=OneWay}" TextWrapping="Wrap" TextAlignment="Center" Foreground="{ThemeResource PlayerTextSecondaryBrush}"/>
                     <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
                         <Button x:Name="RetryButton" Style="{ThemeResource PlayerButton}" Content="从断点重试" AutomationProperties.Name="从断点重试" Click="OnRetryClick"/>
                         <Button x:Name="ErrorCloseButton" Style="{ThemeResource PlayerButton}" Content="关闭" AutomationProperties.Name="关闭播放" Click="OnCloseClick"/>
@@ -332,9 +335,9 @@
             <Border CornerRadius="18" themes:SoftShadow.Kind="Popup" IsHitTestVisible="False"/>
             <Border Padding="16" CornerRadius="18" Background="{ThemeResource PlayerPanelBrush}" BorderBrush="{ThemeResource PlayerPanelStrokeBrush}" BorderThickness="1">
             <StackPanel Spacing="8">
-                <TextBlock Text="即将播放" Foreground="{ThemeResource PlayerTextSecondaryBrush}" FontSize="12"/>
-                <TextBlock Text="{x:Bind ViewModel.NextTitle, Mode=OneWay}" Foreground="{ThemeResource PlayerTextPrimaryBrush}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                <StackPanel Orientation="Horizontal" Spacing="8"><Button x:Name="UpNextPlayButton" Content="立即播放" AutomationProperties.Name="立即播放下一集" Style="{ThemeResource PlayerButton}" Click="OnNextClick"/><Button x:Name="UpNextCancelButton" Content="取消" AutomationProperties.Name="取消即将播放提示" Style="{ThemeResource PlayerButton}" Click="OnDismissUpNextClick"/><TextBlock Text="{x:Bind ViewModel.RemainingText, Mode=OneWay}" Foreground="{ThemeResource PlayerTextSecondaryBrush}" VerticalAlignment="Center"/></StackPanel>
+                <TextBlock FontFamily="{StaticResource MiSansRegularFontFamily}" Text="即将播放" Foreground="{ThemeResource PlayerTextSecondaryBrush}" FontSize="12"/>
+                <TextBlock FontFamily="{StaticResource MiSansSemiboldFontFamily}" Text="{x:Bind ViewModel.NextTitle, Mode=OneWay}" Foreground="{ThemeResource PlayerTextPrimaryBrush}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                <StackPanel Orientation="Horizontal" Spacing="8"><Button x:Name="UpNextPlayButton" Content="立即播放" AutomationProperties.Name="立即播放下一集" Style="{ThemeResource PlayerButton}" Click="OnNextClick"/><Button x:Name="UpNextCancelButton" Content="取消" AutomationProperties.Name="取消即将播放提示" Style="{ThemeResource PlayerButton}" Click="OnDismissUpNextClick"/><TextBlock FontFamily="{StaticResource MiSansRegularFontFamily}" Text="{x:Bind ViewModel.RemainingText, Mode=OneWay}" Foreground="{ThemeResource PlayerTextSecondaryBrush}" VerticalAlignment="Center"/></StackPanel>
             </StackPanel>
             </Border>
         </Grid>
@@ -344,7 +347,7 @@
             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
             <Grid Padding="12,8,12,12">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                <TextBlock Text="选集" Foreground="{ThemeResource TextPrimaryBrush}" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <TextBlock FontFamily="{StaticResource MiSansSemiboldFontFamily}" Text="选集" Foreground="{ThemeResource TextPrimaryBrush}" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 <Button x:Name="EpisodeListButton" Grid.Column="1" Style="{StaticResource EpisodeButton}" Width="32" Click="OnEpisodeListClick" ToolTipService.ToolTip="列表" AutomationProperties.Name="选集列表"><themes:LineIcon Glyph="{StaticResource IconList}" Width="16" Height="16"/></Button>
                 <Button x:Name="EpisodeGridButton" Grid.Column="2" Style="{StaticResource EpisodeButton}" Width="32" Click="OnEpisodeGridClick" ToolTipService.ToolTip="集号" AutomationProperties.Name="选集网格"><themes:LineIcon Glyph="{StaticResource IconGrid}" Width="16" Height="16"/></Button>
             </Grid>
@@ -355,7 +358,7 @@
                         <Button Style="{StaticResource EpisodeButton}" IsEnabled="{x:Bind CanSelect, Mode=OneWay}" HorizontalAlignment="Stretch" Tag="{x:Bind ItemId}" Click="OnEpisodeClick" AutomationProperties.Name="{x:Bind AccessibleName, Mode=OneWay}">
                             <Grid>
                                 <Border Visibility="{x:Bind IsCurrent, Mode=OneWay}" Background="{ThemeResource PlayerEpisodeCurrentBrush}" BorderBrush="{ThemeResource PlayerEpisodeSelectedStrokeBrush}" BorderThickness="1" CornerRadius="8"/>
-                                <TextBlock Text="{x:Bind Title}" Margin="10,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontSize="13"/>
+                                <TextBlock FontFamily="{StaticResource MiSansRegularFontFamily}" Text="{x:Bind Title}" Margin="10,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontSize="13"/>
                             </Grid>
                         </Button>
                     </DataTemplate></ItemsRepeater.ItemTemplate>
@@ -366,7 +369,7 @@
                     <ItemsRepeater.Layout><UniformGridLayout MinItemWidth="40" MinItemHeight="40" MaximumRowsOrColumns="4" MinColumnSpacing="6" MinRowSpacing="6" ItemsStretch="Fill"/></ItemsRepeater.Layout>
                     <ItemsRepeater.ItemTemplate><DataTemplate x:DataType="vm:PlayerEpisodeViewModel">
                         <Button Style="{StaticResource EpisodeButton}" Height="40" IsEnabled="{x:Bind CanSelect, Mode=OneWay}" Tag="{x:Bind ItemId}" Click="OnEpisodeClick" ToolTipService.ToolTip="{x:Bind Title}" AutomationProperties.Name="{x:Bind AccessibleName, Mode=OneWay}">
-                            <Grid><Border Visibility="{x:Bind IsCurrent, Mode=OneWay}" Background="{ThemeResource PlayerEpisodeCurrentBrush}" BorderBrush="{ThemeResource PlayerEpisodeSelectedStrokeBrush}" BorderThickness="1" CornerRadius="8"/><TextBlock Text="{x:Bind Number}" FontSize="13" FontWeight="Medium" HorizontalAlignment="Center" VerticalAlignment="Center"/></Grid>
+                            <Grid><Border Visibility="{x:Bind IsCurrent, Mode=OneWay}" Background="{ThemeResource PlayerEpisodeCurrentBrush}" BorderBrush="{ThemeResource PlayerEpisodeSelectedStrokeBrush}" BorderThickness="1" CornerRadius="8"/><TextBlock FontFamily="{StaticResource MiSansMediumFontFamily}" Text="{x:Bind Number}" FontSize="13" FontWeight="Medium" HorizontalAlignment="Center" VerticalAlignment="Center"/></Grid>
                         </Button>
                     </DataTemplate></ItemsRepeater.ItemTemplate>
                 </ItemsRepeater>

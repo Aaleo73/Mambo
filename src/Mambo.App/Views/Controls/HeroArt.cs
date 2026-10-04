@@ -66,7 +66,7 @@ internal static class HeroArt
         if (!string.IsNullOrEmpty(rating))
         {
             var star = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
-            star.Children.Add(new TextBlock { Text = "★", Style = XamlResources.Style(resources, "HeroStarTextStyle") });
+            star.Children.Add(new LineIcon { Style = XamlResources.Style(resources, "HeroStarIconStyle") });
             star.Children.Add(Text(rating));
             row.Children.Add(star);
         }
