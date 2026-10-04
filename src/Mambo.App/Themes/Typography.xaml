@@ -12,6 +12,7 @@
             <SolidColorBrush x:Key="HeroBadgeStrokeBrush" Color="#66FFFFFF"/>
             <SolidColorBrush x:Key="HeroBadgeFillBrush" Color="#59000000"/>
             <SolidColorBrush x:Key="HeroPlayHoverBackgroundBrush" Color="#FFE4E6EA"/>
+            <SolidColorBrush x:Key="HeroPlayPressedBackgroundBrush" Color="#FFD3D6DB"/>
             <SolidColorBrush x:Key="HeroPlayBackgroundBrush" Color="#FFFFFFFF"/>
             <SolidColorBrush x:Key="HeroPlayForegroundBrush" Color="#FF0B0B0D"/>
             <SolidColorBrush x:Key="HeroPlayStrokeBrush" Color="#00FFFFFF"/>
@@ -34,6 +35,7 @@
             <SolidColorBrush x:Key="HeroBadgeStrokeBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
             <SolidColorBrush x:Key="HeroBadgeFillBrush" Color="{ThemeResource SystemColorWindowColor}"/>
             <SolidColorBrush x:Key="HeroPlayHoverBackgroundBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
+            <SolidColorBrush x:Key="HeroPlayPressedBackgroundBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
             <SolidColorBrush x:Key="HeroPlayBackgroundBrush" Color="{ThemeResource SystemColorButtonFaceColor}"/>
             <SolidColorBrush x:Key="HeroPlayForegroundBrush" Color="{ThemeResource SystemColorButtonTextColor}"/>
             <SolidColorBrush x:Key="HeroPlayStrokeBrush" Color="{ThemeResource SystemColorButtonTextColor}"/>

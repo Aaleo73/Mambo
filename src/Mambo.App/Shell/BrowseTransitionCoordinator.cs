@@ -77,6 +77,9 @@ public sealed class BrowseTransitionCoordinator : IDisposable
         committedHeroOwner = null;
         committedHero = null;
         if (args.To.Route.Kind is not (PageKind.Home or PageKind.Detail)) backdrop?.Clear();
+        // 点开 hero 本身、或从它的详情页返回时，前后是同一张图，背景原样留着；
+        // 其余进入首页或详情页的情况是换了一部作品，旧背景要和旧页面一起退场。
+        else if (heroReturn is null) backdrop?.Dismiss();
 
         if (args.From is null || args.Mode == NavigationMode.Reset ||
             (args.Mode == NavigationMode.Replace && args.From.Route.Kind == PageKind.Search && args.To.Route.Kind == PageKind.Search))

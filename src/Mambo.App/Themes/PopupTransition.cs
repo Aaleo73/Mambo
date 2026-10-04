@@ -5,10 +5,10 @@ using Microsoft.UI.Xaml.Hosting;
 
 namespace Mambo.App.Themes;
 
-/// <summary>单面轻弹层；宿主保留逻辑状态、输入和退场后的卸载所有权。</summary>
+/// <summary>单面轻弹层；宿主保留逻辑状态、输入和退场后的卸载所有权。rise 为 0 时只淡变、不位移。</summary>
 internal sealed class PopupTransition : IDisposable
 {
-    private static readonly Vector3 HiddenOffset = new(0, 4, 0);
+    private readonly Vector3 hiddenOffset;
     private readonly FrameworkElement panel;
     private readonly Visual visual;
     private CompositionScopedBatch? batch;
@@ -18,17 +18,19 @@ internal sealed class PopupTransition : IDisposable
     private bool targetVisible;
     private bool disposed;
 
-    internal PopupTransition(FrameworkElement panel)
+    internal PopupTransition(FrameworkElement panel, float rise = 4)
     {
         ArgumentNullException.ThrowIfNull(panel);
         this.panel = panel;
+        hiddenOffset = new(0, rise, 0);
         ElementCompositionPreview.SetIsTranslationEnabled(panel, true);
         visual = ElementCompositionPreview.GetElementVisual(panel);
-        visual.Properties.InsertVector3("Translation", HiddenOffset);
+        visual.Properties.InsertVector3("Translation", hiddenOffset);
         visual.Opacity = 0;
         panel.Visibility = Visibility.Collapsed;
     }
 
+    internal bool TargetVisible => targetVisible;
     internal bool IsRunning => completion is not null;
     internal Task PendingTransition => completion?.Task ?? Task.CompletedTask;
 
@@ -65,7 +67,7 @@ internal sealed class PopupTransition : IDisposable
             fade.InsertKeyFrame(1, visible ? 1 : 0, easing);
             using var move = compositor.CreateVector3KeyFrameAnimation();
             move.Duration = fade.Duration;
-            move.InsertKeyFrame(1, visible ? Vector3.Zero : HiddenOffset, easing);
+            move.InsertKeyFrame(1, visible ? Vector3.Zero : hiddenOffset, easing);
             // No stop or starting keyframe: a reversal continues from the current presentation.
             visual.StartAnimation("Opacity", fade);
             visual.Properties.StartAnimation("Translation", move);
@@ -85,6 +87,9 @@ internal sealed class PopupTransition : IDisposable
         Settle(targetVisible);
     }
 
+    /// <summary>落到当前逻辑目标，不改变它。</summary>
+    internal void Settle() => Settle(targetVisible);
+
     internal void Settle(bool visible)
     {
         if (disposed) return;
@@ -94,7 +99,7 @@ internal sealed class PopupTransition : IDisposable
         visual.StopAnimation("Opacity");
         visual.Properties.StopAnimation("Translation");
         visual.Opacity = visible ? 1 : 0;
-        visual.Properties.InsertVector3("Translation", visible ? Vector3.Zero : HiddenOffset);
+        visual.Properties.InsertVector3("Translation", visible ? Vector3.Zero : hiddenOffset);
         panel.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
         var finished = completion;
         completion = null;

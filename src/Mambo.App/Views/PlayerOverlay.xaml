@@ -275,15 +275,15 @@
                                     IsEnabled="{x:Bind ViewModel.CanControl, Mode=OneWay}" AutomationProperties.Name="播放速度" ToolTipService.ToolTip="倍速（[ / ]）"/>
                             <Button x:Name="TracksButton" Style="{ThemeResource PlayerButton}" Click="OnTracksClick" IsEnabled="{x:Bind ViewModel.CanControl, Mode=OneWay}"
                                     AutomationProperties.Name="字幕和音轨" ToolTipService.ToolTip="字幕 / 音轨（C / V）"><themes:LineIcon Glyph="{StaticResource IconSubtitles}" Width="18" Height="18"/></Button>
-                            <!-- 音量：收起时和其他按钮一样没有底，展开滑块时才出现胶囊底 -->
+                            <!-- 音量：收起时和其他按钮一样没有底，展开滑块时才出现胶囊底。
+                                 按钮组靠右对齐，滑块向左展开，静音按钮才不会从指针下移走；树内仍是先按钮后滑块，Tab 顺序不变 -->
                             <Grid x:Name="VolumeHost" Background="Transparent" PointerEntered="OnVolumeEntered" PointerExited="OnVolumeExited" GotFocus="OnVolumeGotFocus" LostFocus="OnVolumeLostFocus">
-                                <Border x:Name="VolumeFill" Background="{ThemeResource PlayerHoverBrush}" CornerRadius="18" Opacity="0" IsHitTestVisible="False"/>
-                                <StackPanel Orientation="Horizontal">
-                                <Button x:Name="MuteButton" Style="{ThemeResource PlayerButton}" Click="OnMuteClick" IsEnabled="{x:Bind ViewModel.CanControl, Mode=OneWay}"
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <Border x:Name="VolumeFill" Grid.ColumnSpan="2" Background="{ThemeResource PlayerHoverBrush}" CornerRadius="18" Opacity="0" IsHitTestVisible="False"/>
+                                <Button x:Name="MuteButton" Grid.Column="1" Style="{ThemeResource PlayerButton}" Click="OnMuteClick" IsEnabled="{x:Bind ViewModel.CanControl, Mode=OneWay}"
                                         AutomationProperties.Name="{x:Bind ViewModel.MuteAccessibleName, Mode=OneWay}" ToolTipService.ToolTip="静音（M）"><Grid Width="20" Height="20"><themes:LineIcon Glyph="{StaticResource IconVolumeBody}" Filled="True"/><themes:LineIcon Glyph="{x:Bind ViewModel.VolumeGlyph, Mode=OneWay}"/></Grid></Button>
-                                <Slider x:Name="VolumeSlider" Style="{StaticResource PlayerSeek}" IsThumbToolTipEnabled="False" Width="84" Margin="2,0,14,0" VerticalAlignment="Center" Minimum="0" Maximum="100" SmallChange="5" LargeChange="10" Visibility="Collapsed" AllowFocusOnInteraction="False"
+                                <Slider x:Name="VolumeSlider" Style="{StaticResource PlayerSeek}" IsThumbToolTipEnabled="False" Width="84" Margin="14,0,2,0" VerticalAlignment="Center" Minimum="0" Maximum="100" SmallChange="5" LargeChange="10" Visibility="Collapsed" AllowFocusOnInteraction="False"
                                         ValueChanged="OnVolumeChanged" IsEnabled="{x:Bind ViewModel.CanControl, Mode=OneWay}" AutomationProperties.Name="音量"/>
-                                </StackPanel>
                             </Grid>
                             <Button x:Name="EpisodesButton" Style="{ThemeResource PlayerButton}" Click="OnEpisodesClick" Visibility="{x:Bind ViewModel.HasEpisodes, Mode=OneWay}"
                                     AutomationProperties.Name="收起或展开选集面板" ToolTipService.ToolTip="收起 / 展开选集"><themes:LineIcon Glyph="{StaticResource IconPanelRight}" Width="18" Height="18"/></Button>

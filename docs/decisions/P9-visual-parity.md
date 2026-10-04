@@ -30,16 +30,16 @@
 | Exit | 120 ms | 详情前景、弹层、Toast、控制栏退出。 |
 | Feedback | 160 ms | 卡片 hover、刷色、冷图就绪、弹层及控制栏进入。 |
 | Content | 240 ms | 页面交接、详情前景、Hero 文字、筛选占位。 |
-| Image | 400 ms | 唯一共享 Hero 背景的纯淡变。 |
+| Image | 400 ms | 唯一共享 Hero 背景的纯淡变，使用 Symmetric。 |
 | Mode | 480 ms | 仅浏览↔播放翻折。 |
 
-自有透明度/位移只使用 EaseOut `(.2,.8,.2,1)`、EaseIn `(.4,0,1,1)`、Symmetric `(1/3,0,2/3,1)`；后者等价于 `H(t)=t²(3−2t)`。平台 BrushTransition 和按距离滚动是明确例外。7 秒轮播、Toast 驻留、单击识别和可见状态指示周期不是有限动效 token。
+自有透明度/位移只使用 EaseOut `(.2,.8,.2,1)`、EaseIn `(.4,0,1,1)`、Symmetric `(1/3,0,2/3,1)`；后者等价于 `H(t)=t²(3−2t)`，用于翻折和 Hero 背景淡变：EaseOut 是给位移调的，约 110 ms 就走完八成，400 ms 的纯淡变会看成切换。平台 BrushTransition 和按距离滚动是明确例外。7 秒轮播、Toast 驻留、单击识别和可见状态指示周期不是有限动效 token。
 
 - **一个操作，一个主 owner。** PageHost 负责旧新页交接与输入隔离；详情前景整体进退，不保留封面克隆、来源卡片坐标或逐块错峰。列表没有逐卡揭示，冷图仅在父级没有转场时淡入；缓存、缺图、回收和迟到完成不得补播或串图。
 - **逻辑目标不等于呈现对象。** 页面与背景各最多两层，第三目标只保留最新请求；同两面反向从当前值接续，不先落旧端点。库首屏等待保留旧页，空/错误可提交，不等待全部图片。
 - **背景只有一个宿主。** BrowseTransitionCoordinator/HeroBackdropPresenter 维护 owner、generation 和有界返回上下文。同 ImageRef、像素足够的 Home→详情→Back 复用实际 surface，不重复取流/解码。不同图以不透明旧图托底，避免交叉变透明露黑。
 - **Hero 整项提交。** 背景就绪或明确失败后，文字、圆点、可访问名称与点击目标一起交接；等待时旧项仍可点击。Logo 迟到只填匹配项，不重播前景。交接落稳或暂停恢复后重新计满 7 秒。
-- **轻反馈统一。** 卡片 hover/键盘焦点 Y−2 DIP、按下 Y−1 DIP；普通按钮只刷色/描边。筛选用 240 ms 连续占位和裁剪，终点才提交布局；排序、确认卡片、Toast 使用 160/120 ms 与 4 DIP，不缩放。逻辑关闭立即禁输入，实际退出结束才卸载；Dialog 的焦点围栏与队列也保持到此时。
+- **轻反馈统一。** 卡片 hover/键盘焦点 Y−2 DIP、按下 Y−1 DIP；普通按钮只刷色/描边。筛选用 240 ms 连续占位和裁剪，终点才提交布局；排序、确认卡片、Toast 和播放页的「即将播放」卡片使用 160/120 ms 与 4 DIP，不缩放；暂停时的中央大播放钮同样 160/120 ms，但只淡变。详情页播放钮按下只加深底色，不再缩到 .95。逻辑关闭立即禁输入，实际退出结束才卸载；Dialog 的焦点围栏与队列也保持到此时。
 - **生命周期是收尾边界。** 每窗口一个原生动画设置订阅；离页、非活动、关闭动画和释放落最新有效终态，恢复仅影响后续动作。回收清除旧 hover/按下与图片动画，rail 释放捕获，Toast 业务删除/Action 不等待退场。
 
 `design/` 只迁移公共 token 和现有消费者、清除退休效果；历史 HTML 播放容器仍使用 Content，不重建 WinUI 翻折或完整路由/弹层状态机。其浏览器兼容结果不能替代真实 WinUI 动态验收。
@@ -60,6 +60,7 @@
 - `PlayerOverlay` 的 `VideoViewport` 和 `EpisodePanel` 分列布局；多集队列才显示面板。鼠标在面板上移动不触发视频控制栏。列表行高 36 DIP，集号四列、行高 40 DIP、间距 6 DIP。
 - 标题按实际视频视口居中。真正全屏隐藏外壳标题栏和选集栏，在视频顶部显示标题和关闭按钮；窗口模式通过外壳返回退出播放。
 - `VideoSurface.SetViewportClip(radius, topOnly)` 是公开画面 API：窗口模式上角半径 12，全屏半径 0。只改变合成裁剪，不改变交换链的物理像素尺寸。
+- 音量滑块向左展开：底栏右侧按钮组靠右对齐，滑块若在静音按钮右边展开，按钮会从指针下移走 100 DIP，悬停后的点击落在滑块或胶囊空白处而不是静音按钮（按布局推算，未用真实鼠标复现）。视觉树内仍是先按钮后滑块，Tab 顺序不变。展开本身是瞬切。
 - 进度条保持缓冲区间；悬停与拖动预览互不覆盖。浮动提示在边缘钳制，离开后隐藏；键盘跳转仍走既有会话契约。
 - 高对比度使用系统颜色，不使用硬编码品牌色或玻璃透明度替代系统可读性。
 - 前端只消费 `Mambo.Core.Contracts` 与 `VideoSurface` 公开 API。未增加 NuGet 包。
@@ -180,6 +181,19 @@
 - 合并 `fix/library-filter-search` 后，Debug 构建为 0 警告、0 错误，372/372 项测试通过且无跳过；最终完整界面报告 `artifacts/post-merge-ui-input-synchronized.json` 为 Passed，50 次实际开关与焦点恢复通过，播放器/Surface 留存为 0/0，播放呈现资源已释放。
 - 保留两轮失败报告：`artifacts/post-merge-ui.json` 记录 `IdleChromeHides` 与 `UiInputForegroundUnavailable`；`artifacts/post-merge-ui-final.json` 的播放控件通过，但 `SortOutsidePressDismisses` 失败。排序烟测发送真实点击或 Escape 后，现先等待 `IsSortOpen` 变为 false，再读取关闭动画任务，避免输入消息尚未处理时等待旧任务；业务代码、超时与最终断言不变。最终通过不代表已定位首轮前台丢失及空闲隐藏失败的原因。
 - 本次合并复验未重跑 Native AOT、真实服务器或原生视频验收，不替代前述人工验收边界。
+
+### 播放页补动效后的复验（2026-10-04）
+
+改动：音量滑块向左展开；中央大播放钮与「即将播放」卡片改由 `PopupTransition` 进退；Hero 背景淡变改用 Symmetric；详情页播放钮去掉按下缩放。
+
+- Debug 构建 0 警告、0 错误；372/372 项测试通过，无跳过。
+- 完整界面烟测（Debug）跑了四轮，只有 `artifacts/motion-polish-debug-3.json` 一轮为 Passed。其余三轮各失败在不同检查，没有重复：
+  - `motion-polish-debug.json`：`Fold49ReversesBeforeFacingChange`（关闭在 p=.4909 才被观察到，反向时 p=.502）和 `OnboardingWholePhraseNavigatesToSettings`（真实点击）。
+  - `motion-polish-debug-2.json`：`IdleBeforeFoldClose`（重开后的控制栏 3 秒内没有收起）。
+  - `motion-polish-debug-4.json`：`EpisodeRailAwaitingDragOffset`（按下时偏移读到 0，结束时为 10470）。
+- 四轮的 50 次实际开关均完成，播放器/Surface 留存均为 0/0。
+- 同一环境下不含本次改动的 96a75b0 跑一轮通过（`motion-polish-baseline.json`）。样本太少，不能据此区分「改动引入」和「偶发」。失败项都落在真实输入、指针位置或单帧时序上，本次改动没有新增焦点、指针或 Activity 路径；这是读代码的推断，不是定位结论。
+- 未重跑 Native AOT 和原生播放验收；四处改动的实际观感未经人工查看。
 
 ## 验收边界
 

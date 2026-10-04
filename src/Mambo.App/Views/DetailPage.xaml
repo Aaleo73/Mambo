@@ -7,7 +7,7 @@
     xmlns:themes="using:Mambo.App.Themes"
     xmlns:vm="using:Mambo.App.ViewModels">
     <UserControl.Resources>
-        <!-- hero 播放钮：72px 白色实心圆，深色圆角三角，带投影；悬停略灰，按下缩到 .95 -->
+        <!-- hero 播放钮：72px 白色实心圆，深色圆角三角，带投影；悬停略灰，按下再深一档，不缩放 -->
         <Style x:Key="DetailPlayButtonStyle" TargetType="Button">
             <Setter Property="Width" Value="72"/>
             <Setter Property="Height" Value="72"/>
@@ -19,21 +19,15 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Grid x:Name="Root" Background="Transparent" RenderTransformOrigin="0.5,0.5">
-                            <Grid.RenderTransform><ScaleTransform x:Name="Press"/></Grid.RenderTransform>
+                        <Grid x:Name="Root" Background="Transparent">
                             <VisualStateManager.VisualStateGroups>
                                 <VisualStateGroup x:Name="CommonStates">
-                                    <VisualStateGroup.Transitions><VisualTransition GeneratedDuration="0:0:0.16"/></VisualStateGroup.Transitions>
                                     <VisualState x:Name="Normal"/>
                                     <VisualState x:Name="PointerOver">
                                         <VisualState.Setters><Setter Target="Surface.Background" Value="{ThemeResource HeroPlayHoverBackgroundBrush}"/></VisualState.Setters>
                                     </VisualState>
                                     <VisualState x:Name="Pressed">
-                                        <VisualState.Setters><Setter Target="Surface.Background" Value="{ThemeResource HeroPlayHoverBackgroundBrush}"/></VisualState.Setters>
-                                        <Storyboard>
-                                            <DoubleAnimation Storyboard.TargetName="Press" Storyboard.TargetProperty="ScaleX" To="0.95" Duration="0:0:0.08"/>
-                                            <DoubleAnimation Storyboard.TargetName="Press" Storyboard.TargetProperty="ScaleY" To="0.95" Duration="0:0:0.08"/>
-                                        </Storyboard>
+                                        <VisualState.Setters><Setter Target="Surface.Background" Value="{ThemeResource HeroPlayPressedBackgroundBrush}"/></VisualState.Setters>
                                     </VisualState>
                                     <VisualState x:Name="Disabled"/>
                                 </VisualStateGroup>

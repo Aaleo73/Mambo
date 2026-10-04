@@ -35,6 +35,8 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     private readonly InputSystemCursor arrow = InputSystemCursor.Create(InputSystemCursorShape.Arrow);
     private readonly CancellationTokenSource lifetime = new();
     private readonly WindowMotionObserver motionObserver;
+    private readonly PopupTransition bigPlayTransition;
+    private readonly PopupTransition upNextTransition;
     private readonly List<MenuFlyout> openFlyouts = [];
     private readonly Dictionary<MenuFlyout, List<(MenuFlyoutItem Item, RoutedEventHandler Handler)>> menuHandlers = [];
     private readonly List<WeakReference<Button>> episodeButtons = [];
@@ -86,6 +88,9 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         InitializeComponent();
         episodePanelCollapsed = settings.Current.EpisodePanelCollapsed;
         motionObserver = new(window, DispatcherQueue, OnMotionChanged);
+        // 大播放钮在控制层里，只淡变；即将播放卡片是独立弹层，带 4 DIP 位移。
+        bigPlayTransition = new(BigPlay, rise: 0);
+        upNextTransition = new(UpNext);
         EpisodeListScroll.Visibility = settings.Current.UseEpisodeGrid ? Visibility.Collapsed : Visibility.Visible;
         EpisodeGridScroll.Visibility = settings.Current.UseEpisodeGrid ? Visibility.Visible : Visibility.Collapsed;
         clock = DispatcherQueue.CreateTimer();
@@ -300,6 +305,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         StopHintAnimation();
         KeyHint.Visibility = Visibility.Collapsed;
         SetChrome(true, animate: false);
+        SettleOverlays();
         StopStateAnimations();
         try
         {
@@ -356,6 +362,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         clock.Tick -= OnClock;
         singleClick.Tick -= OnSingleClick;
         SettleChrome();
+        SettleOverlays();
         SettleHint();
         StopStateAnimations();
         DisposeMenus();
@@ -383,6 +390,8 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         if (disposed) return;
         ReleaseActiveResources();
         disposed = true;
+        bigPlayTransition.Dispose();
+        upNextTransition.Dispose();
         EpisodeList.ElementPrepared -= OnEpisodeElementPrepared;
         EpisodeGrid.ElementPrepared -= OnEpisodeElementPrepared;
         DetachXamlEvents();
@@ -509,6 +518,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         KeyHint.Visibility = Visibility.Collapsed;
         StopStateAnimations();
         SettleChrome();
+        SettleOverlays();
         ProtectedCursor = arrow;
     }
 
@@ -591,8 +601,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         var changed = chromeVisible != visible;
         chromeVisible = visible;
         Chrome.IsHitTestVisible = visible && !transitionActive && !closing;
-        var canAnimate = animate && IsLoaded && window.IsActive && motionObserver.AnimationsEnabled && !transitionActive && !closing;
-        if (!canAnimate) SettleChrome();
+        if (!animate || !CanAnimate) SettleChrome();
         else if (changed)
         {
             var visual = ElementCompositionPreview.GetElementVisual(Chrome);
@@ -648,6 +657,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         if (!enabled)
         {
             SettleChrome();
+            SettleOverlays();
             SettleHint();
         }
         UpdateStateAnimations();
@@ -659,6 +669,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         if (!window.IsActive)
         {
             SettleChrome();
+            SettleOverlays();
             SettleHint();
         }
         UpdateStateAnimations();
@@ -675,9 +686,33 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     private void UpdateStatus()
     {
         if (disposed || presentationFrozen) return;
-        BigPlay.Visibility = ViewModel.IsPaused && !ViewModel.IsExternal ? Visibility.Visible : Visibility.Collapsed;
-        UpNext.Visibility = ViewModel.ShowUpNext ? Visibility.Visible : Visibility.Collapsed;
+        var paused = ViewModel.IsPaused && !ViewModel.IsExternal;
+        var upNext = ViewModel.ShowUpNext;
+        // 逻辑关闭立即禁输入并交还焦点；退场结束才折叠。
+        if (!upNext && upNextTransition.TargetVisible && XamlRoot is not null
+            && IsWithin(FocusManager.GetFocusedElement(XamlRoot) as DependencyObject, UpNext))
+            Focus(FocusState.Programmatic);
+        BigPlay.IsHitTestVisible = paused;
+        UpNext.IsHitTestVisible = upNext;
+        Present(bigPlayTransition, paused);
+        Present(upNextTransition, upNext);
         UpdateStateAnimations();
+    }
+
+    private bool CanAnimate => IsLoaded && window.IsActive && motionObserver.AnimationsEnabled && !transitionActive && !closing;
+
+    private void Present(PopupTransition transition, bool visible)
+    {
+        var animate = CanAnimate;
+        // 每次进度刷新都会经过这里：目标未变且没有在途动画时不重复落终态。
+        if (transition.TargetVisible == visible && (animate || !transition.IsRunning)) return;
+        _ = visible ? transition.OpenAsync(animate) : transition.CloseAsync(animate);
+    }
+
+    private void SettleOverlays()
+    {
+        bigPlayTransition.Settle();
+        upNextTransition.Settle();
     }
 
     private void UpdateControls()

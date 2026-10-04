@@ -35,7 +35,8 @@
             <Grid>
                 <StackPanel x:Name="ContentPanel" Padding="0,0,0,32">
                     <controls:HeroCarousel x:Name="Hero" Height="560"/>
-                    <ItemsRepeater x:Name="RailList">
+                    <!-- hero 文字离底边只有 12，第一行标题再往下让 20，不和简介挤在一起 -->
+                    <ItemsRepeater x:Name="RailList" Margin="0,20,0,0">
                         <ItemsRepeater.ItemTemplate>
                             <DataTemplate x:DataType="vm:RailViewModel">
                                 <controls:CardRail Rail="{x:Bind}"/>
@@ -51,7 +52,7 @@
                             <Border Style="{StaticResource SkeletonBlockStyle}" Width="320" Height="16" CornerRadius="8" HorizontalAlignment="Left"/>
                         </StackPanel>
                     </Grid>
-                    <Border Style="{StaticResource SkeletonBlockStyle}" Width="128" Height="24" CornerRadius="12" Margin="24,0,0,12" HorizontalAlignment="Left"/>
+                    <Border Style="{StaticResource SkeletonBlockStyle}" Width="128" Height="24" CornerRadius="12" Margin="24,20,0,12" HorizontalAlignment="Left"/>
                     <StackPanel x:Name="SkeletonCards" Orientation="Horizontal" Spacing="{StaticResource RailSpacing}" Padding="24,0"/>
                 </StackPanel>
                 <controls:StateView x:Name="LoadFailed" Title="首页加载失败" Visibility="Collapsed">

@@ -36,6 +36,7 @@ public sealed partial class HeroBackdropPresenter : Grid, IDisposable
     private int commitGeneration;
     private bool disposed;
     private bool highContrast;
+    private bool dismissed;
     private double verticalOffset;
     private double artWidth;
     private double artHeight;
@@ -167,6 +168,16 @@ public sealed partial class HeroBackdropPresenter : Grid, IDisposable
             }
             if (!Valid()) return false;
             EnsureVisuals();
+            // 上一张已经随页面退出淡掉了：丢掉它，新图从空白淡入，而不是和旧图交叉溶解。
+            var revealing = dismissed;
+            if (dismissed)
+            {
+                dismissed = false;
+                root!.StopAnimation("Opacity");
+                lower!.SetSurface(null);
+                upper!.SetSurface(null);
+                target = null;
+            }
             root!.Opacity = 1;
             if (ReferenceEquals(outstanding, prepared)) outstanding = null;
             var resource = prepared.Surface;
@@ -207,6 +218,7 @@ public sealed partial class HeroBackdropPresenter : Grid, IDisposable
                 upper.Visual.Opacity = 0;
                 target = lower;
                 committed?.Invoke();
+                if (revealing && canAnimate) FadeRoot(0, 1, Motion.Content, Motion.EaseOut);
                 return true;
             }
 
@@ -266,7 +278,8 @@ public sealed partial class HeroBackdropPresenter : Grid, IDisposable
         batch = compositor.CreateScopedBatch(CompositionBatchTypes.Animation);
         batch.Completed += OnCompleted;
         transition = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        using var easing = Motion.CreateEasing(compositor, Motion.EaseOut);
+        // EaseOut 前 110 ms 就走完八成，400 ms 的纯淡变看起来像切换；对称曲线才是匀速感的溶解。
+        using var easing = Motion.CreateEasing(compositor, Motion.Symmetric);
         using var animation = compositor.CreateScalarKeyFrameAnimation();
         animation.Duration = Motion.Image;
         animation.InsertKeyFrame(1, opacity, easing);
@@ -364,7 +377,36 @@ public sealed partial class HeroBackdropPresenter : Grid, IDisposable
         lower?.SetSurface(null);
         upper?.SetSurface(null);
         target = null;
-        if (root is not null) root.Opacity = 0;
+        dismissed = false;
+        if (root is null) return;
+        root.StopAnimation("Opacity");
+        root.Opacity = 0;
+    }
+
+    /// <summary>
+    /// 换到另一部作品时调用：当前背景和旧页面一起淡出，新背景准备好后再淡入。
+    /// 不这样做的话，旧海报会一直留到新页面的数据和图片都加载完。
+    /// </summary>
+    internal void Dismiss()
+    {
+        CancelPreparation();
+        Settle();
+        var canAnimate = root is not null && lower?.Surface is not null && IsLoaded && !highContrast && (window?.IsActive ?? true)
+            && (motionObserver?.AnimationsEnabled ?? Motion.AnimationsEnabled);
+        if (!canAnimate) { Clear(); return; }
+        dismissed = true;
+        FadeRoot(null, 0, Motion.Exit, Motion.EaseIn);
+    }
+
+    private void FadeRoot(float? from, float to, TimeSpan duration, (Vector2, Vector2) spline)
+    {
+        var compositor = root!.Compositor;
+        using var easing = Motion.CreateEasing(compositor, spline);
+        using var animation = compositor.CreateScalarKeyFrameAnimation();
+        if (from is { } start) animation.InsertKeyFrame(0, start);
+        animation.InsertKeyFrame(1, to, easing);
+        animation.Duration = duration;
+        root.StartAnimation("Opacity", animation);
     }
 
     public void Dispose()
