@@ -6,11 +6,11 @@ using Microsoft.UI.Xaml.Hosting;
 
 namespace Mambo.App.Views.Controls;
 
-/// <summary>Quiet card feedback: hover/focus −2 DIP, press −1 DIP, release with Feedback/EaseOut.</summary>
+/// <summary>Card feedback: hover/focus −4 DIP, press −2 DIP, release with Feedback/EaseOut. Rails keep 8 DIP of headroom above the cards.</summary>
 internal static class CardMotion
 {
-    private const float HoverLift = -2;
-    private const float PressLift = -1;
+    private const float HoverLift = -4;
+    private const float PressLift = -2;
 
     public static void Lift(UIElement element, bool up) => Move(element, up ? HoverLift : 0, Motion.Feedback);
 

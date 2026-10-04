@@ -1,7 +1,7 @@
 <ResourceDictionary
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <!-- 视觉基准是原项目的取值（见 docs/decisions/P9-visual-parity.md），与 design/tokens.css 同步。深色键为 Default，高对比度跟随系统颜色。 -->
+    <!-- 视觉基准是原项目的取值（见 docs/decisions/P9-visual-parity.md）；强调色改为中性色，见 docs/decisions/P9-neutral-accent.md，与 design/tokens.css 同步。深色键为 Default，高对比度跟随系统颜色。 -->
     <ResourceDictionary.ThemeDictionaries>
         <ResourceDictionary x:Key="Light">
             <SolidColorBrush x:Key="TextPrimaryBrush" Color="#E6181818"/>
@@ -9,11 +9,11 @@
             <SolidColorBrush x:Key="TextTertiaryBrush" Color="#8C262626"/>
             <SolidColorBrush x:Key="TextDisabledBrush" Color="#52000000"/>
             <SolidColorBrush x:Key="TextOnAccentBrush" Color="#FFFFFFFF"/>
-            <SolidColorBrush x:Key="AccentBrush" Color="#FF0C68B8"/>
-            <SolidColorBrush x:Key="AccentHoverBrush" Color="#FF095A9F"/>
-            <SolidColorBrush x:Key="AccentPressedBrush" Color="#FF08508E"/>
-            <SolidColorBrush x:Key="AccentSubtleBrush" Color="#290C68B8"/>
-            <SolidColorBrush x:Key="AccentTextBrush" Color="#FF0A5FA8"/>
+            <SolidColorBrush x:Key="AccentBrush" Color="#FF202124"/>
+            <SolidColorBrush x:Key="AccentHoverBrush" Color="#FF34363A"/>
+            <SolidColorBrush x:Key="AccentPressedBrush" Color="#FF0B0B0D"/>
+            <SolidColorBrush x:Key="AccentSubtleBrush" Color="#1F000000"/>
+            <SolidColorBrush x:Key="AccentTextBrush" Color="#E6181818"/>
             <SolidColorBrush x:Key="DangerBrush" Color="#FFC42B1C"/>
             <SolidColorBrush x:Key="DangerHoverBrush" Color="#FFA52315"/>
             <SolidColorBrush x:Key="DangerSubtleBrush" Color="#14C42B1C"/>
@@ -34,8 +34,8 @@
             <SolidColorBrush x:Key="InputFillFocusedBrush" Color="#09000000"/>
             <SolidColorBrush x:Key="InputStrokeBrush" Color="#33000000"/>
             <SolidColorBrush x:Key="InputStrokeFocusedBrush" Color="#61000000"/>
-            <SolidColorBrush x:Key="FocusStrokeBrush" Color="#B80C68B8"/>
-            <SolidColorBrush x:Key="FocusGlowBrush" Color="#290C68B8"/>
+            <SolidColorBrush x:Key="FocusStrokeBrush" Color="#B8181818"/>
+            <SolidColorBrush x:Key="FocusGlowBrush" Color="#1F000000"/>
             <SolidColorBrush x:Key="NavActiveBrush" Color="#1F000000"/>
             <SolidColorBrush x:Key="NavHoverBrush" Color="#0A000000"/>
             <SolidColorBrush x:Key="NavPressedBrush" Color="#14000000"/>
@@ -202,12 +202,12 @@
             <SolidColorBrush x:Key="TextSecondaryBrush" Color="#B8FFFFFF"/>
             <SolidColorBrush x:Key="TextTertiaryBrush" Color="#8CFFFFFF"/>
             <SolidColorBrush x:Key="TextDisabledBrush" Color="#57FFFFFF"/>
-            <SolidColorBrush x:Key="TextOnAccentBrush" Color="#FFFFFFFF"/>
-            <SolidColorBrush x:Key="AccentBrush" Color="#FF3B8FE0"/>
-            <SolidColorBrush x:Key="AccentHoverBrush" Color="#FF5AA2E6"/>
-            <SolidColorBrush x:Key="AccentPressedBrush" Color="#FF2F7CC6"/>
-            <SolidColorBrush x:Key="AccentSubtleBrush" Color="#293B8FE0"/>
-            <SolidColorBrush x:Key="AccentTextBrush" Color="#FF7AB7F0"/>
+            <SolidColorBrush x:Key="TextOnAccentBrush" Color="#FF1D1F24"/>
+            <SolidColorBrush x:Key="AccentBrush" Color="#FFF2F2F2"/>
+            <SolidColorBrush x:Key="AccentHoverBrush" Color="#FFFFFFFF"/>
+            <SolidColorBrush x:Key="AccentPressedBrush" Color="#FFD9D9D9"/>
+            <SolidColorBrush x:Key="AccentSubtleBrush" Color="#24FFFFFF"/>
+            <SolidColorBrush x:Key="AccentTextBrush" Color="#EBFFFFFF"/>
             <SolidColorBrush x:Key="DangerBrush" Color="#FFE0503F"/>
             <SolidColorBrush x:Key="DangerHoverBrush" Color="#FFC94232"/>
             <SolidColorBrush x:Key="DangerSubtleBrush" Color="#24E0503F"/>
@@ -228,8 +228,8 @@
             <SolidColorBrush x:Key="InputFillFocusedBrush" Color="#12FFFFFF"/>
             <SolidColorBrush x:Key="InputStrokeBrush" Color="#33FFFFFF"/>
             <SolidColorBrush x:Key="InputStrokeFocusedBrush" Color="#73FFFFFF"/>
-            <SolidColorBrush x:Key="FocusStrokeBrush" Color="#CC7AB7F0"/>
-            <SolidColorBrush x:Key="FocusGlowBrush" Color="#383B8FE0"/>
+            <SolidColorBrush x:Key="FocusStrokeBrush" Color="#D9FFFFFF"/>
+            <SolidColorBrush x:Key="FocusGlowBrush" Color="#24FFFFFF"/>
             <SolidColorBrush x:Key="NavActiveBrush" Color="#1FFFFFFF"/>
             <SolidColorBrush x:Key="NavHoverBrush" Color="#0DFFFFFF"/>
             <SolidColorBrush x:Key="NavPressedBrush" Color="#14FFFFFF"/>
@@ -330,9 +330,9 @@
             <SolidColorBrush x:Key="ToggleSwitchKnobFillOff" Color="#FFFFFFFF"/>
             <SolidColorBrush x:Key="ToggleSwitchKnobFillOffPointerOver" Color="#FFFFFFFF"/>
             <SolidColorBrush x:Key="ToggleSwitchKnobFillOffPressed" Color="#FFFFFFFF"/>
-            <SolidColorBrush x:Key="ToggleSwitchKnobFillOn" Color="#FFFFFFFF"/>
-            <SolidColorBrush x:Key="ToggleSwitchKnobFillOnPointerOver" Color="#FFFFFFFF"/>
-            <SolidColorBrush x:Key="ToggleSwitchKnobFillOnPressed" Color="#FFFFFFFF"/>
+            <SolidColorBrush x:Key="ToggleSwitchKnobFillOn" Color="#FF1D1F24"/>
+            <SolidColorBrush x:Key="ToggleSwitchKnobFillOnPointerOver" Color="#FF1D1F24"/>
+            <SolidColorBrush x:Key="ToggleSwitchKnobFillOnPressed" Color="#FF1D1F24"/>
             <StaticResource x:Key="MenuFlyoutPresenterBackground" ResourceKey="PopupBackgroundBrush"/>
             <StaticResource x:Key="MenuFlyoutPresenterBorderBrush" ResourceKey="PopupStrokeBrush"/>
             <StaticResource x:Key="MenuFlyoutItemBackgroundPointerOver" ResourceKey="PopupItemHoverBrush"/>

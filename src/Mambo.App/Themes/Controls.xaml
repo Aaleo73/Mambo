@@ -320,7 +320,7 @@
         </Setter>
     </Style>
 
-    <!-- 侧栏导航项：40 高、圆角 8、半粗体；选中黑 12% 底加左侧 3×16 主色条 -->
+    <!-- 侧栏导航项：40 高、圆角 8、半粗体；选中黑 12% 底加左侧 3×16 竖条（强调色现在是中性色） -->
     <Style x:Key="NavItemStyle" TargetType="RadioButton">
         <Setter Property="Height" Value="{StaticResource NavItemHeight}"/>
         <Setter Property="MinWidth" Value="0"/>
