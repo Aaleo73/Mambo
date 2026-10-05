@@ -154,7 +154,7 @@ internal static class Program
         process.Kill(entireProcessTree: false);
         await process.WaitForExitAsync(token).ConfigureAwait(false);
         evidence.OwnedProcessExited = process.HasExited;
-        await WaitAsync(() => session.Snapshot.Phase == PlayerPhase.Failed && firstEngine!.TerminationCount > 0 &&
+        await WaitAsync(() => session.Snapshot.Phase == PlayerPhase.Closed && coordinator.Current is null && firstEngine!.TerminationCount > 0 &&
             handler.Count("Stopped", successful: false) >= 1 && outbox.Snapshot.Length == 1, scheduler, token).ConfigureAwait(false);
         await outbox.WaitForIdleAsync(token).ConfigureAwait(false);
         var stopped = outbox.Snapshot.Single();
@@ -170,7 +170,7 @@ internal static class Program
         evidence.EngineTerminationObserved = true;
         evidence.EngineFailureEventCount = firstEngine!.FailureCount;
         evidence.EngineShutdownEventCount = firstEngine.ShutdownCount;
-        evidence.SessionFailed = true;
+        evidence.SessionClosed = true;
         evidence.StoppedPersistedWhileOffline = true;
         evidence.FinalPositionTicks = stopped.PositionTicks;
 
@@ -182,7 +182,7 @@ internal static class Program
         await session.CloseAsync(token).ConfigureAwait(false);
         scheduler.Drain();
         Require(handler.Count("Stopped", successful: true) == 1 && Volatile.Read(ref notifications) == 1,
-            "关闭已失败会话重复产生停止通知或送达。");
+            "重复关闭已结束会话产生了额外停止通知或送达。");
         evidence.StoppedDeliveredAfterRecovery = true;
         evidence.CloseDidNotDuplicateStopped = true;
 
@@ -405,7 +405,7 @@ internal sealed class SmokeEvidence
     public bool EngineTerminationObserved { get; set; }
     public int EngineFailureEventCount { get; set; }
     public int EngineShutdownEventCount { get; set; }
-    public bool SessionFailed { get; set; }
+    public bool SessionClosed { get; set; }
     public bool StoppedPersistedWhileOffline { get; set; }
     public bool StoppedDeliveredAfterRecovery { get; set; }
     public bool CloseDidNotDuplicateStopped { get; set; }

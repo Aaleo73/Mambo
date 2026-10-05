@@ -376,7 +376,9 @@ gpu-shader-cache-dir=%LOCALAPPDATA%\Mambo\mpv\shader-cache（缩短 gpu-next 首
 | 关闭 | — | `stop`，最多等 2 秒 END_FILE，再按 §5.11 收尾 → Closed |
 | 引擎意外退出 | — | 完成当前集的停止上报 → Failed（「播放器已退出」） |
 
-### 6.3 连播：mpv 播放列表里只保留"当前集 + 下一集"
+### 6.3 连播：内置保留"当前集 + 下一集"，外置提供后续剧集列表
+
+2026-10-05 用户修正外部播放器行为：外置 mpv 加载自己的配置、脚本和控件，Mambo 留在浏览页面。外置模式在当前集开播后依次追加后续剧集，保留已播条目供 mpv 原生列表返回；重播使用新的上报生命周期。以下“当前集 + 下一集”的裁剪策略只适用于内置模式。见 `docs/decisions/P7-external-handoff.md`。
 
 - **追加时机**：当前集**确认开播后**才追加下一集。
   - 首集加载失败时 mpv 处于 idle，候选回退可以放心用 replace；
@@ -543,9 +545,10 @@ public interface IPlayerEngine : IAsyncDisposable {
   - **下载**：并发 6；优先级 Hero > Visible > Prefetch；合并重复请求；可取消。
   - **请求尺寸**：MaxWidth = DIP 宽 × 缩放比例，向上取到 {160, 240, 320, 480, 640, 960, 1280, 1920, 2560} 中的一档；Quality 取 90。
 - **App（`ImageLoader`）**：
-  - 显示：字节 → `InMemoryRandomAccessStream` → `BitmapImage { DecodePixelType=Logical, DecodePixelWidth=<DIP 宽> }` → `SetSourceAsync`，即按显示尺寸解码。
-  - 复用：`DecodedImageCache` 以弱引用缓存 `BitmapImage`，键为（缓存键, 解码宽度），回到页面时不用重新解码。
+  - 显示：字节 → `InMemoryRandomAccessStream` → `BitmapImage { DecodePixelType=Physical, DecodePixelWidth=ceil(DIP 宽 × XamlRoot.RasterizationScale) }` → `SetSourceAsync`。下载与解码使用同一个物理像素宽度，流解码不依赖隐式 DPI 推断。
+  - 复用：`DecodedImageCache` 以弱引用缓存 `BitmapImage`，键为（图片引用, 物理像素解码宽度）；不同 DPI 所需的分辨率分开缓存，相同物理尺寸可以共享。
   - `RemoteImage` 控件：显示占位 → 图片就绪后淡入 140ms；在 Unloaded 时和列表容器回收时（`ContainerContentChanging` 且 `InRecycleQueue`）取消加载。
+  - 卡片宽度、解码宽度提示或 XamlRoot 缩放率增大时升级图片；同轮布局通知合并，升级期间保留海报与文字，失败保留旧图。卸载时解除 XamlRoot 订阅，换绑后拒绝旧请求回填。见 `docs/decisions/P6-image-resolution.md`。
 - **预取**：hero 预取后两张幻灯片（Hero 优先级）；卡片悬停 300ms 后预取详情数据（后台优先级）。
 
 ### 7.8 凭据、设置、路径、日志
@@ -852,7 +855,7 @@ PlayerOverlay（Grid，RequestedTheme=Dark，IsTabStop=True，持有焦点）
 - `ExternalMpvEngine`：带超时的 JSON IPC
 - mpv.exe 选择与校验：用 `Microsoft.Windows.Storage.Pickers.FileOpenPicker(AppWindow.Id)` 选择，用 `--version` 校验（3 秒超时），记录路径、SHA-256、大小、修改时间；文件变化后需要重新批准
 - 进程生命周期管理
-- "正在外部播放"面板
+- 外置 mpv 接管画面和交互，Mambo 保留浏览页、后台跟踪进度；失败通过通知重试（2026-10-05 用户修正，取消原“正在外部播放”面板）
 - 设置页的播放方式切换
 
 **验收**
@@ -1184,7 +1187,7 @@ PlayerOverlay（Grid，RequestedTheme=Dark，IsTabStop=True，持有焦点）
 
 - **「服务器配置」**：见 A.2。
 - **「播放器设置」**：
-  - 「播放方式」二选一：「内置画面」（默认）/「外部窗口」（只有在自定义 mpv.exe 已通过校验时可用，P7 实现）。
+  - 「播放方式」二选一：「内置播放器」（默认）/「外置 MPV」（只有在自定义 mpv.exe 已通过校验时可用）。外置模式使用 mpv 自身的配置、脚本、快捷键和控制界面，不打开 Mambo 播放层；HDR、硬件解码、音量和倍速由 mpv 自行管理。
   - 「MPV 路径」：输入框 +「选择文件」（只显示 .exe）。
   - 「预览播放页」：用假数据打开播放层。
   - 状态行，四种之一：校验中 / 已批准 / 当前使用内置播放器 / 路径无效、已改用内置。
@@ -1505,7 +1508,8 @@ PlayerOverlay（Grid，RequestedTheme=Dark，IsTabStop=True，持有焦点）
 - [ ] P4 外壳与浏览页面（实现、345 项单元测试、Debug/AOT 界面与深滚动恢复通过；最新交付候选实际缓存首页 972/919/827 ms，800 ms 目标未通过；GPU 呈现 60fps 尚未验收，当前令牌没有实时跟踪权限，见 `docs/decisions/P4-P6-integration.md`）
 - [ ] P5 播放页 UI（实现及附录 A.10 共享事件/真实按钮自动回归通过；停止播放后详情/最近/资料库实际 XAML 进度刷新在 Debug/AOT/安装目录通过；真实键鼠、光标与系统效果尚未人工确认，不将自动化当作人工观察）
 - [ ] P6 打磨与加固（程序化关闭绕过清理的原生崩溃与自绘关闭按钮已修复；Debug/AOT/安装目录完整界面回归、实际关闭按钮四项、五项原生 UIA、50 次假播放关闭零留存通过；最新窗口 Loaded 为 881/865/774 ms，600 ms 目标未通过；讲述人实际朗读及 P0 原生硬件资源遗留保留）
-- [x] P7 外部播放器（后端、设置与面板接入完成；Debug/AOT IPC、真实外部进程终止/停止补报/文件替换重新批准及界面自动回归通过；经用户授权采用本机真实进程自动验证，未把先前暂缓的人工 Emby 后台观察记成通过，见 `docs/decisions/P7-external-process-smoke.md`）
+- [x] P7 外部播放器（2026-10-05 按用户要求改为外置 mpv 接管，取消播放页面板，原生列表预先显示各集名称；384 项单元测试通过，用户自备 mpv 的 Debug/AOT 专项证据及完整界面输入回归限制见 `docs/decisions/P7-external-handoff.md`。既有进程终止/停止补报/文件替换重新批准记录见 `docs/decisions/P7-external-process-smoke.md`；未把人工 Emby 后台观察记为通过）
 - [x] P8 本地打包交付（Native AOT、自包含便携/安装/源码包与许可记录完成；最终候选首次安装、安装 UI、升级正常关闭及卸载保留全部用户文件通过；专用 VM 已按用户要求取消。此项不代表已公开发布；完整原生对应源码缺口及清理受阻见 `docs/decisions/P8-packaging.md`）
 - [ ] P9 统一动效语言（六档时长/三条曲线、浏览交接、共享背景与 Hero 原子提交、可反向播放翻折、弹层及控件生命周期、公共 CSS/历史原型已迁移；最终 Debug/AOT 完整门禁通过，均包含 Motion 90 项、50 次开关/焦点恢复及播放器/Surface 零留存；实际原生播放通过。标题栏所有权切换后完整门禁未再出现原生释放异常；两种尺寸动态对比、物理最小化/恢复与标题栏操作已记录，不声称性能提升。Windows 动画设置切换、真实媒体观感及 Snap 弹出层人工确认仍待完成，见 `docs/decisions/P9-visual-parity.md`）
 - [x] 筛选与搜索专项修复（2026-10-04：独立分支兼容服务器忽略筛选参数；完整短语搜索、精确片名分组优先及动态计数；372 项回归、真实服务器原生页面自动化与渲染截图通过，见 `docs/handoff/backend-status.md`）
+- [x] 海报清晰度专项修复（2026-10-05：解码及缓存统一物理像素；卡片宽度/DPI 增大时保留旧图并升级；384 项测试、Debug 与 AOT 各 10 项图片专项通过，含实际 XAML 细条纹渲染对比。完整 UI 检查受窗口遮挡中断，跨显示器观感仍待人工确认，见 `docs/decisions/P6-image-resolution.md`）

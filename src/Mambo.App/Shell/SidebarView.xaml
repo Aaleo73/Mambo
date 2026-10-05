@@ -15,7 +15,7 @@
             <TextBox x:Name="SearchBox" Style="{StaticResource SoftInputStyle}" Padding="36,9,8,9"
                      Text="{x:Bind ViewModel.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                      IsEnabled="{x:Bind ViewModel.IsLoggedIn, Mode=OneWay}" MaxLength="256"
-                     KeyDown="OnSearchKeyDown" AutomationProperties.Name="搜索"/>
+                     KeyDown="OnSearchKeyDown" AutomationProperties.Name="搜索" AutomationProperties.AcceleratorKey="Ctrl+F"/>
             <Button Style="{StaticResource QuietIconButtonStyle}" Margin="5,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center"
                     IsEnabled="{x:Bind ViewModel.IsLoggedIn, Mode=OneWay}" IsTabStop="False"
                     Click="OnSearchClick" AutomationProperties.Name="开始搜索">

@@ -43,7 +43,7 @@ function Test-UiOnlyRetainedFailure($Report, [DateTimeOffset]$ProcessStartUtc) {
              $Report.$field -ne 50)) { return $false }
     }
     if ($Report.AnimationsEnabled -isnot [bool]) { return $false }
-    foreach ($component in @('PlayerControls', 'Navigation', 'PageRecovery', 'PlaybackRefresh', 'Motion')) {
+    foreach ($component in @('PlayerControls', 'Navigation', 'PageRecovery', 'PlaybackRefresh', 'Motion', 'WindowActivation')) {
         if ($null -eq $Report.$component -or $Report.$component.Passed -isnot [bool] -or -not $Report.$component.Passed) { return $false }
     }
     foreach ($field in @('CaptionCloseCancelled', 'CaptionCloseReentryIgnored', 'CaptionCloseConfirmed', 'CaptionCloseCleanupCompleted')) {

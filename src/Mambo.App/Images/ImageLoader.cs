@@ -7,7 +7,7 @@ using Windows.Storage.Streams;
 namespace Mambo.App.Images;
 
 /// <summary>
-/// 从 IImageService 取压缩字节，按显示尺寸（DIP）解码成 BitmapImage；
+/// 从 IImageService 取压缩字节，按显示尺寸 × XamlRoot 缩放率的物理像素解码成 BitmapImage；
 /// 解码结果以弱引用缓存，回到页面时不必重新解码。只在 UI 线程使用。
 /// </summary>
 public sealed class ImageLoader : IDisposable
@@ -31,9 +31,10 @@ public sealed class ImageLoader : IDisposable
     internal long DecodedHitCount => Interlocked.Read(ref decodedHitCount);
     internal int ActiveFetchCount => Volatile.Read(ref activeFetchCount);
 
-    public BitmapImage? TryGetDecoded(ImageRef image, int decodeWidth)
+    /// <summary>缓存键使用物理像素宽度，避免不同 DPI 下复用低分辨率位图。</summary>
+    public BitmapImage? TryGetDecoded(ImageRef image, int pixelWidth)
     {
-        var value = decoded.Get(image, decodeWidth);
+        var value = decoded.Get(image, pixelWidth);
         if (value is not null) Interlocked.Increment(ref decodedHitCount);
         return value;
     }
@@ -54,11 +55,13 @@ public sealed class ImageLoader : IDisposable
         var generation = decoded.Generation;
         var token = scope.Token;
         token.ThrowIfCancellationRequested();
-        var decodeWidth = Math.Max(1, (int)Math.Ceiling(dipWidth));
-        if (TryGetDecoded(image, decodeWidth) is { } hit) return hit;
-        using var stream = await FetchStreamAsync(image, (int)Math.Ceiling(dipWidth * scale), priority, token);
+        var pixelWidth = GetPixelWidth(dipWidth, scale);
+        if (pixelWidth == 0) return null;
+        if (TryGetDecoded(image, pixelWidth) is { } hit) return hit;
+        using var stream = await FetchStreamAsync(image, pixelWidth, priority, token);
         if (stream is null) return null;
-        var bitmap = new BitmapImage { DecodePixelType = DecodePixelType.Logical, DecodePixelWidth = decodeWidth };
+        // 位图从流创建时尚未挂到 XamlRoot；显式使用物理像素，不依赖隐式的 DPI 推断。
+        var bitmap = new BitmapImage { DecodePixelType = DecodePixelType.Physical, DecodePixelWidth = pixelWidth };
         try { await bitmap.SetSourceAsync(stream); }
         catch (Exception error) when (error is COMException or ArgumentException or InvalidOperationException)
         {
@@ -66,9 +69,13 @@ public sealed class ImageLoader : IDisposable
             return null;
         }
         token.ThrowIfCancellationRequested();
-        if (!decoded.Set(image, decodeWidth, bitmap, generation)) return null;
+        if (!decoded.Set(image, pixelWidth, bitmap, generation)) return null;
         return bitmap;
     }
+
+    internal static int GetPixelWidth(double dipWidth, double scale) =>
+        double.IsFinite(dipWidth) && dipWidth > 0 && double.IsFinite(scale) && scale > 0
+            ? (int)Math.Min(int.MaxValue, Math.Ceiling(dipWidth * scale)) : 0;
 
     /// <summary>取图失败（缺图、网络）返回 null，占位保持不变；主动取消照常抛出。</summary>
     public async Task<IRandomAccessStream?> FetchStreamAsync(ImageRef image, int pixelWidth, ImagePriority priority, CancellationToken cancellationToken)

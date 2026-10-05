@@ -80,7 +80,8 @@ public sealed class PlaybackCoordinator : IPlaybackService, IDisposable, IAsyncD
                 var reporter = new PlaybackReporter(account, api, outbox, scheduler, messenger, clock, log,
                     () => ReferenceEquals(accounts.Current, account));
                 session = new(request, account, preparer, factory, reporter, scheduler, clock, settings.Current.Volume,
-                    Ended, (entry, error) => EntrySkipped?.Invoke(this, new(entry, error)), log);
+                    Ended, (entry, error) => EntrySkipped?.Invoke(this, new(entry, error)), log,
+                    settings.Current.PlaybackMode == PlaybackMode.External ? EngineKind.External : EngineKind.Embedded);
                 session.Settings = settings;
                 current = session;
             }

@@ -92,7 +92,7 @@
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <RadioButton Style="{StaticResource SegmentStyle}" GroupName="PlaybackMode" Content="内置播放器"
                                                  IsChecked="{x:Bind ViewModel.IsEmbedded, Mode=OneWay}" Click="OnEmbeddedClick"/>
-                                    <RadioButton Style="{StaticResource SegmentStyle}" GroupName="PlaybackMode" Content="外部窗口"
+                                    <RadioButton Style="{StaticResource SegmentStyle}" GroupName="PlaybackMode" Content="外置 MPV"
                                                  IsChecked="{x:Bind ViewModel.IsExternal, Mode=OneWay}" IsEnabled="{x:Bind ViewModel.CanUseExternal, Mode=OneWay}" Click="OnExternalClick"/>
                                 </StackPanel>
                             </StackPanel>
@@ -104,7 +104,7 @@
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBox Style="{StaticResource SoftInputStyle}" VerticalAlignment="Center" PlaceholderText="mpv.exe 路径" IsSpellCheckEnabled="False"
+                                    <TextBox Style="{StaticResource SoftInputStyle}" VerticalAlignment="Center" PlaceholderText="mpv.exe 或所在文件夹" IsSpellCheckEnabled="False"
                                              IsEnabled="{x:Bind ViewModel.CanEditMpvPath, Mode=OneWay}" KeyDown="OnMpvKeyDown"
                                              Text="{x:Bind ViewModel.MpvPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="外部 mpv 路径"/>
                                     <Button Grid.Column="1" Style="{StaticResource SoftButtonStyle}" Content="选择文件" Click="OnPickMpvClick" IsEnabled="{x:Bind ViewModel.CanEditMpvPath, Mode=OneWay}"/>
@@ -119,6 +119,8 @@
                                                Visibility="{x:Bind ViewModel.IsMpvWarning, Mode=OneWay}"/>
                                 </Grid>
                             </StackPanel>
+                            <TextBlock Style="{StaticResource CaptionTextStyle}" TextWrapping="Wrap"
+                                       Text="外置 MPV 使用自己的配置、脚本和播放控件，Mambo 会保留当前页面并同步播放进度。下方 HDR 和硬件解码设置仅用于内置播放器。"/>
                             <!-- HDR 和硬件解码并排 -->
                             <StackPanel Orientation="Horizontal" Spacing="40">
                                 <StackPanel>

@@ -64,7 +64,7 @@ public sealed partial class ShellViewModel : ObservableObject, IDisposable
     [NotifyPropertyChangedFor(nameof(SearchTip))]
     public partial bool IsLoggedIn { get; private set; }
 
-    public string? SearchTip => IsLoggedIn ? null : "连接服务器后可用";
+    public string SearchTip => IsLoggedIn ? "搜索（Ctrl+F）" : "连接服务器后可用";
 
     [ObservableProperty]
     public partial bool HasLibraries { get; private set; }

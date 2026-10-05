@@ -144,7 +144,6 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     internal bool OpeningPanelVisible => OpeningPanel.Visibility == Visibility.Visible;
     internal bool SlowOpeningVisible => OpeningPanelVisible && SlowOpeningHint.Visibility == Visibility.Visible;
     internal bool BufferingVisible => BufferingPill.Visibility == Visibility.Visible;
-    internal bool ExternalPanelVisible => ExternalPanel.Visibility == Visibility.Visible;
     internal bool SeekTipVisible => SeekTip.Visibility == Visibility.Visible;
     internal double DisplayedSeekSeconds => SeekSlider.Value;
     internal Task PendingPreferenceSave => layoutSave;
@@ -444,7 +443,6 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         VolumeHost.PointerExited -= OnVolumeExited;
         VolumeHost.GotFocus -= OnVolumeGotFocus;
         VolumeHost.LostFocus -= OnVolumeLostFocus;
-        ExternalStopButton.Click -= OnCloseClick;
         CloseButton.Click -= OnCloseClick;
         PreviousButton.Click -= OnPreviousClick;
         PauseButton.Click -= OnPauseClick;
@@ -536,8 +534,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         else AttachSurface();
         Surface.Visibility = !transitionActive && !closing && !ViewModel.IsExternal ? Visibility.Visible : Visibility.Collapsed;
         window.SetPlaybackActive(!closing && ViewModel.CanControl && !ViewModel.IsPaused);
-        // 外部窗口面板一直保留控制；内置画面按空闲时间收起控制。
-        if (ViewModel.IsExternal || ViewModel.IsFailed) SetChrome(true);
+        if (ViewModel.IsFailed) SetChrome(true);
         UpdateControls();
         UpdateStatus();
         DrawBuffers();
@@ -577,7 +574,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     {
         var focused = XamlRoot is null ? null : FocusManager.GetFocusedElement(XamlRoot) as DependencyObject;
         var focusInControls = IsWithin(focused, Chrome) || IsWithin(focused, UpNext);
-        return ViewModel.IsExternal || ViewModel.IsFailed || pointerPressed || openMenus > 0 || focusInControls
+        return ViewModel.IsFailed || pointerPressed || openMenus > 0 || focusInControls
             || pointerInside && Environment.TickCount64 - lastActivity < 3000;
     }
 

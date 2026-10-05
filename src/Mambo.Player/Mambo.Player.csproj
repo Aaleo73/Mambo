@@ -6,5 +6,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../Mambo.Core/Mambo.Core.csproj" />
+    <Content Include="External/mambo-playlist.lua" Link="mpv/mambo-playlist.lua"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

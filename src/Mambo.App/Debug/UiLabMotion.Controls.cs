@@ -97,7 +97,8 @@ internal static partial class UiLabSmoke
             await MotionUntilAsync(() => Equals(picture.Source, secondImage) && picture.CurrentImage is not null && !picture.IsLoading, token);
             var secondBitmap = picture.CurrentImage;
             MotionCheck(report, "ParentTransitionSuppressesColdImageReveal", !picture.IsRevealing &&
-                ReferenceEquals(secondBitmap, images.Loader.TryGetDecoded(secondImage, (int)Math.Ceiling(picture.DecodeWidth))) &&
+                ReferenceEquals(secondBitmap, images.Loader.TryGetDecoded(secondImage,
+                    ImageLoader.GetPixelWidth(Math.Max(picture.DecodeWidth, picture.ActualWidth), picture.XamlRoot.RasterizationScale))) &&
                 poster.FindName("Copy").As<FrameworkElement>().Opacity == 1 &&
                 MotionDescendants<TextBlock>(poster.FindName("Copy").As<FrameworkElement>()).First().Text == secondModel.Title);
             images.Source.Release(firstImage);

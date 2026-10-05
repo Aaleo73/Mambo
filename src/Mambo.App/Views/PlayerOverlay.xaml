@@ -223,13 +223,6 @@
               PointerMoved="OnSurfacePointerMoved" PointerEntered="OnSurfacePointerEntered" PointerExited="OnSurfacePointerExited"
               PointerPressed="OnSurfacePointerPressed" PointerReleased="OnSurfacePointerReleased" PointerCanceled="OnSurfacePointerReleased"/>
 
-        <StackPanel x:Name="ExternalPanel" Spacing="12" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="440"
-                    Visibility="{x:Bind ViewModel.ShowExternalPanel, Mode=OneWay}">
-            <themes:LineIcon Glyph="{StaticResource IconTv}" Width="44" Height="44" Foreground="{ThemeResource PlayerTextSecondaryBrush}"/>
-            <TextBlock FontFamily="{StaticResource MiSansSemiboldFontFamily}" Text="正在外部播放" FontSize="24" FontWeight="SemiBold" Foreground="{ThemeResource PlayerTextPrimaryBrush}" HorizontalAlignment="Center"/>
-            <Button x:Name="ExternalStopButton" Content="停止播放" AutomationProperties.Name="停止外部播放" HorizontalAlignment="Center" Style="{ThemeResource PlayerButton}" Click="OnCloseClick"/>
-        </StackPanel>
-
         <Grid x:Name="Chrome" IsHitTestVisible="False" Opacity="0">
             <Grid x:Name="TopBar" VerticalAlignment="Top" Background="{ThemeResource PlayerScrimTopBrush}" Padding="24,18,24,48">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>

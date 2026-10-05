@@ -22,11 +22,14 @@ public sealed partial class App : Application
             return;
         }
         var nativeOverlaySmoke = Program.Arguments.Contains(Debug.NativeOverlaySmoke.Argument, StringComparer.Ordinal);
+        var externalHandoffSmoke = Program.Arguments.Contains(Debug.ExternalHandoffSmoke.Argument, StringComparer.Ordinal);
         var uiSmoke = Program.Arguments.Contains("--ui-smoke", StringComparer.Ordinal);
         var fake = uiSmoke || BackendServices.IsFakeMode(Program.Arguments, Environment.GetEnvironmentVariable("MAMBO_FAKE"));
         if (fake && Debug.FakeLifetimeProbe.IsActive)
             UnhandledException += (_, failure) => Debug.FakeLifetimeProbe.Record(failure.Exception);
-        var services = nativeOverlaySmoke
+        var services = externalHandoffSmoke
+            ? Debug.ExternalHandoffSmoke.CreateServices(DispatcherQueue.GetForCurrentThread())
+            : nativeOverlaySmoke
             ? Debug.NativeOverlaySmoke.CreateServices(DispatcherQueue.GetForCurrentThread())
             : new ServiceCollection()
                 .AddBackendServices(fake, new UiScheduler(DispatcherQueue.GetForCurrentThread()))
@@ -43,7 +46,9 @@ public sealed partial class App : Application
         main.Activate();
         Debug.StartupTimeline.Mark("Activated");
         main.StartSession();
-        if (nativeOverlaySmoke)
+        if (externalHandoffSmoke)
+            _ = Debug.ExternalHandoffSmoke.RunAsync(main);
+        else if (nativeOverlaySmoke)
             _ = Debug.NativeOverlaySmoke.RunAsync(main);
         else if (uiSmoke)
             _ = Debug.UiLabSmoke.RunAsync(main, Environment.GetEnvironmentVariable("MAMBO_UI_LAB_REPORT") ?? "");

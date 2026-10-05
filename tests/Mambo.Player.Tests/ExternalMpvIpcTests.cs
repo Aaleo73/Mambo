@@ -12,6 +12,30 @@ namespace Mambo.Player.Tests;
 public sealed class ExternalMpvIpcTests
 {
     private static readonly string[] StopCommand = ["stop"];
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task AutomaticDirectoryPlaylistIsDisabledWhenSupportedWithoutRejectingOlderMpv(bool supported)
+    {
+        await using var server = await FakeMpvIpcServer.CreateAsync(TestContext.Current.CancellationToken);
+        var disabled = false;
+        server.Handler = async request =>
+        {
+            var command = request.GetProperty("command");
+            if (command[0].GetString() == "get_property" && command[1].GetString() == "options/autocreate-playlist")
+            {
+                await server.ReplyAsync(request, supported ? "\"same\"" : "null", supported ? "success" : "property not found");
+                return true;
+            }
+            if (command[0].GetString() == "set_property" && command[1].GetString() == "autocreate-playlist")
+                disabled = command[2].GetString() == "no";
+            return false;
+        };
+        await using var engine = await ExternalMpvEngine.CreateForTestingAsync(server.Client, cancellationToken: TestContext.Current.CancellationToken);
+        Assert.Equal(supported, disabled);
+    }
+
     [Fact]
     public async Task RepliesMatchRequestIdsEvenWhenReturnedInReverseOrder()
     {
@@ -138,22 +162,23 @@ public sealed class ExternalMpvIpcTests
     }
 
     [Fact]
-    public async Task LoadUsesPerFileMapAndReturnsNativeIdsForReplaceAndAppend()
+    public async Task TitledPlaylistAndUntitledLoadPreservePerFileOptionsAndNativeIds()
     {
         await using var server = await FakeMpvIpcServer.CreateAsync(TestContext.Current.CancellationToken);
         await using var engine = await ExternalMpvEngine.CreateForTestingAsync(server.Client,
             cancellationToken: TestContext.Current.CancellationToken);
         var first = await engine.LoadAsync("av://lavfi:testsrc=size=32x32", LoadMode.Replace,
             [new("start", "12.500"), new("http-header-fields", ""), new("force-media-title", "剧集😀")], TestContext.Current.CancellationToken);
-        var request = await server.ReadRequestAsync("loadfile", TestContext.Current.CancellationToken);
-        var command = request.GetProperty("command");
-        Assert.Equal("replace", command[2].GetString());
-        Assert.Equal(-1, command[3].GetInt64());
-        Assert.Equal("12.500", command[4].GetProperty("start").GetString());
-        Assert.Equal("", command[4].GetProperty("http-header-fields").GetString());
-        Assert.Equal("剧集😀", command[4].GetProperty("force-media-title").GetString());
-        Assert.Contains("剧集😀", server.LastFrame);
-        Assert.DoesNotContain("\\uD83D", server.LastFrame, StringComparison.OrdinalIgnoreCase);
+        var request = await ReadPlaylistRequestAsync(server);
+        var payload = request.GetProperty("command")[2];
+        Assert.Equal("replace", payload.GetProperty("mode").GetString());
+        Assert.Equal("memory://#EXTM3U\n#EXTINF:-1,剧集😀\nav://lavfi:testsrc=size=32x32\n", payload.GetProperty("playlist").GetString());
+        var options = payload.GetProperty("options");
+        Assert.Equal("12.500", options.GetProperty("start").GetString());
+        Assert.Equal("", options.GetProperty("http-header-fields").GetString());
+        Assert.Equal("剧集😀", options.GetProperty("force-media-title").GetString());
+        Assert.Contains("剧集😀", request.GetRawText());
+        Assert.DoesNotContain("\\uD83D", request.GetRawText(), StringComparison.OrdinalIgnoreCase);
         var second = await engine.LoadAsync("av://lavfi:testsrc=size=48x48", LoadMode.Append,
             [new("http-header-fields", "")], TestContext.Current.CancellationToken);
         Assert.Equal(101, first);
@@ -162,6 +187,76 @@ public sealed class ExternalMpvIpcTests
         Assert.Equal("append", append.GetProperty("command")[2].GetString());
         await Assert.ThrowsAsync<ArgumentException>(async () => await engine.LoadAsync("av://lavfi:testsrc", LoadMode.Replace,
             [new("start", "1"), new("start", "2")], TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task UnplayedAppendCarriesTitleAndKeepsHeadersOutOfPlaylistText()
+    {
+        await using var server = await FakeMpvIpcServer.CreateAsync(TestContext.Current.CancellationToken);
+        await using var engine = await ExternalMpvEngine.CreateForTestingAsync(server.Client,
+            cancellationToken: TestContext.Current.CancellationToken);
+        var header = "X-Mambo-Test: " + Guid.NewGuid().ToString("N");
+        var id = await engine.LoadAsync("av://lavfi:testsrc=size=48x48", LoadMode.Append,
+            [new("force-media-title", "剧集 S01E02 - 标题,😀\r\n#EXTINF:测试\0"), new("http-header-fields", header), new("start", "3.500")], TestContext.Current.CancellationToken);
+        var request = (await ReadPlaylistRequestAsync(server)).GetProperty("command")[2];
+        Assert.Equal(101, id);
+        Assert.Equal("append", request.GetProperty("mode").GetString());
+        var playlist = request.GetProperty("playlist").GetString()!;
+        Assert.Equal("memory://#EXTM3U\n#EXTINF:-1,剧集 S01E02 - 标题,😀  #EXTINF:测试 \nav://lavfi:testsrc=size=48x48\n", playlist);
+        Assert.DoesNotContain(header, playlist);
+        Assert.Equal(header, request.GetProperty("options").GetProperty("http-header-fields").GetString());
+        Assert.Equal("3.500", request.GetProperty("options").GetProperty("start").GetString());
+    }
+
+    [Theory]
+    [InlineData("av://lavfi:testsrc\nav://lavfi:testsrc")]
+    [InlineData("av://lavfi:testsrc\r#EXTINF:injected")]
+    [InlineData("av://lavfi:testsrc\0")]
+    [InlineData("  #EXTINF:injected")]
+    public async Task TitledPlaylistRejectsAddressLineInjectionBeforeSending(string address)
+    {
+        await using var server = await FakeMpvIpcServer.CreateAsync(TestContext.Current.CancellationToken);
+        await using var engine = await ExternalMpvEngine.CreateForTestingAsync(server.Client,
+            cancellationToken: TestContext.Current.CancellationToken);
+        var before = server.RequestCount;
+        await Assert.ThrowsAsync<ArgumentException>(async () => await engine.LoadAsync(address, LoadMode.Append,
+            [new("force-media-title", "测试")], TestContext.Current.CancellationToken));
+        Assert.Equal(before, server.RequestCount);
+    }
+
+    private static async Task<JsonElement> ReadPlaylistRequestAsync(FakeMpvIpcServer server)
+    {
+        while (true)
+        {
+            var request = await server.ReadRequestAsync("set_property", TestContext.Current.CancellationToken);
+            if (request.GetProperty("command")[1].GetString() == "user-data/mambo-playlist/request") return request;
+        }
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(101)]
+    public async Task TitledLoadIgnoresStaleResponseAndRequiresNativeId(long entryId)
+    {
+        await using var server = await FakeMpvIpcServer.CreateAsync(TestContext.Current.CancellationToken);
+        await using var engine = await ExternalMpvEngine.CreateForTestingAsync(server.Client,
+            cancellationToken: TestContext.Current.CancellationToken);
+        var reads = 0;
+        server.Handler = async request =>
+        {
+            var command = request.GetProperty("command");
+            if (command[0].GetString() != "get_property" || command[1].GetString() != "user-data/mambo-playlist/response") return false;
+            await server.ReplyAsync(request, ++reads == 1 ? "{\"sequence\":0,\"playlist_entry_id\":999}" :
+                "{\"sequence\":1,\"playlist_entry_id\":" + entryId.ToString(System.Globalization.CultureInfo.InvariantCulture) + "}");
+            return true;
+        };
+        async Task<long> LoadAsync() => await engine.LoadAsync("av://lavfi:testsrc=size=32x32", LoadMode.Replace,
+            [new("force-media-title", "测试")], TestContext.Current.CancellationToken);
+        if (entryId < 0)
+            Assert.Equal("外部播放器未返回有效条目标识。", (await Assert.ThrowsAsync<InvalidOperationException>(LoadAsync)).Message);
+        else
+            Assert.Equal(entryId, await LoadAsync());
+        Assert.Equal(2, reads);
     }
 
     [Fact]
@@ -428,6 +523,7 @@ internal sealed class FakeMpvIpcServer : IAsyncDisposable
     private int requestCount;
     private int quitCount;
     private long nextEntryId = 100;
+    private string playlistResponse = "null";
     private string lastFrame = "";
     private bool disconnected;
 
@@ -477,6 +573,11 @@ internal sealed class FakeMpvIpcServer : IAsyncDisposable
                 requests.Writer.TryWrite(request);
                 if (Handler is { } handler && await handler(request)) continue;
                 var data = name == "loadfile" ? "{\"playlist_entry_id\":" + Interlocked.Increment(ref nextEntryId).ToString(System.Globalization.CultureInfo.InvariantCulture) + "}" : "null";
+                if (name == "set_property" && command[1].GetString() == "user-data/mambo-playlist/request")
+                    playlistResponse = "{\"sequence\":" + command[2].GetProperty("sequence").GetInt64().ToString(System.Globalization.CultureInfo.InvariantCulture) +
+                        ",\"playlist_entry_id\":" + Interlocked.Increment(ref nextEntryId).ToString(System.Globalization.CultureInfo.InvariantCulture) + "}";
+                if (name == "get_property" && command[1].GetString() == "user-data/mambo-playlist/ready") data = "true";
+                if (name == "get_property" && command[1].GetString() == "user-data/mambo-playlist/response") data = playlistResponse;
                 await ReplyAsync(request, data);
             }
         }

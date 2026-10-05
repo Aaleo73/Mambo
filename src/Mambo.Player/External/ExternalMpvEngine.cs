@@ -17,6 +17,10 @@ public sealed partial class ExternalMpvEngine : IPlayerEngine
     private readonly Task[] outputDrains;
     private readonly CancellationTokenSource processObservation = new();
     private readonly object disposeGate = new();
+    private readonly SemaphoreSlim playlistGate = new(1, 1);
+    private bool playlistBridgeStarted;
+    private bool playlistBridgeReady;
+    private long playlistSequence;
     private Task? disposal;
 
     public EngineKind Kind => EngineKind.External;
@@ -62,10 +66,12 @@ public sealed partial class ExternalMpvEngine : IPlayerEngine
                 };
                 foreach (var argument in new[]
                 {
-                    "--config=no", "--load-scripts=no", "--terminal=no", "--idle=yes",
+                    // 外部窗口由用户的 mpv 配置、脚本与输入绑定接管。
+                    "--config=yes", "--load-scripts=yes", "--terminal=no", "--idle=yes",
                     "--force-window=immediate", "--input-ipc-server=\\\\.\\pipe\\" + pipeName,
                     "--input-terminal=no", "--msg-level=all=no", "--save-position-on-quit=no",
-                    "--ytdl=no", "--input-default-bindings=no", "--input-vo-keyboard=no", "--media-controls=no", "--osc=no",
+                    "--resume-playback=no", "--write-filename-in-watch-later-config=no", "--log-file=",
+                    "--input-default-bindings=yes", "--input-vo-keyboard=yes",
                 }) start.ArgumentList.Add(argument);
                 ownedProcess = new Process { StartInfo = start };
                 MpvExecutableApproval.EnsureHandlePath(approval.Path, executableLock);
@@ -152,6 +158,13 @@ public sealed partial class ExternalMpvEngine : IPlayerEngine
         foreach (var pair in MpvIpcClient.ObservedProperties)
             await client.RequestAsync([new MpvValue.Text("observe_property"), new MpvValue.WholeNumber(++index),
                 new MpvValue.Text(pair.Key)], cancellationToken: token).ConfigureAwait(false);
+        // 列表由 Emby 会话管理。自动扫描同目录会把首项重定向成新的原生 id，破坏条目上报。
+        // 较旧的受支持 mpv 没有此选项，先探测再设置，不能在命令行强加未知选项。
+        MpvValue? automaticPlaylist = null;
+        try { automaticPlaylist = await GetAsync("options/autocreate-playlist", token).ConfigureAwait(false); }
+        catch (InvalidOperationException) { /* 旧版不支持此选项。 */ }
+        if (automaticPlaylist is not null)
+            await SetAsync("autocreate-playlist", new MpvValue.Text("no"), token).ConfigureAwait(false);
         if (options is not null)
             foreach (var pair in options)
                 await client.RequestAsync([new MpvValue.Text("set_property"), new MpvValue.Text(pair.Key),
@@ -190,12 +203,79 @@ public sealed partial class ExternalMpvEngine : IPlayerEngine
             if (pair.Value is null || !options.TryAdd(pair.Key, new MpvValue.Text(pair.Value)))
                 throw new ArgumentException("播放文件选项重复或无效。", nameof(fileOptions));
         }
-        var result = await client.RequestAsync([new MpvValue.Text("loadfile"), new MpvValue.Text(url),
-            new MpvValue.Text(flags), new MpvValue.WholeNumber(-1), new MpvValue.Map(options)],
-            TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
-        if (result is MpvValue.Map map && map.Values.TryGetValue("playlist_entry_id", out var entry) &&
-            entry is MpvValue.WholeNumber { Value: >= 0 } id) return id.Value;
-        throw new InvalidOperationException("外部播放器未返回有效条目标识。");
+        await playlistGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            MpvValue? result;
+            if (options.GetValueOrDefault("force-media-title") is MpvValue.Text { Value.Length: > 0 } title)
+                result = await LoadTitledAsync(url, flags, title.Value, options, cancellationToken).ConfigureAwait(false);
+            else
+                result = await client.RequestAsync([new MpvValue.Text("loadfile"), new MpvValue.Text(url),
+                    new MpvValue.Text(flags), new MpvValue.WholeNumber(-1), new MpvValue.Map(options)],
+                    TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
+            if (result is MpvValue.Map map && map.Values.TryGetValue("playlist_entry_id", out var entry) &&
+                entry is MpvValue.WholeNumber { Value: >= 0 } id) return id.Value;
+            throw new InvalidOperationException("外部播放器未返回有效条目标识。");
+        }
+        finally { playlistGate.Release(); }
+    }
+
+    private const string PlaylistState = "user-data/mambo-playlist/";
+
+    private async Task<MpvValue?> LoadTitledAsync(string url, string mode, string title,
+        Dictionary<string, MpvValue?> options, CancellationToken cancellationToken)
+    {
+        // EXTINF 必须独占一行；地址不能注入新的播放项或 M3U 指令。
+        if (url.IndexOfAny(['\r', '\n', '\0']) >= 0 || url.TrimStart().StartsWith('#'))
+            throw new ArgumentException("播放地址不能包含列表分隔符。", nameof(url));
+        title = title.Replace('\r', ' ').Replace('\n', ' ').Replace('\0', ' ');
+        options["force-media-title"] = new MpvValue.Text(title);
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        deadline.CancelAfter(TimeSpan.FromSeconds(5));
+        try
+        {
+            if (!playlistBridgeStarted)
+            {
+                // 启动结果不确定时也不重复注册脚本，避免多个观察器重复追加同一集。
+                playlistBridgeStarted = true;
+                await SetAsync("user-data/mambo-playlist", new MpvValue.Map(new Dictionary<string, MpvValue?>
+                {
+                    ["ready"] = new MpvValue.Flag(false),
+                    ["response"] = new MpvValue.Map(new Dictionary<string, MpvValue?>()),
+                }), deadline.Token).ConfigureAwait(false);
+                var script = Path.Combine(AppContext.BaseDirectory, "mpv", "mambo-playlist.lua");
+                await client.RequestAsync([new MpvValue.Text("load-script"), new MpvValue.Text(script)],
+                    cancellationToken: deadline.Token).ConfigureAwait(false);
+            }
+            if (!playlistBridgeReady)
+            {
+                while (await GetAsync(PlaylistState + "ready", deadline.Token).ConfigureAwait(false) is not MpvValue.Flag { Value: true })
+                    await Task.Delay(20, deadline.Token).ConfigureAwait(false);
+                playlistBridgeReady = true;
+            }
+
+            var sequence = ++playlistSequence;
+            // loadlist 的 EXTINF 立即写入未播放项的 title。配套 hook 在打开前按原生 id
+            // 恢复每项的认证头和续播位置，避免把认证头提升为全局设置。
+            await SetAsync(PlaylistState + "request", new MpvValue.Map(new Dictionary<string, MpvValue?>
+            {
+                ["sequence"] = new MpvValue.WholeNumber(sequence),
+                ["playlist"] = new MpvValue.Text("memory://#EXTM3U\n#EXTINF:-1," + title + "\n" + url + "\n"),
+                ["mode"] = new MpvValue.Text(mode),
+                ["options"] = new MpvValue.Map(options),
+            }), deadline.Token).ConfigureAwait(false);
+            while (true)
+            {
+                var response = await GetAsync(PlaylistState + "response", deadline.Token).ConfigureAwait(false);
+                if (response is MpvValue.Map map && map.Values.GetValueOrDefault("sequence") is MpvValue.WholeNumber id && id.Value == sequence)
+                    return response;
+                await Task.Delay(20, deadline.Token).ConfigureAwait(false);
+            }
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new TimeoutException("外部播放器加载剧集列表超时。");
+        }
     }
 
     public async ValueTask CommandAsync(ReadOnlyMemory<string> arguments, CancellationToken cancellationToken)
@@ -212,6 +292,14 @@ public sealed partial class ExternalMpvEngine : IPlayerEngine
         ArgumentNullException.ThrowIfNull(value);
         await client.RequestAsync([new MpvValue.Text("set_property"), new MpvValue.Text(propertyName), value],
             cancellationToken: cancellationToken).ConfigureAwait(false);
+    }
+
+    public Task<MpvValue?> GetAsync(string propertyName, CancellationToken cancellationToken = default)
+    {
+        ThrowIfDisposing();
+        ArgumentException.ThrowIfNullOrEmpty(propertyName);
+        return client.RequestAsync([new MpvValue.Text("get_property"), new MpvValue.Text(propertyName)],
+            cancellationToken: cancellationToken);
     }
 
     private void ThrowIfDisposing()

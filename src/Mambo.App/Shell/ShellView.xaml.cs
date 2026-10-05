@@ -37,6 +37,8 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
     private double retiringPanelWidth;
     private PlayerOverlay? player;
     private IPlaybackSession? startingSession;
+    private IPlaybackSession? observedSession;
+    private bool externalPlaybackAnnounced;
     private Task pendingPreferenceSaves = Task.CompletedTask;
     private int playerPresentationVersion;
     private readonly PlayerFoldTransition fold;
@@ -89,7 +91,7 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
         InitializeShortcuts();
         OnNavigated(null, new NavigatedEventArgs(null, navigator.Current, NavigationMode.New));
         Loaded += (_, _) => { if (!CanHandle) Sidebar.FocusNavigation(); };
-        if (playback.Current is { } current) ShowPlayer(current);
+        if (playback.Current is { } current) ObserveSession(current);
     }
 
     public ShellViewModel ViewModel { get; }
@@ -163,6 +165,7 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
         disposed = true;
         playerPresentationVersion++;
         startingSession = null;
+        StopObservingSession();
         fold.FacingChanged -= OnFacingChanged;
         fold.Dispose();
         presentationPending = false;
@@ -214,11 +217,47 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
         Motion.SettleDescendants(this);
     }
 
-    private void OnSessionStarted(object? sender, PlaybackSessionEventArgs e) => ShowPlayer(e.Session);
+    private void OnSessionStarted(object? sender, PlaybackSessionEventArgs e) => ObserveSession(e.Session);
+
+    private void ObserveSession(IPlaybackSession session)
+    {
+        if (disposed || ReferenceEquals(observedSession, session)) return;
+        StopObservingSession();
+        observedSession = session;
+        externalPlaybackAnnounced = false;
+        session.SnapshotChanged += OnPlaybackSnapshotChanged;
+        OnPlaybackSnapshotChanged(session, EventArgs.Empty);
+    }
+
+    private void StopObservingSession()
+    {
+        if (observedSession is { } session) session.SnapshotChanged -= OnPlaybackSnapshotChanged;
+        observedSession = null;
+    }
+
+    private void OnPlaybackSnapshotChanged(object? sender, EventArgs e)
+    {
+        if (disposed || observedSession is not { } session || !ReferenceEquals(playback.Current, session)) return;
+        var snapshot = session.Snapshot;
+        if (snapshot.Phase is PlayerPhase.Closing or PlayerPhase.Closed) return;
+        if (snapshot.EngineKind != EngineKind.External)
+        {
+            // 指纹复验失败时后端可能回退到内置引擎，以实际会话类型决定是否展示播放层。
+            ShowPlayer(session);
+            return;
+        }
+        if (player is not null || startingSession is not null) HidePlayer();
+        if (!externalPlaybackAnnounced && snapshot.Phase == PlayerPhase.Playing)
+        {
+            externalPlaybackAnnounced = true;
+            toasts.Show(ToastKind.Info, "已交给外置 MPV 播放");
+        }
+    }
     // UI 事件适配器：意外的初始化异常继续交给 XAML 的未处理异常通道，不能变成未观察 Task。
     private async void ShowPlayer(IPlaybackSession session)
     {
-        if (disposed || ReferenceEquals(player?.Session, session) || ReferenceEquals(startingSession, session)) return;
+        if (disposed || session.Snapshot.EngineKind == EngineKind.External ||
+            ReferenceEquals(player?.Session, session) || ReferenceEquals(startingSession, session)) return;
         await (PendingPresentation = ShowPlayerAsync(session));
     }
     private async Task ShowPlayerAsync(IPlaybackSession session)
@@ -288,10 +327,20 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
     private void OnSessionEnded(object? sender, PlaybackSessionEventArgs e)
     {
         // 替换时旧会话先结束，然后才会通知新会话启动。
-        if (!ReferenceEquals(player?.Session, e.Session) && !ReferenceEquals(startingSession, e.Session)) return;
-        HidePlayer();
+        var observed = ReferenceEquals(observedSession, e.Session);
+        if (!observed && !ReferenceEquals(player?.Session, e.Session) && !ReferenceEquals(startingSession, e.Session)) return;
+        if (observed) StopObservingSession();
+        if (ReferenceEquals(player?.Session, e.Session) || ReferenceEquals(startingSession, e.Session)) HidePlayer();
         if (e.EndReason == PlaybackEndReason.SeasonEnded)
             toasts.Show(ToastKind.Info, "本季已播放完", duration: TimeSpan.FromSeconds(6));
+        else if (e.EndReason == PlaybackEndReason.Failed && e.Session.Snapshot.EngineKind == EngineKind.External)
+        {
+            var snapshot = e.Session.Snapshot;
+            var retry = snapshot.Entry;
+            toasts.Show(ToastKind.Error, snapshot.Error?.Message ?? "外置 MPV 播放中断，已保存最新进度",
+                retry is null ? null : "重试", retry is null ? null :
+                    () => _ = new PlaybackLauncher(playback, dialogs, toasts).PlayAsync(retry.ItemId, snapshot.PositionTicks));
+        }
         else if (e.EndReason == PlaybackEndReason.Failed)
             toasts.Show(ToastKind.Warning, "播放意外中断，已保存最新进度", duration: TimeSpan.FromSeconds(8));
     }
@@ -418,8 +467,10 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
     {
         if (disposed) return;
         Motion.SetActive(this, window.IsActive);
-        if (window.IsActive) return;
+        // 失活时 PageHost 会隔离当前页输入；恢复动效标记本身不会恢复命中测试和 Tab。
+        // 必须在两种激活状态下同步页面，播放器覆盖时仍由 BrowseFace 的标记保持隔离。
         Pages.SettleTransition();
+        if (window.IsActive) return;
         transitions.SettleBackdrop();
         SettlePlayerPresentation();
     }

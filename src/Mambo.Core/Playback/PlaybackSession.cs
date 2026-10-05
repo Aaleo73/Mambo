@@ -26,6 +26,7 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
     private readonly CancellationTokenSource lifetime = new();
     private readonly Channel<Input> inbox = Channel.CreateUnbounded<Input>(new() { SingleReader = true });
     private readonly Dictionary<long, LoadedEntry> loaded = [];
+    private readonly Dictionary<int, LoadedEntry> externalPlaylist = [];
     private readonly HashSet<LoadedEntry> preparedEntries = [];
     private readonly Dictionary<int, int> preparing = [];
     private readonly List<Task> background = [];
@@ -52,13 +53,14 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
         Func<CancellationToken, Task<IPlayerEngine>> factory, PlaybackReporter reporter,
         IUiScheduler scheduler, TimeProvider clock, double volume,
         Action<PlaybackSession, PlaybackEndReason> ended, Action<PlaybackEntry, AppError> skipped,
-        Action<AppError>? log = null)
+        Action<AppError>? log = null, EngineKind initialEngineKind = EngineKind.Embedded)
     {
         this.request = request; this.account = account; this.preparer = preparer; this.factory = factory;
         this.reporter = reporter; this.scheduler = scheduler; this.clock = clock;
         this.ended = ended; this.skipped = skipped; this.log = log;
         desiredVolume = volume;
-        snapshot = new() { Entry = new(request.ItemId, "正在准备播放"), Volume = volume, CapturedAtUtc = clock.GetUtcNow() };
+        snapshot = new() { Entry = new(request.ItemId, "正在准备播放"), Volume = volume,
+            EngineKind = initialEngineKind, CapturedAtUtc = clock.GetUtcNow() };
         actor = RunAsync();
     }
 
@@ -131,10 +133,13 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
             {
                 if (closing || epoch != generation) { await owned.DisposeAsync().ConfigureAwait(false); return; }
                 engine = owned;
-                // 新引擎的默认属性不能覆盖保存的音量或本会话重试前的控制状态。
-                await owned.SetAsync("volume", new MpvValue.Number(desiredVolume), lifetime.Token).ConfigureAwait(false);
-                await owned.SetAsync("speed", new MpvValue.Number(desiredRate), lifetime.Token).ConfigureAwait(false);
-                await owned.SetAsync("mute", new MpvValue.Flag(desiredMuted), lifetime.Token).ConfigureAwait(false);
+                if (owned.Kind != EngineKind.External)
+                {
+                    // 内置播放器恢复 Mambo 的偏好；外置 mpv 保留自己的配置和脚本状态。
+                    await owned.SetAsync("volume", new MpvValue.Number(desiredVolume), lifetime.Token).ConfigureAwait(false);
+                    await owned.SetAsync("speed", new MpvValue.Number(desiredRate), lifetime.Token).ConfigureAwait(false);
+                    await owned.SetAsync("mute", new MpvValue.Flag(desiredMuted), lifetime.Token).ConfigureAwait(false);
+                }
                 scheduler.TryEnqueue(() => { if (Engine == owned && !finalized) EngineChanged?.Invoke(owned); });
                 background.Add(ConsumeAsync(owned));
                 Update(snapshot with { Entries = plan.Entries, CurrentEntryIndex = plan.SelectedIndex,
@@ -167,6 +172,7 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
     private void Prepare(int index, long startTicks, bool append)
     {
         if (closing || index < 0 || index >= snapshot.Entries.Length) return;
+        if (append && engine?.Kind == EngineKind.External && externalPlaylist.ContainsKey(index)) return;
         var epoch = generation;
         if (preparing.GetValueOrDefault(index, -1) == epoch) return;
         preparing[index] = epoch;
@@ -233,7 +239,8 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
         if (engine is null) return;
         try
         {
-            append &= active is { Confirmed: true, Ended: false };
+            append &= active is { Confirmed: true, Ended: false } ||
+                (engine.Kind == EngineKind.External && externalPlaylist.Values.Any(value => !value.Ended && value != active));
             entry.Candidate = candidate;
             entry.NativeId = await engine.LoadAsync(candidate.Url.Address.AbsoluteUri,
                 append ? LoadMode.Append : LoadMode.Replace, candidate.FileOptions, lifetime.Token).ConfigureAwait(false);
@@ -243,7 +250,21 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
             entry.WasAppended = append;
             loaded[entry.NativeId] = entry;
             preparing.Remove(entry.Index);
-            if (append) appended = entry;
+            if (engine.Kind == EngineKind.External)
+            {
+                if (!append) externalPlaylist.Clear();
+                externalPlaylist[entry.Index] = entry;
+            }
+            if (append)
+            {
+                if (engine.Kind == EngineKind.External)
+                {
+                    appended = ExternalNext(active?.Index ?? -1);
+                    // 外置 mpv 的列表/选集脚本需要整季后续条目，并保留已播条目供返回。
+                    Prepare(entry.Index + 1, 0, append: true);
+                }
+                else appended = entry;
+            }
             else
             {
                 switching = false;
@@ -275,13 +296,25 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
                 switching = false;
                 // START_FILE 是权威条目标识；playlist-pos 只描述播放器内部列表。
                 if (active is { Ended: false } old && old != entry) Stop(old);
+                if (engine?.Kind == EngineKind.External && entry.Ended)
+                {
+                    // mpv 中返回/重播同一个原生条目仍是一次新的播放与上报生命周期。
+                    entry = new(entry.Prepared, entry.Index)
+                    {
+                        NativeId = entry.NativeId, Candidate = entry.Candidate, CandidateIndex = entry.CandidateIndex,
+                    };
+                    loaded[start.EntryId] = entry;
+                    externalPlaylist[entry.Index] = entry;
+                    preparedEntries.Add(entry);
+                }
                 active = entry; appended = appended == entry ? null : appended;
+                if (engine?.Kind == EngineKind.External) appended = ExternalNext(entry.Index);
                 entry.PositionTicks = entry.Prepared.StartTicks;
                 Update(snapshot with { Entry = entry.Prepared.Entry, CurrentEntryIndex = entry.Index,
                     PositionTicks = entry.PositionTicks, DurationTicks = entry.Prepared.Entry.DurationTicks ?? 0,
                     Phase = PlayerPhase.Opening, Error = null, AudioTracks = [], SubtitleTracks = [],
                     SelectedAudioTrackId = null, SelectedSubtitleTrackId = null, BufferedRanges = [], IsSlowOpening = false });
-                if (entry.WasAppended && engine is not null)
+                if (entry.WasAppended && engine is { Kind: not EngineKind.External })
                 {
                     entry.WasAppended = false;
                     // 自动切集后移除已经结束的第一项，只保留当前项与随后追加项。
@@ -291,13 +324,13 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
                 break;
             case EngineEvent.FileLoaded when active is { } current && !closing:
                 current.Loaded = true;
-                if (engine is not null)
+                if (engine is { Kind: not EngineKind.External })
                 {
                     await engine.SetAsync("volume", new MpvValue.Number(desiredVolume), lifetime.Token).ConfigureAwait(false);
                     await engine.SetAsync("speed", new MpvValue.Number(desiredRate), lifetime.Token).ConfigureAwait(false);
                     await engine.SetAsync("mute", new MpvValue.Flag(desiredMuted), lifetime.Token).ConfigureAwait(false);
+                    Update(snapshot with { Volume = desiredVolume, PlaybackRate = desiredRate, IsMuted = desiredMuted });
                 }
-                Update(snapshot with { Volume = desiredVolume, PlaybackRate = desiredRate, IsMuted = desiredMuted });
                 TrackPreparation(LoadSubtitlesAsync(current));
                 break;
             case EngineEvent.PlaybackRestart when active is { Loaded: true, Ended: false } started && !closing:
@@ -353,7 +386,9 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
                 break;
             case EngineEvent.Shutdown when !closing:
                 if (active is { } interrupted) Stop(interrupted);
-                Fail(new(AppErrorKind.Player, ErrorCodes.PlaybackFailed, "播放器已退出。", true));
+                if (engine?.Kind == EngineKind.External)
+                    await BeginCloseAsync(snapshot.Error is null ? PlaybackEndReason.UserClosed : PlaybackEndReason.Failed).ConfigureAwait(false);
+                else Fail(new(AppErrorKind.Player, ErrorCodes.PlaybackFailed, "播放器已退出。", true));
                 break;
             case EngineEvent.QueueOverflow when !closing:
                 // 引擎随后补发关键属性快照，继续消费；不能制造一次虚假的停止上报。
@@ -364,6 +399,9 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
                 break;
         }
     }
+
+    private LoadedEntry? ExternalNext(int index) => externalPlaylist.Values
+        .Where(value => value.Index > index).MinBy(value => value.Index);
 
     private void PreparationFailed(PlaybackEntry entry, int index, bool append, AppError error)
     {
@@ -455,14 +493,18 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
                 Update(snapshot with { PositionTicks = ticks }, throttle: true); break;
             case EngineProperty.Duration when number is { } duration && double.IsFinite(duration) && duration >= 0 && duration < TimeSpan.MaxValue.TotalSeconds:
                 Update(snapshot with { DurationTicks = TimeSpan.FromSeconds(duration).Ticks }); break;
-            case EngineProperty.Pause when flag is { } pause: Update(snapshot with { IsPaused = pause }); break;
+            case EngineProperty.Pause when flag is { } pause:
+                var pauseChanged = snapshot.IsPaused != pause;
+                Update(snapshot with { IsPaused = pause });
+                if (pauseChanged && engine?.Kind == EngineKind.External) Progress(pause ? "Pause" : "Unpause");
+                break;
             case EngineProperty.PausedForCache when flag is { } buffering: Update(snapshot with { IsBuffering = buffering }); break;
             case EngineProperty.Seeking when flag is { } seeking: Update(snapshot with { IsSeeking = seeking }); break;
-            case EngineProperty.Speed when active is { Loaded: true } && number is { } speed && double.IsFinite(speed) && speed > 0:
+            case EngineProperty.Speed when (engine?.Kind == EngineKind.External || active is { Loaded: true }) && number is { } speed && double.IsFinite(speed) && speed > 0:
                 Update(snapshot with { PlaybackRate = speed }); break;
-            case EngineProperty.Volume when active is { Loaded: true } && number is { } volume && double.IsFinite(volume):
+            case EngineProperty.Volume when (engine?.Kind == EngineKind.External || active is { Loaded: true }) && number is { } volume && double.IsFinite(volume):
                 Update(snapshot with { Volume = Math.Clamp(volume, 0, 100) }); break;
-            case EngineProperty.Mute when active is { Loaded: true } && flag is { } mute: Update(snapshot with { IsMuted = mute }); break;
+            case EngineProperty.Mute when (engine?.Kind == EngineKind.External || active is { Loaded: true }) && flag is { } mute: Update(snapshot with { IsMuted = mute }); break;
             case EngineProperty.AudioTrack:
                 Update(snapshot with { SelectedAudioTrackId = TrackId(value) }); break;
             case EngineProperty.SubtitleTrack:
@@ -532,6 +574,8 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
     {
         log?.Invoke(error);
         Update(snapshot with { Phase = PlayerPhase.Failed, Error = error, IsSlowOpening = false });
+        // 外部播放没有 Mambo 控制页可供关闭，失败后自行释放窗口及会话。
+        if (snapshot.EngineKind == EngineKind.External) Post(() => BeginCloseAsync(PlaybackEndReason.Failed));
     }
     private void Update(SessionSnapshot value, bool throttle = false)
     {
@@ -666,7 +710,7 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
             engine = null; await old.DisposeAsync().ConfigureAwait(false);
         }
         retryRequest = snapshot.Entry is { } retry && !snapshot.Entries.IsEmpty ? new(retry.ItemId, snapshot.PositionTicks) : request;
-        loaded.Clear(); preparing.Clear(); preparedEntries.Clear(); active = appended = null; switching = false;
+        loaded.Clear(); externalPlaylist.Clear(); preparing.Clear(); preparedEntries.Clear(); active = appended = null; switching = false;
         Initialize();
     }, cancellationToken);
     public async ValueTask DisposeAsync() => await CloseAsync(PlaybackEndReason.AppShutdown).ConfigureAwait(false);

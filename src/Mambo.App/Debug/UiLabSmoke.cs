@@ -46,6 +46,11 @@ internal static partial class UiLabSmoke
             await SaveReportAsync(report, reportPath);
             return;
         }
+        if (Program.Arguments.Contains("--image-resolution-only", StringComparer.Ordinal))
+        {
+            await RunImageResolutionOnlyAsync(window, reportPath, token);
+            return;
+        }
         var shotRoot = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(reportPath))!, Path.GetFileNameWithoutExtension(reportPath));
         using var input = new UiInputProbe(window);
         // 六项假服务已验证；只为本轮合成页面保存构造错误，不订阅真实页面。
@@ -63,8 +68,13 @@ internal static partial class UiLabSmoke
             if (window.Shell.PageHost.CurrentPage is ErrorPage) navigation.RetryCurrent();
             await SaveReportAsync(report, reportPath);
             await WaitAsync(() => window.Shell.IsLoaded && window.Shell.ActualWidth > 0, token);
+            report.Stage = "窗口重新激活与内容区输入";
+            report.WindowActivation = new MotionReport();
+            await RunWindowActivationAsync(window, report.WindowActivation, token);
+            await SaveReportAsync(report, reportPath);
             report.Stage = "取得本轮窗口输入";
             await input.AcquireAsync(token);
+            await VerifyWindowActivationInputAsync(window, input, report.WindowActivation, token);
             report.AnimationsEnabled = Themes.Motion.AnimationsEnabled;
             using var libraries = library.ObserveLibraries(token);
             await libraries.RefreshAsync(token);
@@ -253,6 +263,7 @@ internal static partial class UiLabSmoke
                     { ElapsedMilliseconds: <= 10_000, PlayersAlive: 0, SurfacesAlive: 0, CleanupFrameCycles: >= 4 } &&
                 report.RetainedPlayers == 0 && report.RetainedSurfaces == 0 &&
                 !report.LibMpvLoaded && report.PlayerControls?.Passed == true && report.Motion?.Passed == true &&
+                report.WindowActivation?.Passed == true &&
                 report.PlayerPresentationReleased &&
                 report.Accessibility.Count == 5 && report.Accessibility.All(item => item.Status == "Passed") &&
                 report.Navigation?.Passed == true && report.PageRecovery?.Passed == true && report.PlaybackRefresh?.Passed == true;
@@ -508,6 +519,7 @@ internal sealed class UiLabReport
     public PageRecoveryReport? PageRecovery { get; set; }
     public PlaybackRefreshReport? PlaybackRefresh { get; set; }
     public MotionReport? Motion { get; set; }
+    public MotionReport? WindowActivation { get; set; }
 }
 
 internal sealed class MotionReport

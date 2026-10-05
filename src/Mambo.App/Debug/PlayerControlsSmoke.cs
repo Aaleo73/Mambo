@@ -540,10 +540,6 @@ internal static class PlayerControlsSmoke
             await WaitAsync(() => overlay.IsLoaded, token);
             await CheckAsync(report, "SlowOpeningPanel", () => overlay.OpeningPanelVisible && overlay.SlowOpeningVisible && !overlay.ViewModel.CanControl, token);
             Mark(report, "OpeningDisablesPlaybackKeys", !await overlay.DispatchSmokeKeyAsync(VirtualKey.Space));
-            session.SetSnapshot(session.Snapshot with { Phase = PlayerPhase.Playing, IsSlowOpening = false, EngineKind = EngineKind.External });
-            await CheckAsync(report, "ExternalPanel", () => overlay.ExternalPanelVisible && !overlay.OpeningPanelVisible && overlay.ControlsVisible && !overlay.VideoSurface.IsDemoAttached, token);
-            await InvokeButtonAsync(overlay, "停止播放", token, byContent: true);
-            await CheckAsync(report, "ExternalStopButton", () => session.Snapshot.Phase == PlayerPhase.Closed && session.CloseCount == 1, token);
         }
         finally
         {

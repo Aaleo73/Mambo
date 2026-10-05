@@ -34,6 +34,7 @@ internal static partial class UiLabSmoke
         var original = navigation.Current.Route;
         try
         {
+            await RunImageResolutionAsync(window, report, token);
             await RunPopupMotionAsync(window, input, report, token);
             await RunHeroMotionAsync(window, input, report, token);
             await RunMediaReadinessMotionAsync(window, input, report, token);

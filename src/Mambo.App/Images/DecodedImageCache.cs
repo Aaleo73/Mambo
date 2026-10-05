@@ -2,7 +2,7 @@ using Mambo.Core.Contracts;
 
 namespace Mambo.App.Images;
 
-/// <summary>UI 线程上的弱引用缓存；换账号或清缓存会取消旧代读取并拒绝旧代回填。</summary>
+/// <summary>以物理像素宽度区分的 UI 线程弱引用缓存；换账号或清缓存会取消旧代读取并拒绝旧代回填。</summary>
 internal sealed class DecodedImageCache<T>(int capacity = 512) : IDisposable where T : class
 {
     private readonly Dictionary<(ImageRef Image, int Width), Entry> items = [];

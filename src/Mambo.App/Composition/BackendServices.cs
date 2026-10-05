@@ -64,11 +64,11 @@ public static class BackendServices
     private static async Task<IPlayerEngine> CreateEngineAsync(IServiceProvider services, CancellationToken cancellationToken)
     {
         var settings = services.GetRequiredService<BackendRuntime>().Settings;
-        var options = new Dictionary<string, string> { ["hwdec"] = settings.Current.HardwareDecoding == HardwareDecodingMode.Off ? "no" : "d3d11va" };
         var approval = await settings.GetApprovedExternalPlayerAsync(cancellationToken).ConfigureAwait(false);
         if (approval is not null)
             return await ExternalMpvEngine.CreateAsync(approval, services.GetRequiredService<IExternalPlayerValidator>(),
-                options, cancellationToken).ConfigureAwait(false);
+                cancellationToken: cancellationToken).ConfigureAwait(false);
+        var options = new Dictionary<string, string> { ["hwdec"] = settings.Current.HardwareDecoding == HardwareDecodingMode.Off ? "no" : "d3d11va" };
         return await LibMpvEngine.CreateAsync(1, 1, optionOverrides: options, cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 }

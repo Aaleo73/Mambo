@@ -80,6 +80,7 @@ internal static class ExternalIpcLabSmoke
     {
         using var reader = new StreamReader(stream, new UTF8Encoding(false, true), leaveOpen: true);
         await using var writer = new StreamWriter(stream, new UTF8Encoding(false), leaveOpen: true) { AutoFlush = true, NewLine = "\n" };
+        var playlistResponse = "null";
         while (await reader.ReadLineAsync(token) is { } line)
         {
             using var document = JsonDocument.Parse(line);
@@ -88,20 +89,24 @@ internal static class ExternalIpcLabSmoke
             var name = command[0].GetString();
             var data = "null";
             if (name == "observe_property") report.ObservedProperties++;
-            if (name == "loadfile")
+            var load = name == "set_property" && command[1].GetString() == "user-data/mambo-playlist/request";
+            if (load)
             {
-                report.FileOptions = command.GetArrayLength() == 5 && command[2].GetString() == "replace" &&
-                    command[3].GetInt64() == -1 && command[4].GetProperty("http-header-fields").GetString() == "";
-                report.Unicode = command[4].GetProperty("force-media-title").GetString() == "测试🎬" &&
+                var payload = command[2];
+                report.FileOptions = payload.GetProperty("mode").GetString() == "replace" &&
+                    payload.GetProperty("options").GetProperty("http-header-fields").GetString() == "";
+                report.Unicode = payload.GetProperty("options").GetProperty("force-media-title").GetString() == "测试🎬" &&
                     !line.Contains("\\uD83C", StringComparison.OrdinalIgnoreCase);
-                data = "{\"playlist_entry_id\":73}";
+                playlistResponse = "{\"sequence\":" + payload.GetProperty("sequence").GetInt64().ToString(CultureInfo.InvariantCulture) + ",\"playlist_entry_id\":73}";
             }
+            if (name == "get_property" && command[1].GetString() == "user-data/mambo-playlist/ready") data = "true";
+            if (name == "get_property" && command[1].GetString() == "user-data/mambo-playlist/response") data = playlistResponse;
             if (name == "set_property" && command[1].GetString() == "pause") report.Paused = command[2].GetBoolean();
             if (name == "seek") report.Seek = command[1].GetString() == "7" && command[2].GetString() == "absolute";
             if (name == "quit") report.Quit = true;
             var id = root.GetProperty("request_id").GetInt64().ToString(CultureInfo.InvariantCulture);
             await writer.WriteLineAsync(("{\"request_id\":" + id + ",\"error\":\"success\",\"data\":" + data + "}").AsMemory(), token);
-            if (name == "loadfile")
+            if (load)
             {
                 await writer.WriteLineAsync("{\"event\":\"start-file\",\"playlist_entry_id\":73}".AsMemory(), token);
                 await writer.WriteLineAsync("{\"event\":\"file-loaded\"}".AsMemory(), token);

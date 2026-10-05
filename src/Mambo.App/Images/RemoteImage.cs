@@ -17,7 +17,7 @@ public sealed partial class RemoteImage : Grid, IMotionParticipant
     public static readonly DependencyProperty SourceProperty = DependencyProperty.Register(nameof(Source), typeof(object), typeof(RemoteImage),
         new PropertyMetadata(null, (d, _) => ((RemoteImage)d).Reload()));
     public static readonly DependencyProperty DecodeWidthProperty = DependencyProperty.Register(nameof(DecodeWidth), typeof(double), typeof(RemoteImage),
-        new PropertyMetadata(0d));
+        new PropertyMetadata(0d, (d, _) => ((RemoteImage)d).QueueResolutionRefresh()));
     public static readonly DependencyProperty PriorityProperty = DependencyProperty.Register(nameof(Priority), typeof(ImagePriority), typeof(RemoteImage),
         new PropertyMetadata(ImagePriority.Visible));
     public static readonly DependencyProperty StretchProperty = DependencyProperty.Register(nameof(Stretch), typeof(Stretch), typeof(RemoteImage),
@@ -27,15 +27,20 @@ public sealed partial class RemoteImage : Grid, IMotionParticipant
     private readonly ImageBrush brush = new() { Stretch = Stretch.UniformToFill };
     private CompositionScopedBatch? fadeBatch;
     private CancellationTokenSource? loading;
+    private XamlRoot? observedRoot;
     private int generation;
+    private int displayedPixelWidth;
+    private int requestedPixelWidth;
+    private bool resolutionQueued;
+    private double observedScale;
 
     public RemoteImage()
     {
         picture.Background = brush;
         Children.Add(picture);
-        Loaded += (_, _) => Reload();
-        Unloaded += (_, _) => { Cancel(); brush.ImageSource = null; SettleMotion(); };
-        SizeChanged += (_, e) => { if (e.PreviousSize.Width <= 0 && DecodeWidth <= 0) Reload(); };
+        Loaded += OnLoaded;
+        Unloaded += OnUnloaded;
+        SizeChanged += (_, args) => { if (args.NewSize.Width != args.PreviousSize.Width) QueueResolutionRefresh(); };
         RegisterPropertyChangedCallback(CornerRadiusProperty, (_, _) => picture.CornerRadius = CornerRadius);
     }
 
@@ -58,6 +63,48 @@ public sealed partial class RemoteImage : Grid, IMotionParticipant
     /// <summary>这张图有了结果（显示出来、没有图或加载失败）；参数表示是否需要淡入。</summary>
     public event EventHandler<bool>? Settled;
 
+    private void OnLoaded(object sender, RoutedEventArgs args)
+    {
+        if (observedRoot is not null) observedRoot.Changed -= OnRootChanged;
+        observedRoot = XamlRoot;
+        observedScale = observedRoot?.RasterizationScale ?? 1;
+        if (observedRoot is not null) observedRoot.Changed += OnRootChanged;
+        Reload();
+    }
+
+    private void OnUnloaded(object sender, RoutedEventArgs args)
+    {
+        if (observedRoot is not null) observedRoot.Changed -= OnRootChanged;
+        observedRoot = null;
+        Cancel();
+        brush.ImageSource = null;
+        displayedPixelWidth = 0;
+        SettleMotion();
+    }
+
+    private void OnRootChanged(XamlRoot sender, XamlRootChangedEventArgs args)
+    {
+        if (sender.RasterizationScale == observedScale) return;
+        observedScale = sender.RasterizationScale;
+        QueueResolutionRefresh();
+    }
+
+    private double DisplayWidth => Math.Max(DecodeWidth > 0 ? DecodeWidth : 0, ActualWidth);
+
+    private void QueueResolutionRefresh()
+    {
+        if (!IsLoaded || resolutionQueued) return;
+        resolutionQueued = true;
+        // 同一轮布局可能同时改变控件尺寸和 XamlRoot；合并后只按最终显示宽度升级。
+        if (!DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+        {
+            resolutionQueued = false;
+            if (!IsLoaded || XamlRoot is null) return;
+            var width = ImageLoader.GetPixelWidth(DisplayWidth, XamlRoot.RasterizationScale);
+            if (width > Math.Max(displayedPixelWidth, requestedPixelWidth)) Reload(keepCurrent: true);
+        })) resolutionQueued = false;
+    }
+
     private void Cancel()
     {
         generation++;
@@ -65,25 +112,32 @@ public sealed partial class RemoteImage : Grid, IMotionParticipant
         loading?.Cancel();
         loading?.Dispose();
         loading = null;
+        requestedPixelWidth = 0;
     }
 
-    private async void Reload()
+    private async void Reload(bool keepCurrent = false)
     {
         Cancel();
-        picture.Opacity = 0;
-        brush.ImageSource = null;
-        Pending?.Invoke(this, EventArgs.Empty);
+        if (!keepCurrent)
+        {
+            picture.Opacity = 0;
+            brush.ImageSource = null;
+            displayedPixelWidth = 0;
+            Pending?.Invoke(this, EventArgs.Empty);
+        }
         if (!IsLoaded || XamlRoot is null) return;
         if (Source is not ImageRef image || ImageLoader.Current is not { } loader)
         {
             Settled?.Invoke(this, false);
             return;
         }
-        var width = DecodeWidth > 0 ? DecodeWidth : ActualWidth;
-        if (width <= 0) return;
-        var decodeWidth = (int)Math.Ceiling(width);
-        if (loader.TryGetDecoded(image, decodeWidth) is { } cached)
+        var width = DisplayWidth;
+        var scale = XamlRoot.RasterizationScale;
+        var pixelWidth = ImageLoader.GetPixelWidth(width, scale);
+        if (pixelWidth == 0) return;
+        if (loader.TryGetDecoded(image, pixelWidth) is { } cached)
         {
+            displayedPixelWidth = pixelWidth;
             Show(cached, animate: false);
             return;
         }
@@ -91,19 +145,29 @@ public sealed partial class RemoteImage : Grid, IMotionParticipant
         var version = generation;
         var token = cts.Token;
         loading = cts;
+        requestedPixelWidth = pixelWidth;
+        var hadImage = brush.ImageSource is not null;
         try
         {
-            var bitmap = await loader.LoadAsync(image, width, XamlRoot?.RasterizationScale ?? 1, Priority, token);
+            var bitmap = await loader.LoadAsync(image, width, scale, Priority, token);
             if (token.IsCancellationRequested || version != generation || !IsLoaded) return;
-            if (bitmap is not null) Show(bitmap, animate: true);
-            else Settled?.Invoke(this, false);
+            if (bitmap is not null)
+            {
+                displayedPixelWidth = pixelWidth;
+                Show(bitmap, animate: !hadImage);
+            }
+            else if (!hadImage) Settled?.Invoke(this, false);
         }
         catch (OperationCanceledException)
         {
         }
         finally
         {
-            if (ReferenceEquals(loading, cts)) loading = null;
+            if (ReferenceEquals(loading, cts))
+            {
+                loading = null;
+                // 保留已尝试的尺寸；缺图或升级失败不因无关布局通知反复请求。
+            }
             cts.Dispose();
         }
     }

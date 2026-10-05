@@ -34,7 +34,6 @@ public sealed partial class PlayerViewModel : ObservableObject, IDisposable
     public bool IsOpening => snapshot.Phase is PlayerPhase.Preparing or PlayerPhase.Opening or PlayerPhase.Interstitial;
     public bool IsFailed => snapshot.Phase == PlayerPhase.Failed;
     public bool IsExternal => snapshot.EngineKind == EngineKind.External;
-    public bool ShowExternalPanel => IsExternal && !IsOpening && !IsFailed;
     public bool IsSlowOpening => IsOpening && (snapshot.IsSlowOpening || openingSince > 0 && Environment.TickCount64 - openingSince >= 20_000);
     public bool IsBuffering => snapshot.IsBuffering && CanControl;
     public bool CanPrevious => CanControl && snapshot.CanPrevious;
@@ -168,7 +167,7 @@ public sealed partial class PlayerViewModel : ObservableObject, IDisposable
     }
 
     private static readonly string[] ProjectionProperties =
-    [nameof(Snapshot), nameof(CanControl), nameof(IsOpening), nameof(IsFailed), nameof(IsExternal), nameof(ShowExternalPanel), nameof(IsSlowOpening), nameof(IsBuffering),
+    [nameof(Snapshot), nameof(CanControl), nameof(IsOpening), nameof(IsFailed), nameof(IsExternal), nameof(IsSlowOpening), nameof(IsBuffering),
         nameof(CanPrevious), nameof(CanNext), nameof(HasEpisodes), nameof(IsPaused), nameof(PauseGlyph), nameof(PauseAccessibleName), nameof(MuteAccessibleName), nameof(VolumeGlyph), nameof(RateText),
         nameof(DurationText), nameof(DurationSeconds), nameof(Volume), nameof(ErrorText), nameof(Title), nameof(Subtitle), nameof(ShellTitle), nameof(NextTitle)];
 
