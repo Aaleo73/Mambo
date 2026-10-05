@@ -55,6 +55,9 @@ public sealed class ConnectionDefaults
 /// <summary>播放页弹幕菜单里的选择；不含服务器地址或任何凭据。</summary>
 public sealed record BulletChatSettings
 {
+    public const int CurrentDefaults = 1;
+    /// <summary>默认值的版本。后端据此把仍停留在旧默认值上的设置迁到新默认值；前端修改设置时原样保留。</summary>
+    public int DefaultsVersion { get; init; } = CurrentDefaults;
     public bool Enabled { get; init; } = true;
     /// <summary>0.2–1。</summary>
     public double Opacity { get; init; } = 0.7;
@@ -63,7 +66,7 @@ public sealed record BulletChatSettings
     /// <summary>滚动弹幕横穿画面所需的秒数，5–30。</summary>
     public double ScrollSeconds { get; init; } = 15;
     /// <summary>显示区域占视频高度的比例，0.1–1。</summary>
-    public double Area { get; init; } = 0.85;
+    public double Area { get; init; } = 0.25;
 }
 
 public sealed record AppSettings

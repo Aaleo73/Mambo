@@ -351,6 +351,13 @@ public sealed class SettingsStore : ISettingsService, IDisposable
             ScrollSeconds = Keep(value.ScrollSeconds, 5, 30, defaults.ScrollSeconds),
             Area = Keep(value.Area, 0.1, 1, defaults.Area),
         };
+        if (result.DefaultsVersion != BulletChatSettings.CurrentDefaults)
+        {
+            // 第 1 版把显示区域的默认值从 0.85 改为 0.25。只迁移仍是旧默认值的设置，用户自己选的保留；
+            // 记下版本后，以后再选 0.85 不会被改回去。
+            if (result.DefaultsVersion < 1 && result.Area == 0.85) result = result with { Area = defaults.Area };
+            result = result with { DefaultsVersion = BulletChatSettings.CurrentDefaults };
+        }
         repaired = result != value;
         return result;
     }

@@ -50,6 +50,26 @@ public sealed class BulletChatTests
     }
 
     [Fact]
+    public void ParserDropsBinaryJunkAndEverythingElseFromItsSender()
+    {
+        // 取自线上某一集的真实数据：四条 0 秒处的黑色弹幕，内容是被当成文本的二进制，其中三条来自同一个发送者，
+        // 而这三条里只有一条带控制字符。
+        var parsed = BulletChatParser.Parse(
+        [
+            new() { P = "0.00,1,0,2143da63", M = "\u0011»\u000Cý åSå\u000EHÄ÷\u0086" },
+            new() { P = "0.00,1,0,ac2a27c6", M = "(Ï}Ø" },
+            new() { P = "0.00,1,0,ac2a27c6", M = "ÍÑ^pv4'" },
+            new() { P = "0.00,1,0,ac2a27c6", M = "\u000E«KLâÆ\u001F" },
+            new() { P = "1.00,1,16777215,a9a1d7cd", M = "？" },
+            new() { P = "2.00,1,16777215,dea656ea", M = "queshi" },
+            new() { P = "3.00,1,16777215,", M = "没有发送者也照常显示" },
+            new() { P = "4.00,1,16777215,b48293c8", M = "(´・ω・`) ò_ó café" },
+            new() { P = "5.00,1,16777215", M = "只有三个字段" },
+        ]);
+        Assert.Equal(["？", "queshi", "没有发送者也照常显示", "(´・ω・`) ò_ó café", "只有三个字段"], parsed.Select(comment => comment.Text));
+    }
+
+    [Fact]
     public void ParserSamplesEvenlyWhenOverLimit()
     {
         var comments = Enumerable.Range(0, BulletChatParser.MaximumComments * 2)
@@ -658,6 +678,31 @@ public sealed class BulletChatTests
         using var repaired = new SettingsStore(sandbox.Paths, new InlineScheduler());
         Assert.Equal(new BulletChatSettings { Area = 0.5 }, repaired.Current.BulletChat);
         Assert.Equal(device, repaired.Current.DeviceId);
+    }
+
+    [Theory]
+    // 显示区域的默认值从 0.85 改成了 0.25：还停在旧默认值上的设置迁一次。
+    [InlineData("\"Area\":0.85", 0.25)]
+    // 用户自己选过的值保留。
+    [InlineData("\"Area\":0.6", 0.6)]
+    // 迁移之后再选 0.85，不会被改回去。
+    [InlineData("\"DefaultsVersion\":1,\"Area\":0.85", 0.85)]
+    public async Task OldDefaultAreaMigratesExactlyOnce(string stored, double expected)
+    {
+        using var sandbox = new Sandbox();
+        await File.WriteAllTextAsync(sandbox.Paths.Settings,
+            """{"Version":1,"Settings":{"DeviceId":"<device>","Volume":37,"BulletChat":{"Enabled":false,"Opacity":0.7,"FontScale":1,"ScrollSeconds":15,<stored>}}}"""
+                .Replace("<device>", Guid.NewGuid().ToString(), StringComparison.Ordinal).Replace("<stored>", stored, StringComparison.Ordinal), Token);
+        using (var settings = new SettingsStore(sandbox.Paths, new InlineScheduler()))
+        {
+            Assert.Equal(expected, settings.Current.BulletChat.Area);
+            Assert.Equal(BulletChatSettings.CurrentDefaults, settings.Current.BulletChat.DefaultsVersion);
+            Assert.False(settings.Current.BulletChat.Enabled);
+            if (expected != 0.85) await settings.UpdateAsync(value => value with { BulletChat = value.BulletChat with { Area = 0.85 } }, Token);
+        }
+        using var reopened = new SettingsStore(sandbox.Paths, new InlineScheduler());
+        Assert.Equal(0.85, reopened.Current.BulletChat.Area);
+        Assert.Equal(0.25, new BulletChatSettings().Area);
     }
 
     [Fact]

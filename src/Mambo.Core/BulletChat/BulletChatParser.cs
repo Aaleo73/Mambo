@@ -13,9 +13,18 @@ public static class BulletChatParser
     public static ImmutableArray<BulletChatComment> Parse(IReadOnlyList<DandanComment>? comments)
     {
         if (comments is null || comments.Count == 0) return [];
+        // 弹幕库里混有被当成文本的二进制数据。带控制字符的一定是垃圾；同一发送者的其余弹幕
+        // 往往也是（只是恰好没有控制字符），一并丢弃。
+        HashSet<string>? junkSenders = null;
+        foreach (var comment in comments)
+            if (comment?.M is { } message && IsBinary(message) && Sender(comment.P) is { Length: > 0 } sender) (junkSenders ??= new(StringComparer.Ordinal)).Add(sender);
         var parsed = new List<BulletChatComment>(Math.Min(comments.Count, MaximumComments));
         foreach (var comment in comments)
-            if (comment is not null && TryParse(comment.P, comment.M, out var value)) parsed.Add(value);
+        {
+            if (comment?.M is not { } message || IsBinary(message)) continue;
+            if (junkSenders is not null && Sender(comment.P) is { Length: > 0 } sender && junkSenders.Contains(sender)) continue;
+            if (TryParse(comment.P, message, out var value)) parsed.Add(value);
+        }
         // 稳定排序：同一时刻保留服务器给出的先后。
         var ordered = parsed.Select((value, index) => (value, index)).OrderBy(item => item.value.TimeSeconds).ThenBy(item => item.index)
             .Select(item => item.value).ToList();
@@ -48,6 +57,21 @@ public static class BulletChatParser
         if (text.Length == 0) return false;
         value = new(time, mode, color & 0xFFFFFF, text);
         return true;
+    }
+
+    // 换行和制表符是正常输入；其余控制字符（含 C1 区）不会出现在人写的弹幕里。
+    private static bool IsBinary(string message)
+    {
+        foreach (var character in message)
+            if (char.IsControl(character) && character is not ('\t' or '\n' or '\r')) return true;
+        return false;
+    }
+
+    private static string? Sender(string? position)
+    {
+        if (position is null) return null;
+        var fields = position.Split(',');
+        return fields.Length >= 4 ? fields[3].Trim() : null;
     }
 
     private static string Clean(string message)
