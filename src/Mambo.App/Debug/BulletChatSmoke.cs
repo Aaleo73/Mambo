@@ -13,7 +13,7 @@ namespace Mambo.App.Debug;
 
 /// <summary>
 /// 弹幕诊断：验证 Win2D 在当前构建（含 Native AOT）下可用，并用演示播放走一遍
-/// 加载、滚动、暂停、跳转、开关、面板和关闭。只输出布尔值、计数、阶段和错误类型。
+/// 加载、滚动、暂停、跳转、开关、弹幕面板、倍速与轨道面板和关闭。只输出布尔值、计数、阶段和错误类型。
 /// </summary>
 internal static class BulletChatSmoke
 {
@@ -22,7 +22,8 @@ internal static class BulletChatSmoke
     internal static async Task RunAsync(MainWindow window, string reportPath)
     {
         var report = new BulletChatReport();
-        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        // 刚发布的产物首次启动可能很慢（实测超过 90 秒），时限放宽，避免把慢启动误报成失败。
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(180));
         var token = deadline.Token;
         IPlaybackSession? session = null;
         try
@@ -119,6 +120,32 @@ internal static class BulletChatSmoke
             await WaitAsync(() => !player.HasOpenMenu && bulletChat.Current is { Status: BulletChatStatus.Loaded, Episode.Id: var id } && id.EndsWith("-3", StringComparison.Ordinal), token);
             report.PanelManualSelect = true;
 
+            report.Stage = "倍速与轨道面板";
+            player.ShowControlsForSmoke();
+            var ratePanel = player.ShowMenuForSmoke(tracks: false);
+            await WaitAsync(() => player.HasOpenMenu && ratePanel.IsLoaded && ratePanel.ChoiceCount > 0, token);
+            report.RatePanelChoices = ratePanel.ChoiceCount;
+            if (hold > 0)
+            {
+                report.Stage = "倍速面板停留供截图";
+                Save(reportPath, report);
+                await Task.Delay(hold, token);
+            }
+            report.RatePanelSelects = ratePanel.SelectedLabels == "正常" && ratePanel.ChooseForSmoke("1.5×");
+            await WaitAsync(() => Math.Abs(session.Snapshot.PlaybackRate - 1.5) < .001 && !player.HasOpenMenu && ratePanel.ChoiceCount == 0, token);
+            player.ShowControlsForSmoke();
+            var tracksPanel = player.ShowMenuForSmoke(tracks: true);
+            await WaitAsync(() => player.HasOpenMenu && tracksPanel.IsLoaded && tracksPanel.ChoiceCount > 0, token);
+            report.TracksPanelChoices = tracksPanel.ChoiceCount;
+            if (hold > 0)
+            {
+                report.Stage = "轨道面板停留供截图";
+                Save(reportPath, report);
+                await Task.Delay(hold, token);
+            }
+            report.TracksPanelSelects = session.Snapshot.SelectedSubtitleTrackId is not null && tracksPanel.ChooseForSmoke("关闭字幕");
+            await WaitAsync(() => session.Snapshot.SelectedSubtitleTrackId is null && !player.HasOpenMenu, token);
+
             report.Stage = "关闭";
             await session.CloseAsync(token);
             await WaitAsync(() => window.Shell.ActivePlayer is null && window.Shell.RetiringPlayer is null && !window.Shell.IsTransitioning, token);
@@ -126,6 +153,8 @@ internal static class BulletChatSmoke
             session = null;
 
             report.Passed = report.DeviceCreated && report.FillPixels > 50 && report.OutlinePixels > 50 && report.ClearPixels > 50
+                && report.EmojiColorPixels > 50 && report.RatePanelChoices == 6 && report.RatePanelSelects
+                && report.TracksPanelChoices >= 1 && report.TracksPanelSelects
                 && report.EnabledByDefault && report.CommentsLoaded > 100 && report.SeekRebuilt && report.BundledFontApplied
                 && report.ClockAdvances && report.SpawnsWhilePlaying && report.PauseHolds && report.ResumeContinues
                 && report.KeyTurnsOff && report.KeyTurnsOn && report.PanelShowsMatch && report.PanelSavesStyle && report.PanelManualSelect && report.ClosedCleanly;
@@ -173,6 +202,21 @@ internal static class BulletChatSmoke
             else if (alpha > 230 && blue > 230 && green > 230 && red > 230) report.FillPixels++;
             else if (alpha > 150 && blue < 50 && green < 50 && red < 50) report.OutlinePixels++;
         }
+
+        // 表情用白色去画：出现有彩度的像素，才说明用上了彩色字形而不是单色轮廓。
+        using var emoji = rasterizer.Measure("\U0001F600\U0001F389", 32);
+        using var emojiTarget = new CanvasRenderTarget(rasterizer.Device, emoji.Size.X, emoji.Size.Y, 96);
+        using (var session = emojiTarget.CreateDrawingSession())
+        {
+            session.Clear(Color.FromArgb(0, 0, 0, 0));
+            rasterizer.Paint(session, emoji, 0xFFFFFF);
+        }
+        var emojiPixels = emojiTarget.GetPixelBytes();
+        for (var index = 0; index + 3 < emojiPixels.Length; index += 4)
+        {
+            int blue = emojiPixels[index], green = emojiPixels[index + 1], red = emojiPixels[index + 2];
+            if (emojiPixels[index + 3] > 200 && Math.Max(red, Math.Max(green, blue)) - Math.Min(red, Math.Min(green, blue)) > 60) report.EmojiColorPixels++;
+        }
     }
 
     private static async Task WaitAsync(Func<bool> ready, CancellationToken token)
@@ -201,6 +245,11 @@ internal sealed class BulletChatReport
     public int FillPixels { get; set; }
     public int OutlinePixels { get; set; }
     public int ClearPixels { get; set; }
+    public int EmojiColorPixels { get; set; }
+    public int RatePanelChoices { get; set; }
+    public bool RatePanelSelects { get; set; }
+    public int TracksPanelChoices { get; set; }
+    public bool TracksPanelSelects { get; set; }
     public bool EnabledByDefault { get; set; }
     public int CommentsLoaded { get; set; }
     public bool SeekRebuilt { get; set; }

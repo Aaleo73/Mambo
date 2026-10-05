@@ -187,7 +187,7 @@ internal static class PlayerControlsSmoke
             await KeyAsync("BracketFaster", (VirtualKey)221, () => player.ViewModel.Snapshot.PlaybackRate == 1);
             var rateMenu = player.ShowMenuForSmoke(tracks: false);
             await CheckAsync(report, "RateMenuOpened", () => player.HasOpenMenu, token);
-            Mark(report, "RateMenuChoices", rateMenu.Items.OfType<ToggleMenuFlyoutItem>().Count() == 6);
+            Mark(report, "RateMenuChoices", rateMenu.ChoiceCount == 6);
             await player.DispatchSmokeRateAsync(1.5);
             await CheckAsync(report, "RateMenuSelectsAndCloses", () => player.ViewModel.Snapshot.PlaybackRate == 1.5 && !player.HasOpenMenu, token);
             await player.DispatchSmokeRateAsync(2);
@@ -207,7 +207,7 @@ internal static class PlayerControlsSmoke
             await KeyAsync("VCyclesAudio", VirtualKey.V, () => player.ViewModel.Snapshot.SelectedAudioTrackId == audio[0].Id);
             var trackMenu = player.ShowMenuForSmoke(tracks: true);
             await CheckAsync(report, "TrackMenuOpened", () => player.HasOpenMenu, token);
-            Mark(report, "TrackMenuChoices", trackMenu.Items.OfType<ToggleMenuFlyoutItem>().Count() == 5);
+            Mark(report, "TrackMenuChoices", trackMenu.ChoiceCount == 5);
             await player.DispatchSmokeTrackAsync(audio[1].Id, subtitle: false);
             await CheckAsync(report, "AudioMenuSelects", () => player.ViewModel.Snapshot.SelectedAudioTrackId == audio[1].Id && !player.HasOpenMenu, token);
             player.ShowMenuForSmoke(tracks: true);

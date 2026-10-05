@@ -39,7 +39,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     private readonly PopupTransition bigPlayTransition;
     private readonly PopupTransition upNextTransition;
     private readonly List<FlyoutBase> openFlyouts = [];
-    private readonly Dictionary<FlyoutBase, List<(MenuFlyoutItem Item, RoutedEventHandler Handler)>> menuHandlers = [];
+    private FlyoutBase[] panelFlyouts = [];
     private readonly List<WeakReference<Button>> episodeButtons = [];
     private readonly List<(UIElement Element, RoutedEvent Event, object Handler)> routedHandlers = [];
     private ScalarKeyFrameAnimation? chromeAnimation;
@@ -128,9 +128,15 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         settings.Changed += OnBulletChatSettingsChanged;
         BulletChatPanel.PreviewChanged += OnBulletChatPreview;
         BulletChatPanel.Completed += OnBulletChatPanelCompleted;
-        menuHandlers.Add(BulletChatFlyout, []);
-        BulletChatFlyout.Opened += OnMenuOpened;
-        BulletChatFlyout.Closed += OnMenuClosed;
+        // 三个面板随播放层存活，可以反复打开；打开与收起统一记账，供控制层显隐和 Esc 使用。
+        panelFlyouts = [RateFlyout, BulletChatFlyout, TracksFlyout];
+        foreach (var flyout in panelFlyouts)
+        {
+            flyout.Opened += OnMenuOpened;
+            flyout.Closed += OnMenuClosed;
+        }
+        RateFlyout.Opening += OnRateOpening;
+        TracksFlyout.Opening += OnTracksOpening;
         window.PresentationChanged += OnPresentationChanged;
         window.ActiveChanged += OnWindowActiveChanged;
         Loaded += OnLoaded;
@@ -192,11 +198,10 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         else HandleSurfaceTap();
     }
 
-    internal MenuFlyout ShowMenuForSmoke(bool tracks)
+    internal PlayerChoicePanel ShowMenuForSmoke(bool tracks)
     {
-        var menu = tracks ? CreateTracksMenu() : CreateRateMenu();
-        menu.ShowAt(tracks ? TracksButton : RateButton);
-        return menu;
+        (tracks ? TracksFlyout : RateFlyout).ShowAt(tracks ? TracksButton : RateButton);
+        return tracks ? TracksPanel : RatePanel;
     }
     internal void ToggleEpisodesForSmoke() => ToggleEpisodePanel();
     internal void DispatchSmokeSeekHover(double fraction) => PreviewSeekHover(fraction);
@@ -471,8 +476,6 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         PreviousButton.Click -= OnPreviousClick;
         PauseButton.Click -= OnPauseClick;
         NextButton.Click -= OnNextClick;
-        RateButton.Click -= OnRateClick;
-        TracksButton.Click -= OnTracksClick;
         MuteButton.Click -= OnMuteClick;
         EpisodesButton.Click -= OnEpisodesClick;
         FullscreenButton.Click -= OnFullscreenClick;
@@ -1328,48 +1331,28 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         Run(() => settings.UpdateAsync(value => value with { BulletChat = value.BulletChat with { Enabled = enabled } }, lifetime.Token));
     }
 
-    private void OnRateClick(object sender, RoutedEventArgs e)
+    private void OnRateOpening(object? sender, object e)
     {
-        if (!disposed && !presentationFrozen && !closing && !transitionActive) CreateRateMenu().ShowAt(RateButton);
+        if (disposed || presentationFrozen || closing || transitionActive) return;
+        var current = ViewModel.Snapshot.PlaybackRate;
+        RatePanel.SetGroups([new("倍速", [.. Rates.Select(rate => new PlayerChoice(
+            rate == 1 ? "正常" : rate.ToString("0.##", CultureInfo.InvariantCulture) + "×", Math.Abs(current - rate) < .001, () => SelectRate(rate)))])]);
     }
-    private MenuFlyout CreateRateMenu()
+
+    private void OnTracksOpening(object? sender, object e)
     {
-        var menu = CreateMenu();
-        foreach (var rate in Rates)
-        {
-            var choice = rate;
-            var item = new ToggleMenuFlyoutItem { Text = rate == 1 ? "正常" : rate.ToString("0.##", CultureInfo.InvariantCulture) + "×", IsChecked = Math.Abs(ViewModel.Snapshot.PlaybackRate - rate) < .001 };
-            RegisterMenuItem(menu, item, (_, _) => SelectRate(choice));
-            menu.Items.Add(item);
-        }
-        return menu;
+        if (disposed || presentationFrozen || closing || transitionActive) return;
+        var snapshot = ViewModel.Snapshot;
+        PlayerChoice Track(TrackInfo track, bool subtitle) => new(track.Label.Length > 96 ? track.Label[..96] : track.Label,
+            (subtitle ? snapshot.SelectedSubtitleTrackId : snapshot.SelectedAudioTrackId) == track.Id, () => SelectTrack(track.Id, subtitle));
+        TracksPanel.SetGroups(
+        [
+            new("字幕", [new("关闭字幕", snapshot.SelectedSubtitleTrackId is null, () => SelectTrack(null, subtitle: true)),
+                .. snapshot.SubtitleTracks.Take(32).Select(track => Track(track, subtitle: true))]),
+            new("音轨", [.. snapshot.AudioTracks.Take(32).Select(track => Track(track, subtitle: false))], "没有可选音轨"),
+        ]);
     }
-    private void OnTracksClick(object sender, RoutedEventArgs e)
-    {
-        if (!disposed && !presentationFrozen && !closing && !transitionActive) CreateTracksMenu().ShowAt(TracksButton);
-    }
-    private MenuFlyout CreateTracksMenu()
-    {
-        var menu = CreateMenu();
-        menu.Items.Add(new MenuFlyoutItem { Text = "字幕", IsEnabled = false, Style = XamlResources.Style(Resources, "PlayerMenuHeading") });
-        var off = new ToggleMenuFlyoutItem { Text = "关闭字幕", IsChecked = ViewModel.Snapshot.SelectedSubtitleTrackId is null };
-        RegisterMenuItem(menu, off, (_, _) => SelectTrack(null, subtitle: true));
-        menu.Items.Add(off);
-        foreach (var track in ViewModel.Snapshot.SubtitleTracks.Take(32)) AddTrack(menu, track, subtitle: true);
-        menu.Items.Add(new MenuFlyoutSeparator());
-        menu.Items.Add(new MenuFlyoutItem { Text = "音轨", IsEnabled = false, Style = XamlResources.Style(Resources, "PlayerMenuHeading") });
-        foreach (var track in ViewModel.Snapshot.AudioTracks.Take(32)) AddTrack(menu, track, subtitle: false);
-        if (ViewModel.Snapshot.AudioTracks.IsEmpty && ViewModel.Snapshot.SubtitleTracks.IsEmpty)
-            menu.Items.Add(new MenuFlyoutItem { Text = "这个文件没有可选轨道", IsEnabled = false, Style = XamlResources.Style(Resources, "PlayerMenuHeading") });
-        return menu;
-    }
-    private void AddTrack(MenuFlyout menu, TrackInfo track, bool subtitle)
-    {
-        var selected = subtitle ? ViewModel.Snapshot.SelectedSubtitleTrackId : ViewModel.Snapshot.SelectedAudioTrackId;
-        var item = new ToggleMenuFlyoutItem { Text = track.Label.Length > 96 ? track.Label[..96] : track.Label, IsChecked = selected == track.Id };
-        RegisterMenuItem(menu, item, (_, _) => SelectTrack(track.Id, subtitle));
-        menu.Items.Add(item);
-    }
+
     private void SelectRate(double rate)
     {
         if (disposed || presentationFrozen || closing || transitionActive) return;
@@ -1382,31 +1365,12 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         HideMenus();
         Run(() => subtitle ? session.SelectSubtitleTrackAsync(trackId, lifetime.Token) : session.SelectAudioTrackAsync(trackId, lifetime.Token));
     }
-    private MenuFlyout CreateMenu()
-    {
-        if (disposed || presentationFrozen || closing) throw new InvalidOperationException("播放页已关闭，无法打开菜单。");
-        var menu = new MenuFlyout { MenuFlyoutPresenterStyle = XamlResources.Style(Resources, "PlayerMenuPresenter") };
-        menuHandlers.Add(menu, []);
-        menu.Opened += OnMenuOpened;
-        menu.Closed += OnMenuClosed;
-        return menu;
-    }
-
-    private void RegisterMenuItem(MenuFlyout menu, MenuFlyoutItem item, RoutedEventHandler handler)
-    {
-        item.Style = XamlResources.Style(Resources, "PlayerMenuChoice");
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(item, item.Text);
-        item.Click += handler;
-        menuHandlers[menu].Add((item, handler));
-    }
-
     private void OnMenuOpened(object? sender, object args)
     {
         if (sender is null) return;
         var menu = sender.As<FlyoutBase>();
         if (disposed || presentationFrozen || closing || transitionActive || !IsLoaded)
         {
-            DetachMenu(menu);
             menu.Hide();
             return;
         }
@@ -1421,23 +1385,15 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         var menu = sender.As<FlyoutBase>();
         var removed = openFlyouts.Remove(menu);
         openMenus = openFlyouts.Count;
-        DetachMenu(menu);
+        // 选项的回调捕获着播放层，收起后不留在弹出层里。
+        if (ReferenceEquals(menu, RateFlyout)) RatePanel.Clear();
+        else if (ReferenceEquals(menu, TracksFlyout)) TracksPanel.Clear();
         if (disposed || presentationFrozen || closing || transitionActive || !IsLoaded) return;
         if (removed && openMenus == 0)
         {
             Focus(FocusState.Programmatic);
             lastActivity = Environment.TickCount64;
         }
-    }
-
-    private void DetachMenu(FlyoutBase menu)
-    {
-        // 弹幕面板随播放层存活，可以反复打开；只有一次性的菜单在关闭时解除订阅。
-        if (ReferenceEquals(menu, BulletChatFlyout) && !presentationFrozen) return;
-        menu.Opened -= OnMenuOpened;
-        menu.Closed -= OnMenuClosed;
-        if (menuHandlers.Remove(menu, out var handlers))
-            foreach (var registration in handlers) registration.Item.Click -= registration.Handler;
     }
 
     private void HideMenus()
@@ -1448,13 +1404,21 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
 
     private void DisposeMenus()
     {
-        foreach (var menu in menuHandlers.Keys.ToArray())
-        {
-            DetachMenu(menu);
-            menu.Hide();
-        }
+        foreach (var flyout in panelFlyouts) flyout.Hide();
         openFlyouts.Clear();
         openMenus = 0;
+        RatePanel.Clear();
+        TracksPanel.Clear();
+        // 离开可视树时只需收起；播放层冻结后才解除订阅，之后不会再打开。
+        if (!presentationFrozen) return;
+        foreach (var flyout in panelFlyouts)
+        {
+            flyout.Opened -= OnMenuOpened;
+            flyout.Closed -= OnMenuClosed;
+        }
+        RateFlyout.Opening -= OnRateOpening;
+        TracksFlyout.Opening -= OnTracksOpening;
+        panelFlyouts = [];
     }
     private void Run(Func<Task> action, bool cancelSeekOnError = false) => lastCommand = RunAsync(action, cancelSeekOnError);
 

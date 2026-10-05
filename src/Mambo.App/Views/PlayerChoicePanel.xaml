@@ -1,0 +1,36 @@
+<UserControl
+    x:Class="Mambo.App.Views.PlayerChoicePanel"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:Mambo.App.ViewModels"
+    xmlns:themes="using:Mambo.App.Themes"
+    RequestedTheme="Dark" Width="320">
+    <ScrollViewer MaxHeight="420" VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
+        <ItemsRepeater x:Name="GroupList" Margin="16,12,16,10">
+            <ItemsRepeater.Layout><StackLayout Spacing="6"/></ItemsRepeater.Layout>
+            <ItemsRepeater.ItemTemplate>
+                <DataTemplate x:DataType="vm:PlayerChoiceGroup">
+                    <StackPanel>
+                        <Grid Height="40"><TextBlock Text="{x:Bind Title}" Style="{StaticResource PlayerPanelHeader}" AutomationProperties.HeadingLevel="Level2"/></Grid>
+                        <TextBlock Text="{x:Bind EmptyText}" Style="{StaticResource PlayerPanelNote}" Margin="0,4,0,8" Visibility="{x:Bind IsEmpty}"/>
+                        <!-- 行的外观与弹幕面板的搜索结果相同；滚动交给外层，内层不截获滚轮 -->
+                        <ListView ItemsSource="{x:Bind Choices}" SelectionMode="None" IsItemClickEnabled="True" ItemClick="OnChoiceClick" Margin="-8,0"
+                                  Visibility="{x:Bind HasChoices}" ScrollViewer.VerticalScrollMode="Disabled" ScrollViewer.VerticalScrollBarVisibility="Hidden"
+                                  AutomationProperties.Name="{x:Bind Title}">
+                            <ListView.ItemTemplate>
+                                <DataTemplate x:DataType="vm:PlayerChoice">
+                                    <Grid ColumnSpacing="8" AutomationProperties.Name="{x:Bind Label}">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="16"/></Grid.ColumnDefinitions>
+                                        <TextBlock Text="{x:Bind Label}" Style="{StaticResource PlayerPanelLabel}" TextTrimming="CharacterEllipsis"/>
+                                        <themes:LineIcon Grid.Column="1" Glyph="{StaticResource IconCheck}" Width="16" Height="16"
+                                                         Foreground="{ThemeResource PlayerTextPrimaryBrush}" Visibility="{x:Bind IsSelected}"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+                    </StackPanel>
+                </DataTemplate>
+            </ItemsRepeater.ItemTemplate>
+        </ItemsRepeater>
+    </ScrollViewer>
+</UserControl>

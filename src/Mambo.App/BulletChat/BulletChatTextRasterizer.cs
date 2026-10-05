@@ -43,7 +43,8 @@ internal sealed partial class BulletChatTextRasterizer : IDisposable
     public BulletChatText Measure(string text, float fontSize)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
-        var layout = new CanvasTextLayout(device, text, Format(fontSize, FontFamily), 0, 0);
+        // 布局不继承格式上的选项：彩色字体必须在布局上单独打开，否则表情只有单色轮廓。
+        var layout = new CanvasTextLayout(device, text, Format(fontSize, FontFamily), 0, 0) { Options = CanvasDrawTextOptions.EnableColorFont };
         var bounds = layout.LayoutBounds;
         return new(layout, new((float)Math.Ceiling(bounds.Width) + Padding * 2, (float)Math.Ceiling(bounds.Height) + Padding * 2));
     }
@@ -84,8 +85,7 @@ internal sealed partial class BulletChatTextRasterizer : IDisposable
         if (formats.TryGetValue(key, out var format)) return format;
         format = new CanvasTextFormat
         {
-            FontFamily = family, FontSize = fontSize, FontWeight = FontWeights.SemiBold,
-            WordWrapping = CanvasWordWrapping.NoWrap, Options = CanvasDrawTextOptions.EnableColorFont,
+            FontFamily = family, FontSize = fontSize, FontWeight = FontWeights.SemiBold, WordWrapping = CanvasWordWrapping.NoWrap,
         };
         formats.Add(key, format);
         return format;

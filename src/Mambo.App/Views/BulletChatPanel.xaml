@@ -5,111 +5,49 @@
     xmlns:vm="using:Mambo.App.ViewModels"
     xmlns:themes="using:Mambo.App.Themes"
     RequestedTheme="Dark" Width="320" AutomationProperties.Name="弹幕">
-    <UserControl.Resources>
-        <Style x:Key="PanelLabel" TargetType="TextBlock">
-            <Setter Property="FontFamily" Value="{StaticResource MiSansRegularFontFamily}"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Foreground" Value="{ThemeResource PlayerTextPrimaryBrush}"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-        </Style>
-        <Style x:Key="PanelValue" TargetType="TextBlock">
-            <Setter Property="FontFamily" Value="{StaticResource MiSansMediumFontFamily}"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="FontWeight" Value="Medium"/>
-            <Setter Property="Foreground" Value="{ThemeResource PlayerTextSecondaryBrush}"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="HorizontalAlignment" Value="Right"/>
-            <Setter Property="Typography.NumeralAlignment" Value="Tabular"/>
-        </Style>
-        <Style x:Key="PanelButton" TargetType="Button" BasedOn="{StaticResource SubtleButtonStyle}">
-            <Setter Property="Foreground" Value="{ThemeResource PlayerTextPrimaryBrush}"/>
-            <Setter Property="FontFamily" Value="{StaticResource MiSansSemiboldFontFamily}"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Height" Value="32"/>
-            <Setter Property="MinWidth" Value="32"/>
-            <Setter Property="Padding" Value="12,0"/>
-            <Setter Property="CornerRadius" Value="16"/>
-        </Style>
-        <!-- 与播放页进度条、音量条同一外观：4 DIP 白色轨道和圆形滑块 -->
-        <Style x:Key="PanelSlider" TargetType="Slider">
-            <Setter Property="MinHeight" Value="32"/>
-            <Setter Property="IsThumbToolTipEnabled" Value="False"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Slider">
-                        <Grid Background="Transparent">
-                            <VisualStateManager.VisualStateGroups>
-                                <VisualStateGroup x:Name="CommonStates">
-                                    <VisualState x:Name="Normal"/>
-                                    <VisualState x:Name="PointerOver"><VisualState.Setters><Setter Target="HorizontalTrackRect.Height" Value="6"/><Setter Target="HorizontalDecreaseRect.Height" Value="6"/></VisualState.Setters></VisualState>
-                                    <VisualState x:Name="Pressed"><VisualState.Setters><Setter Target="HorizontalTrackRect.Height" Value="6"/><Setter Target="HorizontalDecreaseRect.Height" Value="6"/></VisualState.Setters></VisualState>
-                                    <VisualState x:Name="Disabled"><VisualState.Setters><Setter Target="HorizontalTemplate.Opacity" Value=".45"/></VisualState.Setters></VisualState>
-                                </VisualStateGroup>
-                            </VisualStateManager.VisualStateGroups>
-                            <Grid x:Name="HorizontalTemplate" Background="Transparent">
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                                <Rectangle x:Name="HorizontalTrackRect" Grid.ColumnSpan="3" Height="4" RadiusX="3" RadiusY="3" Fill="{ThemeResource PlayerTrackBrush}" VerticalAlignment="Center"/>
-                                <Rectangle x:Name="HorizontalDecreaseRect" Height="4" RadiusX="3" RadiusY="3" Fill="{ThemeResource PlayerFillBrush}" VerticalAlignment="Center"/>
-                                <Thumb x:Name="HorizontalThumb" Grid.Column="1" Width="14" Height="14">
-                                    <Thumb.Template><ControlTemplate TargetType="Thumb">
-                                        <Grid>
-                                            <Border CornerRadius="7" themes:SoftShadow.Kind="Thumb"/>
-                                            <Border CornerRadius="7" Background="{ThemeResource PlayerFillBrush}"/>
-                                        </Grid>
-                                    </ControlTemplate></Thumb.Template>
-                                </Thumb>
-                            </Grid>
-                        </Grid>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-    </UserControl.Resources>
     <Grid Padding="16,12,16,14">
         <StackPanel x:Name="SettingsView" Spacing="4" Visibility="{x:Bind ViewModel.IsSettingsView, Mode=OneWay}">
             <Grid Height="40">
-                <TextBlock Text="弹幕" Style="{StaticResource PanelLabel}" FontFamily="{StaticResource MiSansSemiboldFontFamily}" FontWeight="SemiBold" FontSize="14"/>
+                <TextBlock Text="弹幕" Style="{StaticResource PlayerPanelHeader}"/>
                 <ToggleSwitch x:Name="EnabledSwitch" IsOn="{x:Bind ViewModel.Enabled, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0" Margin="0,0,-8,0"
                               HorizontalAlignment="Right" VerticalAlignment="Center" AutomationProperties.Name="显示弹幕"/>
             </Grid>
             <Grid ColumnSpacing="12">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="64"/><ColumnDefinition Width="*"/><ColumnDefinition Width="44"/></Grid.ColumnDefinitions>
-                <TextBlock Text="不透明度" Style="{StaticResource PanelLabel}"/>
-                <Slider x:Name="OpacitySlider" Grid.Column="1" Style="{StaticResource PanelSlider}" Minimum="20" Maximum="100" StepFrequency="5" SmallChange="5" LargeChange="20"
+                <TextBlock Text="不透明度" Style="{StaticResource PlayerPanelLabel}"/>
+                <Slider x:Name="OpacitySlider" Grid.Column="1" Style="{StaticResource PlayerPanelSlider}" Minimum="20" Maximum="100" StepFrequency="5" SmallChange="5" LargeChange="20"
                         Value="{x:Bind ViewModel.OpacityPercent, Mode=TwoWay}" AutomationProperties.Name="弹幕不透明度"/>
-                <TextBlock Grid.Column="2" Text="{x:Bind ViewModel.OpacityText, Mode=OneWay}" Style="{StaticResource PanelValue}"/>
+                <TextBlock Grid.Column="2" Text="{x:Bind ViewModel.OpacityText, Mode=OneWay}" Style="{StaticResource PlayerPanelValue}"/>
             </Grid>
             <Grid ColumnSpacing="12">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="64"/><ColumnDefinition Width="*"/><ColumnDefinition Width="44"/></Grid.ColumnDefinitions>
-                <TextBlock Text="字号" Style="{StaticResource PanelLabel}"/>
-                <Slider x:Name="FontSlider" Grid.Column="1" Style="{StaticResource PanelSlider}" Minimum="60" Maximum="200" StepFrequency="10" SmallChange="10" LargeChange="20"
+                <TextBlock Text="字号" Style="{StaticResource PlayerPanelLabel}"/>
+                <Slider x:Name="FontSlider" Grid.Column="1" Style="{StaticResource PlayerPanelSlider}" Minimum="60" Maximum="200" StepFrequency="10" SmallChange="10" LargeChange="20"
                         Value="{x:Bind ViewModel.FontPercent, Mode=TwoWay}" AutomationProperties.Name="弹幕字号"/>
-                <TextBlock Grid.Column="2" Text="{x:Bind ViewModel.FontText, Mode=OneWay}" Style="{StaticResource PanelValue}"/>
+                <TextBlock Grid.Column="2" Text="{x:Bind ViewModel.FontText, Mode=OneWay}" Style="{StaticResource PlayerPanelValue}"/>
             </Grid>
             <Grid ColumnSpacing="12">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="64"/><ColumnDefinition Width="*"/><ColumnDefinition Width="44"/></Grid.ColumnDefinitions>
-                <TextBlock Text="速度" Style="{StaticResource PanelLabel}"/>
-                <Slider x:Name="SpeedSlider" Grid.Column="1" Style="{StaticResource PanelSlider}" Minimum="0" Maximum="4" StepFrequency="1" SmallChange="1" LargeChange="1"
+                <TextBlock Text="速度" Style="{StaticResource PlayerPanelLabel}"/>
+                <Slider x:Name="SpeedSlider" Grid.Column="1" Style="{StaticResource PlayerPanelSlider}" Minimum="0" Maximum="4" StepFrequency="1" SmallChange="1" LargeChange="1"
                         Value="{x:Bind ViewModel.SpeedLevel, Mode=TwoWay}" AutomationProperties.Name="弹幕速度"/>
-                <TextBlock Grid.Column="2" Text="{x:Bind ViewModel.SpeedText, Mode=OneWay}" Style="{StaticResource PanelValue}"/>
+                <TextBlock Grid.Column="2" Text="{x:Bind ViewModel.SpeedText, Mode=OneWay}" Style="{StaticResource PlayerPanelValue}"/>
             </Grid>
             <Grid ColumnSpacing="12">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="64"/><ColumnDefinition Width="*"/><ColumnDefinition Width="44"/></Grid.ColumnDefinitions>
-                <TextBlock Text="显示区域" Style="{StaticResource PanelLabel}"/>
-                <Slider x:Name="AreaSlider" Grid.Column="1" Style="{StaticResource PanelSlider}" Minimum="10" Maximum="100" StepFrequency="5" SmallChange="5" LargeChange="25"
+                <TextBlock Text="显示区域" Style="{StaticResource PlayerPanelLabel}"/>
+                <Slider x:Name="AreaSlider" Grid.Column="1" Style="{StaticResource PlayerPanelSlider}" Minimum="10" Maximum="100" StepFrequency="5" SmallChange="5" LargeChange="25"
                         Value="{x:Bind ViewModel.AreaPercent, Mode=TwoWay}" AutomationProperties.Name="弹幕显示区域"/>
-                <TextBlock Grid.Column="2" Text="{x:Bind ViewModel.AreaText, Mode=OneWay}" Style="{StaticResource PanelValue}"/>
+                <TextBlock Grid.Column="2" Text="{x:Bind ViewModel.AreaText, Mode=OneWay}" Style="{StaticResource PlayerPanelValue}"/>
             </Grid>
             <Border Height="1" Margin="0,8" Background="{ThemeResource PlayerHoverBrush}"/>
             <Grid ColumnSpacing="8" MinHeight="32">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                <TextBlock x:Name="StatusLabel" Text="{x:Bind ViewModel.StatusText, Mode=OneWay}" Style="{StaticResource PanelLabel}" Foreground="{ThemeResource PlayerTextSecondaryBrush}"
+                <TextBlock x:Name="StatusLabel" Text="{x:Bind ViewModel.StatusText, Mode=OneWay}" Style="{StaticResource PlayerPanelLabel}" Foreground="{ThemeResource PlayerTextSecondaryBrush}"
                            FontSize="12" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" AutomationProperties.LiveSetting="Polite"/>
-                <Button x:Name="RetryButton" Grid.Column="1" Content="重试" Style="{StaticResource PanelButton}" Click="OnRetryClick"
+                <Button x:Name="RetryButton" Grid.Column="1" Content="重试" Style="{StaticResource PlayerPanelButton}" Click="OnRetryClick"
                         Visibility="{x:Bind ViewModel.CanRetry, Mode=OneWay}" AutomationProperties.Name="重新加载弹幕"/>
-                <Button x:Name="SearchButton" Grid.Column="2" Content="搜索" Style="{StaticResource PanelButton}" Click="OnSearchClick"
+                <Button x:Name="SearchButton" Grid.Column="2" Content="搜索" Style="{StaticResource PlayerPanelButton}" Click="OnSearchClick"
                         Visibility="{x:Bind ViewModel.CanSearch, Mode=OneWay}" AutomationProperties.Name="搜索弹幕"/>
             </Grid>
         </StackPanel>
@@ -118,21 +56,21 @@
             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="264"/></Grid.RowDefinitions>
             <Grid ColumnSpacing="8">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                <Button x:Name="BackButton" Style="{StaticResource PanelButton}" Padding="0" Width="32" Click="OnBackClick" AutomationProperties.Name="返回" ToolTipService.ToolTip="返回">
+                <Button x:Name="BackButton" Style="{StaticResource PlayerPanelButton}" Padding="0" Width="32" Click="OnBackClick" AutomationProperties.Name="返回" ToolTipService.ToolTip="返回">
                     <themes:LineIcon Glyph="{StaticResource IconChevronLeft}" Width="16" Height="16"/>
                 </Button>
                 <TextBox x:Name="SearchBox" Grid.Column="1" PlaceholderText="片名" Text="{x:Bind ViewModel.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                          MaxLength="100" KeyDown="OnSearchKeyDown" FontFamily="{StaticResource MiSansRegularFontFamily}" FontSize="13" AutomationProperties.Name="搜索弹幕"/>
             </Grid>
-            <TextBlock Grid.Row="1" Text="{x:Bind ViewModel.Heading, Mode=OneWay}" Style="{StaticResource PanelLabel}" FontFamily="{StaticResource MiSansSemiboldFontFamily}" FontWeight="SemiBold"
+            <TextBlock Grid.Row="1" Text="{x:Bind ViewModel.Heading, Mode=OneWay}" Style="{StaticResource PlayerPanelHeader}" FontSize="13"
                        TextTrimming="CharacterEllipsis" Visibility="{x:Bind ViewModel.HasHeading, Mode=OneWay}"/>
             <ListView x:Name="ResultList" Grid.Row="2" ItemsSource="{x:Bind ViewModel.Rows}" SelectionMode="None" IsItemClickEnabled="True" ItemClick="OnRowClick"
                       Margin="-8,0" AutomationProperties.Name="搜索结果">
                 <ListView.ItemTemplate>
                     <DataTemplate x:DataType="vm:BulletChatRow">
                         <StackPanel Padding="0,6" Spacing="2">
-                            <TextBlock Text="{x:Bind Title}" Style="{StaticResource PanelLabel}" TextTrimming="CharacterEllipsis"/>
-                            <TextBlock Text="{x:Bind Detail}" Style="{StaticResource PanelLabel}" Foreground="{ThemeResource PlayerTextSecondaryBrush}" FontSize="12"
+                            <TextBlock Text="{x:Bind Title}" Style="{StaticResource PlayerPanelLabel}" TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Text="{x:Bind Detail}" Style="{StaticResource PlayerPanelLabel}" Foreground="{ThemeResource PlayerTextSecondaryBrush}" FontSize="12"
                                        TextTrimming="CharacterEllipsis" Visibility="{x:Bind HasDetail}"/>
                         </StackPanel>
                     </DataTemplate>
@@ -140,7 +78,7 @@
             </ListView>
             <ProgressRing Grid.Row="2" Width="24" Height="24" IsActive="{x:Bind ViewModel.IsBusy, Mode=OneWay}" Foreground="{ThemeResource PlayerTextPrimaryBrush}"
                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
-            <TextBlock Grid.Row="2" Text="{x:Bind ViewModel.Message, Mode=OneWay}" Style="{StaticResource PanelLabel}" Foreground="{ThemeResource PlayerTextSecondaryBrush}"
+            <TextBlock Grid.Row="2" Text="{x:Bind ViewModel.Message, Mode=OneWay}" Style="{StaticResource PlayerPanelLabel}" Foreground="{ThemeResource PlayerTextSecondaryBrush}"
                        TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Center" Visibility="{x:Bind ViewModel.HasMessage, Mode=OneWay}"
                        AutomationProperties.LiveSetting="Polite"/>
         </Grid>

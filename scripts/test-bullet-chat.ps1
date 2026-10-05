@@ -3,7 +3,7 @@
 param([string]$AppDirectory, [switch]$NoBuild, [switch]$Screenshot)
 
 # 弹幕渲染诊断：独立进程、假数据服务，不读取账号也不联网。
-# -Screenshot 只截取本轮诊断窗口自身的矩形，保存在 artifacts/ 下供人工查看。
+# -Screenshot 只保存本轮诊断窗口自身的内容（PrintWindow），放在 artifacts/ 下供人工查看。
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $repository = [IO.Path]::GetFullPath((Split-Path $PSScriptRoot -Parent))
@@ -32,23 +32,30 @@ public static class MamboBulletChatWindow {
     [StructLayout(LayoutKind.Sequential)] private struct Rect { public int Left, Top, Right, Bottom; }
     [DllImport("user32.dll")] private static extern bool SetProcessDPIAware();
     [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr window, out Rect rect);
-    [DllImport("user32.dll")] private static extern bool SetForegroundWindow(IntPtr window);
-    public static void Activate(IntPtr window) { SetProcessDPIAware(); SetForegroundWindow(window); }
-    public static int[] Bounds(IntPtr window) {
-        return GetWindowRect(window, out var rect) ? new[] { rect.Left, rect.Top, rect.Right - rect.Left, rect.Bottom - rect.Top } : new int[0];
+    [DllImport("user32.dll")] private static extern bool PrintWindow(IntPtr window, IntPtr deviceContext, uint flags);
+    public static int[] Size(IntPtr window) {
+        SetProcessDPIAware();
+        return GetWindowRect(window, out var rect) ? new[] { rect.Right - rect.Left, rect.Bottom - rect.Top } : new int[0];
     }
+    // PW_RENDERFULLCONTENT：让系统把这个窗口自己的合成内容画进来，与它是否被遮挡无关。
+    public static bool Print(IntPtr window, IntPtr deviceContext) { return PrintWindow(window, deviceContext, 2); }
 }
 '@
 }
+# 只取诊断窗口自身的内容：不读屏幕像素，也不把窗口抢到前台。
+# 早先按窗口矩形从屏幕复制的做法，在窗口被遮挡时会把盖在上面的其他窗口截进来。
 function Save-WindowCapture([IntPtr]$Window, [string]$Path) {
-    [MamboBulletChatWindow]::Activate($Window)
-    Start-Sleep -Milliseconds 500
-    $bounds = [MamboBulletChatWindow]::Bounds($Window)
-    if ($bounds.Length -ne 4 -or $bounds[2] -lt 100 -or $bounds[3] -lt 100) { return $false }
-    $bitmap = [Drawing.Bitmap]::new($bounds[2], $bounds[3])
+    $size = [MamboBulletChatWindow]::Size($Window)
+    if ($size.Length -ne 2 -or $size[0] -lt 100 -or $size[1] -lt 100) { return $false }
+    $bitmap = [Drawing.Bitmap]::new($size[0], $size[1])
     try {
         $graphics = [Drawing.Graphics]::FromImage($bitmap)
-        try { $graphics.CopyFromScreen($bounds[0], $bounds[1], 0, 0, $bitmap.Size) } finally { $graphics.Dispose() }
+        $printed = $false
+        try {
+            $deviceContext = $graphics.GetHdc()
+            try { $printed = [MamboBulletChatWindow]::Print($Window, $deviceContext) } finally { $graphics.ReleaseHdc($deviceContext) }
+        } finally { $graphics.Dispose() }
+        if (-not $printed) { return $false }
         $bitmap.Save($Path, [Drawing.Imaging.ImageFormat]::Png)
     } finally { $bitmap.Dispose() }
     return $true
@@ -67,20 +74,23 @@ try {
     if ($Screenshot) { $start.Environment['MAMBO_BULLET_CHAT_HOLD_MS'] = '4000' }
     $process = [Diagnostics.Process]::Start($start)
     if ($Screenshot) {
-        # 诊断在两个阶段各停留一次：弹幕滚动中，以及弹幕面板打开时。
-        $pending = [ordered]@{ '停留供截图' = $screenshotPath; '面板停留供截图' = $panelScreenshotPath }
+        # 诊断在四个阶段各停留一次：弹幕滚动中，以及弹幕、倍速、轨道三个面板打开时。
+        $pending = [ordered]@{ '停留供截图' = $screenshotPath; '面板停留供截图' = $panelScreenshotPath
+            '倍速面板停留供截图' = (Join-Path $root 'rate.png'); '轨道面板停留供截图' = (Join-Path $root 'tracks.png') }
         $waiting = [Diagnostics.Stopwatch]::StartNew()
-        while ($pending.Count -gt 0 -and $waiting.Elapsed.TotalSeconds -lt 60 -and -not $process.HasExited) {
+        while ($pending.Count -gt 0 -and $waiting.Elapsed.TotalSeconds -lt 200 -and -not $process.HasExited) {
             Start-Sleep -Milliseconds 200
             if (-not (Test-Path -LiteralPath $reportPath -PathType Leaf)) { continue }
             try { $stage = (Get-Content -LiteralPath $reportPath -Raw | ConvertFrom-Json).Stage } catch { continue }
             if (-not $pending.Contains($stage)) { continue }
+            # 等弹出层和列表项的入场动画播完再取，否则面板是半透明的、列表是空的。
+            Start-Sleep -Milliseconds 900
             $process.Refresh()
             if ($process.MainWindowHandle -ne [IntPtr]::Zero -and (Save-WindowCapture $process.MainWindowHandle $pending[$stage])) { $captured += $pending[$stage] }
             $pending.Remove($stage)
         }
     }
-    if (-not $process.WaitForExit(90000)) { $reason = 'ProcessDeadlineExceeded'; throw [TimeoutException]::new('弹幕诊断超时。') }
+    if (-not $process.WaitForExit(240000)) { $reason = 'ProcessDeadlineExceeded'; throw [TimeoutException]::new('弹幕诊断超时。') }
     if (-not (Test-Path -LiteralPath $reportPath -PathType Leaf)) { $reason = 'ReportMissing'; throw [InvalidOperationException]::new('未生成本轮诊断报告。') }
     $report = Get-Content -LiteralPath $reportPath -Raw | ConvertFrom-Json
     $reason = if ($report.Passed -and $process.ExitCode -eq 0) { 'Passed' } else { 'AppCheckFailed' }
