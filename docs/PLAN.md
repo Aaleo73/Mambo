@@ -1502,7 +1502,8 @@ PlayerOverlay（Grid，RequestedTheme=Dark，IsTabStop=True，持有焦点）
 
 ## 进度
 
-- [ ] GitHub 托管与自动更新（2026-10-05：用户指定公开仓库 Aaleo73/Mambo；公开稳定版检查、校验下载安装器和 Actions 已接入，最终验证与上传进行中。完整原生对应源码缺口处理前只发布源码，见 `docs/decisions/github-auto-update.md`）
+- [x] GitHub 源码托管与自动更新实现（2026-10-05：公开仓库 Aaleo73/Mambo 已上传；公开稳定版检查、SHA-256 校验下载安装器和 Actions 已接入。独立构建及 AOT 通过，更新专项 37/37、回归 532 通过/23 按配置跳过；线上构建/测试与 v0.1.0 源码发布通过。完整界面输入检查受超时/遮挡限制，见 `docs/decisions/github-auto-update.md`）
+- [ ] 首次公开二进制与真实跨版本更新验收（完整原生对应源码缺口处理前只发布源码；尚无公开安装包，未将源码 Release 当作可安装更新）
 
 - [x] P0 工具链、骨架与视频技术验证（关卡 ①：2026-10-02 用户批准携遗留项进入 P1；未通过与待测项见 `docs/decisions/P0-video-spike.md`）
 - [x] P1a 契约与假实现（2026-10-02 评审条件通过，R-004–R-009 已修正并测试，契约 v1 冻结；增量 R-010–R-014 完成）
