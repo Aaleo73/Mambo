@@ -1,0 +1,112 @@
+# Maintainer: Alexey Pavlov <alexpux@gmail.com>
+
+_realname=libarchive
+pkgbase=mingw-w64-${_realname}
+pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
+pkgver=3.8.9
+pkgrel=6
+pkgdesc="Multi-format archive and compression library (mingw-w64)"
+arch=('any')
+mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clangarm64')
+url="https://www.libarchive.org/"
+msys2_repository_url='https://github.com/libarchive/libarchive/'
+msys2_references=(
+  'archlinux: libarchive'
+  "cpe: cpe:/a:libarchive:libarchive"
+  'cygwin: libarchive'
+  'gentoo: app-arch/libarchive'
+)
+license=("spdx:BSD-2-Clause")
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-cc-libs"
+  "${MINGW_PACKAGE_PREFIX}-bzip2"
+  "${MINGW_PACKAGE_PREFIX}-expat"
+  "${MINGW_PACKAGE_PREFIX}-libb2"
+  "${MINGW_PACKAGE_PREFIX}-libiconv"
+  "${MINGW_PACKAGE_PREFIX}-lz4"
+  "${MINGW_PACKAGE_PREFIX}-openssl"
+  "${MINGW_PACKAGE_PREFIX}-pcre2"
+  "${MINGW_PACKAGE_PREFIX}-xz"
+  "${MINGW_PACKAGE_PREFIX}-zlib"
+  "${MINGW_PACKAGE_PREFIX}-zstd"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+)
+provides=("${MINGW_PACKAGE_PREFIX}-unzip")
+source=("${msys2_repository_url}releases/download/v${pkgver}/${_realname}-${pkgver}.tar.xz"
+        "001-fix-static-library-output-name-on-mingw.patch"
+        "unzip-omit-ext.patch::${msys2_repository_url}commit/ddf8247381814977c2f55a59f48d17460f7d00f0.patch"
+        "o-binary.patch::${msys2_repository_url}commit/9aa710d571dc30d7345683b2c705f33b675263a6.patch"
+        "z1-for-octave.patch::${msys2_repository_url}commit/9c9cb937ed6c5963d4ddd94dbc567d291ab71ab6.patch")
+sha256sums=('888c934f9d95648ecb9163dc8e23ab80a476ecb81a8f1154704a227b5b676dde'
+            '4331c43882b4dad45f6036ee5e81671e0b54bdacbea48a64597282fd3d1bfb85'
+            'd6b7b2d46bb49e8cfb99feb9637ae5a37792b7929a4ccdacbc40aa35b26cda88'
+            'dbce3ee73a6b2231e134bebcf4ccdb0f582257da318a4c22f0204484e6a11c80'
+            '94d4ab4d6e7dad0b44e9074c3db0cc45bfc33a29862eee43a5f20b172f4040c0')
+
+prepare() {
+  cd ${_realname}-${pkgver}
+  patch -p1 -i "${srcdir}"/001-fix-static-library-output-name-on-mingw.patch
+  # backport for unzip compat
+  patch -p1 -i "${srcdir}"/o-binary.patch
+  patch -p1 -i "${srcdir}"/z1-for-octave.patch
+  patch -p1 -i "${srcdir}"/unzip-omit-ext.patch
+}
+
+build() {
+  declare -a _extra_config
+  if check_option "debug" "n"; then
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
+
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    cmake \
+      -GNinja \
+      -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}" \
+      "${_extra_config[@]}" \
+      -DCMAKE_DLL_NAME_WITH_SOVERSION=ON \
+      -DENABLE_BZip2=ON \
+      -DENABLE_CNG=ON \
+      -DENABLE_EXPAT=ON \
+      -DENABLE_ICONV=ON \
+      -DENABLE_LIBB2=ON \
+      -DENABLE_LZ4=ON \
+      -DENABLE_LZMA=ON \
+      -DENABLE_PCRE2POSIX=ON \
+      -DENABLE_ZLIB=ON \
+      -DENABLE_ZSTD=ON \
+      -DENABLE_OPENSSL=ON \
+      -DENABLE_CAT_SHARED=ON \
+      -DENABLE_CPIO_SHARED=ON \
+      -DENABLE_TAR_SHARED=ON \
+      -DENABLE_LIBXML2=OFF \
+      -DENABLE_LZO=OFF \
+      -DENABLE_NETTLE=OFF \
+      -DENABLE_TEST=OFF \
+      -DENABLE_UNZIP=ON \
+      -DPOSIX_REGEX_LIB=LIBPCRE2POSIX \
+      -S "${_realname}-${pkgver}" \
+      -B "build-${MSYSTEM}"
+
+  cmake --build "build-${MSYSTEM}"
+}
+
+check() {
+  cmake -DENABLE_TEST=ON -S"${_realname}-${pkgver}" -B"build-${MSYSTEM}"
+  cmake --build "build-${MSYSTEM}"
+  ctest --test-dir build-${MSYSTEM} --output-on-failure || true
+}
+
+package() {
+  DESTDIR="${pkgdir}" cmake --install build-${MSYSTEM}
+
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/COPYING \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE
+  cd "${pkgdir}${MINGW_PREFIX}/bin/"
+  ln bsdunzip.exe unzip.exe # see provides array
+}

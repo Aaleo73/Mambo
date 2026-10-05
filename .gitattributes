@@ -8,3 +8,8 @@ LICENSES/**/*.md -text whitespace=-blank-at-eol,-blank-at-eof,-space-before-tab
 LICENSES/**/*.cmake -text whitespace=-blank-at-eol,-blank-at-eof,-space-before-tab
 installer/ChineseSimplified.isl -text whitespace=-blank-at-eol,-blank-at-eof,-space-before-tab
 *.ttf binary
+third_party/libmpv/libmpv.lock.json text eol=lf
+LICENSES/native-sources.lock.json text eol=lf
+LICENSES/msys2-native/** -text whitespace=-blank-at-eol,-blank-at-eof,-space-before-tab conflict-marker-size=32
+LICENSES/msys2-build/** -text whitespace=-blank-at-eol,-blank-at-eof,-space-before-tab conflict-marker-size=32
+LICENSES/msys2-rust/** -text whitespace=-blank-at-eol,-blank-at-eof,-space-before-tab conflict-marker-size=32

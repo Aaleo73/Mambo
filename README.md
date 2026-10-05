@@ -28,9 +28,9 @@ dotnet run --project src/Mambo.App -p:Platform=x64 -- --fake
 pwsh scripts/publish.ps1 -Version 0.1.1 -Installer -UpdateRepository Aaleo73/Mambo
 ```
 
-安装包必须命名为 `Mambo-<版本>-win-x64-setup.exe`，对应 Release 标签为 `v<版本>`；只发布稳定版。GitHub Actions 在推送和 PR 上构建及测试，推送 `v*` 标签时发布源码 ZIP。完整原生对应源码通过审查后，发布工作流才允许附带安装包与便携包。
+安装包必须命名为 `Mambo-<版本>-win-x64-setup.exe`，对应 Release 标签为 `v<版本>`；只发布稳定版。GitHub Actions 在推送和 PR 上构建及测试，推送 `v*` 标签时构建并发布安装器、便携包、应用源码与全部原生对应源码分包。
 
-**当前尚未提供公开二进制下载。** 锁定的 libmpv 构建仍缺少全部依赖的准确对应源码、补丁与逐文件归属证据。`LICENSES/release-readiness.json` 记录该状态，发布脚本不会绕过它。已生成的本地包仅用于本机验收；开发源码 ZIP 不等于完整 libmpv 对应源码。详见 [P8 打包记录](docs/decisions/P8-packaging.md)。
+内置播放器已改用有匹配源码、补丁、构建记录和 Rust 锁定依赖的 MSYS2 原生组件。下载入口为 [GitHub Releases](https://github.com/Aaleo73/Mambo/releases)；普通安装使用 `setup.exe`，免安装使用 `portable.zip`。源码由 `sources.zip` 和全部 `native-sources-*.zip` 组成，使用同页 `SHA256SUMS.txt` 校验。发布审查绑定两份原生 lock 的哈希，变更输入后需重新核验。详见 [原生源码与发布记录](docs/decisions/native-distribution.md)。
 
 实施进度及待验收项见 [实施计划](docs/PLAN.md)，更新设计见 [GitHub 与自动更新](docs/decisions/github-auto-update.md)。
 

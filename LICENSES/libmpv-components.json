@@ -1,1021 +1,1295 @@
 [
   {
-    "name": "amf-headers",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/amf-headers.cmake",
-    "upstream": "https://github.com/GPUOpen-LibrariesAndSDKs/AMF.git",
-    "recipeGitTag": null,
-    "dependencies": [],
-    "licenseSnapshot": "https://github.com/GPUOpen-LibrariesAndSDKs/AMF/blob/master/LICENSE.txt",
-    "licenseSpdx": "NOASSERTION",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
-  },
-  {
-    "name": "angle-headers",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/angle-headers.cmake",
-    "upstream": "https://github.com/google/angle.git",
-    "recipeGitTag": "main",
-    "dependencies": [],
-    "licenseSnapshot": "https://github.com/google/angle/blob/main/LICENSE",
-    "licenseSpdx": "NOASSERTION",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
-  },
-  {
-    "name": "aom",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/aom.cmake",
-    "upstream": "https://aomedia.googlesource.com/aom",
-    "recipeGitTag": "main",
-    "dependencies": [],
-    "licenseSnapshot": "https://aomedia.googlesource.com/aom/+/refs/heads/main/LICENSE?format=TEXT",
-    "licenseSpdx": null,
-    "licenseStatus": "已附官方上游默认分支许可快照；对应二进制修订仍待核对"
-  },
-  {
-    "name": "avisynth-headers",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/avisynth-headers.cmake",
-    "upstream": "https://github.com/AviSynth/AviSynthPlus.git",
-    "recipeGitTag": null,
-    "dependencies": [],
-    "licenseSnapshot": "https://raw.githubusercontent.com/AviSynth/AviSynthPlus/master/distrib/gpl.txt",
-    "licenseSpdx": null,
-    "licenseStatus": "已附上游许可快照；对应二进制修订仍待核对"
-  },
-  {
-    "name": "brotli",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/brotli.cmake",
-    "upstream": "https://github.com/google/brotli.git",
-    "recipeGitTag": null,
-    "dependencies": [],
-    "licenseSnapshot": "https://github.com/google/brotli/blob/master/LICENSE",
-    "licenseSpdx": "MIT",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
-  },
-  {
-    "name": "bzip2",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/bzip2.cmake",
-    "upstream": "https://gitlab.com/bzip2/bzip2.git",
-    "recipeGitTag": null,
-    "dependencies": [],
-    "licenseSnapshot": "https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz#bzip2-1.0.8/LICENSE",
-    "licenseSpdx": null,
-    "licenseStatus": "已附官方1.0.8发行许可；对应二进制Git修订仍待核对"
-  },
-  {
-    "name": "dav1d",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/dav1d.cmake",
-    "upstream": "https://code.videolan.org/videolan/dav1d.git",
-    "recipeGitTag": null,
-    "dependencies": [
-      "xxhash"
+    "name": "mingw-w64-ucrt-x86_64-aom",
+    "version": "3.15.1-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-aom-3.15.1-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-aom-3.15.1-1.src.tar.zst",
+    "licenses": [
+      "spdx:BSD-2-Clause"
     ],
-    "licenseSnapshot": "https://raw.githubusercontent.com/videolan/dav1d/master/COPYING",
-    "licenseSpdx": null,
-    "licenseStatus": "已附上游许可快照；对应二进制修订仍待核对"
+    "files": [
+      "libaom.dll"
+    ]
   },
   {
-    "name": "davs2",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/davs2.cmake",
-    "upstream": "https://github.com/saindriches/davs2.git",
-    "recipeGitTag": null,
-    "dependencies": [],
-    "licenseSnapshot": "https://github.com/saindriches/davs2/blob/master/COPYING",
-    "licenseSpdx": "GPL-2.0",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
-  },
-  {
-    "name": "expat",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/expat.cmake",
-    "upstream": "https://github.com/libexpat/libexpat.git",
-    "recipeGitTag": null,
-    "dependencies": [],
-    "licenseSnapshot": "https://github.com/libexpat/libexpat/blob/master/COPYING",
-    "licenseSpdx": "MIT",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
-  },
-  {
-    "name": "fast_float",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/fast_float.cmake",
-    "upstream": "https://github.com/fastfloat/fast_float.git",
-    "recipeGitTag": "main",
-    "dependencies": [],
-    "licenseSnapshot": "https://github.com/fastfloat/fast_float/blob/main/LICENSE-APACHE",
-    "licenseSpdx": "Apache-2.0",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
-  },
-  {
-    "name": "ffmpeg",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/ffmpeg.cmake",
-    "upstream": "https://github.com/FFmpeg/FFmpeg.git",
-    "recipeGitTag": null,
-    "dependencies": [
-      "amf-headers",
-      "avisynth-headers",
-      "bzip2",
-      "lame",
-      "lcms2",
-      "openssl",
-      "libssh",
-      "libsrt",
-      "libass",
-      "libbluray",
-      "libdvdnav",
-      "libdvdread",
-      "libmodplug",
-      "libpng",
-      "libsoxr",
-      "libbs2b",
-      "libvpx",
-      "libwebp",
-      "libzimg",
-      "libmysofa",
-      "fontconfig",
-      "harfbuzz",
-      "opus",
-      "speex",
-      "vorbis",
-      "x264",
-      "xvidcore",
-      "libxml2",
-      "libvpl",
-      "libopenmpt",
-      "libjxl",
-      "shaderc",
-      "libplacebo",
-      "libzvbi",
-      "libaribcaption",
-      "aom",
-      "svtav1",
-      "dav1d",
-      "vapoursynth",
-      "rubberband",
-      "libva",
-      "openal-soft"
+    "name": "mingw-w64-ucrt-x86_64-brotli",
+    "version": "1.2.0-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-brotli-1.2.0-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-brotli-1.2.0-1.src.tar.zst",
+    "licenses": [
+      "spdx:MIT"
     ],
-    "licenseSnapshot": "https://github.com/FFmpeg/FFmpeg/blob/master/LICENSE.md",
-    "licenseSpdx": "NOASSERTION",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+    "files": [
+      "libbrotlidec.dll",
+      "libbrotlicommon.dll",
+      "libbrotlienc.dll"
+    ]
   },
   {
-    "name": "fontconfig",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/fontconfig.cmake",
-    "upstream": "https://gitlab.freedesktop.org/fontconfig/fontconfig.git",
-    "recipeGitTag": "main",
-    "dependencies": [
-      "expat",
-      "freetype2",
-      "zlib",
-      "libiconv"
+    "name": "mingw-w64-ucrt-x86_64-bzip2",
+    "version": "1.0.8-4",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-bzip2-1.0.8-4-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-bzip2-1.0.8-4.src.tar.zst",
+    "licenses": [
+      "custom"
     ],
-    "licenseSnapshot": "https://gitlab.freedesktop.org/fontconfig/fontconfig/-/blob/d416ada7b20a1cdd5050b60a7a1bbdb3d9ddd2dc/COPYING",
-    "licenseSpdx": "NOASSERTION",
-    "licenseStatus": "已附官方 Git 修订 d416ada7b20a1cdd5050b60a7a1bbdb3d9ddd2dc 的 COPYING 许可快照；包括逐文件/Unicode 归属；对应 20260610 二进制修订仍待核对",
-    "licenseSnapshotRevision": "d416ada7b20a1cdd5050b60a7a1bbdb3d9ddd2dc"
+    "files": [
+      "libbz2-1.dll"
+    ]
   },
   {
-    "name": "freetype2",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/freetype2.cmake",
-    "upstream": "https://github.com/freetype/freetype.git",
-    "recipeGitTag": null,
-    "dependencies": [
-      "libpng",
-      "zlib",
-      "brotli"
+    "name": "mingw-w64-ucrt-x86_64-cairo",
+    "version": "1.18.6-2",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-cairo-1.18.6-2-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-cairo-1.18.6-2.src.tar.zst",
+    "licenses": [
+      "spdx:LGPL-2.1-or-later OR MPL-1.1"
     ],
-    "licenseSnapshot": "https://github.com/freetype/freetype/blob/master/LICENSE.TXT",
-    "licenseSpdx": "NOASSERTION",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+    "files": [
+      "libcairo-2.dll",
+      "libcairo-gobject-2.dll"
+    ]
   },
   {
-    "name": "fribidi",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/fribidi.cmake",
-    "upstream": "https://github.com/fribidi/fribidi.git",
-    "recipeGitTag": null,
-    "dependencies": [],
-    "licenseSnapshot": "https://github.com/fribidi/fribidi/blob/master/COPYING",
-    "licenseSpdx": "LGPL-2.1",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
-  },
-  {
-    "name": "glad",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/glad.cmake",
-    "upstream": "https://github.com/Dav1dde/glad.git",
-    "recipeGitTag": "glad2",
-    "dependencies": [],
-    "licenseSnapshot": "https://github.com/Dav1dde/glad/blob/glad2/LICENSE",
-    "licenseSpdx": "NOASSERTION",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
-  },
-  {
-    "name": "glslang",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/glslang.cmake",
-    "upstream": "https://github.com/KhronosGroup/glslang.git",
-    "recipeGitTag": "main",
-    "dependencies": [],
-    "licenseSnapshot": "https://github.com/KhronosGroup/glslang/blob/main/LICENSE.txt",
-    "licenseSpdx": "NOASSERTION",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
-  },
-  {
-    "name": "graphengine",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/graphengine.cmake",
-    "upstream": "https://github.com/sekrit-twc/graphengine.git",
-    "recipeGitTag": null,
-    "dependencies": [],
-    "licenseSnapshot": "https://github.com/sekrit-twc/graphengine/blob/master/COPYING",
-    "licenseSpdx": "WTFPL",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
-  },
-  {
-    "name": "harfbuzz",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/harfbuzz.cmake",
-    "upstream": "https://github.com/harfbuzz/harfbuzz.git",
-    "recipeGitTag": "main",
-    "dependencies": [
-      "freetype2",
-      "libpng"
+    "name": "mingw-w64-ucrt-x86_64-dav1d",
+    "version": "1.5.4-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-dav1d-1.5.4-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-dav1d-1.5.4-1.src.tar.zst",
+    "licenses": [
+      "spdx:BSD-2-Clause"
     ],
-    "licenseSnapshot": "https://github.com/harfbuzz/harfbuzz/blob/main/COPYING",
-    "licenseSpdx": "NOASSERTION",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+    "files": [
+      "libdav1d-7.dll"
+    ]
   },
   {
-    "name": "highway",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/highway.cmake",
-    "upstream": "https://github.com/google/highway.git",
-    "recipeGitTag": null,
-    "dependencies": [],
-    "licenseSnapshot": "https://github.com/google/highway/blob/master/LICENSE",
-    "licenseSpdx": "NOASSERTION",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
-  },
-  {
-    "name": "lame",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/lame.cmake",
-    "upstream": "https://gitlab.com/shinchiro/lame.git",
-    "recipeGitTag": null,
-    "dependencies": [],
-    "licenseSnapshot": "https://gitlab.com/shinchiro/lame/-/raw/master/COPYING",
-    "licenseSpdx": null,
-    "licenseStatus": "已附上游许可快照；对应二进制修订仍待核对"
-  },
-  {
-    "name": "lcms2",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/lcms2.cmake",
-    "upstream": "https://github.com/mm2/Little-CMS.git",
-    "recipeGitTag": null,
-    "dependencies": [
-      "libjpeg",
-      "zlib"
+    "name": "mingw-w64-ucrt-x86_64-expat",
+    "version": "2.8.5-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-expat-2.8.5-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-expat-2.8.5-1.src.tar.zst",
+    "licenses": [
+      "spdx:MIT"
     ],
-    "licenseSnapshot": "https://github.com/mm2/Little-CMS/blob/master/LICENSE",
-    "licenseSpdx": "MIT",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+    "files": [
+      "libexpat-1.dll"
+    ]
   },
   {
-    "name": "libarchive",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libarchive.cmake",
-    "upstream": "https://github.com/libarchive/libarchive.git",
-    "recipeGitTag": null,
-    "dependencies": [
-      "bzip2",
-      "expat",
-      "lzo",
-      "xz",
-      "zlib",
-      "zstd",
-      "openssl",
-      "libxml2"
+    "name": "mingw-w64-ucrt-x86_64-ffmpeg",
+    "version": "9.0.2-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-ffmpeg-9.0.2-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-ffmpeg-9.0.2-1.src.tar.zst",
+    "licenses": [
+      "spdx:GPL-3.0-or-later"
     ],
-    "licenseSnapshot": "https://github.com/libarchive/libarchive/blob/master/COPYING",
-    "licenseSpdx": "NOASSERTION",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+    "files": [
+      "swscale-10.dll",
+      "avutil-61.dll",
+      "swresample-7.dll",
+      "avformat-63.dll",
+      "avcodec-63.dll",
+      "avfilter-12.dll",
+      "avdevice-63.dll"
+    ]
   },
   {
-    "name": "libaribcaption",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libaribcaption.cmake",
-    "upstream": "https://github.com/xqq/libaribcaption.git",
-    "recipeGitTag": null,
-    "dependencies": [
-      "fontconfig",
-      "freetype2",
-      "openssl"
+    "name": "mingw-w64-ucrt-x86_64-fftw",
+    "version": "3.3.11-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-fftw-3.3.11-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-fftw-3.3.11-1.src.tar.zst",
+    "licenses": [
+      "spdx:GPL-2.0-or-later"
     ],
-    "licenseSnapshot": "https://github.com/xqq/libaribcaption/blob/master/LICENSE",
-    "licenseSpdx": "MIT",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+    "files": [
+      "libfftw3-3.dll"
+    ]
   },
   {
-    "name": "libass",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libass.cmake",
-    "upstream": "https://github.com/libass/libass.git",
-    "recipeGitTag": null,
-    "dependencies": [
-      "harfbuzz",
-      "freetype2",
-      "fribidi",
-      "libiconv",
-      "fontconfig",
-      "libunibreak"
+    "name": "mingw-w64-ucrt-x86_64-fontconfig",
+    "version": "2.18.3-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-fontconfig-2.18.3-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-fontconfig-2.18.3-1.src.tar.zst",
+    "licenses": [
+      "custom"
     ],
-    "licenseSnapshot": "https://github.com/libass/libass/blob/master/COPYING",
-    "licenseSpdx": "ISC",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+    "files": [
+      "libfontconfig-1.dll"
+    ]
   },
   {
-    "name": "libbluray",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libbluray.cmake",
-    "upstream": "https://code.videolan.org/videolan/libbluray.git",
-    "recipeGitTag": null,
-    "dependencies": [
-      "libudfread",
-      "freetype2",
-      "libxml2"
+    "name": "mingw-w64-ucrt-x86_64-freetype",
+    "version": "2.14.3-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-freetype-2.14.3-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-freetype-2.14.3-1.src.tar.zst",
+    "licenses": [
+      "spdx:GPL-2.0-or-later OR FTL"
     ],
-    "licenseSnapshot": "https://download.videolan.org/pub/videolan/libbluray/1.3.4/libbluray-1.3.4.tar.bz2#libbluray-1.3.4/COPYING",
-    "licenseSpdx": null,
-    "licenseStatus": "已附官方发行归档许可快照；对应二进制Git修订仍待核对"
+    "files": [
+      "libfreetype-6.dll"
+    ]
   },
   {
-    "name": "libbs2b",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libbs2b.cmake",
-    "upstream": "https://github.com/alexmarsev/libbs2b.git",
-    "recipeGitTag": null,
-    "dependencies": [],
-    "licenseSnapshot": "https://github.com/alexmarsev/libbs2b/blob/master/COPYING",
-    "licenseSpdx": "MIT",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
-  },
-  {
-    "name": "libdvdcss",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libdvdcss.cmake",
-    "upstream": "https://code.videolan.org/videolan/libdvdcss.git",
-    "recipeGitTag": null,
-    "dependencies": [],
-    "licenseSnapshot": "https://download.videolan.org/pub/videolan/libdvdcss/1.4.3/libdvdcss-1.4.3.tar.bz2#libdvdcss-1.4.3/COPYING",
-    "licenseSpdx": null,
-    "licenseStatus": "已附官方发行归档许可快照；对应二进制Git修订仍待核对"
-  },
-  {
-    "name": "libdvdnav",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libdvdnav.cmake",
-    "upstream": "https://code.videolan.org/videolan/libdvdnav.git",
-    "recipeGitTag": null,
-    "dependencies": [
-      "libdvdread"
+    "name": "mingw-w64-ucrt-x86_64-fribidi",
+    "version": "1.0.17-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-fribidi-1.0.17-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-fribidi-1.0.17-1.src.tar.zst",
+    "licenses": [
+      "spdx:LGPL-2.1-or-later"
     ],
-    "licenseSnapshot": "https://download.videolan.org/pub/videolan/libdvdnav/6.1.1/libdvdnav-6.1.1.tar.bz2#libdvdnav-6.1.1/COPYING",
-    "licenseSpdx": null,
-    "licenseStatus": "已附官方发行归档许可快照；对应二进制Git修订仍待核对"
+    "files": [
+      "libfribidi-0.dll"
+    ]
   },
   {
-    "name": "libdvdread",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libdvdread.cmake",
-    "upstream": "https://code.videolan.org/videolan/libdvdread.git",
-    "recipeGitTag": null,
-    "dependencies": [
-      "libdvdcss"
+    "name": "mingw-w64-ucrt-x86_64-gdk-pixbuf2",
+    "version": "2.44.7-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-gdk-pixbuf2-2.44.7-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-gdk-pixbuf2-2.44.7-1.src.tar.zst",
+    "licenses": [
+      "spdx:LGPL-2.1-or-later"
     ],
-    "licenseSnapshot": "https://download.videolan.org/pub/videolan/libdvdread/6.1.3/libdvdread-6.1.3.tar.bz2#libdvdread-6.1.3/COPYING",
-    "licenseSpdx": null,
-    "licenseStatus": "已附官方发行归档许可快照；对应二进制Git修订仍待核对"
+    "files": [
+      "libgdk_pixbuf-2.0-0.dll"
+    ]
   },
   {
-    "name": "libiconv",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libiconv.cmake",
-    "upstream": "https://ftp.gnu.org/pub/gnu/libiconv/libiconv-1.18.tar.gz",
-    "recipeGitTag": null,
-    "dependencies": [],
-    "licenseSnapshot": "https://ftp.gnu.org/pub/gnu/libiconv/libiconv-1.18.tar.gz#libiconv-1.18/COPYING.LIB",
-    "licenseSpdx": null,
-    "licenseStatus": "已附锁定配方URL/SHA-256匹配发行归档的许可；完整构建依赖归属仍待核对"
-  },
-  {
-    "name": "libjpeg",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libjpeg.cmake",
-    "upstream": "https://github.com/libjpeg-turbo/libjpeg-turbo.git",
-    "recipeGitTag": "main",
-    "dependencies": [],
-    "licenseSnapshot": "https://github.com/libjpeg-turbo/libjpeg-turbo/blob/main/LICENSE.md",
-    "licenseSpdx": "NOASSERTION",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
-  },
-  {
-    "name": "libjxl",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libjxl.cmake",
-    "upstream": "https://github.com/libjxl/libjxl.git",
-    "recipeGitTag": "main",
-    "dependencies": [
-      "lcms2",
-      "libpng",
-      "zlib",
-      "libjpeg",
-      "brotli",
-      "highway"
+    "name": "mingw-w64-ucrt-x86_64-gettext-runtime",
+    "version": "1.0-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-gettext-runtime-1.0-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-gettext-1.0-1.src.tar.zst",
+    "licenses": [
+      "spdx:GPL-3.0-or-later AND LGPL-2.1-or-later"
     ],
-    "licenseSnapshot": "https://github.com/libjxl/libjxl/blob/main/LICENSE",
-    "licenseSpdx": "BSD-3-Clause",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+    "files": [
+      "libintl-8.dll"
+    ]
   },
   {
-    "name": "libmodplug",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libmodplug.cmake",
-    "upstream": "https://github.com/Konstanty/libmodplug.git",
-    "recipeGitTag": null,
-    "dependencies": [],
-    "licenseSnapshot": "https://github.com/Konstanty/libmodplug/blob/master/COPYING",
-    "licenseSpdx": "NOASSERTION",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
-  },
-  {
-    "name": "libmysofa",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libmysofa.cmake",
-    "upstream": "https://github.com/hoene/libmysofa.git",
-    "recipeGitTag": "main",
-    "dependencies": [
-      "zlib"
+    "name": "mingw-w64-ucrt-x86_64-ggml",
+    "version": "0.25.3-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-ggml-0.25.3-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-ggml-0.25.3-1.src.tar.zst",
+    "licenses": [
+      "spdx:MIT"
     ],
-    "licenseSnapshot": "https://github.com/hoene/libmysofa/blob/main/LICENSE",
-    "licenseSpdx": "NOASSERTION",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+    "files": [
+      "ggml-base-0.dll",
+      "ggml-0.dll"
+    ]
   },
   {
-    "name": "libopenmpt",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libopenmpt.cmake",
-    "upstream": "https://lib.openmpt.org/files/libopenmpt/src/libopenmpt-0.7.12+release.autotools.tar.gz",
-    "recipeGitTag": null,
-    "dependencies": [
-      "zlib",
-      "ogg",
-      "vorbis",
-      "libsdl2"
+    "name": "mingw-w64-ucrt-x86_64-glib2",
+    "version": "2.90.0-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-glib2-2.90.0-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-glib2-2.90.0-1.src.tar.zst",
+    "licenses": [
+      "spdx:LGPL-2.1-or-later"
     ],
-    "licenseSnapshot": "https://lib.openmpt.org/files/libopenmpt/src/libopenmpt-0.7.12+release.autotools.tar.gz#libopenmpt-0.7.12+release.autotools/LICENSE",
-    "licenseSpdx": null,
-    "licenseStatus": "已附锁定配方URL/SHA-256匹配发行归档的许可；完整构建依赖归属仍待核对"
+    "files": [
+      "libglib-2.0-0.dll",
+      "libgobject-2.0-0.dll",
+      "libgio-2.0-0.dll",
+      "libgmodule-2.0-0.dll"
+    ]
   },
   {
-    "name": "libplacebo",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libplacebo.cmake",
-    "upstream": "https://github.com/haasn/libplacebo.git",
-    "recipeGitTag": null,
-    "dependencies": [
-      "vulkan",
-      "shaderc",
-      "spirv-cross",
-      "lcms2",
-      "glad",
-      "fast_float",
-      "xxhash"
+    "name": "mingw-w64-ucrt-x86_64-gmp",
+    "version": "6.3.0-2",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-gmp-6.3.0-2-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-gmp-6.3.0-2.src.tar.zst",
+    "licenses": [
+      "LGPL3",
+      "GPL"
     ],
-    "licenseSnapshot": "https://github.com/haasn/libplacebo/blob/master/LICENSE",
-    "licenseSpdx": "LGPL-2.1",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+    "files": [
+      "libgmp-10.dll"
+    ]
   },
   {
-    "name": "libpng",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libpng.cmake",
-    "upstream": "https://github.com/glennrp/libpng.git",
-    "recipeGitTag": null,
-    "dependencies": [
-      "zlib"
+    "name": "mingw-w64-ucrt-x86_64-gnutls",
+    "version": "3.8.13-3",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-gnutls-3.8.13-3-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-gnutls-3.8.13-3.src.tar.zst",
+    "licenses": [
+      "spdx:GPL-3.0-or-later",
+      "spdx:LGPL-2.1-or-later"
     ],
-    "licenseSnapshot": "https://github.com/pnggroup/libpng/blob/libpng18/LICENSE.md",
-    "licenseSpdx": "NOASSERTION",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+    "files": [
+      "libgnutls-30.dll"
+    ]
   },
   {
-    "name": "libsamplerate",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libsamplerate.cmake",
-    "upstream": "https://github.com/libsndfile/libsamplerate.git",
-    "recipeGitTag": null,
-    "dependencies": [],
-    "licenseSnapshot": "https://github.com/libsndfile/libsamplerate/blob/master/COPYING",
-    "licenseSpdx": "BSD-2-Clause",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
-  },
-  {
-    "name": "libsdl2",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libsdl2.cmake",
-    "upstream": "https://github.com/libsdl-org/SDL.git",
-    "recipeGitTag": "SDL2",
-    "dependencies": [
-      "vulkan",
-      "libiconv"
+    "name": "mingw-w64-ucrt-x86_64-graphite2",
+    "version": "1.3.15-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-graphite2-1.3.15-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-graphite2-1.3.15-1.src.tar.zst",
+    "licenses": [
+      "spdx:LGPL-2.1-or-later"
     ],
-    "licenseSnapshot": "https://github.com/libsdl-org/SDL/blob/main/LICENSE.txt",
-    "licenseSpdx": "Zlib",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+    "files": [
+      "libgraphite2.dll"
+    ]
   },
   {
-    "name": "libsixel",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libsixel.cmake",
-    "upstream": "https://github.com/saitoha/libsixel.git",
-    "recipeGitTag": null,
-    "dependencies": [],
-    "licenseSnapshot": "https://github.com/saitoha/libsixel/blob/master/LICENSE",
-    "licenseSpdx": "MIT",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
-  },
-  {
-    "name": "libsoxr",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libsoxr.cmake",
-    "upstream": "https://gitlab.com/shinchiro/soxr.git",
-    "recipeGitTag": null,
-    "dependencies": [],
-    "licenseSnapshot": "https://gitlab.com/shinchiro/soxr/-/raw/master/LICENCE",
-    "licenseSpdx": null,
-    "licenseStatus": "已附上游许可快照；对应二进制修订仍待核对"
-  },
-  {
-    "name": "libsrt",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libsrt.cmake",
-    "upstream": "https://github.com/Haivision/srt.git",
-    "recipeGitTag": null,
-    "dependencies": [
-      "openssl"
+    "name": "mingw-w64-ucrt-x86_64-gsm",
+    "version": "1.0.24-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-gsm-1.0.24-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-gsm-1.0.24-1.src.tar.zst",
+    "licenses": [
+      "custom"
     ],
-    "licenseSnapshot": "https://github.com/Haivision/srt/blob/master/LICENSE",
-    "licenseSpdx": "MPL-2.0",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+    "files": [
+      "libgsm.dll"
+    ]
   },
   {
-    "name": "libssh",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libssh.cmake",
-    "upstream": "https://gitlab.com/libssh/libssh-mirror.git",
-    "recipeGitTag": null,
-    "dependencies": [
-      "zlib",
-      "openssl"
+    "name": "mingw-w64-ucrt-x86_64-harfbuzz",
+    "version": "14.5.1-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-harfbuzz-14.5.1-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-harfbuzz-14.5.1-1.src.tar.zst",
+    "licenses": [
+      "spdx:MIT"
     ],
-    "licenseSnapshot": "https://gitlab.com/libssh/libssh-mirror/-/raw/master/COPYING",
-    "licenseSpdx": null,
-    "licenseStatus": "已附官方上游默认分支许可快照；对应二进制修订仍待核对"
+    "files": [
+      "libharfbuzz-0.dll"
+    ]
   },
   {
-    "name": "libudfread",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libudfread.cmake",
-    "upstream": "https://code.videolan.org/videolan/libudfread.git",
-    "recipeGitTag": null,
-    "dependencies": [],
-    "licenseSnapshot": "https://download.videolan.org/pub/videolan/libudfread/libudfread-1.2.0.tar.xz#libudfread-1.2.0/COPYING",
-    "licenseSpdx": null,
-    "licenseStatus": "已附官方发行归档许可快照；对应二进制Git修订仍待核对"
-  },
-  {
-    "name": "libunibreak",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libunibreak.cmake",
-    "upstream": "https://github.com/adah1972/libunibreak.git",
-    "recipeGitTag": null,
-    "dependencies": [],
-    "licenseSnapshot": "https://github.com/adah1972/libunibreak/blob/master/LICENCE",
-    "licenseSpdx": "Zlib",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
-  },
-  {
-    "name": "libva",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libva.cmake",
-    "upstream": "https://github.com/intel/libva.git",
-    "recipeGitTag": null,
-    "dependencies": [],
-    "licenseSnapshot": "https://github.com/intel/libva/blob/master/COPYING",
-    "licenseSpdx": "NOASSERTION",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
-  },
-  {
-    "name": "libvpl",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libvpl.cmake",
-    "upstream": "https://github.com/intel/libvpl.git",
-    "recipeGitTag": "main",
-    "dependencies": [],
-    "licenseSnapshot": "https://github.com/intel/libvpl/blob/main/LICENSE",
-    "licenseSpdx": "MIT",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
-  },
-  {
-    "name": "libvpx",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libvpx.cmake",
-    "upstream": "https://chromium.googlesource.com/webm/libvpx.git",
-    "recipeGitTag": "main",
-    "dependencies": [],
-    "licenseSnapshot": "https://chromium.googlesource.com/webm/libvpx/+/refs/heads/main/LICENSE?format=TEXT",
-    "licenseSpdx": null,
-    "licenseStatus": "已附官方上游默认分支许可快照；对应二进制修订仍待核对"
-  },
-  {
-    "name": "libwebp",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libwebp.cmake",
-    "upstream": "https://chromium.googlesource.com/webm/libwebp.git",
-    "recipeGitTag": "main",
-    "dependencies": [
-      "zlib",
-      "libpng",
-      "libjpeg"
+    "name": "mingw-w64-ucrt-x86_64-highway",
+    "version": "1.4.0-3",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-highway-1.4.0-3-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-highway-1.4.0-3.src.tar.zst",
+    "licenses": [
+      "spdx:Apache-2.0"
     ],
-    "licenseSnapshot": "https://chromium.googlesource.com/webm/libwebp/+/refs/heads/main/COPYING?format=TEXT",
-    "licenseSpdx": null,
-    "licenseStatus": "已附官方上游默认分支许可快照；对应二进制修订仍待核对"
+    "files": [
+      "libhwy.dll"
+    ]
   },
   {
-    "name": "libxml2",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libxml2.cmake",
-    "upstream": "https://github.com/GNOME/libxml2.git",
-    "recipeGitTag": null,
-    "dependencies": [
-      "zlib",
-      "libiconv"
+    "name": "mingw-w64-ucrt-x86_64-jbigkit",
+    "version": "2.1-6",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-jbigkit-2.1-6-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-jbigkit-2.1-6.src.tar.zst",
+    "licenses": [
+      "spdx:GPL-2.0"
     ],
-    "licenseSnapshot": "https://github.com/GNOME/libxml2/blob/master/Copyright",
-    "licenseSpdx": "NOASSERTION",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+    "files": [
+      "libjbig-0.dll"
+    ]
   },
   {
-    "name": "libzimg",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libzimg.cmake",
-    "upstream": "https://github.com/sekrit-twc/zimg.git",
-    "recipeGitTag": null,
-    "dependencies": [
-      "graphengine"
+    "name": "mingw-w64-ucrt-x86_64-lame",
+    "version": "3.100-3",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-lame-3.100-3-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-lame-3.100-3.src.tar.zst",
+    "licenses": [
+      "LGPL"
     ],
-    "licenseSnapshot": "https://github.com/sekrit-twc/zimg/blob/master/COPYING",
-    "licenseSpdx": "WTFPL",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+    "files": [
+      "libmp3lame-0.dll"
+    ]
   },
   {
-    "name": "libzvbi",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/libzvbi.cmake",
-    "upstream": "https://github.com/zapping-vbi/zvbi.git",
-    "recipeGitTag": "main",
-    "dependencies": [
-      "libpng",
-      "libiconv"
+    "name": "mingw-w64-ucrt-x86_64-lcms2",
+    "version": "2.19.1-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-lcms2-2.19.1-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-lcms2-2.19.1-1.src.tar.zst",
+    "licenses": [
+      "spdx:MIT AND GPL-3.0-or-later"
     ],
-    "licenseSnapshot": "https://github.com/zapping-vbi/zvbi/blob/main/COPYING.md",
-    "licenseSpdx": "NOASSERTION",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+    "files": [
+      "liblcms2-2.dll"
+    ]
   },
   {
-    "name": "luajit",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/luajit.cmake",
-    "upstream": "https://github.com/openresty/luajit2.git",
-    "recipeGitTag": "v2.1-agentzh",
-    "dependencies": [
-      "libiconv"
+    "name": "mingw-w64-ucrt-x86_64-lerc",
+    "version": "4.1.1-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-lerc-4.1.1-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-lerc-4.1.1-1.src.tar.zst",
+    "licenses": [
+      "spdx:Apache-2.0"
     ],
-    "licenseSnapshot": "https://github.com/openresty/luajit2/blob/v2.1-agentzh/COPYRIGHT",
-    "licenseSpdx": "NOASSERTION",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+    "files": [
+      "liblerc.dll"
+    ]
   },
   {
-    "name": "lzo",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/lzo.cmake",
-    "upstream": "https://www.oberhumer.com/opensource/lzo/download/lzo-2.10.tar.gz",
-    "recipeGitTag": null,
-    "dependencies": [],
-    "licenseSnapshot": "https://www.oberhumer.com/opensource/lzo/download/lzo-2.10.tar.gz#lzo-2.10/COPYING",
-    "licenseSpdx": null,
-    "licenseStatus": "已附锁定配方URL/SHA1匹配的2.10归档许可；完整构建归属仍待核对"
-  },
-  {
-    "name": "mpv",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/mpv.cmake",
-    "upstream": "https://github.com/mpv-player/mpv.git",
-    "recipeGitTag": null,
-    "dependencies": [
-      "angle-headers",
-      "ffmpeg",
-      "fribidi",
-      "lcms2",
-      "libarchive",
-      "libass",
-      "libdvdnav",
-      "libdvdread",
-      "libiconv",
-      "libjpeg",
-      "libpng",
-      "luajit",
-      "rubberband",
-      "uchardet",
-      "openal-soft",
-      "mujs",
-      "vulkan",
-      "shaderc",
-      "libplacebo",
-      "spirv-cross",
-      "vapoursynth",
-      "libsdl2",
-      "subrandr",
-      "libsixel"
+    "name": "mingw-w64-ucrt-x86_64-libarchive",
+    "version": "3.8.9-6",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-libarchive-3.8.9-6-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-libarchive-3.8.9-6.src.tar.zst",
+    "licenses": [
+      "spdx:BSD-2-Clause"
     ],
-    "licenseSnapshot": "https://github.com/mpv-player/mpv/blob/master/LICENSE.GPL",
-    "licenseSpdx": "NOASSERTION",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+    "files": [
+      "libarchive-13.dll"
+    ]
   },
   {
-    "name": "mujs",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/mujs.cmake",
-    "upstream": "https://codeberg.org/ccxvii/mujs.git",
-    "recipeGitTag": null,
-    "dependencies": [],
-    "licenseSnapshot": "https://codeberg.org/ccxvii/mujs/raw/branch/master/COPYING",
-    "licenseSpdx": null,
-    "licenseStatus": "已附上游许可快照；对应二进制修订仍待核对"
-  },
-  {
-    "name": "nvcodec-headers",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/nvcodec-headers.cmake",
-    "upstream": "https://git.videolan.org/git/ffmpeg/nv-codec-headers.git",
-    "recipeGitTag": null,
-    "dependencies": [],
-    "licenseSnapshot": "https://raw.githubusercontent.com/FFmpeg/nv-codec-headers/master/include/ffnvcodec/nvEncodeAPI.h",
-    "licenseSpdx": null,
-    "licenseStatus": "已附官方当前nvEncodeAPI头文件许可；其余头文件与对应二进制修订仍待核对"
-  },
-  {
-    "name": "ogg",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/ogg.cmake",
-    "upstream": "https://github.com/xiph/ogg.git",
-    "recipeGitTag": null,
-    "dependencies": [],
-    "licenseSnapshot": "https://github.com/xiph/ogg/blob/main/COPYING",
-    "licenseSpdx": "BSD-3-Clause",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
-  },
-  {
-    "name": "openal-soft",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/openal-soft.cmake",
-    "upstream": "https://github.com/kcat/openal-soft.git",
-    "recipeGitTag": null,
-    "dependencies": [
-      "libsdl2"
+    "name": "mingw-w64-ucrt-x86_64-libass",
+    "version": "0.17.5-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-libass-0.17.5-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-libass-0.17.5-1.src.tar.zst",
+    "licenses": [
+      "spdx:ISC"
     ],
-    "licenseSnapshot": "https://github.com/kcat/openal-soft/blob/master/COPYING",
-    "licenseSpdx": "NOASSERTION",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+    "files": [
+      "libass-9.dll"
+    ]
   },
   {
-    "name": "openssl",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/openssl.cmake",
-    "upstream": "https://github.com/openssl/openssl.git",
-    "recipeGitTag": null,
-    "dependencies": [
-      "zlib",
-      "zstd",
-      "brotli"
+    "name": "mingw-w64-ucrt-x86_64-libb2",
+    "version": "0.98.1-3",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-libb2-0.98.1-3-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-libb2-0.98.1-3.src.tar.zst",
+    "licenses": [
+      "custom:CC0"
     ],
-    "licenseSnapshot": "https://github.com/openssl/openssl/blob/master/LICENSE.txt",
-    "licenseSpdx": "Apache-2.0",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+    "files": [
+      "libb2-1.dll"
+    ]
   },
   {
-    "name": "opus",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/opus.cmake",
-    "upstream": "https://github.com/xiph/opus.git",
-    "recipeGitTag": "main",
-    "dependencies": [
-      "opus-dnn"
+    "name": "mingw-w64-ucrt-x86_64-libbluray",
+    "version": "1.5.0-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-libbluray-1.5.0-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-libbluray-1.5.0-1.src.tar.zst",
+    "licenses": [
+      "spdx:LGPL-2.1-or-later"
     ],
-    "licenseSnapshot": "https://github.com/xiph/opus/blob/main/COPYING",
-    "licenseSpdx": "NOASSERTION",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+    "files": [
+      "libbluray-4.dll"
+    ]
   },
   {
-    "name": "opus-dnn",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/opus-dnn.cmake",
-    "upstream": "https://media.xiph.org/opus/models/opus_data-8a07d57c4fce6fb30f23b3e0d264004e04f1d7b421f5392ef61543d021a439af.tar.gz",
-    "recipeGitTag": null,
-    "dependencies": [],
-    "licenseSnapshot": null,
-    "licenseSpdx": null,
-    "licenseStatus": "锁定模型归档 SHA-256 已核验，归档无 LICENSE/COPYING；官方 Opus 1.6.1 源码中有 BSD COPYING 与生成 DNN 数据，但仅 7/21 生成文件逐字节相同，其余 14 项及 .pth 权重许可范围仍待确认；不声明整个模型包已获许可",
-    "sourceArchiveSha256": "8a07d57c4fce6fb30f23b3e0d264004e04f1d7b421f5392ef61543d021a439af",
-    "licenseEvidence": "opus-model-license-evidence.md",
-    "generatedFileComparison": "opus-model-generated-files.json"
-  },
-  {
-    "name": "rubberband",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/rubberband.cmake",
-    "upstream": "https://github.com/breakfastquay/rubberband.git",
-    "recipeGitTag": "default",
-    "dependencies": [
-      "libsamplerate"
+    "name": "mingw-w64-ucrt-x86_64-libcaca",
+    "version": "0.99.beta20-8",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-libcaca-0.99.beta20-8-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-libcaca-0.99.beta20-8.src.tar.zst",
+    "licenses": [
+      "LGPL"
     ],
-    "licenseSnapshot": "https://github.com/breakfastquay/rubberband/blob/default/COPYING",
-    "licenseSpdx": "GPL-2.0",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+    "files": [
+      "libcaca-0.dll"
+    ]
   },
   {
-    "name": "shaderc",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/shaderc.cmake",
-    "upstream": "https://github.com/google/shaderc.git",
-    "recipeGitTag": "main",
-    "dependencies": [
-      "glslang",
-      "spirv-headers",
-      "spirv-tools"
+    "name": "mingw-w64-ucrt-x86_64-libcdio",
+    "version": "2.4.0-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-libcdio-2.4.0-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-libcdio-2.4.0-1.src.tar.zst",
+    "licenses": [
+      "spdx:GPL-3.0-or-later"
     ],
-    "licenseSnapshot": "https://github.com/google/shaderc/blob/main/LICENSE",
-    "licenseSpdx": "NOASSERTION",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+    "files": [
+      "libcdio-21.dll"
+    ]
   },
   {
-    "name": "speex",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/speex.cmake",
-    "upstream": "https://github.com/xiph/speex.git",
-    "recipeGitTag": null,
-    "dependencies": [
-      "ogg"
+    "name": "mingw-w64-ucrt-x86_64-libcdio-paranoia",
+    "version": "10.2+2.0.2-2",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-libcdio-paranoia-10.2+2.0.2-2-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-libcdio-paranoia-10.2+2.0.2-2.src.tar.zst",
+    "licenses": [
+      "spdx:GPL-2.0-or-later"
     ],
-    "licenseSnapshot": "https://github.com/xiph/speex/blob/master/COPYING",
-    "licenseSpdx": "NOASSERTION",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+    "files": [
+      "libcdio_paranoia-2.dll",
+      "libcdio_cdda-2.dll"
+    ]
   },
   {
-    "name": "spirv-cross",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/spirv-cross.cmake",
-    "upstream": "https://github.com/KhronosGroup/SPIRV-Cross.git",
-    "recipeGitTag": "main",
-    "dependencies": [],
-    "licenseSnapshot": "https://github.com/KhronosGroup/SPIRV-Cross/blob/main/LICENSE",
-    "licenseSpdx": "Apache-2.0",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
-  },
-  {
-    "name": "spirv-headers",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/spirv-headers.cmake",
-    "upstream": "https://github.com/KhronosGroup/SPIRV-Headers.git",
-    "recipeGitTag": "main",
-    "dependencies": [],
-    "licenseSnapshot": "https://github.com/KhronosGroup/SPIRV-Headers/blob/main/LICENSE",
-    "licenseSpdx": "NOASSERTION",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
-  },
-  {
-    "name": "spirv-tools",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/spirv-tools.cmake",
-    "upstream": "https://github.com/KhronosGroup/SPIRV-Tools.git",
-    "recipeGitTag": "main",
-    "dependencies": [],
-    "licenseSnapshot": "https://github.com/KhronosGroup/SPIRV-Tools/blob/main/LICENSE",
-    "licenseSpdx": "Apache-2.0",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
-  },
-  {
-    "name": "subrandr",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/subrandr.cmake",
-    "upstream": "https://github.com/afishhh/subrandr.git",
-    "recipeGitTag": "master",
-    "dependencies": [
-      "freetype2",
-      "harfbuzz",
-      "fontconfig"
+    "name": "mingw-w64-ucrt-x86_64-libdatrie",
+    "version": "0.2.14-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-libdatrie-0.2.14-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-libdatrie-0.2.14-1.src.tar.zst",
+    "licenses": [
+      "LGPL"
     ],
-    "licenseSnapshot": "https://github.com/afishhh/subrandr/blob/master/LICENSE",
-    "licenseSpdx": "MPL-2.0",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+    "files": [
+      "libdatrie-1.dll"
+    ]
   },
   {
-    "name": "svtav1",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/svtav1.cmake",
-    "upstream": "https://gitlab.com/AOMediaCodec/SVT-AV1.git",
-    "recipeGitTag": null,
-    "dependencies": [],
-    "licenseSnapshot": "https://gitlab.com/AOMediaCodec/SVT-AV1/-/raw/master/LICENSE.md",
-    "licenseSpdx": null,
-    "licenseStatus": "已附上游许可快照；对应二进制修订仍待核对"
-  },
-  {
-    "name": "uavs3d",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/uavs3d.cmake",
-    "upstream": "https://github.com/uavs3/uavs3d.git",
-    "recipeGitTag": null,
-    "dependencies": [],
-    "licenseSnapshot": "https://github.com/uavs3/uavs3d/blob/master/COPYING",
-    "licenseSpdx": "NOASSERTION",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
-  },
-  {
-    "name": "uchardet",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/uchardet.cmake",
-    "upstream": "https://gitlab.freedesktop.org/uchardet/uchardet.git",
-    "recipeGitTag": null,
-    "dependencies": [],
-    "licenseSnapshot": "https://raw.githubusercontent.com/BYVoid/uchardet/master/COPYING",
-    "licenseSpdx": null,
-    "licenseStatus": "已附上游许可快照；对应二进制修订仍待核对"
-  },
-  {
-    "name": "vapoursynth",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/vapoursynth.cmake",
-    "upstream": "https://github.com/vapoursynth/vapoursynth.git",
-    "recipeGitTag": "R65 (win-x64 headers/import libraries)",
-    "dependencies": [],
-    "licenseSnapshot": "https://raw.githubusercontent.com/vapoursynth/vapoursynth/R65/COPYING.LESSER",
-    "licenseSpdx": null,
-    "licenseStatus": "已附上游许可快照；对应二进制修订仍待核对"
-  },
-  {
-    "name": "vorbis",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/vorbis.cmake",
-    "upstream": "https://github.com/xiph/vorbis.git",
-    "recipeGitTag": null,
-    "dependencies": [
-      "ogg"
+    "name": "mingw-w64-ucrt-x86_64-libdeflate",
+    "version": "1.26-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-libdeflate-1.26-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-libdeflate-1.26-1.src.tar.zst",
+    "licenses": [
+      "spdx:MIT"
     ],
-    "licenseSnapshot": "https://github.com/xiph/vorbis/blob/main/COPYING",
-    "licenseSpdx": "BSD-3-Clause",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+    "files": [
+      "libdeflate.dll"
+    ]
   },
   {
-    "name": "vulkan",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/vulkan.cmake",
-    "upstream": "https://github.com/KhronosGroup/Vulkan-Loader.git",
-    "recipeGitTag": "main",
-    "dependencies": [
-      "vulkan-header"
+    "name": "mingw-w64-ucrt-x86_64-libdovi",
+    "version": "3.4.0-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-libdovi-3.4.0-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-libdovi-3.4.0-1.src.tar.zst",
+    "licenses": [
+      "spdx:MIT"
     ],
-    "licenseSnapshot": "https://github.com/KhronosGroup/Vulkan-Loader/blob/main/LICENSE.txt",
-    "licenseSpdx": "NOASSERTION",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+    "files": [
+      "libdovi.dll"
+    ]
   },
   {
-    "name": "vulkan-header",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/vulkan-header.cmake",
-    "upstream": "https://github.com/KhronosGroup/Vulkan-Headers.git",
-    "recipeGitTag": "main",
-    "dependencies": [],
-    "licenseSnapshot": "https://github.com/KhronosGroup/Vulkan-Headers/blob/main/LICENSE.md",
-    "licenseSpdx": "NOASSERTION",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
-  },
-  {
-    "name": "x264",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/x264.cmake",
-    "upstream": "https://code.videolan.org/videolan/x264.git",
-    "recipeGitTag": null,
-    "dependencies": [],
-    "licenseSnapshot": "https://download.videolan.org/pub/videolan/x264/snapshots/x264-snapshot-20191217-2245-stable.tar.bz2#x264-snapshot-20191217-2245-stable/COPYING",
-    "licenseSpdx": null,
-    "licenseStatus": "已附官方20191217-stable发行快照许可；对应20260610二进制修订仍待核对"
-  },
-  {
-    "name": "x265",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/x265.cmake",
-    "upstream": "https://github.com/Multicorewareinc/x265.git",
-    "recipeGitTag": null,
-    "dependencies": [
-      "x265"
+    "name": "mingw-w64-ucrt-x86_64-libdvdcss",
+    "version": "1.6.0-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-libdvdcss-1.6.0-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-libdvdcss-1.6.0-1.src.tar.zst",
+    "licenses": [
+      "spdx:GPL-2.0-or-later"
     ],
-    "licenseSnapshot": "https://github.com/Multicorewareinc/x265/blob/master/COPYING",
-    "licenseSpdx": "GPL-2.0",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+    "files": [
+      "libdvdcss-2.dll"
+    ]
   },
   {
-    "name": "xvidcore",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/xvidcore.cmake",
-    "upstream": "\"https://downloads.xvid.com/downloads/xvidcore-1.3.7.tar.bz2\"",
-    "recipeGitTag": null,
-    "dependencies": [],
-    "licenseSnapshot": "https://downloads.xvid.com/downloads/xvidcore-1.3.7.tar.bz2#xvidcore/LICENSE",
-    "licenseSpdx": null,
-    "licenseStatus": "已附锁定配方URL/SHA-256匹配发行归档的许可；完整构建依赖归属仍待核对"
+    "name": "mingw-w64-ucrt-x86_64-libdvdnav",
+    "version": "7.0.0-2",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-libdvdnav-7.0.0-2-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-libdvdnav-7.0.0-2.src.tar.zst",
+    "licenses": [
+      "spdx:GPL-2.0-or-later"
+    ],
+    "files": [
+      "libdvdnav-4.dll"
+    ]
   },
   {
-    "name": "xxhash",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/xxhash.cmake",
-    "upstream": "https://github.com/Cyan4973/xxHash.git",
-    "recipeGitTag": "dev",
-    "dependencies": [],
-    "licenseSnapshot": "https://github.com/Cyan4973/xxHash/blob/dev/LICENSE",
-    "licenseSpdx": "NOASSERTION",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+    "name": "mingw-w64-ucrt-x86_64-libdvdread",
+    "version": "7.1.1-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-libdvdread-7.1.1-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-libdvdread-7.1.1-1.src.tar.zst",
+    "licenses": [
+      "spdx:GPL-2.0-or-later"
+    ],
+    "files": [
+      "libdvdread-8.dll"
+    ]
   },
   {
-    "name": "xz",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/xz.cmake",
-    "upstream": "https://github.com/tukaani-project/xz.git",
-    "recipeGitTag": null,
-    "dependencies": [],
-    "licenseSnapshot": "https://github.com/tukaani-project/xz/blob/master/COPYING",
-    "licenseSpdx": "NOASSERTION",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+    "name": "mingw-w64-ucrt-x86_64-libffi",
+    "version": "3.8.0-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-libffi-3.8.0-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-libffi-3.8.0-1.src.tar.zst",
+    "licenses": [
+      "spdx:MIT"
+    ],
+    "files": [
+      "libffi-8.dll"
+    ]
   },
   {
-    "name": "zlib",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/zlib.cmake",
-    "upstream": "https://github.com/zlib-ng/zlib-ng.git",
-    "recipeGitTag": "develop",
-    "dependencies": [],
-    "licenseSnapshot": "https://github.com/zlib-ng/zlib-ng/blob/develop/LICENSE.md",
-    "licenseSpdx": "Zlib",
-    "licenseStatus": "已附上游默认分支许可快照；对应二进制修订仍待核对"
+    "name": "mingw-w64-ucrt-x86_64-libgcc",
+    "version": "16.2.0-4",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-libgcc-16.2.0-4-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-gcc-16.2.0-4.src.tar.zst",
+    "licenses": [
+      "spdx:GPL-3.0-or-later WITH GCC-exception-3.1 AND GFDL-1.3-or-later"
+    ],
+    "files": [
+      "libgcc_s_seh-1.dll"
+    ]
   },
   {
-    "name": "zstd",
-    "recipe": "https://github.com/shinchiro/mpv-winbuild-cmake/blob/5efd298cb51513c2410e4e9029b5e56b83c2aaac/packages/zstd.cmake",
-    "upstream": "https://github.com/facebook/zstd.git",
-    "recipeGitTag": "dev",
-    "dependencies": [],
-    "licenseSnapshot": "https://raw.githubusercontent.com/facebook/zstd/dev/LICENSE",
-    "licenseSpdx": null,
-    "licenseStatus": "已附官方上游默认分支许可快照；对应二进制修订仍待核对"
+    "name": "mingw-w64-ucrt-x86_64-libgme",
+    "version": "0.6.5-2",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-libgme-0.6.5-2-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-libgme-0.6.5-2.src.tar.zst",
+    "licenses": [
+      "LGPL"
+    ],
+    "files": [
+      "libgme.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-libgomp",
+    "version": "16.2.0-4",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-libgomp-16.2.0-4-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-gcc-16.2.0-4.src.tar.zst",
+    "licenses": [
+      "spdx:GPL-3.0-or-later WITH GCC-exception-3.1 AND GFDL-1.3-or-later"
+    ],
+    "files": [
+      "libgomp-1.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-libiconv",
+    "version": "1.19-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-libiconv-1.19-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-libiconv-1.19-1.src.tar.zst",
+    "licenses": [
+      "spdx:LGPL-2.1-or-later",
+      "documentation:spdx:GPL-3.0-or-later"
+    ],
+    "files": [
+      "libiconv-2.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-libidn2",
+    "version": "2.3.8-4",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-libidn2-2.3.8-4-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-libidn2-2.3.8-4.src.tar.zst",
+    "licenses": [
+      "spdx:GPL-2.0-or-later",
+      "spdx:LGPL-3.0-or-later"
+    ],
+    "files": [
+      "libidn2-0.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-libjpeg-turbo",
+    "version": "3.2.0-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-libjpeg-turbo-3.2.0-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-libjpeg-turbo-3.2.0-1.src.tar.zst",
+    "licenses": [
+      "custom:BSD-like"
+    ],
+    "files": [
+      "libjpeg-8.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-libjxl",
+    "version": "0.12.0-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-libjxl-0.12.0-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-libjxl-0.12.0-1.src.tar.zst",
+    "licenses": [
+      "spdx:BSD-3-Clause"
+    ],
+    "files": [
+      "libjxl_threads.dll",
+      "libjxl.dll",
+      "libjxl_cms.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-liblc3",
+    "version": "1.1.3-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-liblc3-1.1.3-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-liblc3-1.1.3-1.src.tar.zst",
+    "licenses": [
+      "spdx:Apache-2.0"
+    ],
+    "files": [
+      "liblc3-1.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-libmodplug",
+    "version": "0.8.9.0-5",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-libmodplug-0.8.9.0-5-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-libmodplug-0.8.9.0-5.src.tar.zst",
+    "licenses": [
+      "PublicDomain"
+    ],
+    "files": [
+      "libmodplug-1.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-libogg",
+    "version": "1.3.6-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-libogg-1.3.6-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-libogg-1.3.6-1.src.tar.zst",
+    "licenses": [
+      "spdx:BSD-3-Clause"
+    ],
+    "files": [
+      "libogg-0.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-libplacebo",
+    "version": "7.360.1-2",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-libplacebo-7.360.1-2-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-libplacebo-7.360.1-2.src.tar.zst",
+    "licenses": [
+      "LGPL2.1"
+    ],
+    "files": [
+      "libplacebo-360.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-libpng",
+    "version": "1.6.59-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-libpng-1.6.59-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-libpng-1.6.59-1.src.tar.zst",
+    "licenses": [
+      "custom"
+    ],
+    "files": [
+      "libpng16-16.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-librsvg",
+    "version": "2.63.2-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-librsvg-2.63.2-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-librsvg-2.63.2-1.src.tar.zst",
+    "licenses": [
+      "spdx:LGPL-2.1-or-later"
+    ],
+    "files": [
+      "librsvg-2-2.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-libsamplerate",
+    "version": "0.2.2-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-libsamplerate-0.2.2-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-libsamplerate-0.2.2-1.src.tar.zst",
+    "licenses": [
+      "spdx:BSD-2-Clause"
+    ],
+    "files": [
+      "libsamplerate-0.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-libsoxr",
+    "version": "0.1.3-5",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-libsoxr-0.1.3-5-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-libsoxr-0.1.3-5.src.tar.zst",
+    "licenses": [
+      "LGPL"
+    ],
+    "files": [
+      "libsoxr.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-libssh",
+    "version": "0.12.2-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-libssh-0.12.2-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-libssh-0.12.2-1.src.tar.zst",
+    "licenses": [
+      "spdx:LGPL-2.1-or-later"
+    ],
+    "files": [
+      "libssh.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-libstdc++",
+    "version": "16.2.0-4",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-libstdc++-16.2.0-4-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-gcc-16.2.0-4.src.tar.zst",
+    "licenses": [
+      "spdx:GPL-3.0-or-later WITH GCC-exception-3.1 AND GFDL-1.3-or-later"
+    ],
+    "files": [
+      "libstdc++-6.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-libtasn1",
+    "version": "4.21.0-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-libtasn1-4.21.0-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-libtasn1-4.21.0-1.src.tar.zst",
+    "licenses": [
+      "GPL3, LGPL"
+    ],
+    "files": [
+      "libtasn1-6.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-libthai",
+    "version": "0.1.30-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-libthai-0.1.30-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-libthai-0.1.30-1.src.tar.zst",
+    "licenses": [
+      "spdx:LGPL-2.1-or-later"
+    ],
+    "files": [
+      "libthai-0.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-libtheora",
+    "version": "1.2.0-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-libtheora-1.2.0-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-libtheora-1.2.0-1.src.tar.zst",
+    "licenses": [
+      "spdx:BSD-3-Clause"
+    ],
+    "files": [
+      "libtheoraenc-2.dll",
+      "libtheoradec-2.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-libtiff",
+    "version": "4.7.2-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-libtiff-4.7.2-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-libtiff-4.7.2-1.src.tar.zst",
+    "licenses": [
+      "spdx:MIT"
+    ],
+    "files": [
+      "libtiff-6.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-libunibreak",
+    "version": "7.0-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-libunibreak-7.0-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-libunibreak-7.0-1.src.tar.zst",
+    "licenses": [
+      "spdx:Zlib"
+    ],
+    "files": [
+      "libunibreak-7.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-libunistring",
+    "version": "1.4.2-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-libunistring-1.4.2-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-libunistring-1.4.2-1.src.tar.zst",
+    "licenses": [
+      "spdx:LGPL-3.0-or-later OR GPL-3.0-or-later"
+    ],
+    "files": [
+      "libunistring-5.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-libva",
+    "version": "2.24.1-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-libva-2.24.1-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-libva-2.24.1-1.src.tar.zst",
+    "licenses": [
+      "spdx:MIT"
+    ],
+    "files": [
+      "libva_win32.dll",
+      "libva.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-libvorbis",
+    "version": "1.3.7-3",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-libvorbis-1.3.7-3-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-libvorbis-1.3.7-3.src.tar.zst",
+    "licenses": [
+      "custom"
+    ],
+    "files": [
+      "libvorbisenc-2.dll",
+      "libvorbis-0.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-libvpl",
+    "version": "2.17.0-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-libvpl-2.17.0-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-libvpl-2.17.0-1.src.tar.zst",
+    "licenses": [
+      "spdx:MIT"
+    ],
+    "files": [
+      "libvpl-2.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-libvpx",
+    "version": "1.17.0-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-libvpx-1.17.0-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-libvpx-1.17.0-1.src.tar.zst",
+    "licenses": [
+      "spdx:BSD-3-Clause"
+    ],
+    "files": [
+      "libvpx-1.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-libwebp",
+    "version": "1.6.0-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-libwebp-1.6.0-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-libwebp-1.6.0-1.src.tar.zst",
+    "licenses": [
+      "spdx:BSD-3-Clause"
+    ],
+    "files": [
+      "libwebpmux-3.dll",
+      "libwebp-7.dll",
+      "libsharpyuv-0.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-libwinpthread",
+    "version": "14.0.0.r426.g4564ee4b5-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-libwinpthread-14.0.0.r426.g4564ee4b5-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-winpthreads-14.0.0.r426.g4564ee4b5-1.src.tar.zst",
+    "licenses": [
+      "spdx:MIT AND BSD-3-Clause-Clear"
+    ],
+    "files": [
+      "libwinpthread-1.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-libx264",
+    "version": "0.165.r3222.b35605a-3",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-libx264-0.165.r3222.b35605a-3-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-x264-0.165.r3222.b35605a-3.src.tar.zst",
+    "licenses": [
+      "custom"
+    ],
+    "files": [
+      "libx264-165.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-libxml2",
+    "version": "2.15.4-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-libxml2-2.15.4-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-libxml2-2.15.4-1.src.tar.zst",
+    "licenses": [
+      "spdx:MIT"
+    ],
+    "files": [
+      "libxml2-16.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-lua51",
+    "version": "5.1.5-6",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-lua51-5.1.5-6-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-lua51-5.1.5-6.src.tar.zst",
+    "licenses": [
+      "MIT"
+    ],
+    "files": [
+      "lua51.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-lz4",
+    "version": "1.10.0-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-lz4-1.10.0-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-lz4-1.10.0-1.src.tar.zst",
+    "licenses": [
+      "BSD",
+      "GPL2"
+    ],
+    "files": [
+      "liblz4.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-mpv",
+    "version": "0.41.0-8",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-mpv-0.41.0-8-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-mpv-0.41.0-8.src.tar.zst",
+    "licenses": [
+      "spdx:GPL-2.0-or-later"
+    ],
+    "files": [
+      "libmpv-2.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-mujs",
+    "version": "1.3.10-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-mujs-1.3.10-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-mujs-1.3.10-1.src.tar.zst",
+    "licenses": [
+      "spdx:ISC"
+    ],
+    "files": [
+      "libmujs.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-nettle",
+    "version": "4.0-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-nettle-4.0-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-nettle-4.0-1.src.tar.zst",
+    "licenses": [
+      "spdx:GPL-2.0-or-later",
+      "spdx:LGPL-3.0-or-later"
+    ],
+    "files": [
+      "libnettle-9.dll",
+      "libhogweed-7.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-openal",
+    "version": "1.25.2-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-openal-1.25.2-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-openal-1.25.2-1.src.tar.zst",
+    "licenses": [
+      "spdx:GPL-2.0-or-later"
+    ],
+    "files": [
+      "libopenal-1.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-opencore-amr",
+    "version": "0.1.6-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-opencore-amr-0.1.6-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-opencore-amr-0.1.6-1.src.tar.zst",
+    "licenses": [
+      "Apache"
+    ],
+    "files": [
+      "libopencore-amrwb-0.dll",
+      "libopencore-amrnb-0.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-openjpeg2",
+    "version": "2.5.4-2",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-openjpeg2-2.5.4-2-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-openjpeg2-2.5.4-2.src.tar.zst",
+    "licenses": [
+      "spdx:BSD-2-Clause"
+    ],
+    "files": [
+      "libopenjp2-7.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-openssl",
+    "version": "3.6.5-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-openssl-3.6.5-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-openssl-3.6.5-1.src.tar.zst",
+    "licenses": [
+      "spdx:Apache-2.0"
+    ],
+    "files": [
+      "libcrypto-3-x64.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-opus",
+    "version": "1.6.1-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-opus-1.6.1-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-opus-1.6.1-1.src.tar.zst",
+    "licenses": [
+      "spdx:BSD-3-Clause"
+    ],
+    "files": [
+      "libopus-0.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-p11-kit",
+    "version": "0.26.5-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-p11-kit-0.26.5-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-p11-kit-0.26.5-1.src.tar.zst",
+    "licenses": [
+      "spdx:BSD-3-Clause"
+    ],
+    "files": [
+      "libp11-kit-0.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-pango",
+    "version": "1.58.2-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-pango-1.58.2-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-pango-1.58.2-1.src.tar.zst",
+    "licenses": [
+      "spdx:LGPL-2.1"
+    ],
+    "files": [
+      "libpangocairo-1.0-0.dll",
+      "libpangowin32-1.0-0.dll",
+      "libpango-1.0-0.dll",
+      "libpangoft2-1.0-0.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-pcre2",
+    "version": "10.49-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-pcre2-10.49-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-pcre2-10.49-1.src.tar.zst",
+    "licenses": [
+      "spdx:BSD-3-Clause"
+    ],
+    "files": [
+      "libpcre2-8-0.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-pixman",
+    "version": "0.46.4-3",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-pixman-0.46.4-3-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-pixman-0.46.4-3.src.tar.zst",
+    "licenses": [
+      "spdx:MIT"
+    ],
+    "files": [
+      "libpixman-1-0.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-python",
+    "version": "3.14.8-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-python-3.14.8-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-python-3.14.8-1.src.tar.zst",
+    "licenses": [
+      "spdx:PSF-2.0"
+    ],
+    "files": [
+      "libpython3.14.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-rav1e",
+    "version": "0.8.1-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-rav1e-0.8.1-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-rav1e-0.8.1-1.src.tar.zst",
+    "licenses": [
+      "spdx:BSD-2-Clause"
+    ],
+    "files": [
+      "librav1e.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-rtmpdump",
+    "version": "2.6-2",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-rtmpdump-2.6-2-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-rtmpdump-2.6-2.src.tar.zst",
+    "licenses": [
+      "spdx:GPL-2.0-or-later",
+      "spdx:LGPL-2.1-or-later"
+    ],
+    "files": [
+      "librtmp-1.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-rubberband",
+    "version": "3.3.0-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-rubberband-3.3.0-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-rubberband-3.3.0-1.src.tar.zst",
+    "licenses": [
+      "spdx:GPL-2.0-or-later"
+    ],
+    "files": [
+      "librubberband-2.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-shaderc",
+    "version": "2026.4-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-shaderc-2026.4-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-shaderc-2026.4-1.src.tar.zst",
+    "licenses": [
+      "spdx:Apache-2.0"
+    ],
+    "files": [
+      "libshaderc_shared.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-speex",
+    "version": "1.2.1-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-speex-1.2.1-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-speex-1.2.1-1.src.tar.zst",
+    "licenses": [
+      "BSD"
+    ],
+    "files": [
+      "libspeex-1.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-spirv-cross",
+    "version": "1~1.4.363.0-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-spirv-cross-1~1.4.363.0-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-spirv-cross-1~1.4.363.0-1.src.tar.zst",
+    "licenses": [
+      "spdx:Apache-2.0"
+    ],
+    "files": [
+      "libspirv-cross-c-shared.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-srt",
+    "version": "1.5.7-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-srt-1.5.7-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-srt-1.5.7-1.src.tar.zst",
+    "licenses": [
+      "spdx:MPL-2.0"
+    ],
+    "files": [
+      "libsrt.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-svt-av1",
+    "version": "4.2.0-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-svt-av1-4.2.0-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-svt-av1-4.2.0-1.src.tar.zst",
+    "licenses": [
+      "spdx:BSD-3-Clause-Clear"
+    ],
+    "files": [
+      "libsvtav1enc-4.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-uchardet",
+    "version": "0.0.8-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-uchardet-0.0.8-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-uchardet-0.0.8-1.src.tar.zst",
+    "licenses": [
+      "spdx:MPL-1.1"
+    ],
+    "files": [
+      "libuchardet.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-vapoursynth",
+    "version": "65-8",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-vapoursynth-65-8-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-vapoursynth-65-8.src.tar.zst",
+    "licenses": [
+      "spdx:LGPL-2.1-or-later"
+    ],
+    "files": [
+      "libvapoursynth-script-0.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-vid.stab",
+    "version": "1.1.2-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-vid.stab-1.1.2-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-vid.stab-1.1.2-1.src.tar.zst",
+    "licenses": [
+      "spdx:GPL-2.0-or-later"
+    ],
+    "files": [
+      "libvidstab.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-vulkan-loader",
+    "version": "1~1.4.363.0-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-vulkan-loader-1~1.4.363.0-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-vulkan-loader-1~1.4.363.0-1.src.tar.zst",
+    "licenses": [
+      "spdx:Apache-2.0"
+    ],
+    "files": [
+      "vulkan-1.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-whisper.cpp",
+    "version": "1~1.9.4.r181.gd09f61a70-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-whisper.cpp-1~1.9.4.r181.gd09f61a70-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-whisper.cpp-1~1.9.4.r181.gd09f61a70-1.src.tar.zst",
+    "licenses": [
+      "spdx:MIT"
+    ],
+    "files": [
+      "libwhisper-1.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-x265",
+    "version": "4.3-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-x265-4.3-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-x265-4.3-1.src.tar.zst",
+    "licenses": [
+      "GPL"
+    ],
+    "files": [
+      "libx265-217.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-xvidcore",
+    "version": "1.3.7-5",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-xvidcore-1.3.7-5-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-xvidcore-1.3.7-5.src.tar.zst",
+    "licenses": [
+      "GPL"
+    ],
+    "files": [
+      "xvidcore.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-xz",
+    "version": "5.8.4-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-xz-5.8.4-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-xz-5.8.4-1.src.tar.zst",
+    "licenses": [
+      "spdx:0BSD AND LGPL-2.1-or-later AND GPL-2.0-or-later"
+    ],
+    "files": [
+      "liblzma-5.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-zimg",
+    "version": "3.0.6-3",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-zimg-3.0.6-3-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-zimg-3.0.6-3.src.tar.zst",
+    "licenses": [
+      "spdx:WTFPL"
+    ],
+    "files": [
+      "libzimg-2.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-zlib",
+    "version": "1.3.2-2",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-zlib-1.3.2-2-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-zlib-1.3.2-2.src.tar.zst",
+    "licenses": [
+      "spdx:Zlib"
+    ],
+    "files": [
+      "zlib1.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-zstd",
+    "version": "1.5.7-2",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-zstd-1.5.7-2-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-zstd-1.5.7-2.src.tar.zst",
+    "licenses": [
+      "spdx:BSD-3-Clause OR GPL-2.0-or-later"
+    ],
+    "files": [
+      "libzstd.dll"
+    ]
+  },
+  {
+    "name": "mingw-w64-ucrt-x86_64-zvbi",
+    "version": "0.2.45-1",
+    "binaryPackage": "mingw-w64-ucrt-x86_64-zvbi-0.2.45-1-any.pkg.tar.zst",
+    "sourceArchive": "mingw-w64-zvbi-0.2.45-1.src.tar.zst",
+    "licenses": [
+      "spdx: GPL-2.0-or-later AND BSD-2-Clause AND LGPL-2.1-or-later AND MIT"
+    ],
+    "files": [
+      "libzvbi-0.dll"
+    ]
   }
 ]

@@ -2,7 +2,10 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)][string]$SetupPath,
-    [Parameter(Mandatory)][string]$PublishDirectory
+    [Parameter(Mandatory)][string]$PublishDirectory,
+    [switch]$LifecycleOnly,
+    [string]$PreviousSetupPath,
+    [string]$PreviousPublishDirectory
 )
 
 $ErrorActionPreference = 'Stop'
@@ -39,6 +42,9 @@ $installerResult = [ordered]@{
     setupSha256 = $null
     manifestSha256 = $null
     version = $null
+    initialVersion = $null
+    validationScope = $(if ($LifecycleOnly) { 'InstallerLifecycle' } else { 'InstallerLifecycleAndUi' })
+    uiValidationRequested = -not $LifecycleOnly
     installedManifestFileCount = 0
     firstInstall = $false
     initialHashesMatched = $false
@@ -138,12 +144,12 @@ function Start-InstallerOwnedProcess([string]$FilePath, [string[]]$Arguments) {
     return $process
 }
 
-function Invoke-InstallerSetup([string]$LogName) {
+function Invoke-InstallerSetup([string]$LogName, [string]$SetupOverride = $SetupPath) {
     $log = Assert-InstallerChildPath (Join-Path $installerRunRoot $LogName) $installerRunRoot
     $arguments = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/NOICONS', '/TASKS=""', '/CLOSEAPPLICATIONS',
         ('/DIR="' + $installerAppDirectory + '"'), ('/LOG="' + $log + '"'))
     # Deliberately never pass /FORCECLOSEAPPLICATIONS or force-close the old application.
-    $setup = Start-InstallerOwnedProcess $SetupPath $arguments
+    $setup = Start-InstallerOwnedProcess $SetupOverride $arguments
     if (-not $setup.WaitForExit(180000)) { Stop-InstallerUnsupported 'SetupTimedOut' }
     if ($setup.ExitCode -ne 0) { Stop-InstallerUnsupported ('SetupExit' + $setup.ExitCode) }
 }
@@ -342,6 +348,24 @@ try {
     $installerResult.version = $installerManifest.version
     $installerResult.installedManifestFileCount = @($installerManifest.files).Count
     Assert-InstallerManifest $PublishDirectory
+    $upgradeManifest = $installerManifest
+    $upgradeManifestHash = $installerResult.manifestSha256
+    $initialSetup = $SetupPath
+    if ([bool]$PreviousSetupPath -ne [bool]$PreviousPublishDirectory) { Stop-InstallerUnsupported 'IncompletePreviousVersion' }
+    if ($PreviousSetupPath) {
+        $PreviousSetupPath = Assert-InstallerChildPath $PreviousSetupPath $installerRepository
+        $PreviousPublishDirectory = Assert-InstallerChildPath $PreviousPublishDirectory $installerRepository
+        if (-not (Test-Path -LiteralPath $PreviousSetupPath -PathType Leaf)) { Stop-InstallerUnsupported 'PreviousSetupMissing' }
+        $initialSetup = $PreviousSetupPath
+        $previousManifestPath = Assert-InstallerChildPath (Join-Path $PreviousPublishDirectory 'release-manifest.json') $PreviousPublishDirectory
+        $installerManifest = Get-Content -LiteralPath $previousManifestPath -Raw | ConvertFrom-Json
+        if ($installerManifest.schemaVersion -ne 1 -or $installerManifest.architecture -ne 'win-x64' -or
+            -not $installerManifest.nativeAot -or -not $installerManifest.selfContained -or
+            [version]$installerManifest.version -ge [version]$upgradeManifest.version) { Stop-InstallerUnsupported 'InvalidPreviousVersion' }
+        $installerResult.manifestSha256 = (Get-FileHash -LiteralPath $previousManifestPath).Hash.ToLowerInvariant()
+        Assert-InstallerManifest $PreviousPublishDirectory
+    }
+    $installerResult.initialVersion = $installerManifest.version
     $installerStage = '在内存中保存原有用户数据哈希'
     $knownLocalAppData = [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)
     if ([string]::IsNullOrWhiteSpace($knownLocalAppData) -or
@@ -366,13 +390,14 @@ try {
     try { $markerStream.Write($markerBytes) } finally { $markerStream.Dispose() }
 
     $installerStage = '首次静默安装与全部发布文件哈希'
-    Invoke-InstallerSetup 'install.log'
+    Invoke-InstallerSetup 'install.log' $initialSetup
     if (-not (Test-InstallerRegistrationOwnership)) { Stop-InstallerUnsupported 'InstalledRegistrationMismatch' }
     $installerOwnedInstallation = $true
     $installerResult.firstInstall = $true
     Assert-InstallerManifest $installerAppDirectory
     $installerResult.initialHashesMatched = $true
 
+    if (-not $LifecycleOnly) {
     $installerStage = '从安装目录运行 UI 验收'
     $uiReport = Assert-InstallerChildPath (Join-Path $installerRunRoot 'ui-smoke.json') $installerRunRoot
     try {
@@ -390,7 +415,10 @@ try {
         Write-Host '安装目录的 UI 对象释放未通过；继续验证升级和卸载，整体结果仍为失败。'
     }
 
-    $installerStage = '同版本升级优雅关闭本轮应用'
+    }
+    $installerManifest = $upgradeManifest
+    $installerResult.manifestSha256 = $upgradeManifestHash
+    $installerStage = '升级优雅关闭本轮应用'
     $installedExecutable = Assert-InstallerChildPath (Join-Path $installerAppDirectory 'Mambo.exe') $installerAppDirectory
     $installerFakeProcess = Start-InstallerOwnedProcess $installedExecutable @('--fake')
     $installerResult.upgradedOwnedProcessId = $installerFakeProcess.Id

@@ -1,6 +1,8 @@
 {
   "schemaVersion": 1,
-  "binaryDistributionApproved": false,
-  "evidence": "docs/decisions/P8-packaging.md",
-  "reason": "锁定 libmpv 的全部原生依赖修订、补丁、对应源码与逐文件归属尚未补齐。"
+  "binaryDistributionApproved": true,
+  "evidence": "docs/decisions/native-distribution.md",
+  "reason": "已切换为有匹配源码包、补丁、构建记录与 Rust 锁定依赖的 MSYS2 原生运行时。发布脚本会核验并一同上传完整源码分包。",
+  "runtimeLockSha256": "ce227ef62f7f817316ea153b4af87c583b154e68388060acb7c498d9b65ef34f",
+  "sourceLockSha256": "3718bb482eb56810be1a3fefc31e174669797faaaec7f0656c2d084afd2d5c61"
 }

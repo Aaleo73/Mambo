@@ -2,7 +2,7 @@
 [CmdletBinding()]
 param(
     [ValidatePattern('^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$')]
-    [string]$Version = '0.1.0',
+    [string]$Version = '0.1.1',
     [switch]$Installer,
     [ValidatePattern('^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$')]
     [string]$UpdateRepository = 'Aaleo73/Mambo',
@@ -21,16 +21,17 @@ $mpvLock = Get-Content -LiteralPath (Join-Path $repoRoot 'third_party/libmpv/lib
 $nativeDll = Join-Path $repoRoot 'third_party/libmpv/bin/libmpv-2.dll'
 if (-not (Test-Path -LiteralPath $nativeDll -PathType Leaf)) { throw '缺少 libmpv；请先运行 scripts/fetch-libmpv.ps1。' }
 if ((Get-FileHash -LiteralPath $nativeDll -Algorithm SHA256).Hash.ToLowerInvariant() -ne $mpvLock.dllSha256) { throw 'libmpv DLL 与 lock 校验值不一致。' }
+& (Join-Path $PSScriptRoot 'verify-native-runtime.ps1')
 & (Join-Path $PSScriptRoot 'build-video-shaders.ps1') -Verify
 if (Test-Path -LiteralPath $outputRoot) { throw '发布目录已存在，请稍后重试以创建新的构建目录。' }
 New-Item -ItemType Directory -Path $appRoot -Force | Out-Null
 
 Push-Location $repoRoot
 try {
-    & dotnet restore $project -p:Platform=x64 --locked-mode
+    & dotnet restore $project -p:Platform=x64 --locked-mode | Out-Host
     if ($LASTEXITCODE -ne 0) { throw '锁定依赖还原失败。' }
     $fileVersion = ($Version -split '-')[0] + '.0'
-    & dotnet publish $project --no-restore -c Release -r win-x64 --self-contained true -p:Platform=x64 -p:PublishAot=true -p:WindowsAppSDKSelfContained=true "-p:Version=$Version" "-p:FileVersion=$fileVersion" "-p:InformationalVersion=$Version" "-p:UpdateRepository=$UpdateRepository" -p:TrimmerSingleWarn=false -o $appRoot
+    & dotnet publish $project --no-restore -c Release -r win-x64 --self-contained true -p:Platform=x64 -p:PublishAot=true -p:WindowsAppSDKSelfContained=true "-p:Version=$Version" "-p:FileVersion=$fileVersion" "-p:InformationalVersion=$Version" "-p:UpdateRepository=$UpdateRepository" -p:TrimmerSingleWarn=false -o $appRoot | Out-Host
     if ($LASTEXITCODE -ne 0) { throw 'AOT 发布失败。' }
 } finally { Pop-Location }
 
@@ -46,6 +47,7 @@ foreach ($font in $fontSources) {
 $xbfCount = @(Get-ChildItem -LiteralPath $appRoot -Recurse -File -Filter '*.xbf').Count
 if ($xbfCount -lt 2) { throw 'XAML 二进制资源不完整。' }
 if ((Get-FileHash -LiteralPath (Join-Path $appRoot 'mpv/libmpv-2.dll') -Algorithm SHA256).Hash.ToLowerInvariant() -ne $mpvLock.dllSha256) { throw '发布包 libmpv 校验失败。' }
+& (Join-Path $PSScriptRoot 'verify-native-runtime.ps1') -Directory (Join-Path $appRoot 'mpv')
 $qualityManifest = Get-Content -LiteralPath (Join-Path $repoRoot 'third_party/shaders/runtime/manifest.json') -Raw | ConvertFrom-Json
 foreach ($qualityFile in $qualityManifest.files) {
     $qualityTarget = Join-Path $appRoot ('mpv/shaders/' + [IO.Path]::GetFileName($qualityFile.path))
@@ -113,7 +115,7 @@ if ($Installer) {
         }
     }
     if (-not $IsccPath -or -not (Test-Path -LiteralPath $IsccPath -PathType Leaf)) { throw '未找到或当前进程无法读取 Inno Setup 编译器。便携包已生成；请核对安装目录和当前账户的读取权限，也可用 -IsccPath 指定已安装的 ISCC.exe。' }
-    & $IsccPath "/DMyAppVersion=$Version" "/DPublishDir=$appRoot" "/DInstallerOutputDir=$outputRoot" (Join-Path $repoRoot 'installer/Mambo.iss')
+    & $IsccPath "/DMyAppVersion=$Version" "/DPublishDir=$appRoot" "/DInstallerOutputDir=$outputRoot" (Join-Path $repoRoot 'installer/Mambo.iss') | Out-Host
     if ($LASTEXITCODE -ne 0) { throw 'Inno Setup 编译失败；便携包仍可审阅。' }
     $installerPath = Join-Path $outputRoot "Mambo-$Version-win-x64-setup.exe"
     if (-not (Test-Path -LiteralPath $installerPath -PathType Leaf)) { throw '未找到安装器输出。' }
@@ -127,6 +129,7 @@ if ($Installer) {
     SourceZip = $sourceArchive.SourceZip
     SourceBytes = $sourceArchive.SourceBytes
     SourceSha256 = $sourceArchive.SourceSha256
+    NativeSourceBundles = $sourceArchive.NativeSourceBundles
     Installer = $installerPath
     InstallerBytes = if ($installerPath) { (Get-Item -LiteralPath $installerPath).Length } else { $null }
     InstallerSha256 = if ($installerPath) { (Get-FileHash -LiteralPath $installerPath -Algorithm SHA256).Hash.ToLowerInvariant() } else { $null }

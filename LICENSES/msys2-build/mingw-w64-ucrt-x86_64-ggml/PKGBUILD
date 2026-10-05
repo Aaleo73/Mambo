@@ -1,0 +1,93 @@
+# Contributor: Mehdi Chinoune <mehdi.chinoune@hotmail.com>
+
+_realname=ggml
+pkgbase=mingw-w64-${_realname}
+pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
+pkgver=0.25.3
+pkgrel=1
+pkgdesc="Tensor library for machine learning (mingw-w64)"
+arch=('any')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+url="https://github.com/ggml-org/ggml"
+msys2_repository_url='https://github.com/ggml-org/ggml'
+license=('spdx:MIT')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-cc-libs"
+  "${MINGW_PACKAGE_PREFIX}-openblas"
+  "${MINGW_PACKAGE_PREFIX}-omp"
+  "${MINGW_PACKAGE_PREFIX}-opencl-icd"
+  "${MINGW_PACKAGE_PREFIX}-python"
+  "${MINGW_PACKAGE_PREFIX}-vulkan-loader"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+  "${MINGW_PACKAGE_PREFIX}-opencl-headers"
+  "${MINGW_PACKAGE_PREFIX}-shaderc"
+  "${MINGW_PACKAGE_PREFIX}-vulkan-headers"
+  "${MINGW_PACKAGE_PREFIX}-spirv-headers"
+)
+noextract=("v${pkgver}.tar.gz")
+source=("https://github.com/ggml-org/ggml/archive/refs/tags/v${pkgver}.tar.gz")
+sha256sums=('cd9b92d5652f5e4abb41603bf59e269f8fec1b2d05ce22fded981064dd25fb89')
+
+prepare() {
+  tar -xf "v${pkgver}.tar.gz" 2> /dev/null || tar -xf "v${pkgver}.tar.gz"
+}
+
+build() {
+  declare -a extra_config
+  if check_option "debug" "n"; then
+    extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
+
+  if [[ ${CARCH} == x86_64 ]]; then
+    extra_config+=("-DGGML_BACKEND_DL=ON" "-DGGML_CPU_ALL_VARIANTS=ON")
+  fi
+  if [[ ${MSYSTEM} == CLANG* ]]; then
+    # fails to build with gcc
+    extra_config+=("-DGGML_LTO=ON")
+  fi
+
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    cmake \
+      -GNinja \
+      -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}" \
+      "${extra_config[@]}" \
+      -DBUILD_SHARED_LIBS=ON \
+      -DCMAKE_DLL_NAME_WITH_SOVERSION=ON \
+      -DGGML_RPC=ON \
+      -DGGML_BLAS=ON \
+      -DGGML_BLAS_VENDOR=OpenBLAS \
+      -DGGML_OPENCL=ON \
+      -DGGML_OPENMP=ON \
+      -DGGML_VULKAN=ON \
+      -DGGML_OPENCL_USE_ADRENO_KERNELS=OFF \
+      -DGGML_NATIVE=OFF \
+      -DGGML_CCACHE=OFF \
+      -DGGML_ALL_WARNINGS=OFF \
+      -DGGML_BUILD_EXAMPLES=OFF \
+      -DGGML_BUILD_TESTS=OFF \
+      -DPython3_EXECUTABLE=${MINGW_PREFIX}/bin/python \
+      -S "${_realname}-${pkgver}" \
+      -B "build-${MSYSTEM}"
+
+  cmake --build "build-${MSYSTEM}"
+}
+
+check() {
+  cmake -DGGML_BUILD_TESTS=ON -S"${_realname}-${pkgver}" -B"build-${MSYSTEM}"
+  cmake --build "build-${MSYSTEM}"
+
+  ctest --test-dir "build-${MSYSTEM}" --output-on-failure
+}
+
+package() {
+  DESTDIR="${pkgdir}" cmake --install "build-${MSYSTEM}"
+
+  install -Dm644 "${srcdir}/${_realname}-${pkgver}"/LICENSE \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE
+}

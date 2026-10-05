@@ -75,7 +75,9 @@ try {
             $failure.Data['UiOnlyRetainedFailure'] = $true
             throw $failure
         }
-        throw "界面验证未通过（$($report.Stage)，$($report.ErrorKind)，$($report.HResult)，$($report.FailureStage)，$($report.Motion.Stage)，$($report.Motion.FailureKind)）。"
+        $motionStage = if ($null -ne $report.Motion) { $report.Motion.Stage } else { '未开始' }
+        $motionFailure = if ($null -ne $report.Motion) { $report.Motion.FailureKind } else { '' }
+        throw "界面验证未通过（$($report.Stage)，$($report.ErrorKind)，$($report.HResult)，$($report.FailureStage)，$motionStage，$motionFailure）。"
     }
     if ($report.AnimationsEnabled -isnot [bool] -or $report.Motion.Passed -isnot [bool] -or
         $report.PlayerPresentationReleased -isnot [bool]) { throw '界面报告缺少完整的动效验收字段。' }

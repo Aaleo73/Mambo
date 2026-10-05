@@ -22,9 +22,9 @@ API 依据：[GitHub Releases REST 文档](https://docs.github.com/en/rest/relea
 
 GitHub Actions 的 push / PR 工作流使用锁定 SDK、锁定还原、着色器校验、libmpv 校验、构建与测试。`vX.Y.Z` 标签工作流先执行同样检查，再生成源码发行版与 SHA256SUMS。Action 版本固定为核实过的提交。
 
-`LICENSES/release-readiness.json` 当前 `binaryDistributionApproved=false`，对应 P8 已记录的完整原生对应源码缺口。当前工作流不会公开上传含 libmpv 的安装器、便携包或构建产物；源码发布无需阻塞。发布脚本同时检查该记录，不能单靠工作流参数绕过。补齐准确依赖修订、补丁、源码及逐文件归属证据后，才能将审查结论落成已批准状态并开放二进制发布。
+初次接入时 `LICENSES/release-readiness.json` 为 `binaryDistributionApproved=false`，对应 P8 已记录的原生源码缺口，v0.1.0 因此只发布开发源码。2026-10-05 按用户要求解决此阻碍，切换为有匹配源码包的 MSYS2 组件并补齐静态/头文件输入和 Rust 源码，详见 `native-distribution.md`。发布审查现在绑定运行时和源码 lock 哈希；工作流必须校验所有 DLL 和源码，并把完整源码分包与二进制一起上传。
 
-因此，更新功能代码完成不代表已有可安装的线上更新。首次公开二进制与从旧版升级到新版的真实安装链仍依赖上述缺口的处理和两个不同版本的 Releases。
+线上安装更新以实际 Release 资产和跨版本安装验证为准；v0.1.0 的源码发行版不提供安装器。新运行时及 v0.1.1 的验证在下方追加。
 
 ## 验证
 
@@ -37,4 +37,11 @@ GitHub Actions 的 push / PR 工作流使用锁定 SDK、锁定还原、着色�
 - [线上构建与测试](https://github.com/Aaleo73/Mambo/actions/runs/37305037345)通过，提交 `eb4770c` 已推送到公开仓库 main，保留当前分支的完整提交历史。
 - `v0.1.0` 标签触发的[发布工作流](https://github.com/Aaleo73/Mambo/actions/runs/37305527521)通过。[首个源码 Release](https://github.com/Aaleo73/Mambo/releases/tag/v0.1.0)公开包含 `Mambo-0.1.0-sources.zip`（24,342,608 字节）与 `SHA256SUMS.txt`，没有安装器、便携包或原生 DLL。源码归档共有 581 个文件/目录项，没有 artifacts、publish、bin、obj、Git 或测试输出。
 - 重新下载线上源码资产，GitHub 摘要校验通过；581 个归档项的名称、字节数和内容 SHA-256 均与本地同提交的归档匹配。两个 ZIP 容器的哈希不同，但逐项内容一致；不将本地 ZIP 的容器哈希代替线上资产摘要。
-- 含 libmpv 的两个不同版本安装升级链仍未公开验收；原生对应源码缺口未解决。
+- 此次源码发布时，含 libmpv 的两个不同版本安装升级链尚未公开验收。后续原生源码缺口的处理记录见 `native-distribution.md`；新的二进制发布及线上更新验证将在下方追加。
+
+## 2026-10-05 对应源码缺口修复
+
+- 切换 MSYS2 精确包后，全量 Debug 构建为 0 警告 / 0 错误；Native AOT 发布成功。启用 GPU 的完整回归共 555 项：554 通过、0 失败，仅 1 项测量输出未启用而跳过。真实 libmpv、GPU、HDR 和画质用例全部运行。
+- 131 个原生 DLL、897 份源码归档按大小和 SHA-256 校验。私有候选包的 3,292 个发布文件、3,233 个 Mambo 源文件及全部 897 个原生源码 ZIP 成员核验通过；两份源码分包为 1,563,090,744 与 937,289,790 字节，均在 GitHub 单资产上限内。
+- Git 索引全量检出的 2,716 份原始许可/构建材料无哈希差异，运行时及源码锁的发布绑定匹配。损坏源码缓存的失败路径验证会中止打包；并行下载结果逐项确认，不依赖 PowerShell 并行块的非终止错误。
+- 新 AOT 发布目录的真实 4K HEVC HDR10 播放、连播、进度和解绑验证通过。安装后的完整 UI 自动化因 UiInputTargetOccluded 未通过；修正诊断脚本对尚未开始的动效报告访问，保留真实失败原因。安装器的生命周期可通过显式 `-LifecycleOnly` 独立验收，报告标记范围及未执行 UI，不将该范围的成功写成完整 UI 通过。

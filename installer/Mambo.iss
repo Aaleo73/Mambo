@@ -1,5 +1,5 @@
 #ifndef MyAppVersion
-  #define MyAppVersion "0.1.0"
+  #define MyAppVersion "0.1.1"
 #endif
 #ifndef PublishDir
   #error "请使用 scripts/publish.ps1 -Installer，或定义 PublishDir 指向已验收的发布目录。"

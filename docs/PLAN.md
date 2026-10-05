@@ -72,13 +72,13 @@
 
   **不引入**：Microsoft.Extensions.Hosting（拖慢启动）、Polly、Serilog.Settings.Configuration（依赖反射，不兼容 AOT）。
 - **libmpv**：
-  - 来源：shinchiro/mpv-winbuild-cmake 的 GitHub Releases，包名 `mpv-dev-x86_64-<日期>-git-<修订>.7z`。
+  - 当前来源：MSYS2 官方 UCRT64 精确版本包。原 shinchiro 20260610 开发构建因对应源码无法追溯而替换；依据与核验见 `docs/decisions/native-distribution.md`。
   - 版本要求：**必须 ≥ mpv 0.41**，因为要用 `d3d11-output-mode=composition`、`d3d11-composition-size` 和 `display-swapchain`。
-  - 建议用 release `20260610`（git-304426c）：已核实这个修订的文档包含上面三项。若该 release 已下架，就用最新的包，并在 P0 重新验证。
-  - 包内文件：`libmpv-2.dll`（约 117MB）、`include/mpv/*.h`、`libmpv.dll.a`（MSVC 用不上）。
+  - 当前锁定 mpv 0.41.0-8；每个包、DLL、头文件和对应源码均固定版本/哈希。更换输入时重新验证合成画面、硬解与画质并更新发布证据。
+  - 运行时包括 `libmpv-2.dll` 及它的全部非系统 DLL，放在 `mpv/` 下；不分发导入库或编译工具。
   - C# 用 P/Invoke 动态加载，不需要导入库。
   - 下载脚本支持用环境变量 `MAMBO_LIBMPV_CACHE` 指定下载缓存目录，避免重复下载。
-- **许可**：libmpv 是 GPL-2.0-or-later，shinchiro 构建还带有 Apache-2.0 组件，两者只能在 GPLv3 下共存。因此 Mambo 采用 **GPL-3.0-or-later**。NOTICES 在 P8 自行撰写，GPL 文本从 gnu.org 获取。
+- **许可**：原生运行时包含 GPL 和 Apache-2.0 等组件，Mambo 采用 **GPL-3.0-or-later**。当前 MSYS2 包逐文件保留许可与对应源码，来源、边界和核验见 `docs/decisions/native-distribution.md`。GPL 文本从 gnu.org 获取。
 
 ## 3. 仓库约定
 
@@ -720,10 +720,10 @@ PlayerOverlay（Grid，RequestedTheme=Dark，IsTabStop=True，持有焦点）
    - `Mambo.slnx`
    - Core、Player、App、Core.Tests 四个项目
 4. `scripts/fetch-libmpv.ps1`：
-   1. 按 `third_party/libmpv/libmpv.lock.json` 里的 release URL 下载到 `third_party/libmpv/download/`；
-   2. 首次运行时计算压缩包和 DLL 的 SHA-256 并写入 lock 文件，之后每次都校验；
-   3. 用 `tar.exe -xf <包> libmpv-2.dll include/mpv` 解压；
-   4. 把 DLL 放进 `third_party/libmpv/bin/`。
+   1. 按 `third_party/libmpv/libmpv.lock.json` 下载固定版本 MSYS2 包到下载缓存；
+   2. 每次按 lock 校验包大小、SHA-256，下载脚本不改写 lock；
+   3. `tar.exe` 只解压白名单 DLL 和头文件，逐项校验；
+   4. 将完整运行时放进 `third_party/libmpv/bin/`，发布时同时提供匹配源码分包。
 5. Player：`LibMpvNative`、结构体、`MpvHandle`、`MpvRuntime`、`MpvCore`（选项、事件线程、观察属性、node 读写、用 `command_node` 执行 `loadfile`）。
 6. App：
    - `Program.Main`；
@@ -870,7 +870,7 @@ PlayerOverlay（Grid，RequestedTheme=Dark，IsTabStop=True，持有焦点）
 - Inno Setup 安装器 `installer/Mambo.iss`：按用户安装，升级时关闭正在运行的实例；Inno Setup 本身用 `winget install JRSoftware.InnoSetup` 安装【需用户】
 - 便携版 zip
 - 自行撰写 `THIRD_PARTY_NOTICES.md`，列出 libmpv/FFmpeg 及其组件、WinAppSDK、.NET、CommunityToolkit、Serilog、MiSans 的许可；附 `LICENSES\`
-- GPL 源码说明：仓库地址、mpv 修订、shinchiro 构建脚本的出处
+- GPL 源码说明：仓库地址、mpv 修订、实际 MSYS2 构建配方、补丁和全部对应源码分包
 - 可选：代码签名
 
 **验收**
@@ -1503,7 +1503,8 @@ PlayerOverlay（Grid，RequestedTheme=Dark，IsTabStop=True，持有焦点）
 ## 进度
 
 - [x] GitHub 源码托管与自动更新实现（2026-10-05：公开仓库 Aaleo73/Mambo 已上传；公开稳定版检查、SHA-256 校验下载安装器和 Actions 已接入。独立构建及 AOT 通过，更新专项 37/37、回归 532 通过/23 按配置跳过；线上构建/测试与 v0.1.0 源码发布通过。完整界面输入检查受超时/遮挡限制，见 `docs/decisions/github-auto-update.md`）
-- [ ] 首次公开二进制与真实跨版本更新验收（完整原生对应源码缺口处理前只发布源码；尚无公开安装包，未将源码 Release 当作可安装更新）
+- [x] 完整原生对应源码（2026-10-05：替换为匹配源码包的 MSYS2 UCRT64 组件，固定 105 个包/131 个 DLL 与 897 份源码；原配方、补丁、构建环境、Rust 锁和许可归属随包提供；32 项真实播放器/GPU 检查及 4K 硬解、合成画面、连播验证通过，详见 `docs/decisions/native-distribution.md`）
+- [ ] 首次公开二进制与真实跨版本更新验收（原生源码缺口已处理；正在验收首次公开安装包及线上更新下载）
 
 - [x] P0 工具链、骨架与视频技术验证（关卡 ①：2026-10-02 用户批准携遗留项进入 P1；未通过与待测项见 `docs/decisions/P0-video-spike.md`）
 - [x] P1a 契约与假实现（2026-10-02 评审条件通过，R-004–R-009 已修正并测试，契约 v1 冻结；增量 R-010–R-014 完成）

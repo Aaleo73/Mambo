@@ -1,0 +1,76 @@
+# Maintainer: Christoph Reiter <reiter.christoph@gmail.com>
+
+_realname=whisper.cpp
+pkgbase=mingw-w64-${_realname}
+pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
+epoch=1
+pkgver=1.9.4.r181.gd09f61a70
+pkgrel=1
+pkgdesc="Port of OpenAI's Whisper model in C/C++ (mingw-w64)"
+arch=('any')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64' 'mingw64')
+url='https://github.com/ggml-org/whisper.cpp'
+msys2_repository_url='https://github.com/ggml-org/whisper.cpp'
+msys2_references=(
+  'archlinux: whisper-cpp-vulkan'
+)
+license=('spdx:MIT')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-cc-libs"
+  "${MINGW_PACKAGE_PREFIX}-ggml"
+  "${MINGW_PACKAGE_PREFIX}-llama.cpp"
+  "${MINGW_PACKAGE_PREFIX}-SDL2"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+  "git"
+)
+_commit=d09f61a708f3487afa956ff578e60eae5e7a233c
+source=("git+https://github.com/ggml-org/whisper.cpp#commit=${_commit}")
+#source=("https://github.com/ggml-org/whisper.cpp/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('a745ac724e2bc23f6e77f35a9f14a70474b11f3c8573d074c2898d89e4b6ae91')
+
+pkgver() {
+  cd "${_realname}"
+  git describe --long --tags | sed 's/\([^-]*-g\)/r\1/;s/-/./g;s/^v//g'
+}
+
+build() {
+  declare -a extra_config
+  if check_option "debug" "n"; then
+    extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
+
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    cmake \
+      -GNinja \
+      -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}" \
+      -DBUILD_SHARED_LIBS=ON \
+      -DCMAKE_DLL_NAME_WITH_SOVERSION=ON \
+      -DWHISPER_USE_SYSTEM_GGML=ON \
+      -DWHISPER_USE_SYSTEM_LLAMA=ON \
+      -DWHISPER_CURL=ON \
+      -DWHISPER_SDL2=ON \
+      -DWHISPER_BUILD_EXAMPLES=ON \
+      -DWHISPER_BUILD_TESTS=OFF \
+      -DWHISPER_ALL_WARNINGS=OFF \
+      "${extra_config[@]}" \
+      -S ${_realname} \
+      -B build-${MSYSTEM}
+
+  cmake --build build-${MSYSTEM}
+}
+
+package() {
+  DESTDIR="${pkgdir}" cmake --install build-${MSYSTEM}
+
+  install -Dm755 "${srcdir}/${_realname}/models/download-ggml-model.sh" \
+    "${pkgdir}${MINGW_PREFIX}/bin/whisper-download-ggml-model.sh"
+
+  install -Dm644 "${srcdir}"/${_realname}/LICENSE \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE
+}
