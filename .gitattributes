@@ -1,6 +1,10 @@
 * text=auto
 third_party/libmpv/include/** text eol=lf
 *.ps1 text eol=crlf
-# Preserve upstream license/translation snapshots byte-for-byte, including their whitespace.
+# 带 SHA-256 锁定的上游许可与着色器必须保持原始字节；Windows checkout 不转换换行。
+LICENSE -text
 LICENSES/**/*.txt -text whitespace=-blank-at-eol,-blank-at-eof,-space-before-tab
+LICENSES/**/*.md -text whitespace=-blank-at-eol,-blank-at-eof,-space-before-tab
+LICENSES/**/*.cmake -text whitespace=-blank-at-eol,-blank-at-eof,-space-before-tab
 installer/ChineseSimplified.isl -text whitespace=-blank-at-eol,-blank-at-eof,-space-before-tab
+*.ttf binary

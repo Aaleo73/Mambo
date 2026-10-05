@@ -10,6 +10,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Mambo.Player.LibMpv;
 using Mambo.Player.External;
 using Mambo.Core.Playback;
+using Mambo.Core.Updates;
+using System.Reflection;
 
 namespace Mambo.App.Composition;
 
@@ -29,6 +31,11 @@ public static class BackendServices
         services.AddSingleton<FakeOptions>(options ?? (fake ? FakeOptions.FromEnvironment(
             Environment.GetEnvironmentVariable("MAMBO_FAKE_DELAY_MS"), Environment.GetEnvironmentVariable("MAMBO_FAKE_FAILURE_RATE")) : new FakeOptions()));
         services.AddSingleton<IMessenger>(_ => new WeakReferenceMessenger());
+        services.AddSingleton<IAppUpdateService>(_ => new GitHubUpdateService(
+            fake ? "" : typeof(BackendServices).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
+                .FirstOrDefault(static attribute => attribute.Key == "MamboUpdateRepository")?.Value ?? "",
+            typeof(BackendServices).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "0.0.0",
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Mambo", "updates")));
         if (!fake)
         {
             services.AddSingleton<ISecretStore>(_ => new WindowsCredentialStore());

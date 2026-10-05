@@ -83,6 +83,7 @@ public sealed record AppSettings
     public string? ExternalMpvPath { get; init; }
     public ExternalMpvApproval? ExternalMpvApproval { get; init; }
     public SettingsThemeMode ThemeMode { get; init; } = SettingsThemeMode.System;
+    public bool AutomaticallyCheckForUpdates { get; init; } = true;
     /// <summary>选集面板的上次布局；false 为列表，true 为集号网格。旧设置中的显式选择保持不变。</summary>
     public bool UseEpisodeGrid { get; init; } = true;
     /// <summary>非全屏播放时是否收起选集面板；旧设置默认展开。</summary>

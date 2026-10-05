@@ -1,0 +1,62 @@
+name: 发布
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: windows-2025
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          global-json-file: global.json
+      - name: 读取发布条件
+        id: readiness
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if ($env:RELEASE_TAG -notmatch '^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$') { throw '仅支持 vX.Y.Z 稳定版标签。' }
+          $readiness = Get-Content LICENSES/release-readiness.json -Raw | ConvertFrom-Json
+          "binary=$($readiness.binaryDistributionApproved -eq $true)".ToLowerInvariant() >> $env:GITHUB_OUTPUT
+          "version=$($env:RELEASE_TAG.Substring(1))" >> $env:GITHUB_OUTPUT
+      - name: 获取并校验 libmpv
+        shell: pwsh
+        run: ./scripts/fetch-libmpv.ps1
+      - name: 还原、构建与测试
+        shell: pwsh
+        run: |
+          dotnet restore -p:Platform=x64 --locked-mode
+          if ($LASTEXITCODE -ne 0) { throw '还原失败。' }
+          dotnet build -p:Platform=x64 --no-restore
+          if ($LASTEXITCODE -ne 0) { throw '构建失败。' }
+          dotnet test --no-build --no-restore
+          if ($LASTEXITCODE -ne 0) { throw '测试失败。' }
+      - name: 安装 Inno Setup
+        if: steps.readiness.outputs.binary == 'true'
+        run: choco install innosetup --version=6.7.3 --yes --no-progress
+      - name: 打包或归档源码
+        shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ steps.readiness.outputs.version }}
+          INCLUDE_BINARIES: ${{ steps.readiness.outputs.binary }}
+          UPDATE_REPOSITORY: ${{ github.repository }}
+        run: ./scripts/prepare-github-release.ps1 -Version $env:RELEASE_VERSION -UpdateRepository $env:UPDATE_REPOSITORY -IncludeBinaries:($env:INCLUDE_BINARIES -eq 'true')
+      - name: 发布 GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          $files = @(Get-ChildItem -LiteralPath artifacts/github-release -File | ForEach-Object FullName)
+          gh release create $env:RELEASE_TAG @files --verify-tag --title "Mambo $env:RELEASE_TAG" --notes-file artifacts/github-release-notes.md
+          if ($LASTEXITCODE -ne 0) { throw '发布失败。' }

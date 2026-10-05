@@ -21,9 +21,10 @@ public sealed partial class SettingsPage : UserControl, INavigablePage, IDisposa
     private readonly ToastService toasts;
     private readonly DialogService dialogs;
 
-    public SettingsPage(SettingsViewModel viewModel, WindowContext window, ToastService toasts, DialogService dialogs)
+    public SettingsPage(SettingsViewModel viewModel, WindowContext window, ToastService toasts, DialogService dialogs, AppUpdateViewModel updates)
     {
         ViewModel = viewModel;
+        Updates = updates;
         this.window = window;
         this.toasts = toasts;
         this.dialogs = dialogs;
@@ -32,6 +33,14 @@ public sealed partial class SettingsPage : UserControl, INavigablePage, IDisposa
     }
 
     public SettingsViewModel ViewModel { get; }
+    public AppUpdateViewModel Updates { get; }
+
+    private async void OnCheckUpdateClick(object sender, RoutedEventArgs e) => await Updates.CheckAsync();
+    private async void OnInstallUpdateClick(object sender, RoutedEventArgs e) => await Updates.InstallAsync();
+    private void OnCancelUpdateClick(object sender, RoutedEventArgs e) => Updates.CancelDownload();
+    private async void OnReleasesClick(object sender, RoutedEventArgs e) => await Updates.OpenReleasesAsync();
+    private async void OnAutomaticUpdateToggled(object sender, RoutedEventArgs e) =>
+        await Updates.SetAutomaticallyCheckAsync(AutomaticUpdateSwitch.IsOn);
 
     public void OnNavigatedTo(NavEntry entry, NavigationMode mode, bool created)
     {

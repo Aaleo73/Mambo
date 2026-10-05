@@ -173,6 +173,27 @@
                         </StackPanel>
                     </Grid>
 
+                    <Grid Style="{StaticResource SectionStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="220"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Style="{StaticResource GroupTitleTextStyle}" Text="应用更新"/>
+                        <StackPanel Grid.Column="1" Spacing="12">
+                            <ToggleSwitch x:Name="AutomaticUpdateSwitch" Header="启动时自动检查更新" OnContent="开启" OffContent="关闭"
+                                          IsOn="{x:Bind Updates.AutomaticallyCheck, Mode=OneWay}" Toggled="OnAutomaticUpdateToggled"/>
+                            <TextBlock Style="{StaticResource BodySmallTextStyle}" Text="{x:Bind Updates.Status, Mode=OneWay}" TextWrapping="Wrap"/>
+                            <ProgressBar Minimum="0" Maximum="100" Value="{x:Bind Updates.DownloadProgress, Mode=OneWay}"
+                                         Visibility="{x:Bind Updates.IsDownloading, Mode=OneWay}" AutomationProperties.Name="更新下载进度"/>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Button Style="{StaticResource SoftButtonStyle}" Content="检查更新" Click="OnCheckUpdateClick" IsEnabled="{x:Bind Updates.CanCheck, Mode=OneWay}"/>
+                                <Button Style="{StaticResource SoftButtonStyle}" Content="下载并安装" Click="OnInstallUpdateClick" IsEnabled="{x:Bind Updates.CanInstall, Mode=OneWay}"/>
+                                <Button Style="{StaticResource SoftButtonStyle}" Content="取消下载" Click="OnCancelUpdateClick" Visibility="{x:Bind Updates.IsDownloading, Mode=OneWay}"/>
+                                <Button Style="{StaticResource SoftButtonStyle}" Content="发行页面" Click="OnReleasesClick" IsEnabled="{x:Bind Updates.CanOpenReleases}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
+
                     <!-- 关于：最后一个分区没有底线，外框的底线就是它 -->
                     <Grid Style="{StaticResource SectionStyle}" BorderThickness="0">
                         <Grid.ColumnDefinitions>

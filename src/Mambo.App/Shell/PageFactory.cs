@@ -19,7 +19,7 @@ public sealed class PageFactory(IServiceProvider services)
             PageKind.Settings => CreateOwned(
                 new SettingsViewModel(Get<ISessionService>(), Get<ISettingsService>(), Get<IPlaybackService>(), Get<Navigator>(),
                     Get<ToastService>(), Get<DialogService>(), Get<ThemeService>()),
-                model => new SettingsPage(model, Get<WindowContext>(), Get<ToastService>(), Get<DialogService>())),
+                model => new SettingsPage(model, Get<WindowContext>(), Get<ToastService>(), Get<DialogService>(), Get<AppUpdateViewModel>())),
             PageKind.Recent => CreateOwned(new RecentViewModel(Get<ILibraryService>()), model => new RecentPage(model)),
             PageKind.Library => CreateOwned(new LibraryViewModel(Get<ILibraryService>(), Get<ILibraryPreferences>(), Library(route.Parameter ?? "")), model => new LibraryPage(model, Get<WindowContext>())),
             PageKind.Search => CreateOwned(new SearchViewModel(Get<ILibraryService>(), route.Parameter ?? ""), model => new SearchPage(model)),

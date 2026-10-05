@@ -7,6 +7,7 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <AssemblyName>Mambo</AssemblyName>
     <Version>0.1.0</Version>
+    <UpdateRepository Condition="'$(UpdateRepository)' == ''">Aaleo73/Mambo</UpdateRepository>
     <RootNamespace>Mambo.App</RootNamespace>
     <UseWinUI>true</UseWinUI>
     <WinUISDKReferences>false</WinUISDKReferences>
@@ -22,6 +23,7 @@
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
+    <AssemblyMetadata Include="MamboUpdateRepository" Value="$(UpdateRepository)" />
     <PackageReference Include="Microsoft.WindowsAppSDK" />
     <PackageReference Include="Microsoft.Windows.CsWin32" PrivateAssets="all" />
     <PackageReference Include="Microsoft.Graphics.Win2D" />

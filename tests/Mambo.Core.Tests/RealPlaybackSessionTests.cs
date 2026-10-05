@@ -409,6 +409,8 @@ public sealed class RealPlaybackSessionTests
         await session.TogglePauseAsync(TestContext.Current.CancellationToken);
         await session.SeekAsync(TimeSpan.FromSeconds(37.125), TestContext.Current.CancellationToken);
         await session.TogglePauseAsync(TestContext.Current.CancellationToken);
+        // 命令完成只表示 actor 已接收操作。退出会取消尚未送出的旧进度；先等本用例要验证的三次上报完成。
+        await UntilAsync(() => harness.Reports.Count == 4);
         await session.CloseAsync(TestContext.Current.CancellationToken);
         var reports = harness.Reports.ToArray();
         Assert.Equal(ReportKinds, reports.Select(report => report.Kind));

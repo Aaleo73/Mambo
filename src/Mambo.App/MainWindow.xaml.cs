@@ -102,6 +102,7 @@ public sealed partial class MainWindow : Window
     /// <summary>启动后调用一次 RestoreAsync；失败时状态由会话服务公开，首页据此显示。</summary>
     public async void StartSession()
     {
+        _ = services.GetRequiredService<Mambo.App.ViewModels.AppUpdateViewModel>().CheckOnStartupAsync();
         try { await services.GetRequiredService<ISessionService>().RestoreAsync(); }
         catch (AppException) { }
         catch (OperationCanceledException) { }

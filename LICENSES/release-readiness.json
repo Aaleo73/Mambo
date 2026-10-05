@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "binaryDistributionApproved": false,
+  "evidence": "docs/decisions/P8-packaging.md",
+  "reason": "锁定 libmpv 的全部原生依赖修订、补丁、对应源码与逐文件归属尚未补齐。"
+}

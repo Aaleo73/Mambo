@@ -80,7 +80,8 @@ foreach ($entry in $outputs.GetEnumerator()) {
     }
     $relative = 'runtime/' + $entry.Key
     $path = Join-Path $shaderRoot $relative
-    $bytes = [Text.Encoding]::UTF8.GetBytes($entry.Value)
+    # Windows checkout 将 PowerShell 的 here-string 变为 CRLF；运行时锁定资源统一使用 LF。
+    $bytes = [Text.Encoding]::UTF8.GetBytes($entry.Value.Replace("`r`n", "`n"))
     if ($Verify) {
         if (!(Test-Path -LiteralPath $path) -or ![Linq.Enumerable]::SequenceEqual[byte]([IO.File]::ReadAllBytes($path), $bytes)) {
             throw "运行时着色器不是当前输入的生成结果：$relative"

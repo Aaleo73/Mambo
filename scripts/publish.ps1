@@ -4,6 +4,8 @@ param(
     [ValidatePattern('^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$')]
     [string]$Version = '0.1.0',
     [switch]$Installer,
+    [ValidatePattern('^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$')]
+    [string]$UpdateRepository = 'Aaleo73/Mambo',
     [string]$IsccPath
 )
 
@@ -28,7 +30,7 @@ try {
     & dotnet restore $project -p:Platform=x64 --locked-mode
     if ($LASTEXITCODE -ne 0) { throw '锁定依赖还原失败。' }
     $fileVersion = ($Version -split '-')[0] + '.0'
-    & dotnet publish $project --no-restore -c Release -r win-x64 --self-contained true -p:Platform=x64 -p:PublishAot=true -p:WindowsAppSDKSelfContained=true "-p:Version=$Version" "-p:FileVersion=$fileVersion" "-p:InformationalVersion=$Version" -p:TrimmerSingleWarn=false -o $appRoot
+    & dotnet publish $project --no-restore -c Release -r win-x64 --self-contained true -p:Platform=x64 -p:PublishAot=true -p:WindowsAppSDKSelfContained=true "-p:Version=$Version" "-p:FileVersion=$fileVersion" "-p:InformationalVersion=$Version" "-p:UpdateRepository=$UpdateRepository" -p:TrimmerSingleWarn=false -o $appRoot
     if ($LASTEXITCODE -ne 0) { throw 'AOT 发布失败。' }
 } finally { Pop-Location }
 
