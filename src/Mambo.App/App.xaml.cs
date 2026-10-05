@@ -24,7 +24,8 @@ public sealed partial class App : Application
         var nativeOverlaySmoke = Program.Arguments.Contains(Debug.NativeOverlaySmoke.Argument, StringComparer.Ordinal);
         var externalHandoffSmoke = Program.Arguments.Contains(Debug.ExternalHandoffSmoke.Argument, StringComparer.Ordinal);
         var uiSmoke = Program.Arguments.Contains("--ui-smoke", StringComparer.Ordinal);
-        var fake = uiSmoke || BackendServices.IsFakeMode(Program.Arguments, Environment.GetEnvironmentVariable("MAMBO_FAKE"));
+        var bulletChatSmoke = Program.Arguments.Contains(Debug.BulletChatSmoke.Argument, StringComparer.Ordinal);
+        var fake = uiSmoke || bulletChatSmoke || BackendServices.IsFakeMode(Program.Arguments, Environment.GetEnvironmentVariable("MAMBO_FAKE"));
         if (fake && Debug.FakeLifetimeProbe.IsActive)
             UnhandledException += (_, failure) => Debug.FakeLifetimeProbe.Record(failure.Exception);
         var services = externalHandoffSmoke
@@ -52,6 +53,8 @@ public sealed partial class App : Application
             _ = Debug.NativeOverlaySmoke.RunAsync(main);
         else if (uiSmoke)
             _ = Debug.UiLabSmoke.RunAsync(main, Environment.GetEnvironmentVariable("MAMBO_UI_LAB_REPORT") ?? "");
+        else if (bulletChatSmoke)
+            _ = Debug.BulletChatSmoke.RunAsync(main, Environment.GetEnvironmentVariable("MAMBO_BULLET_CHAT_REPORT") ?? "");
         else if (Program.Arguments.Contains("--startup-smoke", StringComparer.Ordinal))
             _ = Debug.StartupTimeline.RunProbeAsync(main, Environment.GetEnvironmentVariable("MAMBO_STARTUP_REPORT") ?? "");
     }

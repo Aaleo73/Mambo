@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.Messaging;
+using Mambo.Core.BulletChat;
 using Mambo.Core.Contracts;
 using Mambo.Core.Fakes;
 using Mambo.Core;
@@ -42,6 +43,7 @@ public static class BackendServices
             services.AddSingleton<ILibraryPreferences>(p => p.GetRequiredService<BackendRuntime>().Preferences);
             services.AddSingleton<IImageService>(p => p.GetRequiredService<BackendRuntime>().Images);
             services.AddSingleton<IPlaybackService>(p => p.GetRequiredService<BackendRuntime>().Playback);
+            services.AddSingleton<IBulletChatService>(p => p.GetRequiredService<BackendRuntime>().BulletChat);
             services.AddSingleton(p => new AppShutdownCoordinator(p.GetRequiredService<IPlaybackService>(), p.GetRequiredService<IMessenger>(), p.GetRequiredService<BackendRuntime>()));
             return services;
         }
@@ -57,6 +59,10 @@ public static class BackendServices
             p.GetRequiredService<FakeOperation>(), p.GetRequiredService<FakeOptions>(), p.GetRequiredService<TimeProvider>(),
             p.GetRequiredService<IUiScheduler>(), p.GetRequiredService<IMessenger>()));
         services.AddSingleton<IImageService>(p => new FakeImageService(p.GetRequiredService<DemoCatalog>(), p.GetRequiredService<FakeOperation>()));
+        // 演示弹幕也跟随内置引擎，本地真实播放的诊断可以直接看到合成效果。
+        services.AddSingleton<IBulletChatService>(p => new BulletChatService(p.GetRequiredService<IPlaybackService>(), p.GetRequiredService<ISettingsService>(),
+            new FakeBulletChatProvider(p.GetRequiredService<FakeOperation>()), p.GetRequiredService<IUiScheduler>(),
+            static kind => kind is EngineKind.Demo or EngineKind.Embedded));
         services.AddSingleton(p => new AppShutdownCoordinator(p.GetRequiredService<IPlaybackService>(), p.GetRequiredService<IMessenger>()));
         return services;
     }

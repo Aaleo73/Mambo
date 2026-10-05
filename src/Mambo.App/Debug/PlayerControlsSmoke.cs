@@ -532,7 +532,8 @@ internal static class PlayerControlsSmoke
     {
         var session = new SnapshotProbeSession();
         var overlay = new PlayerOverlay(session, window.Services.GetRequiredService<WindowContext>(),
-            window.Services.GetRequiredService<ToastService>(), window.Services.GetRequiredService<ISettingsService>());
+            window.Services.GetRequiredService<ToastService>(), window.Services.GetRequiredService<ISettingsService>(),
+            window.Services.GetRequiredService<IBulletChatService>());
         var host = (Grid)parent.FindName("Root");
         host.Children.Add(overlay);
         try

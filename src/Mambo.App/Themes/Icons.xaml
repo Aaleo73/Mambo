@@ -29,6 +29,7 @@
     <x:String x:Key="IconMaximize">M15 3 H21 V9 M9 21 H3 V15 M21 3 L14 10 M3 21 L10 14</x:String>
     <x:String x:Key="IconRestore">M4 14 H10 V20 M20 10 H14 V4 M14 10 L21 3 M3 21 L10 14</x:String>
     <x:String x:Key="IconSubtitles">M4 5 H20 A2 2 0 0 1 22 7 V17 A2 2 0 0 1 20 19 H4 A2 2 0 0 1 2 17 V7 A2 2 0 0 1 4 5 Z M6 11 H10 M13.5 11 H18 M6 15 H13 M16.5 15 H18</x:String>
+    <x:String x:Key="IconBulletChat">M21 15 A2 2 0 0 1 19 17 H7 L3 21 V5 A2 2 0 0 1 5 3 H19 A2 2 0 0 1 21 5 Z M7.5 8 H13 M7.5 12 H16.5</x:String>
     <x:String x:Key="IconFullscreen">M4 9 V4 H9 M20 15 V20 H15 M15 4 H20 V9 M9 20 H4 V15</x:String>
     <x:String x:Key="IconFullscreenExit">M9 4 V9 H4 M15 20 V15 H20 M20 9 H15 V4 M4 15 H9 V20</x:String>
     <x:String x:Key="IconUser">M20 21 V19 A4 4 0 0 0 16 15 H8 A4 4 0 0 0 4 19 V21 M12 3 A4 4 0 1 1 12 11 A4 4 0 1 1 12 3 Z</x:String>

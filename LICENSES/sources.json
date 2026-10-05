@@ -697,5 +697,11 @@
     "source": "https://raw.githubusercontent.com/jrsoftware/issrc/is-6_7_3/license.txt",
     "sha256": "2e5346868c2a18434489824e11d65c3031620f792fefc415d05f19cd441abf5c",
     "retrieved": "2026-10-03"
+  },
+  {
+    "path": "Win2D-LICENSE.txt",
+    "source": "https://raw.githubusercontent.com/microsoft/Win2D/winappsdk/main/LICENSE.txt",
+    "sha256": "c3ba493105fa52657c4c60d9b1680da7c01b188a8665d7a823c2a187fd259808",
+    "retrieved": "2026-10-05"
   }
 ]

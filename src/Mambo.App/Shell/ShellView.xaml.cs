@@ -22,6 +22,7 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
     private readonly Navigator navigator;
     private readonly IPlaybackService playback;
     private readonly ISettingsService settings;
+    private readonly IBulletChatService bulletChat;
     private readonly WindowContext window;
     private readonly BrowseTransitionCoordinator transitions;
     private readonly WindowMotionObserver motionObserver;
@@ -49,13 +50,15 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
     private bool disposed;
 
     public ShellView(ShellViewModel viewModel, Navigator navigator, ToastService toasts, DialogService dialogs, Func<Route, FrameworkElement> pageFactory,
-        IPlaybackService playback, WindowContext window, BrowseTransitionCoordinator transitions, ISettingsService settings, Action<Exception>? reportPageFailure = null)
+        IPlaybackService playback, WindowContext window, BrowseTransitionCoordinator transitions, ISettingsService settings, IBulletChatService bulletChat,
+        Action<Exception>? reportPageFailure = null)
     {
         ArgumentNullException.ThrowIfNull(dialogs);
         ViewModel = viewModel;
         this.navigator = navigator;
         this.playback = playback;
         this.settings = settings;
+        this.bulletChat = bulletChat;
         this.window = window;
         this.transitions = transitions;
         this.toasts = toasts;
@@ -290,7 +293,7 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
         if (disposed || version != playerPresentationVersion || !ReferenceEquals(playback.Current, session)) return;
         startingSession = null;
         ReleaseRetiringPlayer();
-        var current = new PlayerOverlay(session, window, toasts, settings);
+        var current = new PlayerOverlay(session, window, toasts, settings, bulletChat);
         player = current;
         current.SetTransitionActive(true);
         current.TitleChanged += OnPlayerTitleChanged;

@@ -30,6 +30,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     private readonly WindowContext window;
     private readonly ToastService toasts;
     private readonly ISettingsService settings;
+    private readonly IBulletChatService bulletChat;
     private readonly DispatcherQueueTimer clock;
     private readonly DispatcherQueueTimer singleClick;
     private readonly InputSystemCursor arrow = InputSystemCursor.Create(InputSystemCursorShape.Arrow);
@@ -37,8 +38,8 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     private readonly WindowMotionObserver motionObserver;
     private readonly PopupTransition bigPlayTransition;
     private readonly PopupTransition upNextTransition;
-    private readonly List<MenuFlyout> openFlyouts = [];
-    private readonly Dictionary<MenuFlyout, List<(MenuFlyoutItem Item, RoutedEventHandler Handler)>> menuHandlers = [];
+    private readonly List<FlyoutBase> openFlyouts = [];
+    private readonly Dictionary<FlyoutBase, List<(MenuFlyoutItem Item, RoutedEventHandler Handler)>> menuHandlers = [];
     private readonly List<WeakReference<Button>> episodeButtons = [];
     private readonly List<(UIElement Element, RoutedEvent Event, object Handler)> routedHandlers = [];
     private ScalarKeyFrameAnimation? chromeAnimation;
@@ -78,14 +79,17 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     private bool volumePointerInside;
     private double seekTipSeconds;
 
-    public PlayerOverlay(IPlaybackSession session, WindowContext window, ToastService toasts, ISettingsService settings)
+    public PlayerOverlay(IPlaybackSession session, WindowContext window, ToastService toasts, ISettingsService settings, IBulletChatService bulletChat)
     {
         this.session = session;
         this.window = window;
         this.toasts = toasts;
         this.settings = settings;
+        this.bulletChat = bulletChat;
         ViewModel = new(session);
         InitializeComponent();
+        BulletChatPanel.Initialize(bulletChat, settings, () => ViewModel.Snapshot.Entry is { } entry ? entry.SeriesName ?? entry.Title : null);
+        BulletChatView.Apply(settings.Current.BulletChat);
         episodePanelCollapsed = settings.Current.EpisodePanelCollapsed;
         motionObserver = new(window, DispatcherQueue, OnMotionChanged);
         // 大播放钮在控制层里，只淡变；即将播放卡片是独立弹层，带 4 DIP 位移。
@@ -120,6 +124,13 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         RegisterRoutedHandler(this, PointerCaptureLostEvent, new PointerEventHandler((_, _) => pointerPressed = false));
         session.SnapshotChanged += OnSnapshotChanged;
         ViewModel.PropertyChanged += OnProjectionChanged;
+        bulletChat.Changed += OnBulletChatChanged;
+        settings.Changed += OnBulletChatSettingsChanged;
+        BulletChatPanel.PreviewChanged += OnBulletChatPreview;
+        BulletChatPanel.Completed += OnBulletChatPanelCompleted;
+        menuHandlers.Add(BulletChatFlyout, []);
+        BulletChatFlyout.Opened += OnMenuOpened;
+        BulletChatFlyout.Closed += OnMenuClosed;
         window.PresentationChanged += OnPresentationChanged;
         window.ActiveChanged += OnWindowActiveChanged;
         Loaded += OnLoaded;
@@ -150,6 +161,10 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     internal bool IsPresentationFrozen => presentationFrozen;
     internal bool HasAttachedSurface => attached;
     internal bool HasVideoSurface => VideoHost.Children.Contains(Surface);
+    internal Mambo.App.BulletChat.BulletChatLayer BulletChatLayer => BulletChatView;
+    internal BulletChatPanel BulletChatPanelView => BulletChatPanel;
+    internal bool BulletChatButtonDimmed => BulletChatGlyph.Opacity < 1;
+    internal void ShowBulletChatPanelForSmoke() => BulletChatFlyout.ShowAt(BulletChatButton);
     internal bool IsClockRunning => clock.IsRunning;
     internal bool IsSingleClickPending => singleClick.IsRunning;
     internal bool StateAnimationsRunning => openingAnimationRunning || bufferingAnimationRunning;
@@ -273,6 +288,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
             Surface.Detach();
             attached = false;
             Surface.Visibility = Visibility.Collapsed;
+            UpdateBulletChat();
             clock.Stop();
             singleClick.Stop();
             HideMenus();
@@ -301,6 +317,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         Surface.Detach();
         attached = false;
         Surface.Visibility = Visibility.Collapsed;
+        UpdateBulletChat();
         StopHintAnimation();
         KeyHint.Visibility = Visibility.Collapsed;
         SetChrome(true, animate: false);
@@ -346,6 +363,11 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         Bindings.StopTracking();
         session.SnapshotChanged -= OnSnapshotChanged;
         ViewModel.PropertyChanged -= OnProjectionChanged;
+        bulletChat.Changed -= OnBulletChatChanged;
+        settings.Changed -= OnBulletChatSettingsChanged;
+        BulletChatPanel.PreviewChanged -= OnBulletChatPreview;
+        BulletChatPanel.Completed -= OnBulletChatPanelCompleted;
+        BulletChatPanel.Dispose();
         ViewModel.Dispose();
         window.PresentationChanged -= OnPresentationChanged;
         window.ActiveChanged -= OnWindowActiveChanged;
@@ -374,6 +396,8 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         attached = false;
         Surface.Dispose();
         VideoHost.Children.Remove(Surface);
+        BulletChatView.Dispose();
+        VideoHost.Children.Remove(BulletChatView);
         // 已确认的布局写入不使用 lifetime，Shell 仍可等待 PendingPreferenceSave。
         lifetime.Cancel();
         lifetime.Dispose();
@@ -539,6 +563,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         UpdateStatus();
         DrawBuffers();
         UpdateEpisodePanel();
+        UpdateBulletChat();
         TitleChanged?.Invoke(this, EventArgs.Empty);
         if (ViewModel.IsFailed && ViewModel.Snapshot.Error is { } error && error.Code != previousErrorCode)
         {
@@ -831,6 +856,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
             case VirtualKey.Down: ChangeVolume(-5); break;
             case VirtualKey.C: CycleSubtitles(); break;
             case VirtualKey.V: CycleAudio(); break;
+            case VirtualKey.D: ToggleBulletChat(); break;
             case (VirtualKey)188: Run(() => session.StepFrameAsync(FrameStepDirection.Backward, lifetime.Token)); break;
             case (VirtualKey)190: Run(() => session.StepFrameAsync(FrameStepDirection.Forward, lifetime.Token)); break;
             case (VirtualKey)219: ChangeRate(-1); break;
@@ -1269,6 +1295,39 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         Run(() => session.SelectEntryAsync(itemId, lifetime.Token));
     }
 
+    private void OnBulletChatChanged(object? sender, EventArgs e) => UpdateBulletChat();
+    private void OnBulletChatSettingsChanged(object? sender, EventArgs e)
+    {
+        if (disposed || presentationFrozen) return;
+        BulletChatView.Apply(settings.Current.BulletChat);
+        UpdateBulletChat();
+    }
+    // 拖动滑块时先直接作用到画面，稍后才落盘。
+    private void OnBulletChatPreview(object? sender, BulletChatSettings preview)
+    {
+        if (!disposed && !presentationFrozen) BulletChatView.Apply(preview);
+    }
+    private void OnBulletChatPanelCompleted(object? sender, EventArgs e) => BulletChatFlyout.Hide();
+
+    private void UpdateBulletChat()
+    {
+        if (disposed || presentationFrozen) return;
+        var state = bulletChat.Current;
+        var snapshot = ViewModel.Snapshot;
+        // 只显示属于当前条目的弹幕：切集后，上一集的结果在新结果到达前不上屏。
+        var current = state.Status == BulletChatStatus.Loaded && state.ItemId == snapshot.Entry?.ItemId;
+        BulletChatView.SetComments(current ? state.Comments : []);
+        BulletChatView.Sync(snapshot, attached && !transitionActive && !closing);
+        BulletChatGlyph.Opacity = settings.Current.BulletChat.Enabled ? 1 : .45;
+    }
+
+    private void ToggleBulletChat()
+    {
+        var enabled = !settings.Current.BulletChat.Enabled;
+        ShowKeyHint(enabled ? "弹幕 开" : "弹幕 关");
+        Run(() => settings.UpdateAsync(value => value with { BulletChat = value.BulletChat with { Enabled = enabled } }, lifetime.Token));
+    }
+
     private void OnRateClick(object sender, RoutedEventArgs e)
     {
         if (!disposed && !presentationFrozen && !closing && !transitionActive) CreateRateMenu().ShowAt(RateButton);
@@ -1344,7 +1403,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     private void OnMenuOpened(object? sender, object args)
     {
         if (sender is null) return;
-        var menu = sender.As<MenuFlyout>();
+        var menu = sender.As<FlyoutBase>();
         if (disposed || presentationFrozen || closing || transitionActive || !IsLoaded)
         {
             DetachMenu(menu);
@@ -1359,7 +1418,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     private void OnMenuClosed(object? sender, object args)
     {
         if (sender is null) return;
-        var menu = sender.As<MenuFlyout>();
+        var menu = sender.As<FlyoutBase>();
         var removed = openFlyouts.Remove(menu);
         openMenus = openFlyouts.Count;
         DetachMenu(menu);
@@ -1371,8 +1430,10 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         }
     }
 
-    private void DetachMenu(MenuFlyout menu)
+    private void DetachMenu(FlyoutBase menu)
     {
+        // 弹幕面板随播放层存活，可以反复打开；只有一次性的菜单在关闭时解除订阅。
+        if (ReferenceEquals(menu, BulletChatFlyout) && !presentationFrozen) return;
         menu.Opened -= OnMenuOpened;
         menu.Closed -= OnMenuClosed;
         if (menuHandlers.Remove(menu, out var handlers))
