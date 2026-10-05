@@ -402,7 +402,25 @@ public sealed class BulletChatTests
         Assert.Equal("70001", (await provider.ResolveAsync(movie, null, Token)).Episode!.Id);
         server.Requests.Clear();
         Assert.Equal("70001", (await provider.ResolveAsync(movie, null, Token)).Episode!.Id);
-        Assert.Equal(["GET /api/v2/comment/70001?withRelated=true&chConvert=0"], server.Requests);
+        Assert.Equal(["GET /api/v2/comment/70001?withRelated=true&chConvert=1"], server.Requests);
+    }
+
+    [Fact]
+    public async Task CommentsAreRequestedInSimplifiedChineseAndOldCacheIsNotReused()
+    {
+        using var sandbox = new Sandbox();
+        using var server = FrierenServer();
+        var cache = new BulletChatCache(sandbox.Paths);
+        // 加入简体转换之前写下的缓存：内容未转换，键里也没有转换方式。
+        await cache.WriteAsync("comment:188860003", """{"comments":[{"p":"1,1,0,a","m":"終於來了"}]}"""u8.ToArray(), Token);
+        using var client = new DandanplayClient(server, cache);
+
+        var comments = await client.CommentsAsync("188860003", Token);
+        Assert.Equal(["GET /api/v2/comment/188860003?withRelated=true&chConvert=1"], server.Requests);
+        Assert.DoesNotContain(comments.Comments!, comment => comment.M == "終於來了");
+        // 转换后的响应照常缓存。
+        await client.CommentsAsync("188860003", Token);
+        Assert.Single(server.Requests);
     }
 
     [Fact]

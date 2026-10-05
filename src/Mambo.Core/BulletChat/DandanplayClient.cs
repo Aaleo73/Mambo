@@ -37,8 +37,13 @@ public sealed class DandanplayClient : IDisposable
         SendAsync("bangumi:" + animeId, CatalogLifetime, HttpMethod.Get, "/api/v2/bangumi/" + Uri.EscapeDataString(animeId), null,
             DandanJsonContext.Default.DandanBangumiResponse, "加载弹幕剧集", cancellationToken);
 
+    /// <summary>
+    /// 弹幕一律请服务器转成简体（chConvert=1）：来自巴哈姆特等来源的弹幕是繁体，占比可以接近一半。
+    /// 服务器按词转换，比逐字映射准确（終於→终于、怎麼→怎么、乾洗→干洗）。
+    /// </summary>
     public Task<DandanCommentResponse> CommentsAsync(string episodeId, CancellationToken cancellationToken) =>
-        SendAsync("comment:" + episodeId, CommentLifetime, HttpMethod.Get, "/api/v2/comment/" + Uri.EscapeDataString(episodeId) + "?withRelated=true&chConvert=0", null,
+        // 缓存键带上转换方式：此前缓存的未转换响应不能再用。
+        SendAsync("comment:simplified:" + episodeId, CommentLifetime, HttpMethod.Get, "/api/v2/comment/" + Uri.EscapeDataString(episodeId) + "?withRelated=true&chConvert=1", null,
             DandanJsonContext.Default.DandanCommentResponse, "加载弹幕", cancellationToken);
 
     /// <summary>按文件名模糊匹配。接口要求附带 32 位十六进制的文件哈希，这里没有真实文件，用文件名摘要的前半段占位。</summary>
