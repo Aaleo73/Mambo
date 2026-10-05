@@ -2,7 +2,7 @@
 [CmdletBinding()]
 param(
     [ValidatePattern('^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$')]
-    [string]$Version = '0.1.1',
+    [string]$Version = '0.1.2',
     [switch]$Installer,
     [ValidatePattern('^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$')]
     [string]$UpdateRepository = 'Aaleo73/Mambo',
@@ -22,7 +22,7 @@ $nativeDll = Join-Path $repoRoot 'third_party/libmpv/bin/libmpv-2.dll'
 if (-not (Test-Path -LiteralPath $nativeDll -PathType Leaf)) { throw '缺少 libmpv；请先运行 scripts/fetch-libmpv.ps1。' }
 if ((Get-FileHash -LiteralPath $nativeDll -Algorithm SHA256).Hash.ToLowerInvariant() -ne $mpvLock.dllSha256) { throw 'libmpv DLL 与 lock 校验值不一致。' }
 & (Join-Path $PSScriptRoot 'verify-native-runtime.ps1')
-& (Join-Path $PSScriptRoot 'build-video-shaders.ps1') -Verify
+& (Join-Path $PSScriptRoot 'build-video-shaders.ps1') -Verify | Out-Host
 if (Test-Path -LiteralPath $outputRoot) { throw '发布目录已存在，请稍后重试以创建新的构建目录。' }
 New-Item -ItemType Directory -Path $appRoot -Force | Out-Null
 
