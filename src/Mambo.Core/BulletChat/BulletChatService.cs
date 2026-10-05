@@ -141,8 +141,11 @@ public sealed class BulletChatService : IBulletChatService, IDisposable
                 var key = KeyOf(wanted);
                 if (key == entryKey) { entry = wanted; return; }
                 entry = wanted; entryKey = key;
+                // 选集列表就是这一季的全部剧集；集数是区分同名各季的一个线索。
+                int? seasonEpisodes = wanted.SeriesId is null || snapshot!.Entries.IsDefaultOrEmpty ? null
+                    : snapshot.Entries.Count(other => other.SeriesId == wanted.SeriesId && other.SeasonNumber == wanted.SeasonNumber);
                 var (mine, cancellation) = BeginLocked(wanted);
-                _ = LoadAsync(wanted, mine, cancellation.Token);
+                _ = LoadAsync(wanted, seasonEpisodes, mine, cancellation.Token);
             }
         }
         Publish();
@@ -169,12 +172,12 @@ public sealed class BulletChatService : IBulletChatService, IDisposable
         return (++generation, cancellation);
     }
 
-    private async Task LoadAsync(PlaybackEntry target, long mine, CancellationToken token)
+    private async Task LoadAsync(PlaybackEntry target, int? seasonEpisodes, long mine, CancellationToken token)
     {
         try
         {
             // 匹配与解析不占用发起通知的界面线程。
-            var resolution = await Task.Run(() => provider.ResolveAsync(target, token), token).ConfigureAwait(false);
+            var resolution = await Task.Run(() => provider.ResolveAsync(target, seasonEpisodes, token), token).ConfigureAwait(false);
             Complete(mine, Loaded(target, resolution));
         }
         catch (OperationCanceledException) { }

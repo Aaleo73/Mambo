@@ -9,14 +9,17 @@ namespace Mambo.Core.BulletChat;
 public sealed record BulletChatTarget(string Title, int? Season, int? Episode, int? Year)
 {
     public bool IsMovie => Episode is null;
+    /// <summary>媒体库里这一季的集数；不知道时为 null。集数相同的弹幕条目更可能是同一季。</summary>
+    public int? SeasonEpisodes { get; init; }
 
     /// <summary>第 0 季的特别篇和没有集号的剧集无法可靠匹配，返回 null。</summary>
-    public static BulletChatTarget? From(PlaybackEntry entry)
+    public static BulletChatTarget? From(PlaybackEntry entry, int? seasonEpisodes = null)
     {
         ArgumentNullException.ThrowIfNull(entry);
         if (!string.IsNullOrWhiteSpace(entry.SeriesName))
             return entry.EpisodeNumber is > 0 && entry.SeasonNumber != 0
-                ? new(entry.SeriesName.Trim(), entry.SeasonNumber, entry.EpisodeNumber, entry.ProductionYear) : null;
+                ? new(entry.SeriesName.Trim(), entry.SeasonNumber, entry.EpisodeNumber, entry.ProductionYear) { SeasonEpisodes = seasonEpisodes is >= 2 ? seasonEpisodes : null }
+                : null;
         return string.IsNullOrWhiteSpace(entry.Title) ? null : new(entry.Title.Trim(), null, null, entry.ProductionYear);
     }
 }
@@ -28,17 +31,23 @@ public sealed record BulletChatPick(DandanEpisode Episode, int Offset);
 public static partial class BulletChatMatcher
 {
     public const double MinimumSimilarity = 0.75;
+    private const double RelaxedSimilarity = 0.7;
 
     /// <summary>按可信度从高到低排列可接受的候选；明确属于别的季、类型不符或标题不像的被淘汰。</summary>
     public static IReadOnlyList<DandanAnime> Rank(BulletChatTarget target, IReadOnlyList<DandanAnime>? candidates)
     {
         ArgumentNullException.ThrowIfNull(target);
         var wanted = SplitSeason(target.Title).Title;
+        // 各季用副标题而不是"第 N 季"命名时，按开播先后排的第 N 部 TV 动画多半就是第 N 季。
+        var order = (candidates ?? []).Where(anime => anime is { Type: "tvseries" } && !string.IsNullOrWhiteSpace(anime.AnimeTitle) &&
+                Similarity(wanted, SplitSeason(anime.AnimeTitle!).Title) >= MinimumSimilarity)
+            .OrderBy(anime => anime.StartDate ?? "9999", StringComparer.Ordinal).ThenBy(anime => anime.AnimeId).Select(anime => anime.AnimeId).ToList();
         var scored = new List<(DandanAnime Anime, double Score)>();
         foreach (var anime in candidates ?? [])
         {
             if (anime is null || string.IsNullOrWhiteSpace(anime.AnimeTitle)) continue;
-            if (Score(target, wanted, anime.AnimeTitle, anime.Type, anime.Year) is { } score) scored.Add((anime, score));
+            if (Score(target, wanted, anime.AnimeTitle, anime.Type, anime.Year, anime.EpisodeCount, order.IndexOf(anime.AnimeId) + 1) is { } score)
+                scored.Add((anime, score));
         }
         return [.. scored.OrderByDescending(item => item.Score).ThenBy(item => item.Anime.StartDate ?? "9999", StringComparer.Ordinal)
             .ThenBy(item => item.Anime.AnimeId).Select(item => item.Anime)];
@@ -53,25 +62,36 @@ public static partial class BulletChatMatcher
         foreach (var match in matches ?? [])
         {
             if (match is null || match.EpisodeId <= 0 || string.IsNullOrWhiteSpace(match.AnimeTitle)) continue;
-            if (Score(target, wanted, match.AnimeTitle, match.Type, null) is { } score) scored.Add((match, score));
+            if (Score(target, wanted, match.AnimeTitle, match.Type, null, 0, 0) is { } score) scored.Add((match, score));
         }
         if (scored.Count == 0) return null;
         scored.Sort((left, right) => right.Score.CompareTo(left.Score));
         return scored.Count == 1 || scored[0].Score - scored[1].Score >= 0.2 ? scored[0].Match : null;
     }
 
-    private static double? Score(BulletChatTarget target, string wantedTitle, string candidateTitle, string? type, int? candidateYear)
+    /// <param name="episodeCount">候选条目的正片集数；不知道时为 0。</param>
+    /// <param name="order">候选在同名 TV 动画里按开播先后的名次，从 1 起；不参与排序时为 0。</param>
+    private static double? Score(BulletChatTarget target, string wantedTitle, string candidateTitle, string? type, int? candidateYear, int episodeCount, int order)
     {
         var (title, season) = SplitSeason(candidateTitle);
         var similarity = Similarity(wantedTitle, title);
-        if (similarity < MinimumSimilarity) return null;
         var movie = type is "movie" or "jpmovie";
+        // 电影的译名常有出入（《铃芽之旅》在弹幕库里叫《铃芽户缔》）：同年上映的剧场版放宽到 0.7。
+        var floor = target.IsMovie && movie && target.Year is { } released && candidateYear == released ? RelaxedSimilarity : MinimumSimilarity;
+        if (similarity < floor) return null;
         var score = similarity;
         if (target.IsMovie) score += movie ? 0.3 : -0.3;
         else
         {
             // 剧集的某一集不会对应到剧场版或音乐视频条目。
             if (movie || type is "musicvideo") return null;
+            // 同名的总集篇、特别篇很多，正片优先。
+            score += type is "tvseries" or "web" ? 0.1 : -0.1;
+            if (episodeCount > 0)
+            {
+                if (target.SeasonEpisodes == episodeCount) score += 0.25;
+                if (target.Episode > episodeCount) score -= 0.2;
+            }
             var wantedSeason = target.Season ?? 1;
             if (season is { } marked)
             {
@@ -85,6 +105,7 @@ public static partial class BulletChatMatcher
                 if (target.Year is { } year && candidateYear is { } start && Math.Abs(year - start) > 1) return null;
                 // 第 N 季通常带后缀或副标题，与原名完全一致的多半是第一季。
                 if (similarity > 0.999) score -= 0.25;
+                if (order == wantedSeason) score += 0.1;
             }
         }
         if (target.Year is { } wantedYear && candidateYear is { } candidate)
@@ -97,20 +118,76 @@ public static partial class BulletChatMatcher
         [.. (episodes ?? []).Where(episode => episode is not null && episode.EpisodeId > 0 && Number(episode) > 0)
             .OrderBy(Number).ThenBy(episode => episode.EpisodeId)];
 
-    public static BulletChatPick? PickEpisode(BulletChatTarget target, IReadOnlyList<DandanEpisode>? episodes)
+    public static BulletChatPick? PickEpisode(BulletChatTarget target, IReadOnlyList<DandanEpisode>? episodes) => PickAcross(target, [episodes])?.Pick;
+
+    /// <summary>
+    /// 在同一季的各个分段里取集。<paramref name="parts"/> 按开播先后排列（前篇、后篇，或只有一个条目）；
+    /// 媒体库里这一季的第 N 集，就是把各分段的正片依次接起来后的第 N 个。返回命中的分段下标与剧集。
+    /// </summary>
+    public static (int Part, BulletChatPick Pick)? PickAcross(BulletChatTarget target, IReadOnlyList<IReadOnlyList<DandanEpisode>?> parts)
     {
         ArgumentNullException.ThrowIfNull(target);
-        var regular = Regular(episodes);
+        ArgumentNullException.ThrowIfNull(parts);
         if (target.Episode is not { } wanted)
         {
-            var only = regular.Count > 0 ? regular[0] : (episodes ?? []).FirstOrDefault(episode => episode is not null && episode.EpisodeId > 0);
-            return only is null ? null : new(only, 0);
+            for (var part = 0; part < parts.Count; part++)
+            {
+                var regular = Regular(parts[part]);
+                var only = regular.Count > 0 ? regular[0] : (parts[part] ?? []).FirstOrDefault(episode => episode is not null && episode.EpisodeId > 0);
+                if (only is not null) return (part, new(only, 0));
+            }
+            return null;
         }
-        if (regular.Count == 0) return null;
-        // 有的作品第二季续接第一季的编号（从第 29 话开始）；Emby 每季从 1 起算，此时按位置取。
-        var continued = Number(regular[0]) > 1 && (target.Season ?? 1) >= 2;
-        var index = continued && wanted <= regular.Count ? wanted - 1 : IndexOfNumber(regular, wanted);
-        return index < 0 ? null : new(regular[index], index - (wanted - 1));
+        var position = wanted;
+        for (var part = 0; part < parts.Count; part++)
+        {
+            var regular = Regular(parts[part]);
+            if (regular.Count == 0) continue;
+            var first = Number(regular[0]);
+            int index;
+            if (first == 1)
+            {
+                // 从 1 起编号：按集号取，列表缺集也不会错位。
+                index = IndexOfNumber(regular, position);
+                if (index < 0) position -= Math.Max(regular.Count, Number(regular[^1]));
+            }
+            else if (wanted >= first && IndexOfNumber(regular, wanted) is >= 0 and var numbered)
+                // 续接编号，媒体库也用同一套编号（后篇从第 13 话开始，或整部作品用绝对集号）。
+                index = numbered;
+            else if (part > 0 || (target.Season ?? 1) >= 2)
+            {
+                // 续接编号（第二季从第 29 话开始），而媒体库每季从 1 起算：按位置取。
+                index = position <= regular.Count ? position - 1 : -1;
+                if (index < 0) position -= regular.Count;
+            }
+            // 第一季的首个条目却不从第 1 话开始：多半是缺了前半的分段，不能按位置硬套。
+            else return null;
+            if (index >= 0) return (part, new(regular[index], index - (wanted - 1)));
+            if (position <= 0) return null;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// 与 <paramref name="top"/> 属于同一季的全部分段，按开播先后排列。前篇/后篇、Part 2 这类分段标记不计入标题；
+    /// 找第一季时，没有季标记的条目视同第一季。
+    /// </summary>
+    public static IReadOnlyList<DandanAnime> Parts(BulletChatTarget target, DandanAnime top, IReadOnlyList<DandanAnime>? candidates)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+        ArgumentNullException.ThrowIfNull(top);
+        var first = (target.Season ?? 1) <= 1;
+        var (stem, season) = PartKey(top.AnimeTitle ?? "", first);
+        var parts = (candidates ?? []).Where(anime => anime is not null && anime.Type is not ("movie" or "jpmovie" or "musicvideo") &&
+                !string.IsNullOrWhiteSpace(anime.AnimeTitle) && PartKey(anime.AnimeTitle!, first) == (stem, season))
+            .OrderBy(anime => anime.StartDate ?? "9999", StringComparer.Ordinal).ThenBy(anime => anime.AnimeId).ToList();
+        return parts.Any(anime => anime.AnimeId == top.AnimeId) ? parts : [top];
+    }
+
+    private static (string Stem, int? Season) PartKey(string title, bool unmarkedIsFirst)
+    {
+        var (stem, season) = SplitSeason(title);
+        return (Fold(stem), season ?? (unmarkedIsFirst ? 1 : null));
     }
 
     /// <summary>沿用记忆里的位置偏移取集；超出范围返回 null。</summary>
@@ -141,10 +218,14 @@ public static partial class BulletChatMatcher
     private static int Number(DandanEpisode episode) =>
         int.TryParse(episode.EpisodeNumber, NumberStyles.None, CultureInfo.InvariantCulture, out var number) ? number : 0;
 
-    /// <summary>拆出季标记：返回去掉标记后的标题和季号；没有标记时季号为 null。</summary>
+    /// <summary>
+    /// 拆出季标记：返回去掉标记后的标题和季号；没有标记时季号为 null。
+    /// 前篇/后篇、Part 2 这类分段标记先行去掉，它们不是季号（否则"Part.2"会被读成第二季）。
+    /// </summary>
     public static (string Title, int? Season) SplitSeason(string title)
     {
         var text = (title ?? "").Normalize(NormalizationForm.FormKC).Trim();
+        if (PartSuffix().Replace(text, "").Trim() is { Length: > 0 } whole) text = whole;
         foreach (var pattern in (Regex[])[OrdinalSeason(), EnglishSeason(), EnglishOrdinalSeason(), ShortSeason(), RomanSeason(), TrailingNumber()])
         {
             var match = pattern.Match(text);
@@ -232,4 +313,5 @@ public static partial class BulletChatMatcher
     [GeneratedRegex(@"(?<![A-Za-z0-9])S([0-9]{1,2})(?![A-Za-z0-9])")] private static partial Regex ShortSeason();
     [GeneratedRegex(@"\s(II|III|IV|V|VI)\s*$")] private static partial Regex RomanSeason();
     [GeneratedRegex(@"(?<=[^0-9\s])\s*([2-9])\s*$")] private static partial Regex TrailingNumber();
+    [GeneratedRegex(@"\s*(?:part\.?\s*[0-9]+|第\s*[0-9一二三四]+\s*部分|前篇|后篇|後篇|前半|后半|後半)\s*$", RegexOptions.IgnoreCase)] private static partial Regex PartSuffix();
 }

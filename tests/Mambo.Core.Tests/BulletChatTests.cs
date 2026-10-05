@@ -73,6 +73,10 @@ public sealed class BulletChatTests
     [InlineData("一人之下5", "一人之下", 5)]
     [InlineData("86", "86", null)]
     [InlineData("第二季", "第二季", null)]
+    [InlineData("进击的巨人 第三季 后篇", "进击的巨人", 3)]
+    [InlineData("进击的巨人 最终季 Part.2", "进击的巨人 最终季", null)]
+    [InlineData("间谍过家家 第一季 Part 2", "间谍过家家", 1)]
+    [InlineData("前篇", "前篇", null)]
     public void SplitSeasonRecognisesMarkers(string title, string expectedTitle, int? expectedSeason)
     {
         var (rest, season) = BulletChatMatcher.SplitSeason(title);
@@ -115,6 +119,33 @@ public sealed class BulletChatTests
     }
 
     [Fact]
+    public void RankSeparatesArcNamedSeasonsByTypeAirOrderAndEpisodeCount()
+    {
+        // 取自线上的真实形状：各季用篇名而不是"第 N 季"，同一年还有多部总集篇和一部同名剧场版。
+        DandanAnime[] candidates =
+        [
+            Anime(14107, "鬼灭之刃", start: "2019-04-06", count: 26),
+            Anime(15113, "鬼灭之刃 无限列车篇", type: "movie", start: "2020-10-16", count: 1),
+            Anime(16054, "鬼灭之刃 游郭篇", start: "2021-12-05", count: 11),
+            Anime(16258, "鬼灭之刃 柱合会议・蝶屋敷篇", type: "tvspecial", start: "2020-12-20", count: 1),
+            Anime(16803, "鬼灭之刃 无限列车篇", start: "2021-10-10", count: 7),
+            Anime(17069, "鬼灭之刃 浅草篇", type: "tvspecial", start: "2021-09-12", count: 1),
+            Anime(17198, "鬼灭之刃 锻刀村篇", start: "2023-04-09", count: 11),
+            Anime(18067, "鬼灭之刃 柱训练篇", start: "2024-05-12", count: 8),
+        ];
+        Assert.Equal(14107, BulletChatMatcher.Rank(new("鬼灭之刃", 1, 19, 2019), candidates)[0].AnimeId);
+        // 第二季：同年有总集篇（更早开播）和游郭篇，正片优先且按开播次序是第 2 部。
+        Assert.Equal(16803, BulletChatMatcher.Rank(new("鬼灭之刃", 2, 1, 2021), candidates)[0].AnimeId);
+        // 第三季跨年：年份帮不上忙，靠开播次序；知道该季 11 集时更确定。
+        Assert.Equal(16054, BulletChatMatcher.Rank(new("鬼灭之刃", 3, 5, 2022), candidates)[0].AnimeId);
+        Assert.Equal(16054, BulletChatMatcher.Rank(new("鬼灭之刃", 3, 5, 2022) { SeasonEpisodes = 11 }, candidates)[0].AnimeId);
+        Assert.Equal(17198, BulletChatMatcher.Rank(new("鬼灭之刃", 4, 2, 2023), candidates)[0].AnimeId);
+        Assert.Equal(18067, BulletChatMatcher.Rank(new("鬼灭之刃", 5, 8, 2024) { SeasonEpisodes = 8 }, candidates)[0].AnimeId);
+        // 同名的剧场版与 TV 版：电影只配剧场版。
+        Assert.Equal(15113, BulletChatMatcher.Rank(new("鬼灭之刃 无限列车篇", null, null, 2020), candidates)[0].AnimeId);
+    }
+
+    [Fact]
     public void PickEpisodeUsesNumberSkipsSpecialsAndHandlesContinuedNumbering()
     {
         DandanEpisode[] first = [Episode(1003, "3"), Episode(1001, "1"), Episode(1901, "S1"), Episode(1002, "2"), Episode(1991, "C1")];
@@ -136,6 +167,54 @@ public sealed class BulletChatTests
         Assert.Null(BulletChatMatcher.PickByOffset(40, absolute.Offset, continued));
 
         Assert.Equal(1001, BulletChatMatcher.PickEpisode(new("电影", null, null, null), first)!.Episode.EpisodeId);
+    }
+
+    [Fact]
+    public void SplitCoursOfOneSeasonAreChainedInAirOrder()
+    {
+        // 取自线上的真实形状：第三季分前篇、后篇；最终季没有数字季号，另有 Part.2。
+        DandanAnime[] candidates =
+        [
+            Anime(9541, "进击的巨人", start: "2013-04-07", count: 25), Anime(10944, "进击的巨人 第二季", start: "2017-04-01", count: 12),
+            Anime(14444, "进击的巨人 第三季 后篇", start: "2019-04-29", count: 10), Anime(13241, "进击的巨人 第三季 前篇", start: "2018-07-23", count: 12),
+            Anime(14977, "进击的巨人 最终季", start: "2020-12-07", count: 16), Anime(16177, "进击的巨人 最终季 Part.2", start: "2022-01-10", count: 12),
+            Anime(10583, "进击的巨人 剧场版", type: "movie", start: "2014-10-31", count: 2),
+        ];
+        var third = new BulletChatTarget("进击的巨人", 3, 14, 2019);
+        Assert.Equal([13241L, 14444L], BulletChatMatcher.Parts(third, BulletChatMatcher.Rank(third, candidates)[0], candidates).Select(anime => anime.AnimeId));
+        // 这一集在 2022 年播出，按年份只有 Part.2 入选；前半段仍要接进来，否则第 17 集无处可取。
+        var final = new BulletChatTarget("进击的巨人", 4, 17, 2022);
+        Assert.Equal([14977L, 16177L], BulletChatMatcher.Parts(final, BulletChatMatcher.Rank(final, candidates)[0], candidates).Select(anime => anime.AnimeId));
+        var first = new BulletChatTarget("进击的巨人", 1, 3, 2013);
+        Assert.Equal([9541L], BulletChatMatcher.Parts(first, BulletChatMatcher.Rank(first, candidates)[0], candidates).Select(anime => anime.AnimeId));
+    }
+
+    [Fact]
+    public void PickAcrossWalksPartsWhateverNumberingTheyUse()
+    {
+        static DandanEpisode[] Numbered(long id, int from, int count) =>
+            [.. Enumerable.Range(0, count).Select(offset => Episode(id + offset, (from + offset).ToString(CultureInfo.InvariantCulture)))];
+        var third = new BulletChatTarget("x", 3, 14, null);
+        // 各分段都从 1 起编号。
+        var fresh = BulletChatMatcher.PickAcross(third, [Numbered(1000, 1, 12), Numbered(2000, 1, 10)]);
+        Assert.Equal((1, 2001L, 1 - 13), (fresh!.Value.Part, fresh.Value.Pick.Episode.EpisodeId, fresh.Value.Pick.Offset));
+        // 后篇在季内续接编号（13 起）。
+        Assert.Equal(2001, BulletChatMatcher.PickAcross(third, [Numbered(1000, 1, 12), Numbered(2000, 13, 10)])!.Value.Pick.Episode.EpisodeId);
+        // 全作品绝对编号（38 起、50 起）。
+        Assert.Equal(2001, BulletChatMatcher.PickAcross(third, [Numbered(1000, 38, 12), Numbered(2000, 50, 10)])!.Value.Pick.Episode.EpisodeId);
+        // 前半段内的集仍落在前篇；超出整季则不匹配。
+        Assert.Equal((0, 1004L), (BulletChatMatcher.PickAcross(third with { Episode = 5 }, [Numbered(1000, 1, 12), Numbered(2000, 1, 10)])!.Value.Part,
+            BulletChatMatcher.PickAcross(third with { Episode = 5 }, [Numbered(1000, 1, 12), Numbered(2000, 1, 10)])!.Value.Pick.Episode.EpisodeId));
+        Assert.Null(BulletChatMatcher.PickAcross(third with { Episode = 23 }, [Numbered(1000, 1, 12), Numbered(2000, 1, 10)]));
+        // 第一季的首个条目从 13 起：只在集号对得上时才取，不按位置硬套到第 17 话上。
+        var first = new BulletChatTarget("x", 1, 5, null);
+        Assert.Null(BulletChatMatcher.PickAcross(first, [Numbered(3000, 13, 13)]));
+        Assert.Equal(3000, BulletChatMatcher.PickAcross(first with { Episode = 13 }, [Numbered(3000, 13, 13)])!.Value.Pick.Episode.EpisodeId);
+        // 缺集的列表按集号取，不错位。
+        DandanEpisode[] gapped = [Episode(4001, "1"), Episode(4002, "2"), Episode(4004, "4")];
+        Assert.Equal(4004, BulletChatMatcher.PickAcross(first with { Episode = 4 }, [gapped])!.Value.Pick.Episode.EpisodeId);
+        Assert.Null(BulletChatMatcher.PickAcross(first with { Episode = 3 }, [gapped]));
+        Assert.Null(BulletChatMatcher.PickAcross(first, [null, []]));
     }
 
     [Fact]
@@ -175,14 +254,14 @@ public sealed class BulletChatTests
         using var history = new BulletChatHistory(sandbox.Paths);
         var provider = new DandanplayBulletChatProvider(client, history, () => "scope");
 
-        var third = await provider.ResolveAsync(EpisodeEntry("item-3", "葬送的芙莉莲", 2, 3, 2026), Token);
+        var third = await provider.ResolveAsync(EpisodeEntry("item-3", "葬送的芙莉莲", 2, 3, 2026), null, Token);
         Assert.Equal("188860003", third.Episode!.Id);
         Assert.Equal("葬送的芙莉莲 第二季", third.Episode.AnimeTitle);
         Assert.Equal(2, third.Comments.Length);
         Assert.Contains(server.Requests, request => request.StartsWith("GET /api/v2/search/anime", StringComparison.Ordinal));
 
         server.Requests.Clear();
-        var fourth = await provider.ResolveAsync(EpisodeEntry("item-4", "葬送的芙莉莲", 2, 4, 2026), Token);
+        var fourth = await provider.ResolveAsync(EpisodeEntry("item-4", "葬送的芙莉莲", 2, 4, 2026), null, Token);
         Assert.Equal("188860004", fourth.Episode!.Id);
         Assert.DoesNotContain(server.Requests, request => request.Contains("/search/", StringComparison.Ordinal) || request.Contains("/match", StringComparison.Ordinal));
 
@@ -206,12 +285,38 @@ public sealed class BulletChatTests
         using var history = new BulletChatHistory(sandbox.Paths);
         var provider = new DandanplayBulletChatProvider(client, history, () => "scope");
 
-        var resolution = await provider.ResolveAsync(EpisodeEntry("item-15", "分割放送", 1, 15, 2023), Token);
+        var resolution = await provider.ResolveAsync(EpisodeEntry("item-15", "分割放送", 1, 15, 2023), null, Token);
         Assert.Equal("203", resolution.Episode!.Id);
         // 记住的是后续条目与位置偏移：第 16 集直接落到它的第 4 集。
         var memory = history.Find(BulletChatHistory.SeasonKey("scope", "series-1", 1))!;
         Assert.Equal("2", memory.AnimeId);
         Assert.Equal(-12, memory.Offset);
+    }
+
+    [Fact]
+    public async Task EpisodeInSecondCourIsTakenFromLaterPartAndFollowedByNextEpisode()
+    {
+        using var sandbox = new Sandbox();
+        using var server = new Server();
+        server.Search["进击的巨人"] = Animes(
+            Anime(9541, "进击的巨人", start: "2013-04-07", count: 25), Anime(13241, "进击的巨人 第三季 前篇", start: "2018-07-23", count: 12),
+            Anime(14444, "进击的巨人 第三季 后篇", start: "2019-04-29", count: 10), Anime(14977, "进击的巨人 最终季", start: "2020-12-07", count: 16));
+        server.Bangumi["13241"] = Bangumi("进击的巨人 第三季 前篇", [.. Enumerable.Range(1, 12).Select(number => Episode(132410000 + number, number.ToString(CultureInfo.InvariantCulture)))]);
+        server.Bangumi["14444"] = Bangumi("进击的巨人 第三季 后篇", [.. Enumerable.Range(1, 10).Select(number => Episode(144440000 + number, number.ToString(CultureInfo.InvariantCulture)))]);
+        server.Bangumi["14977"] = Bangumi("进击的巨人 最终季", [.. Enumerable.Range(1, 16).Select(number => Episode(149770000 + number, number.ToString(CultureInfo.InvariantCulture)))]);
+        server.Comments["144440002"] = Comments("1,1,0,a|后篇第二话");
+        server.Comments["144440003"] = Comments("1,1,0,a|后篇第三话");
+        using var client = new DandanplayClient(server);
+        using var history = new BulletChatHistory(sandbox.Paths);
+        var provider = new DandanplayBulletChatProvider(client, history, () => "scope");
+
+        // 媒体库的第三季共 22 集；第 14 集是后篇的第 2 话，而不是顺延到最终季的第 14 话。
+        var fourteenth = await provider.ResolveAsync(EpisodeEntry("item-14", "进击的巨人", 3, 14, 2019), 22, Token);
+        Assert.Equal("144440002", fourteenth.Episode!.Id);
+        Assert.DoesNotContain(server.Requests, request => request.Contains("/bangumi/14977", StringComparison.Ordinal));
+        server.Requests.Clear();
+        Assert.Equal("144440003", (await provider.ResolveAsync(EpisodeEntry("item-15", "进击的巨人", 3, 15, 2019), 22, Token)).Episode!.Id);
+        Assert.DoesNotContain(server.Requests, request => request.Contains("/search/", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -226,13 +331,13 @@ public sealed class BulletChatTests
         using var history = new BulletChatHistory(sandbox.Paths);
         var provider = new DandanplayBulletChatProvider(client, history, () => "scope");
 
-        var resolution = await provider.ResolveAsync(EpisodeEntry("item", "罗马音片名", 1, 3, null), Token);
+        var resolution = await provider.ResolveAsync(EpisodeEntry("item", "罗马音片名", 1, 3, null), null, Token);
         Assert.Equal("5003", resolution.Episode!.Id);
         Assert.Contains("POST /api/v2/match", server.Requests);
         Assert.Equal(0, history.Find(BulletChatHistory.SeasonKey("scope", "series-1", 1))!.Offset);
 
         server.Matches = """[{"episodeId":1,"animeId":1,"animeTitle":"撞名作品"},{"episodeId":2,"animeId":2,"animeTitle":"撞名作品"}]""";
-        Assert.Null((await provider.ResolveAsync(EpisodeEntry("other", "撞名作品", 1, 1, null) with { SeriesId = "series-2" }, Token)).Episode);
+        Assert.Null((await provider.ResolveAsync(EpisodeEntry("other", "撞名作品", 1, 1, null) with { SeriesId = "series-2" }, null, Token)).Episode);
     }
 
     [Fact]
@@ -244,7 +349,7 @@ public sealed class BulletChatTests
         using var history = new BulletChatHistory(sandbox.Paths);
         var provider = new DandanplayBulletChatProvider(client, history, () => "scope");
         var entry = EpisodeEntry("item-3", "葬送的芙莉莲", 2, 3, 2026);
-        await provider.ResolveAsync(entry, Token);
+        await provider.ResolveAsync(entry, null, Token);
 
         // 用户改选第一季的第 5 话：偏移 +2，且标记为手动。
         var chosen = (await provider.GetEpisodesAsync("17617", Token)).Single(episode => episode.Id == "176170005");
@@ -255,8 +360,8 @@ public sealed class BulletChatTests
         Assert.Equal(2, memory.Offset);
 
         // 同一条目再次播放用的是手动结果；下一集沿用偏移；自动结果不会再把它盖掉。
-        Assert.Equal("176170005", (await provider.ResolveAsync(entry, Token)).Episode!.Id);
-        Assert.Equal("176170006", (await provider.ResolveAsync(EpisodeEntry("item-4", "葬送的芙莉莲", 2, 4, 2026), Token)).Episode!.Id);
+        Assert.Equal("176170005", (await provider.ResolveAsync(entry, null, Token)).Episode!.Id);
+        Assert.Equal("176170006", (await provider.ResolveAsync(EpisodeEntry("item-4", "葬送的芙莉莲", 2, 4, 2026), null, Token)).Episode!.Id);
         await history.RememberAsync(BulletChatHistory.SeasonKey("scope", "series-1", 2), new("18886", "自动", 0, false), Token);
         Assert.True(history.Find(BulletChatHistory.SeasonKey("scope", "series-1", 2))!.Manual);
     }
@@ -274,10 +379,56 @@ public sealed class BulletChatTests
         var provider = new DandanplayBulletChatProvider(client, history, () => "scope");
         var movie = new PlaybackEntry("movie-item", "某剧场版") { ProductionYear = 2020 };
 
-        Assert.Equal("70001", (await provider.ResolveAsync(movie, Token)).Episode!.Id);
+        Assert.Equal("70001", (await provider.ResolveAsync(movie, null, Token)).Episode!.Id);
         server.Requests.Clear();
-        Assert.Equal("70001", (await provider.ResolveAsync(movie, Token)).Episode!.Id);
+        Assert.Equal("70001", (await provider.ResolveAsync(movie, null, Token)).Episode!.Id);
         Assert.Equal(["GET /api/v2/comment/70001?withRelated=true&chConvert=0"], server.Requests);
+    }
+
+    [Fact]
+    public async Task MovieWithDifferentTranslationMatchesThroughPrefixSearchOnlyForSameYear()
+    {
+        using var sandbox = new Sandbox();
+        using var server = new Server();
+        // 整个片名搜不到；弹幕库里的译名不同，但前两个字相同、同年上映。
+        server.Search["铃芽"] = Animes(Anime(17041, "铃芽户缔", type: "movie", start: "2022-11-11", count: 1));
+        server.Bangumi["17041"] = Bangumi("铃芽户缔", Episode(170410001, "1"));
+        server.Comments["170410001"] = Comments("1,1,0,a|电影弹幕");
+        using var client = new DandanplayClient(server);
+        using var history = new BulletChatHistory(sandbox.Paths);
+        var provider = new DandanplayBulletChatProvider(client, history, () => "scope");
+
+        var matched = await provider.ResolveAsync(new PlaybackEntry("movie-a", "铃芽之旅") { ProductionYear = 2022 }, null, Token);
+        Assert.Equal("170410001", matched.Episode!.Id);
+        Assert.Contains("GET /api/v2/search/anime?keyword=铃芽", server.Requests);
+        // 年份对不上就不放宽：宁可不匹配，也不把别的片子的弹幕放上来。
+        Assert.Null((await provider.ResolveAsync(new PlaybackEntry("movie-b", "铃芽之旅") { ProductionYear = 2019 }, null, Token)).Episode);
+        Assert.Null((await provider.ResolveAsync(new PlaybackEntry("movie-c", "铃芽之旅"), null, Token)).Episode);
+    }
+
+    [Fact]
+    public async Task ServiceTellsProviderHowManyEpisodesTheSeasonHas()
+    {
+        var provider = new RecordingProvider();
+        var playback = new Playback();
+        using var service = new BulletChatService(playback, new StubSettings(), provider, new InlineScheduler(), static kind => kind == EngineKind.Embedded);
+        var playing = EpisodeEntry("item-3", "剧", 2, 3, 2021);
+        var session = new Session();
+        session.Set(new()
+        {
+            Phase = PlayerPhase.Playing, Entry = playing,
+            Entries = [.. Enumerable.Range(1, 7).Select(number => EpisodeEntry("item-" + number, "剧", 2, number, 2021)), EpisodeEntry("other", "剧", 3, 1, 2022)],
+        });
+        playback.Start(session);
+        await Until(() => service.Current.Status == BulletChatStatus.NotMatched);
+        Assert.Equal(("item-3", (int?)7), provider.Calls.Single());
+
+        // 没有选集列表（电影）时不传集数。
+        var movie = new Session();
+        movie.Set(new() { Phase = PlayerPhase.Playing, Entry = new PlaybackEntry("movie", "片") });
+        playback.Start(movie);
+        await Until(() => provider.Calls.Count == 2);
+        Assert.Equal(("movie", (int?)null), provider.Calls[1]);
     }
 
     // ---- 客户端与缓存 ----
@@ -524,10 +675,10 @@ public sealed class BulletChatTests
     {
         var provider = new FakeBulletChatProvider(new FakeOperation(new FakeOptions { Delay = TimeSpan.Zero }));
         var entry = new PlaybackEntry("demo-item", "演示") { DurationTicks = TimeSpan.FromMinutes(5).Ticks };
-        var first = await provider.ResolveAsync(entry, Token);
-        var second = await provider.ResolveAsync(entry, Token);
+        var first = await provider.ResolveAsync(entry, null, Token);
+        var second = await provider.ResolveAsync(entry, null, Token);
         Assert.Equal(first.Comments.AsEnumerable(), second.Comments.AsEnumerable());
-        Assert.NotEqual(first.Comments.AsEnumerable(), (await provider.ResolveAsync(entry with { ItemId = "other" }, Token)).Comments.AsEnumerable());
+        Assert.NotEqual(first.Comments.AsEnumerable(), (await provider.ResolveAsync(entry with { ItemId = "other" }, null, Token)).Comments.AsEnumerable());
         Assert.Equal(3, first.Comments.Select(comment => comment.Mode).Distinct().Count());
         Assert.True(first.Comments.All(comment => comment.TimeSeconds is > 0 and < 300));
         Assert.Equal(first.Comments.OrderBy(comment => comment.TimeSeconds).AsEnumerable(), first.Comments.AsEnumerable());
@@ -679,6 +830,21 @@ public sealed class BulletChatTests
         }
 
         public void Dispose() { Service.Dispose(); client.Dispose(); history.Dispose(); Server.Dispose(); sandbox.Dispose(); }
+    }
+
+    private sealed class RecordingProvider : IBulletChatProvider
+    {
+        private readonly object gate = new();
+        private readonly List<(string ItemId, int? SeasonEpisodes)> calls = [];
+        public IReadOnlyList<(string ItemId, int? SeasonEpisodes)> Calls { get { lock (gate) return [.. calls]; } }
+        public Task<BulletChatResolution> ResolveAsync(PlaybackEntry entry, int? seasonEpisodes, CancellationToken cancellationToken)
+        {
+            lock (gate) calls.Add((entry.ItemId, seasonEpisodes));
+            return Task.FromResult(BulletChatResolution.NotMatched);
+        }
+        public Task<ImmutableArray<BulletChatAnime>> SearchAsync(string keyword, CancellationToken cancellationToken) => Task.FromResult(ImmutableArray<BulletChatAnime>.Empty);
+        public Task<ImmutableArray<BulletChatEpisode>> GetEpisodesAsync(string animeId, CancellationToken cancellationToken) => Task.FromResult(ImmutableArray<BulletChatEpisode>.Empty);
+        public Task<BulletChatResolution> SelectAsync(PlaybackEntry entry, BulletChatEpisode episode, CancellationToken cancellationToken) => Task.FromResult(BulletChatResolution.NotMatched);
     }
 
     private sealed class InlineScheduler : IUiScheduler

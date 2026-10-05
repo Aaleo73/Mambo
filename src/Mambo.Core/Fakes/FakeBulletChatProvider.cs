@@ -16,7 +16,7 @@ public sealed class FakeBulletChatProvider(FakeOperation operation) : IBulletCha
     ];
     private static readonly uint[] Colors = [0xFF7204, 0xFFD302, 0xA0EE00, 0x00CD00, 0x019899, 0x89D5FF, 0xCC0273, 0xFE0302];
 
-    public async Task<BulletChatResolution> ResolveAsync(PlaybackEntry entry, CancellationToken cancellationToken)
+    public async Task<BulletChatResolution> ResolveAsync(PlaybackEntry entry, int? seasonEpisodes, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(entry);
         await operation.ExecuteAsync(cancellationToken).ConfigureAwait(false);

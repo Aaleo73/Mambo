@@ -13,8 +13,8 @@ public sealed record BulletChatResolution(BulletChatEpisode? Episode, ImmutableA
 /// <summary>弹幕来源。失败抛 AppException，取消抛 OperationCanceledException。</summary>
 public interface IBulletChatProvider
 {
-    /// <summary>为播放条目自动匹配并加载弹幕。</summary>
-    Task<BulletChatResolution> ResolveAsync(PlaybackEntry entry, CancellationToken cancellationToken);
+    /// <summary>为播放条目自动匹配并加载弹幕。<paramref name="seasonEpisodes"/> 是媒体库里这一季的集数，不知道时为 null。</summary>
+    Task<BulletChatResolution> ResolveAsync(PlaybackEntry entry, int? seasonEpisodes, CancellationToken cancellationToken);
     Task<ImmutableArray<BulletChatAnime>> SearchAsync(string keyword, CancellationToken cancellationToken);
     Task<ImmutableArray<BulletChatEpisode>> GetEpisodesAsync(string animeId, CancellationToken cancellationToken);
     /// <summary>按用户指定的剧集加载，并记住这次选择。</summary>
@@ -27,12 +27,13 @@ public interface IBulletChatProvider
 public sealed class DandanplayBulletChatProvider(DandanplayClient client, BulletChatHistory history, Func<string?> scope) : IBulletChatProvider
 {
     private const int MaximumCandidates = 2;
+    private const int MaximumParts = 4;
     private const int MaximumSequels = 3;
 
-    public async Task<BulletChatResolution> ResolveAsync(PlaybackEntry entry, CancellationToken cancellationToken)
+    public async Task<BulletChatResolution> ResolveAsync(PlaybackEntry entry, int? seasonEpisodes, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(entry);
-        if (BulletChatTarget.From(entry) is not { } target) return BulletChatResolution.NotMatched;
+        if (BulletChatTarget.From(entry, seasonEpisodes) is not { } target) return BulletChatResolution.NotMatched;
         var account = scope() ?? "";
 
         if (history.Find(BulletChatHistory.ItemKey(account, entry.ItemId)) is { EpisodeId: { Length: > 0 } exact } pinned)
@@ -80,19 +81,31 @@ public sealed class DandanplayBulletChatProvider(DandanplayClient client, Bullet
         var ranked = BulletChatMatcher.Rank(target, search.Animes);
         if (ranked.Count == 0 && Shorten(target.Title) is { } shorter)
         {
-            // 带副标题的片名整体搜不到时，用主标题再搜一次；打分仍对照完整片名。
+            // 整个片名搜不到时，用主标题或前半段再搜一次；打分仍对照完整片名。
             search = await client.SearchAnimeAsync(shorter, token).ConfigureAwait(false);
             ranked = BulletChatMatcher.Rank(target, search.Animes);
         }
-        foreach (var anime in ranked.Take(MaximumCandidates))
+        var tried = new HashSet<long>();
+        var attempts = 0;
+        foreach (var top in ranked)
         {
-            var episodes = (await client.BangumiAsync(anime.Id, token).ConfigureAwait(false)).Bangumi?.Episodes;
-            if (BulletChatMatcher.PickEpisode(target, episodes) is { } pick) return (anime, pick);
-            if (target.Episode is not { } wanted) continue;
-            // 集号超出这个条目：分割放送或绝对集号，顺延到同一作品的后续条目。
-            var remaining = wanted - BulletChatMatcher.Regular(episodes).Count;
+            // 已经作为某一季的分段查过的条目不再单独尝试。
+            if (tried.Contains(top.AnimeId)) continue;
+            if (attempts++ >= MaximumCandidates) break;
+            // 同一季拆成前篇/后篇、Part 2 时，把各分段按开播顺序接起来再取第 N 集。
+            var parts = target.IsMovie ? [top] : BulletChatMatcher.Parts(target, top, search.Animes).Take(MaximumParts).ToList();
+            var listings = new List<IReadOnlyList<DandanEpisode>?>(parts.Count);
+            foreach (var part in parts)
+            {
+                tried.Add(part.AnimeId);
+                listings.Add((await client.BangumiAsync(part.Id, token).ConfigureAwait(false)).Bangumi?.Episodes);
+            }
+            if (BulletChatMatcher.PickAcross(target, listings) is { } found) return (parts[found.Part], found.Pick);
+            // 媒体库把多季编成一季（绝对集号）时，集号会超出这一季：顺延到同一作品的后续条目。
+            if (target.Episode is not { } wanted || (target.Season ?? 1) > 1) continue;
+            var remaining = wanted - listings.Sum(listing => BulletChatMatcher.Regular(listing).Count);
             if (remaining <= 0) continue;
-            foreach (var sequel in BulletChatMatcher.Sequels(anime, search.Animes).Take(MaximumSequels))
+            foreach (var sequel in BulletChatMatcher.Sequels(parts[^1], search.Animes).Where(anime => !tried.Contains(anime.AnimeId)).Take(MaximumSequels))
             {
                 var regular = BulletChatMatcher.Regular((await client.BangumiAsync(sequel.Id, token).ConfigureAwait(false)).Bangumi?.Episodes);
                 var index = BulletChatMatcher.IndexOfNumber(regular, wanted);
@@ -108,7 +121,9 @@ public sealed class DandanplayBulletChatProvider(DandanplayClient client, Bullet
     private static string? Shorten(string title)
     {
         var cut = title.IndexOfAny([':', '：', '~', '～', '-', '—', ' ', '　']);
-        return cut >= 2 && title[..cut].Trim() is { Length: >= 2 } head && head != title ? head : null;
+        if (cut >= 2 && title[..cut].Trim() is { Length: >= 2 } head && head != title) return head;
+        // 没有分隔符的短片名：取前半段，译名不同的作品往往前几个字相同。
+        return cut < 0 && title.Length >= 4 ? title[..((title.Length + 1) / 2)] : null;
     }
 
     public async Task<ImmutableArray<BulletChatAnime>> SearchAsync(string keyword, CancellationToken cancellationToken)
