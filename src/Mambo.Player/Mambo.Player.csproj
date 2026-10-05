@@ -5,8 +5,14 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="Mambo.Player.Tests" />
     <ProjectReference Include="../Mambo.Core/Mambo.Core.csproj" />
     <Content Include="External/mambo-playlist.lua" Link="mpv/mambo-playlist.lua"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <EmbeddedResource Include="../../third_party/shaders/runtime/*.glsl" LogicalName="Mambo.Shaders.%(Filename)%(Extension)" />
+    <Content Include="../../third_party/shaders/runtime/*.glsl" Link="mpv/shaders/%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../../third_party/shaders/runtime/manifest.json" Link="mpv/shaders/manifest.json"
              CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

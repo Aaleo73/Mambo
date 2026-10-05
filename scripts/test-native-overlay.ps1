@@ -50,9 +50,14 @@ $overlayResult = [ordered]@{
     muteButton = $false
     unmuteButton = $false
     nativeUnmuted = $false
+    videoQualitySwitches = $false
+    standardRestores = $false
+    videoQualityPauseAndPositionPreserved = $false
+    videoQualityFileUnchanged = $false
     appPassed = $false
     appStage = $null
     appErrorKind = $null
+    appErrorCode = $null
     appHResult = $null
     errorKind = $null
     hResult = $null
@@ -115,7 +120,7 @@ try {
         $overlayResult.reason = 'OwnedProcessIdentityNotConfirmed'
         throw [InvalidOperationException]::new('无法确认本轮验证进程。')
     }
-    if (-not $overlayProcess.WaitForExit(75000)) {
+    if (-not $overlayProcess.WaitForExit(150000)) {
         $overlayResult.reason = 'ProcessDeadlineExceeded'
         throw [TimeoutException]::new('正式播放界面诊断超时。')
     }
@@ -150,13 +155,19 @@ try {
     $overlayResult.muteButton = [bool]$overlayReport.MuteButton
     $overlayResult.unmuteButton = [bool]$overlayReport.UnmuteButton
     $overlayResult.nativeUnmuted = [bool]$overlayReport.NativeUnmuted
+    $overlayResult.videoQualitySwitches = [bool]$overlayReport.VideoQualitySwitches
+    $overlayResult.standardRestores = [bool]$overlayReport.StandardRestores
+    $overlayResult.videoQualityPauseAndPositionPreserved = [bool]$overlayReport.VideoQualityPauseAndPositionPreserved
+    $overlayResult.videoQualityFileUnchanged = [bool]$overlayReport.VideoQualityFileUnchanged
     $overlayResult.appStage = $overlayReport.Stage
     $overlayResult.appErrorKind = $overlayReport.ErrorKind
+    $overlayResult.appErrorCode = $overlayReport.ErrorCode
     $overlayResult.appHResult = $overlayReport.HResult
     $overlayChecks = @('IsolatedServicesVerified', 'ProductionEngineParameters', 'FormalOverlayLoaded', 'RealEmbeddedEngine',
         'TitleBound', 'Playing', 'Bound', 'SizeMatched', 'ViewportMatched', 'FullscreenViewportMatched', 'AudioFixtureGenerated', 'AudioOutputAvailable',
         'AudioTrackSelected', 'ExternalAudioTrackSelected', 'AudioPlaybackAdvanced', 'VolumeControl', 'MuteButton', 'UnmuteButton', 'NativeUnmuted',
-        'PauseButton', 'SeekControl', 'ResumeButton', 'Closed', 'Detached',
+        'PauseButton', 'SeekControl', 'ResumeButton', 'VideoQualitySwitches', 'StandardRestores',
+        'VideoQualityPauseAndPositionPreserved', 'VideoQualityFileUnchanged', 'Closed', 'Detached',
         'RestoredViewportMatched', 'NativeReleaseBeforeShellAwait',
         'Stopped', 'OutboxEmpty', 'ReportSequenceOrdered', 'ShutdownCompleted')
     $overlayAllChecks = $true
@@ -197,4 +208,4 @@ try {
     }
 }
 if ($overlayResult.status -ne 'Passed') { throw '正式真实播放界面诊断失败；详见本轮 result.json 的固定阶段和错误代码。' }
-Write-Host "正式 Shell / Overlay / 原生交换链 / 音频输出与音量静音控件 / 正常关闭通过：$overlayResultPath"
+Write-Host "正式 Shell / Overlay / 原生交换链 / 画质三模式 / 音频输出与音量静音控件 / 正常关闭通过：$overlayResultPath"

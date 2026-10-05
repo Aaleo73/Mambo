@@ -703,5 +703,23 @@
     "source": "https://raw.githubusercontent.com/microsoft/Win2D/winappsdk/main/LICENSE.txt",
     "sha256": "c3ba493105fa52657c4c60d9b1680da7c01b188a8665d7a823c2a187fd259808",
     "retrieved": "2026-10-05"
+  },
+  {
+    "path": "Anime4K-4.0.1-MIT.txt",
+    "source": "https://raw.githubusercontent.com/bloc97/Anime4K/4029bf701ecaa15f163cdc49cffe5501c1acf410/LICENSE",
+    "sha256": "5bad448b737378e3d0c977ad0d0521fa37ad279a7e76ea9a31d9257eeb6953f5",
+    "retrieved": "2026-10-05"
+  },
+  {
+    "path": "Anime4K-AutoDownscale-Unlicense.txt",
+    "source": "https://raw.githubusercontent.com/bloc97/Anime4K/4029bf701ecaa15f163cdc49cffe5501c1acf410/glsl/Upscale/Anime4K_AutoDownscalePre_x2.glsl (license header, comment prefixes removed)",
+    "sha256": "b2fd6b1265f43c23a42832d26c558b49b9d33cbd88db4a880ef10d5205ad4c42",
+    "retrieved": "2026-10-05"
+  },
+  {
+    "path": "FidelityFX-CAS-MIT.txt",
+    "source": "https://raw.githubusercontent.com/GPUOpen-Effects/FidelityFX-CAS/9fabcc9a2c45f958aff55ddfda337e74ef894b7f/LICENSE.txt",
+    "sha256": "e008031a95f6f655def9eaf914118531c9e1055b8ea201eb98b9f95f1af9bec4",
+    "retrieved": "2026-10-05"
   }
 ]

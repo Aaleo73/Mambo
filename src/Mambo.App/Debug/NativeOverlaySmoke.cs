@@ -65,7 +65,7 @@ internal static class NativeOverlaySmoke
             ProcessStartUtcTicks = currentProcess.StartTime.ToUniversalTime().Ticks,
             AnimationsEnabled = Motion.AnimationsEnabled,
         };
-        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(55));
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(120));
         var token = deadline.Token;
         IPlaybackSession? session = null;
         try
@@ -146,6 +146,7 @@ internal static class NativeOverlaySmoke
             await player.DispatchSmokeSeekAsync(2);
             await WaitAsync(() => session.Snapshot.PositionTicks >= TimeSpan.TicksPerSecond, token);
             report.SeekControl = true;
+            await VerifyVideoQualityAsync(player, session, engine, fixture, report, token);
             InvokeButton(player, player.ViewModel.PauseAccessibleName);
             await WaitAsync(() => !session.Snapshot.IsPaused && !player.ViewModel.IsPaused, token);
             report.ResumeButton = true;
@@ -200,7 +201,12 @@ internal static class NativeOverlaySmoke
         {
             report.ErrorKind = error.GetType().Name;
             report.HResult = error.HResult.ToString("X8", CultureInfo.InvariantCulture);
-            report.ErrorCode = error is AppException app ? app.Error.Code : "";
+            report.ErrorCode = error switch
+            {
+                AppException app => app.Error.Code,
+                NativeOverlayCheckException check => check.Code,
+                _ => "",
+            };
         }
         finally
         {
@@ -229,6 +235,7 @@ internal static class NativeOverlaySmoke
                 && report.AudioFixtureGenerated && report.AudioOutputAvailable && report.AudioTrackSelected && report.ExternalAudioTrackSelected
                 && report.AudioOutputSampleRate > 0 && report.AudioOutputChannels > 0 && report.AudioPlaybackAdvanced
                 && report.VolumeControl && report.MuteButton && report.UnmuteButton && report.NativeUnmuted && Math.Abs(report.NativeVolume - 10) < .01
+                && report.VideoQualitySwitches && report.StandardRestores && report.VideoQualityPauseAndPositionPreserved && report.VideoQualityFileUnchanged
                 && report.PauseButton && report.SeekControl && report.ResumeButton && report.Closed && report.Detached
                 && report.Stopped && report.OutboxEmpty && report.ReportSequenceOrdered && report.ShutdownCompleted;
             if (report.Passed) report.Stage = "完成";
@@ -254,6 +261,101 @@ internal static class NativeOverlaySmoke
         var expected = ((int)Math.Round(player.ViewportElement.ActualWidth * player.VideoSurface.DpiScale),
             (int)Math.Round(player.ViewportElement.ActualHeight * player.VideoSurface.DpiScale));
         return expected.Item1 > 200 && expected.Item2 > 200 && player.VideoSurface.BufferSize == expected;
+    }
+
+    private static async Task VerifyVideoQualityAsync(PlayerOverlay player, IPlaybackSession session, LibMpvEngine engine,
+        Fixture fixture, NativeOverlayReport report, CancellationToken token)
+    {
+        report.Stage = "正式画质菜单与真实着色器切换";
+        await WaitAsync(() => !session.Snapshot.IsSeeking && player.ViewModel.CanChangeVideoQuality &&
+            engine.Core.GetProperty("pause") is NativeValue.Flag { Value: true } &&
+            NativeNumber(engine.Core.GetProperty("time-pos")) is >= 1, token);
+        var position = NativeNumber(engine.Core.GetProperty("time-pos"))!.Value;
+        var snapshotPosition = session.Snapshot.PositionTicks;
+        var playlistEntry = NativeNumber(engine.Core.GetProperty("playlist/0/id"))
+            ?? throw new NativeOverlayCheckException("quality.playlist-entry-unavailable");
+        var shaderFailures = engine.Core.ShaderFailureVersion;
+        var selected = VideoQualityMode.Standard;
+        foreach (var mode in new[] { VideoQualityMode.Clear, VideoQualityMode.Anime, VideoQualityMode.Standard })
+        {
+            report.Stage = "正式画质切换：" + QualityLabel(mode);
+            player.ShowControlsForSmoke();
+            var panel = player.ShowVideoQualityMenuForSmoke();
+            await WaitAsync(() => player.HasOpenMenu && panel.IsLoaded && panel.ChoiceCount == 3, token);
+            if (panel.SelectedLabels != QualityLabel(selected))
+                throw new NativeOverlayCheckException("quality.menu-current-selection");
+            if (!panel.ChooseForSmoke(QualityLabel(mode)))
+                throw new NativeOverlayCheckException("quality.menu-choice-missing");
+            await WaitAsync(() => !player.HasOpenMenu && !player.ViewModel.IsVideoQualityCommandPending &&
+                !session.Snapshot.IsVideoQualityChanging, token);
+            if (session.Snapshot.VideoQualityMode != mode) throw new NativeOverlayCheckException("quality.session-mode");
+            if (player.ViewModel.VideoQualityMode != mode) throw new NativeOverlayCheckException("quality.ui-mode");
+            if (!player.ViewModel.CanChangeVideoQuality) throw new NativeOverlayCheckException("quality.ui-remains-disabled");
+            AssertNativeQuality(engine.Core, mode);
+            if (engine.Core.ShaderFailureVersion != shaderFailures) throw new NativeOverlayCheckException("quality.shader-rendering-failed");
+            if (!session.Snapshot.IsPaused || !player.ViewModel.IsPaused ||
+                engine.Core.GetProperty("pause") is not NativeValue.Flag { Value: true })
+                throw new NativeOverlayCheckException("quality.pause-state-changed");
+            if (NativeNumber(engine.Core.GetProperty("time-pos")) is not { } currentPosition ||
+                Math.Abs(currentPosition - position) > .05 || Math.Abs(session.Snapshot.PositionTicks - snapshotPosition) > TimeSpan.TicksPerMillisecond * 100)
+                throw new NativeOverlayCheckException("quality.position-changed");
+            if (fixture.EngineCreateCount != 1 || NativeNumber(engine.Core.GetProperty("playlist/0/id")) != playlistEntry ||
+                !ReferenceEquals(player.Session, session) || session.Snapshot.Phase != PlayerPhase.Playing ||
+                session.Snapshot.Entry?.ItemId != LocalPreparer.ItemId)
+                throw new NativeOverlayCheckException("quality.playback-reloaded");
+            if (!ViewportMatched(player) || player.VideoSurface.IsDemoAttached)
+                throw new NativeOverlayCheckException("quality.native-surface-changed");
+            selected = mode;
+            if (mode == VideoQualityMode.Anime) report.VideoQualitySwitches = true;
+            if (mode == VideoQualityMode.Standard) report.StandardRestores = true;
+        }
+        player.ShowControlsForSmoke();
+        var standardPanel = player.ShowVideoQualityMenuForSmoke();
+        await WaitAsync(() => player.HasOpenMenu && standardPanel.SelectedLabels == "标准", token);
+        await player.DispatchSmokeKeyAsync(Windows.System.VirtualKey.Escape);
+        await WaitAsync(() => !player.HasOpenMenu && standardPanel.ChoiceCount == 0, token);
+        report.VideoQualityPauseAndPositionPreserved = true;
+        report.VideoQualityFileUnchanged = true;
+
+    }
+
+    private static string QualityLabel(VideoQualityMode mode) => mode switch
+    {
+        VideoQualityMode.Clear => "清晰",
+        VideoQualityMode.Anime => "动画",
+        _ => "标准",
+    };
+
+    private static void AssertNativeQuality(MpvCore core, VideoQualityMode mode)
+    {
+        if (core.GetProperty("glsl-shaders") is not NativeValue.Array shaders)
+            throw new NativeOverlayCheckException("quality.native.shader-list-format");
+        var standard = mode == VideoQualityMode.Standard;
+        if (core.GetProperty("scale") is not NativeValue.Text scale || scale.Value != (standard ? "lanczos" : "ewa_lanczossharp"))
+            throw new NativeOverlayCheckException("quality.native.scale");
+        if (NativeNumber(core.GetProperty("scale-antiring")) is not { } antiring || Math.Abs(antiring - (standard ? 0 : .6)) > .00001)
+            throw new NativeOverlayCheckException("quality.native.antiring");
+        if (core.GetProperty("dscale") is not NativeValue.Text { Value: "hermite" })
+            throw new NativeOverlayCheckException("quality.native.dscale");
+        // SCALER_INHERIT 的字符串形式为空；固定 libmpv 在 NODE API 中将它返回为 INT64 0。
+        if (core.GetProperty("cscale") is not (NativeValue.WholeNumber { Value: 0 } or NativeValue.Text { Value: "" }))
+            throw new NativeOverlayCheckException("quality.native.cscale-inherit");
+        if (standard)
+        {
+            if (shaders.Values.Count != 0) throw new NativeOverlayCheckException("quality.standard.shaders-not-cleared");
+            if (core.GetProperty("glsl-shader-opts") is not NativeValue.Map { Values.Count: 0 })
+                throw new NativeOverlayCheckException("quality.standard.shader-options-not-cleared");
+        }
+        else if (shaders.Values.Count != 1 || shaders.Values[0] is not NativeValue.Text shader ||
+            Path.GetFileName(shader.Value) != (mode == VideoQualityMode.Clear ? "Mambo_Clear.glsl" : "Mambo_Anime.glsl"))
+        {
+            throw new NativeOverlayCheckException("quality.native.shader-path");
+        }
+    }
+
+    private sealed class NativeOverlayCheckException(string code) : Exception(code)
+    {
+        public string Code { get; } = code;
     }
 
     private static bool ReadAudioState(MpvCore core, SessionSnapshot snapshot, NativeOverlayReport report)
@@ -493,6 +595,10 @@ internal sealed class NativeOverlayReport
     public bool PauseButton { get; set; }
     public bool SeekControl { get; set; }
     public bool ResumeButton { get; set; }
+    public bool VideoQualitySwitches { get; set; }
+    public bool StandardRestores { get; set; }
+    public bool VideoQualityPauseAndPositionPreserved { get; set; }
+    public bool VideoQualityFileUnchanged { get; set; }
     public bool Closed { get; set; }
     public bool Detached { get; set; }
     public bool Stopped { get; set; }

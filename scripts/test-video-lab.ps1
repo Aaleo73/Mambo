@@ -46,6 +46,7 @@ try {
     if ($MissingLibrary) {
         if ($report.PipelinePassed -or $report.Error -notlike '*内置播放器组件缺失*') { throw 'DLL 缺失没有得到预期的中文错误。' }
     } elseif (-not $report.PipelinePassed) { throw "Video Lab 画面验证失败：$($report.Error)" }
+    if (-not $MissingLibrary -and -not $report.VideoQualityModesVerified) { throw "Video Lab 三模式画质渲染确认未通过，详见 $reportPath。" }
     if ($RequireStableResources -and -not $report.ResourcesStable) { throw "Video Lab 资源稳定性未通过，详见 $reportPath。" }
     Write-Host "Video Lab 画面或 DLL 缺失检查通过：$reportPath"
     if (-not $MissingLibrary) { Write-Host "资源稳定性：$($report.ResourcesStable)" }

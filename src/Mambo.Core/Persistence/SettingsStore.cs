@@ -15,6 +15,7 @@ public sealed record SettingsDocument
     public AppSettings Settings { get; init; } = new() { DeviceId = Guid.NewGuid() };
     public ConnectionDefaults Connection { get; init; } = new();
     public Dictionary<string, LibraryQuery> Preferences { get; init; } = new(StringComparer.Ordinal);
+    public Dictionary<string, VideoQualityMode> VideoQualityPreferences { get; init; } = new(StringComparer.Ordinal);
 }
 
 public sealed class SettingsStore : ISettingsService, IDisposable
@@ -175,6 +176,18 @@ public sealed class SettingsStore : ISettingsService, IDisposable
         if (query is null) preferences.Remove(key); else preferences[key] = query;
         return current with { Preferences = preferences };
     }, token);
+    internal VideoQualityMode? VideoQualityPreference(string key) => Volatile.Read(ref document).VideoQualityPreferences.TryGetValue(key, out var mode) ? mode : null;
+    internal Task SaveVideoQualityPreferenceAsync(string key, VideoQualityMode mode, CancellationToken token) => MutateAsync(current =>
+    {
+        if (!Enum.IsDefined(mode)) throw Invalid("画质模式无效。");
+        // 整份文档每次保存都会重写，只留最近选择过的内容：这一项重新排到末尾，超出上限从最早的一端丢弃。
+        var kept = current.VideoQualityPreferences.Where(pair => pair.Key != key).ToArray();
+        var preferences = new Dictionary<string, VideoQualityMode>(StringComparer.Ordinal);
+        foreach (var pair in kept.Skip(Math.Max(0, kept.Length - (VideoQualityPreferenceLimit - 1)))) preferences[pair.Key] = pair.Value;
+        preferences[key] = mode;
+        return current with { VideoQualityPreferences = preferences };
+    }, token);
+    private const int VideoQualityPreferenceLimit = 500;
     private async Task MutateAsync(Func<SettingsDocument, SettingsDocument> update, CancellationToken token)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
@@ -300,7 +313,8 @@ public sealed class SettingsStore : ISettingsService, IDisposable
             // ImmutableArray 是值类型；JSON null 在反序列化时就会失败，先修复这类可选筛选数组。
             var root = JsonNode.Parse(bytes);
             var arraysRepaired = RepairNullPreferenceArrays(root);
-            var value = arraysRepaired ? JsonSerializer.Deserialize(root!.ToJsonString(), StorageJsonContext.Default.SettingsDocument) :
+            var qualityJsonRepaired = RepairVideoQualityJson(root);
+            var value = arraysRepaired || qualityJsonRepaired ? JsonSerializer.Deserialize(root!.ToJsonString(), StorageJsonContext.Default.SettingsDocument) :
                 JsonSerializer.Deserialize(bytes, StorageJsonContext.Default.SettingsDocument);
             if (value is null || value.Version != 1 || value.Settings is null) return null;
             var settings = value.Settings;
@@ -320,12 +334,14 @@ public sealed class SettingsStore : ISettingsService, IDisposable
             // 非关键字段损坏只丢弃对应输入，不重置有效的设备标识与其他偏好。
             var connection = NormalizeConnection(value.Connection, out var connectionRepaired);
             var preferences = NormalizePreferences(value.Preferences, out var preferencesRepaired);
-            repaired = arraysRepaired || connectionRepaired || preferencesRepaired || externalRepaired || episodeLayoutRepaired || bulletChatRepaired;
+            var videoQualityPreferences = NormalizeVideoQualityPreferences(value.VideoQualityPreferences, out var qualityPreferencesRepaired);
+            repaired = arraysRepaired || connectionRepaired || preferencesRepaired || externalRepaired || episodeLayoutRepaired || bulletChatRepaired || qualityPreferencesRepaired || qualityJsonRepaired;
             return value with
             {
                 Settings = settings,
                 Connection = connection,
                 Preferences = preferences,
+                VideoQualityPreferences = videoQualityPreferences,
             };
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException or AppException) { return null; }
@@ -336,6 +352,30 @@ public sealed class SettingsStore : ISettingsService, IDisposable
             !Enum.IsDefined(value.PlaybackMode) || !Enum.IsDefined(value.HdrMode) || !Enum.IsDefined(value.HardwareDecoding) ||
             !Enum.IsDefined(value.ThemeMode)) throw Invalid("播放器设置无效。");
         if (value.BulletChat is not { } bulletChat || NormalizeBulletChat(bulletChat, out _) != bulletChat) throw Invalid("弹幕设置无效。");
+    }
+
+    private static bool RepairVideoQualityJson(JsonNode? root)
+    {
+        if (root is not JsonObject document) return false;
+        static bool IsMode(JsonNode? node) => node is JsonValue value && value.TryGetValue<int>(out var number) && Enum.IsDefined((VideoQualityMode)number);
+        var stored = document.FirstOrDefault(static property => property.Key.Equals(nameof(SettingsDocument.VideoQualityPreferences), StringComparison.OrdinalIgnoreCase));
+        if (stored.Key is null) return false;
+        if (stored.Value is not JsonObject preferences) { document[stored.Key] = new JsonObject(); return true; }
+        var repaired = false;
+        foreach (var pair in preferences.ToArray())
+            if (!IsMode(pair.Value)) { preferences.Remove(pair.Key); repaired = true; }
+        return repaired;
+    }
+
+    private static Dictionary<string, VideoQualityMode> NormalizeVideoQualityPreferences(Dictionary<string, VideoQualityMode>? values, out bool repaired)
+    {
+        repaired = values is null;
+        var result = new Dictionary<string, VideoQualityMode>(StringComparer.Ordinal);
+        if (values is null) return result;
+        var valid = values.Where(pair => VideoQualityPreferences.IsValidKey(pair.Key) && Enum.IsDefined(pair.Value)).ToArray();
+        repaired = valid.Length != values.Count || valid.Length > VideoQualityPreferenceLimit;
+        foreach (var (key, mode) in valid.Skip(Math.Max(0, valid.Length - VideoQualityPreferenceLimit))) result[key] = mode;
+        return result;
     }
 
     private static BulletChatSettings NormalizeBulletChat(BulletChatSettings? value, out bool repaired)

@@ -8,7 +8,7 @@ using Mambo.App.Platform;
 using Mambo.App.Composition;
 using Mambo.Core.Playback;
 using Mambo.Player.LibMpv;
-using MpvValue = Mambo.Player.LibMpv.MpvValue;
+using MpvValue = Mambo.Core.Playback.MpvValue;
 using Mambo.Core.Contracts;
 using Microsoft.Extensions.DependencyInjection;
 using HdrMode = Mambo.App.Video.HdrMode;
@@ -28,6 +28,12 @@ public sealed partial class VideoLab : UserControl
     private Window? window;
     private OverlappedPresenter? overlapped;
     private MpvCore? player;
+    private LibMpvEngine? nativeEngine;
+    private readonly CancellationTokenSource lifetime = new();
+    private CancellationTokenSource? playbackLifetime;
+    private bool loaded;
+    private bool qualityBusy;
+    private VideoQualityMode confirmedQuality;
     private HdrController? hdr;
     private Task? consume;
     private Task? closeTask;
@@ -42,7 +48,6 @@ public sealed partial class VideoLab : UserControl
     private readonly Stopwatch opening = new();
     private TaskCompletionSource? firstFrame;
     private int bindingAttempts;
-    private MpvSwapChain? pendingSwapChain;
     private long firstFrameMs;
     private long windowReadyMs;
     private bool bound;
@@ -82,7 +87,8 @@ public sealed partial class VideoLab : UserControl
 
     private async void OnLoaded(object sender, RoutedEventArgs args)
     {
-        if (closing) return;
+        if (closing || loaded) return;
+        loaded = true;
         windowReadyMs = Program.UptimeMilliseconds;
         if (BackendServices.IsFakeMode(Program.Arguments, Environment.GetEnvironmentVariable("MAMBO_FAKE")))
         {
@@ -210,17 +216,19 @@ public sealed partial class VideoLab : UserControl
 
     private async Task GuardAsync(Func<Task> action)
     {
-        if (busy) return;
+        if (busy || closing) return;
         busy = true;
         OpenButton.IsEnabled = false;
+        UpdateQualityButtons();
         try { await action(); }
+        catch (OperationCanceledException) when (closing || lifetime.IsCancellationRequested) { }
         catch (AppException ex) { StatusText.Text = ex.Error.Message; }
         catch (Exception ex) when (ex is InvalidOperationException or ArgumentException or TimeoutException)
         {
             StatusText.Text = ex.Message;
         }
         catch { StatusText.Text = "视频验证操作失败，请关闭播放器后重试。"; }
-        finally { busy = false; OpenButton.IsEnabled = true; }
+        finally { busy = false; if (!closing) { OpenButton.IsEnabled = true; UpdateQualityButtons(); } }
     }
 
     private async Task OpenAsync(string address)
@@ -228,6 +236,7 @@ public sealed partial class VideoLab : UserControl
         if (window is null || string.IsNullOrWhiteSpace(address))
             throw new InvalidOperationException("请先选择本地文件或输入播放地址。");
         await StopAsync();
+        lifetime.Token.ThrowIfCancellationRequested();
         if (Surface.ActualWidth <= 0 || Surface.ActualHeight <= 0)
             throw new InvalidOperationException("视频面板尚未完成布局，请稍后重试。");
         IReadOnlyDictionary<string, string>? headers = null;
@@ -252,94 +261,110 @@ public sealed partial class VideoLab : UserControl
         bound = false;
         var size = Surface.PixelSize;
         var enableAudio = !Program.Arguments.Contains("--no-audio", StringComparer.Ordinal);
-        var created = await Task.Run(() => new MpvCore(size.Width, size.Height, enableAudio: enableAudio));
-        player = created;
+        var playback = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
+        playbackLifetime = playback;
+        var token = playback.Token;
+        var created = await LibMpvEngine.CreateAsync(size.Width, size.Height, enableAudio: enableAudio, cancellationToken: token);
+        if (closing || token.IsCancellationRequested || !ReferenceEquals(playbackLifetime, playback))
+        {
+            await created.DisposeAsync();
+            throw new OperationCanceledException(token);
+        }
+        nativeEngine = created;
+        player = created.Core;
+        created.SwapChainChanged += NativeSwapChainChanged;
         consume = ConsumeAsync(created);
         try
         {
-            hdr!.Attach(created);
+            await created.PrepareVideoQualityAsync(VideoQualityMode.Standard, token);
+            confirmedQuality = VideoQualityMode.Standard;
+            QualityStatusText.Text = "画质：等待首帧确认。";
+            hdr!.Attach(created.Core);
             hdr.SetMode((HdrMode)HdrBox.SelectedIndex);
-            await created.LoadFileAsync(address, headers);
+            await created.Core.LoadFileAsync(address, headers, token);
             StatusText.Text = "正在打开，等待首帧。";
             bindingRetry.Start();
         }
         catch { await StopAsync(); throw; }
     }
 
-    private async Task ConsumeAsync(MpvCore owner)
+    private async Task ConsumeAsync(LibMpvEngine owner)
     {
-        await foreach (var message in owner.Messages.ReadAllAsync().ConfigureAwait(false))
+        await foreach (var message in owner.Events.ReadAllAsync().ConfigureAwait(false))
         {
-            if (message is MpvMessage.PropertyChanged property)
+            if (message is EngineEvent.PropertyChanged property)
             {
-                if (property.Value is not null) properties[property.Name] = property.Value;
-                else properties.TryRemove(property.Name, out _);
+                var name = property.Property switch
+                {
+                    EngineProperty.TimePosition => "time-pos", EngineProperty.Duration => "duration",
+                    EngineProperty.Pause => "pause", EngineProperty.CoreIdle => "core-idle",
+                    EngineProperty.HardwareDecoder => "hwdec-current", EngineProperty.AudioOutput => "current-ao",
+                    EngineProperty.VideoParameters => "video-params", EngineProperty.VideoTargetParameters => "video-target-params",
+                    _ => null,
+                };
+                if (name is not null && ReferenceEquals(nativeEngine, owner))
+                {
+                    if (property.Value is not null) properties[name] = property.Value;
+                    else properties.TryRemove(name, out _);
+                }
                 continue;
             }
-            var queued = DispatcherQueue.TryEnqueue(() =>
+            DispatcherQueue.TryEnqueue(() =>
             {
-                if (player != owner)
-                {
-                    if (message is MpvMessage.SwapChainChanged abandoned) abandoned.Reference.Dispose();
-                    return;
-                }
+                if (closing || nativeEngine != owner) return;
                 switch (message)
                 {
-                    case MpvMessage.SwapChainChanged swap:
-                        bindingAttempts = 0;
-                        pendingSwapChain?.Dispose();
-                        pendingSwapChain = null;
-                        if (swap.Reference.IsInvalid)
-                        {
-                            swap.Reference.Dispose();
-                            Surface.Detach();
-                            bound = false;
-                            break;
-                        }
-                        pendingSwapChain = swap.Reference;
-                        TryBind();
-                        break;
-                    case MpvMessage.PlaybackRestart:
+                    case EngineEvent.PlaybackRestart:
+                        var initialFrame = firstFrameMs == 0;
                         firstFrameMs = firstFrameMs == 0 ? opening.ElapsedMilliseconds : firstFrameMs;
                         firstFrame?.TrySetResult();
                         StatusText.Text = "已开始播放。请检查画面和上方 XAML 按钮。";
+                        if (initialFrame) QualityStatusText.Text = "当前画质：标准";
+                        UpdateQualityButtons();
                         break;
-                    case MpvMessage.EndFile { Reason: 4 } end:
+                    case EngineEvent.EndFile { Reason: EngineEndReason.Error } end:
                         StatusText.Text = $"片源无法播放（代码 {end.Error}）。";
                         firstFrame?.TrySetException(new InvalidOperationException(StatusText.Text));
                         break;
-                    case MpvMessage.Failure failure:
+                    case EngineEvent.Failure failure:
                         StatusText.Text = failure.Text;
                         break;
-                    case MpvMessage.QueueOverflow:
+                    case EngineEvent.QueueOverflow:
                         note = "播放器事件队列溢出，请重新打开片源。";
                         break;
                 }
             });
-            if (!queued && message is MpvMessage.SwapChainChanged lost) lost.Reference.Dispose();
         }
     }
+
+    private void NativeSwapChainChanged(MpvSwapChain reference) => DispatcherQueue.TryEnqueue(() =>
+    {
+        if (closing || nativeEngine is null) return;
+        // 借用引用由引擎持有；UI 只绑定当前引擎的最新交换链，不释放事件引用。
+        bound = false;
+        bindingAttempts = 0;
+        TryBind();
+        if (!bound) bindingRetry.Start();
+    });
 
     private void TryBind()
     {
         if (closing) return;
-        if (player is null) { bindingRetry.Stop(); return; }
-        if (bound && pendingSwapChain is null) { bindingRetry.Stop(); return; }
+        if (nativeEngine is null) { bindingRetry.Stop(); return; }
+        if (bound) { bindingRetry.Stop(); return; }
         if (++bindingAttempts > 10)
         {
             bindingRetry.Stop();
-            pendingSwapChain?.Dispose();
-            pendingSwapChain = null;
             StatusText.Text = "无法绑定视频交换链：10 次尝试已用尽，请重新打开。";
             firstFrame?.TrySetException(new InvalidOperationException(StatusText.Text));
             return;
         }
-        if (pendingSwapChain is null) return;
+        var reference = nativeEngine.CurrentSwapChain;
+        if (reference is null) return;
+        if (reference.IsClosed || reference.IsInvalid) { Surface.Detach(); return; }
         try
         {
-            Surface.Attach(pendingSwapChain.Address);
-            pendingSwapChain.Dispose();
-            pendingSwapChain = null;
+            Surface.Attach(reference.Address);
             bound = true;
             bindingRetry.Stop();
         }
@@ -427,6 +452,49 @@ public sealed partial class VideoLab : UserControl
         else presenter.Maximize();
     }
     private async void StopClicked(object sender, RoutedEventArgs args) => await GuardAsync(StopAsync);
+
+    private void UpdateQualityButtons() => SetQualityButtonsEnabled(IsLoaded && !closing && !busy &&
+        !qualityBusy && nativeEngine is not null && firstFrameMs > 0 && backendSession is null);
+
+    private void SetQualityButtonsEnabled(bool enabled)
+    {
+        QualityStandardButton.IsEnabled = enabled;
+        QualityClearButton.IsEnabled = enabled;
+        QualityAnimeButton.IsEnabled = enabled;
+    }
+
+    private async void QualityClicked(object sender, RoutedEventArgs args)
+    {
+        if (sender is not Button { IsEnabled: true } || nativeEngine is not { } owner || playbackLifetime is not { } playback) return;
+        var mode = ((sender as Button)?.Tag as string) switch
+        {
+            "Standard" => VideoQualityMode.Standard, "Clear" => VideoQualityMode.Clear,
+            "Anime" => VideoQualityMode.Anime, _ => confirmedQuality,
+        };
+        var token = playback.Token;
+        qualityBusy = true;
+        UpdateQualityButtons();
+        QualityStatusText.Text = "正在确认画质效果……";
+        try
+        {
+            await owner.ApplyVideoQualityAsync(mode, token);
+            if (closing || token.IsCancellationRequested || nativeEngine != owner) return;
+            confirmedQuality = mode;
+            QualityStatusText.Text = "当前画质：" + (mode switch
+            {
+                VideoQualityMode.Clear => "清晰", VideoQualityMode.Anime => "动画", _ => "标准",
+            });
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested || closing) { }
+        catch
+        {
+            if (!closing && nativeEngine == owner) QualityStatusText.Text = "画质切换失败，已恢复可用画质。";
+        }
+        finally
+        {
+            if (!closing && nativeEngine == owner) { qualityBusy = false; UpdateQualityButtons(); }
+        }
+    }
     private async void StressClicked(object sender, RoutedEventArgs args) => await GuardAsync(
         () => StressAsync(AddressBox.Text.Trim()));
 
@@ -459,6 +527,10 @@ public sealed partial class VideoLab : UserControl
 
     private async Task StopAsync()
     {
+        var playback = playbackLifetime;
+        playbackLifetime = null;
+        playback?.Cancel();
+        SetQualityButtonsEnabled(false);
         if (backendSession is { } session)
         {
             await session.CloseAsync();
@@ -466,20 +538,23 @@ public sealed partial class VideoLab : UserControl
             backendSession = null;
         }
         bindingRetry.Stop();
-        pendingSwapChain?.Dispose();
-        pendingSwapChain = null;
         hdr?.Detach();
         Surface.Detach(); // 必须先在 UI 线程解绑，再后台 quit / wait / destroy。
         bound = false;
         power.SetPlaying(false);
-        var previous = player;
+        var previous = nativeEngine;
+        nativeEngine = null;
         player = null;
         if (previous is not null)
         {
+            previous.SwapChainChanged -= NativeSwapChainChanged;
             await previous.DisposeAsync();
             if (consume is not null) await consume;
         }
         consume = null;
+        playback?.Dispose();
+        qualityBusy = false;
+        if (!closing) QualityStatusText.Text = "画质：请先打开本地片源。";
     }
 
     public async Task CloseAsync()
@@ -491,6 +566,7 @@ public sealed partial class VideoLab : UserControl
     private async Task CloseCoreAsync()
     {
         closing = true;
+        lifetime.Cancel();
         Loaded -= OnLoaded;
         refresh.Stop();
         refresh.Tick -= RefreshTick;
@@ -513,6 +589,7 @@ public sealed partial class VideoLab : UserControl
         // 永久关闭时趁 HWND 仍有效释放 host clip、光标与计时器事件，不拖到原生卸载回调。
         Surface.Dispose();
         power.Dispose();
+        lifetime.Dispose();
     }
 
     private async Task RunSmokeAsync(string sample)
@@ -541,6 +618,16 @@ public sealed partial class VideoLab : UserControl
             report.TargetVideo = Format(properties.GetValueOrDefault("video-target-params"));
             report.Display = hdr?.Description ?? "";
             report.Bound = bound;
+            report.Stage = "三模式画质渲染确认";
+            var smokeEngine = nativeEngine ?? throw new InvalidOperationException("视频引擎未就绪。");
+            var shaderFailures = smokeEngine.Core.ShaderFailureVersion;
+            foreach (var mode in new[] { VideoQualityMode.Clear, VideoQualityMode.Anime, VideoQualityMode.Standard })
+            {
+                await smokeEngine.ApplyVideoQualityAsync(mode, playbackLifetime!.Token);
+                report.ConfirmedVideoQualityModes.Add(mode.ToString());
+            }
+            report.VideoQualityModesVerified = report.ConfirmedVideoQualityModes.Count == 3 &&
+                shaderFailures == smokeEngine.Core.ShaderFailureVersion;
             foreach (var size in new[] { new SizeInt32(1100, 720), new SizeInt32(1500, 860) })
             {
                 report.Stage = "窗口尺寸";
@@ -575,7 +662,7 @@ public sealed partial class VideoLab : UserControl
                     HandleTypes = HandleDiagnostics.Capture(),
                 };
             }
-            report.PipelinePassed = report.Bound && report.ResizeMatched && report.FullscreenMatched;
+            report.PipelinePassed = report.Bound && report.ResizeMatched && report.FullscreenMatched && report.VideoQualityModesVerified;
             if (report.Lifecycle.Count > 0 && report.Settled is { } final)
             {
                 var initial = report.Lifecycle[0];
@@ -610,6 +697,8 @@ internal sealed class VideoLabReport
     public bool Bound { get; set; }
     public bool ResizeMatched { get; set; } = true;
     public bool FullscreenMatched { get; set; }
+    public bool VideoQualityModesVerified { get; set; }
+    public List<string> ConfirmedVideoQualityModes { get; set; } = [];
     public int Cycles { get; set; }
     public long WindowReadyMs { get; set; }
     public long FirstFrameMs { get; set; }

@@ -225,6 +225,14 @@
                                     </Flyout>
                                 </Button.Flyout>
                             </Button>
+                            <Button x:Name="VideoQualityButton" Style="{ThemeResource PlayerButton}" Content="画质"
+                                    IsEnabled="{x:Bind ViewModel.CanChangeVideoQuality, Mode=OneWay}" AutomationProperties.Name="画质" ToolTipService.ToolTip="画质">
+                                <Button.Flyout>
+                                    <Flyout x:Name="VideoQualityFlyout" Placement="Top" FlyoutPresenterStyle="{StaticResource PlayerPanelPresenter}">
+                                        <views:PlayerChoicePanel x:Name="VideoQualityPanel" Width="200"/>
+                                    </Flyout>
+                                </Button.Flyout>
+                            </Button>
                             <!-- 面板里有输入框：按钮必须允许获得焦点，否则弹出层收不到键盘输入 -->
                             <Button x:Name="BulletChatButton" Style="{ThemeResource PlayerButton}" AllowFocusOnInteraction="True" IsEnabled="{x:Bind ViewModel.CanControl, Mode=OneWay}"
                                     AutomationProperties.Name="弹幕" ToolTipService.ToolTip="弹幕（D）">

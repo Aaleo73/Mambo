@@ -21,6 +21,13 @@ public enum HardwareDecodingMode
     Off,
 }
 
+public enum VideoQualityMode
+{
+    Standard = 0,
+    Clear,
+    Anime,
+}
+
 public enum SettingsThemeMode
 {
     System,

@@ -8,6 +8,8 @@ public interface IPlaybackSession
     Task TogglePauseAsync(CancellationToken cancellationToken = default);
     Task SeekAsync(TimeSpan position, CancellationToken cancellationToken = default);
     Task SetRateAsync(double rate, CancellationToken cancellationToken = default);
+    Task SetVideoQualityModeAsync(VideoQualityMode mode, CancellationToken cancellationToken = default)
+        => Task.FromException(new AppException(new(AppErrorKind.Player, "playback.video_quality_unavailable", "当前播放器不支持画质模式。", false)));
     Task SetVolumeAsync(double volume, CancellationToken cancellationToken = default);
     Task SetMutedAsync(bool muted, CancellationToken cancellationToken = default);
     Task SelectAudioTrackAsync(string? trackId, CancellationToken cancellationToken = default);

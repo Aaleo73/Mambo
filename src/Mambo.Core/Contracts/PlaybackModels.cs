@@ -75,6 +75,11 @@ public sealed record SessionSnapshot
     public double Volume { get; init; } = 100;
     public bool IsMuted { get; init; }
     public double PlaybackRate { get; init; } = 1;
+    /// <summary>最近一次成功应用的画质模式；切换过程中保持旧值。</summary>
+    public VideoQualityMode VideoQualityMode { get; init; } = VideoQualityMode.Standard;
+    public bool IsVideoQualityChanging { get; init; }
+    /// <summary>自动恢复画质失败的非致命提示；不影响播放阶段。手动命令失败通过 AppException 返回。</summary>
+    public AppError? VideoQualityError { get; init; }
     public ImmutableArray<TrackInfo> AudioTracks { get; init; } = [];
     public ImmutableArray<TrackInfo> SubtitleTracks { get; init; } = [];
     public string? SelectedAudioTrackId { get; init; }

@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "anime4kRevision": "4029bf701ecaa15f163cdc49cffe5501c1acf410",
+  "casRevision": "9fabcc9a2c45f958aff55ddfda337e74ef894b7f",
+  "upstream": [
+    {
+      "path": "upstream/anime4k/Anime4K_Clamp_Highlights.glsl",
+      "url": "https://raw.githubusercontent.com/bloc97/Anime4K/4029bf701ecaa15f163cdc49cffe5501c1acf410/glsl/Restore/Anime4K_Clamp_Highlights.glsl",
+      "sha256": "a2a9bf7fbc1d75d09660ca2e701e4d7fb0cf5457b94da47e1825032fa2b3671a",
+      "license": "MIT"
+    },
+    {
+      "path": "upstream/anime4k/Anime4K_Restore_CNN_Soft_M.glsl",
+      "url": "https://raw.githubusercontent.com/bloc97/Anime4K/4029bf701ecaa15f163cdc49cffe5501c1acf410/glsl/Restore/Anime4K_Restore_CNN_Soft_M.glsl",
+      "sha256": "a78a2c76898e08e09e442a9628c64208c26e8e15789649b8755223f009794c02",
+      "license": "MIT"
+    },
+    {
+      "path": "upstream/anime4k/Anime4K_Upscale_CNN_x2_M.glsl",
+      "url": "https://raw.githubusercontent.com/bloc97/Anime4K/4029bf701ecaa15f163cdc49cffe5501c1acf410/glsl/Upscale/Anime4K_Upscale_CNN_x2_M.glsl",
+      "sha256": "716e02098a68f0d648761f2b96b4dd139e1cb09b174bb369fca3aa34328fff7e",
+      "license": "MIT"
+    },
+    {
+      "path": "upstream/anime4k/Anime4K_AutoDownscalePre_x2.glsl",
+      "url": "https://raw.githubusercontent.com/bloc97/Anime4K/4029bf701ecaa15f163cdc49cffe5501c1acf410/glsl/Upscale/Anime4K_AutoDownscalePre_x2.glsl",
+      "sha256": "8c58291740146bd766a4d73f132775a797fe80f7d07919b5d767e27a5dc85656",
+      "license": "Unlicense"
+    },
+    {
+      "path": "upstream/anime4k/Anime4K_AutoDownscalePre_x4.glsl",
+      "url": "https://raw.githubusercontent.com/bloc97/Anime4K/4029bf701ecaa15f163cdc49cffe5501c1acf410/glsl/Upscale/Anime4K_AutoDownscalePre_x4.glsl",
+      "sha256": "5af62d8cd844916dc1126613e13bad3beab195787f93a71200b47c6ec78f2e41",
+      "license": "Unlicense"
+    },
+    {
+      "path": "upstream/anime4k/Anime4K_Upscale_CNN_x2_S.glsl",
+      "url": "https://raw.githubusercontent.com/bloc97/Anime4K/4029bf701ecaa15f163cdc49cffe5501c1acf410/glsl/Upscale/Anime4K_Upscale_CNN_x2_S.glsl",
+      "sha256": "4c53ec2e287908f7ee7bcb266b0170421626d663576468b7d7dafc62962649a4",
+      "license": "MIT"
+    },
+    {
+      "path": "upstream/cas/ffx_cas.h",
+      "url": "https://raw.githubusercontent.com/GPUOpen-Effects/FidelityFX-CAS/9fabcc9a2c45f958aff55ddfda337e74ef894b7f/ffx-cas/ffx_cas.h",
+      "sha256": "3224935584202390ca9bc0149a45973ad2269f4d874abb2ff13625263fc036e0",
+      "license": "MIT"
+    }
+  ]
+}

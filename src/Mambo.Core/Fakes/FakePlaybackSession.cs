@@ -210,6 +210,12 @@ public sealed class FakePlaybackSession : IPlaybackSession, IDisposable, IAsyncD
     public Task SetMutedAsync(bool muted, CancellationToken cancellationToken = default) =>
         ChangeActive(current => current with { IsMuted = muted }, cancellationToken);
 
+    public Task SetVideoQualityModeAsync(VideoQualityMode mode, CancellationToken cancellationToken = default)
+    {
+        if (!Enum.IsDefined(mode)) throw Error(ErrorCodes.InvalidArgument, "画质模式无效。");
+        return ChangeActive(current => current with { VideoQualityMode = mode, IsVideoQualityChanging = false, VideoQualityError = null }, cancellationToken);
+    }
+
     public Task SelectAudioTrackAsync(string? trackId, CancellationToken cancellationToken = default) =>
         ChangeActive(current =>
         {

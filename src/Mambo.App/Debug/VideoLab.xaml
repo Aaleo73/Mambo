@@ -45,6 +45,12 @@
             <ScrollViewer Grid.Column="1">
                 <StackPanel Spacing="12">
                     <TextBlock Text="诊断" FontSize="18" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button x:Name="QualityStandardButton" Content="标准" Tag="Standard" Click="QualityClicked" IsEnabled="False" />
+                        <Button x:Name="QualityClearButton" Content="清晰" Tag="Clear" Click="QualityClicked" IsEnabled="False" />
+                        <Button x:Name="QualityAnimeButton" Content="动画" Tag="Anime" Click="QualityClicked" IsEnabled="False" />
+                    </StackPanel>
+                    <TextBlock x:Name="QualityStatusText" Text="画质：请先打开本地片源。" TextWrapping="Wrap" />
                     <TextBlock x:Name="DiagnosticsText" TextWrapping="Wrap" FontFamily="Consolas" FontSize="12" IsTextSelectionEnabled="True" />
                     <TextBlock Text="人工检查：HDR 高光、100/150/200% DPI、跨显示器拖动、全屏顶部缝隙、按钮点击与光标隐藏。" TextWrapping="Wrap" />
                 </StackPanel>

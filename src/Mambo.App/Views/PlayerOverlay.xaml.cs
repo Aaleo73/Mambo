@@ -73,6 +73,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     private bool attached;
     private int openMenus;
     private string? previousErrorCode;
+    private AppError? previousVideoQualityError;
     private bool dragVolume;
     private Task lastCommand = Task.CompletedTask;
     private Task layoutSave = Task.CompletedTask;
@@ -128,14 +129,15 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         settings.Changed += OnBulletChatSettingsChanged;
         BulletChatPanel.PreviewChanged += OnBulletChatPreview;
         BulletChatPanel.Completed += OnBulletChatPanelCompleted;
-        // 三个面板随播放层存活，可以反复打开；打开与收起统一记账，供控制层显隐和 Esc 使用。
-        panelFlyouts = [RateFlyout, BulletChatFlyout, TracksFlyout];
+        // 面板随播放层存活，可以反复打开；打开与收起统一记账，供控制层显隐和 Esc 使用。
+        panelFlyouts = [RateFlyout, VideoQualityFlyout, BulletChatFlyout, TracksFlyout];
         foreach (var flyout in panelFlyouts)
         {
             flyout.Opened += OnMenuOpened;
             flyout.Closed += OnMenuClosed;
         }
         RateFlyout.Opening += OnRateOpening;
+        VideoQualityFlyout.Opening += OnVideoQualityOpening;
         TracksFlyout.Opening += OnTracksOpening;
         window.PresentationChanged += OnPresentationChanged;
         window.ActiveChanged += OnWindowActiveChanged;
@@ -202,6 +204,17 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     {
         (tracks ? TracksFlyout : RateFlyout).ShowAt(tracks ? TracksButton : RateButton);
         return tracks ? TracksPanel : RatePanel;
+    }
+    internal PlayerChoicePanel ShowVideoQualityMenuForSmoke()
+    {
+        VideoQualityFlyout.ShowAt(VideoQualityButton);
+        return VideoQualityPanel;
+    }
+
+    internal async Task DispatchSmokeVideoQualityAsync(VideoQualityMode mode)
+    {
+        SelectVideoQuality(mode);
+        await lastCommand;
     }
     internal void ToggleEpisodesForSmoke() => ToggleEpisodePanel();
     internal void DispatchSmokeSeekHover(double fraction) => PreviewSeekHover(fraction);
@@ -578,6 +591,10 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
             });
         }
         else if (!ViewModel.IsFailed) previousErrorCode = null;
+        var qualityError = ViewModel.Snapshot.VideoQualityError;
+        if (!closing && qualityError is not null && qualityError != previousVideoQualityError)
+            toasts.Show(ToastKind.Error, qualityError.Message);
+        previousVideoQualityError = qualityError;
     }
 
     private void OnProjectionChanged(object? sender, PropertyChangedEventArgs e)
@@ -1353,6 +1370,33 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         ]);
     }
 
+    private void OnVideoQualityOpening(object? sender, object e)
+    {
+        if (disposed || presentationFrozen || closing || transitionActive || !ViewModel.CanChangeVideoQuality) return;
+        var current = ViewModel.VideoQualityMode;
+        VideoQualityPanel.SetGroups([new("画质",
+        [
+            new("标准", current == VideoQualityMode.Standard, () => SelectVideoQuality(VideoQualityMode.Standard)),
+            new("清晰", current == VideoQualityMode.Clear, () => SelectVideoQuality(VideoQualityMode.Clear)),
+            new("动画", current == VideoQualityMode.Anime, () => SelectVideoQuality(VideoQualityMode.Anime)),
+        ])]);
+    }
+
+    private void SelectVideoQuality(VideoQualityMode mode)
+    {
+        if (disposed || presentationFrozen || closing || transitionActive || !ViewModel.CanChangeVideoQuality) return;
+        HideMenus();
+        Run(async () =>
+        {
+            ViewModel.IsVideoQualityCommandPending = true;
+            try { await session.SetVideoQualityModeAsync(mode, lifetime.Token); }
+            finally
+            {
+                if (!disposed && !presentationFrozen) ViewModel.IsVideoQualityCommandPending = false;
+            }
+        });
+    }
+
     private void SelectRate(double rate)
     {
         if (disposed || presentationFrozen || closing || transitionActive) return;
@@ -1374,6 +1418,8 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
             menu.Hide();
             return;
         }
+        foreach (var other in openFlyouts.ToArray())
+            if (!ReferenceEquals(other, menu)) other.Hide();
         if (!openFlyouts.Contains(menu)) openFlyouts.Add(menu);
         openMenus = openFlyouts.Count;
         Activity();
@@ -1387,6 +1433,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         openMenus = openFlyouts.Count;
         // 选项的回调捕获着播放层，收起后不留在弹出层里。
         if (ReferenceEquals(menu, RateFlyout)) RatePanel.Clear();
+        else if (ReferenceEquals(menu, VideoQualityFlyout)) VideoQualityPanel.Clear();
         else if (ReferenceEquals(menu, TracksFlyout)) TracksPanel.Clear();
         if (disposed || presentationFrozen || closing || transitionActive || !IsLoaded) return;
         if (removed && openMenus == 0)
@@ -1408,6 +1455,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         openFlyouts.Clear();
         openMenus = 0;
         RatePanel.Clear();
+        VideoQualityPanel.Clear();
         TracksPanel.Clear();
         // 离开可视树时只需收起；播放层冻结后才解除订阅，之后不会再打开。
         if (!presentationFrozen) return;
@@ -1417,6 +1465,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
             flyout.Closed -= OnMenuClosed;
         }
         RateFlyout.Opening -= OnRateOpening;
+        VideoQualityFlyout.Opening -= OnVideoQualityOpening;
         TracksFlyout.Opening -= OnTracksOpening;
         panelFlyouts = [];
     }

@@ -7,14 +7,16 @@ using EngineValue = Mambo.Core.Playback.MpvValue;
 namespace Mambo.Player.LibMpv;
 
 /// <summary>每个会话一个实例；调用 DisposeAsync 前，App 必须先在 UI 线程解绑交换链。</summary>
-public sealed class LibMpvEngine : IPlayerEngine
+public sealed class LibMpvEngine : IPlayerEngine, IVideoQualityEngine
 {
+    // 事件转发循环之外，画质失效通知也会从后台线程写入。
     private readonly Channel<EngineEvent> events = Channel.CreateUnbounded<EngineEvent>(
-        new UnboundedChannelOptions { SingleReader = true, SingleWriter = true });
+        new UnboundedChannelOptions { SingleReader = true });
     private readonly Task forwarding;
     private readonly object disposeGate = new();
     private Task? disposeTask;
     private MpvSwapChain? currentSwapChain;
+    private readonly VideoQualityController videoQuality;
 
     public EngineKind Kind => EngineKind.Embedded;
     public ChannelReader<EngineEvent> Events => events.Reader;
@@ -26,15 +28,23 @@ public sealed class LibMpvEngine : IPlayerEngine
     /// <summary>在后台事件转发线程触发，App 必须切回 UI 线程后绑定。</summary>
     public event Action<MpvSwapChain>? SwapChainChanged;
 
-    private LibMpvEngine(MpvCore core)
+    private LibMpvEngine(MpvCore core, Func<VideoQualityMode, string[]>? videoQualityResources)
     {
         Core = core;
+        videoQuality = new(core, videoQualityResources);
+        videoQuality.Lost += () => events.Writer.TryWrite(new EngineEvent.VideoQualityLost());
         forwarding = ForwardEventsAsync();
     }
 
-    public static async Task<LibMpvEngine> CreateAsync(int pixelWidth = 1280, int pixelHeight = 720,
+    public static Task<LibMpvEngine> CreateAsync(int pixelWidth = 1280, int pixelHeight = 720,
         bool headless = false, bool enableAudio = true, IReadOnlyDictionary<string, string>? optionOverrides = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        CreateAsync(null, pixelWidth, pixelHeight, headless, enableAudio, optionOverrides, cancellationToken);
+
+    // 测试注入着色器资源，在真实 GPU 上验证失败路径。
+    internal static async Task<LibMpvEngine> CreateAsync(Func<VideoQualityMode, string[]>? videoQualityResources,
+        int pixelWidth, int pixelHeight, bool headless, bool enableAudio,
+        IReadOnlyDictionary<string, string>? optionOverrides, CancellationToken cancellationToken)
     {
         var core = await Task.Run(() =>
         {
@@ -46,7 +56,7 @@ public sealed class LibMpvEngine : IPlayerEngine
             await core.DisposeAsync().ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
         }
-        return new LibMpvEngine(core);
+        return new LibMpvEngine(core, videoQualityResources);
     }
 
     public async ValueTask<long> LoadAsync(string url, LoadMode mode,
@@ -77,6 +87,12 @@ public sealed class LibMpvEngine : IPlayerEngine
         await Core.SetPropertyAsync(propertyName, ToNativeValue(value), cancellationToken).ConfigureAwait(false);
 
     public void SetCompositionSize(int width, int height) => Core.SetOutputSize(width, height);
+
+    public ValueTask PrepareVideoQualityAsync(VideoQualityMode mode, CancellationToken cancellationToken) =>
+        new(Task.Run(() => videoQuality.PrepareAsync(mode, cancellationToken), cancellationToken));
+
+    public ValueTask ApplyVideoQualityAsync(VideoQualityMode mode, CancellationToken cancellationToken) =>
+        new(Task.Run(() => videoQuality.ApplyAsync(mode, cancellationToken), cancellationToken));
 
     public void ApplyHdr(bool enabled, double peakLuminance = 1000, double minimumLuminance = 0,
         double referenceWhite = 203)
@@ -177,7 +193,11 @@ public sealed class LibMpvEngine : IPlayerEngine
 
     private async Task CloseAsync()
     {
-        try { await Core.DisposeAsync().ConfigureAwait(false); }
+        try
+        {
+            try { await videoQuality.DisposeAsync().ConfigureAwait(false); }
+            finally { await Core.DisposeAsync().ConfigureAwait(false); }
+        }
         finally
         {
             await forwarding.ConfigureAwait(false);

@@ -18,9 +18,16 @@ public sealed class MpvCore : IAsyncDisposable
     private bool disposed;
     private volatile bool abortWait;
     private nint lastSwapChain;
+    private long shaderFailureVersion;
+    private string? shaderFailureStage;
     private readonly ConcurrentBag<MpvSwapChain> swapChainReferences = [];
 
     public ChannelReader<MpvMessage> Messages => messages.Reader;
+    /// <summary>只暴露着色器故障计数；原始 native 日志不离开事件线程。</summary>
+    public long ShaderFailureVersion => Interlocked.Read(ref shaderFailureVersion);
+    public string? ShaderFailureStage => Volatile.Read(ref shaderFailureStage);
+    /// <summary>计数变化后在事件线程触发；订阅者不得阻塞。</summary>
+    public event Action? ShaderFailed;
 
     public MpvCore(int pixelWidth, int pixelHeight, bool headless = false, bool enableAudio = true,
         IReadOnlyDictionary<string, string>? optionOverrides = null)
@@ -65,8 +72,8 @@ public sealed class MpvCore : IAsyncDisposable
             foreach (var option in options)
                 Check(LibMpvNative.mpv_set_option_string(handle, option.Key, option.Value));
             Check(LibMpvNative.mpv_initialize(handle));
-            // P0 不接收未经脱敏的原始 mpv 日志；诊断仅输出白名单属性和错误码。
-            Check(LibMpvNative.mpv_request_log_messages(handle, "no"));
+            // 原始日志只在事件线程瞬时分类，绝不转发、保存或加入异常。分类只看错误级别。
+            Check(LibMpvNative.mpv_request_log_messages(handle, "error"));
             Observe();
             new Thread(EventLoop) { IsBackground = true, Name = "mpv-events" }.Start();
         }
@@ -224,6 +231,7 @@ public sealed class MpvCore : IAsyncDisposable
             while (!abortWait)
             {
                 var current = *(MpvEvent*)LibMpvNative.mpv_wait_event(handle, -1);
+                if (current.Id == MpvEventId.LogMessage) ClassifyShaderFailure(current.Data);
                 MpvMessage? message = current.Id switch
                 {
                     MpvEventId.Shutdown => new MpvMessage.Shutdown(),
@@ -266,6 +274,32 @@ public sealed class MpvCore : IAsyncDisposable
     {
         var end = *(MpvEventEndFile*)data;
         return new MpvMessage.EndFile(end.PlaylistEntryId, end.Reason, end.Error);
+    }
+    private unsafe void ClassifyShaderFailure(nint data)
+    {
+        if (data == 0) return;
+        var entry = *(MpvEventLogMessage*)data;
+        // 整个会话都在监听：级别和来源直接在原生字节上筛掉，无关日志不产生托管分配。
+        if (entry.LogLevel > 20 || entry.Prefix == 0 ||
+            !MemoryMarshal.CreateReadOnlySpanFromNullTerminated((byte*)entry.Prefix).StartsWith("vo/gpu-next"u8)) return;
+        var text = Marshal.PtrToStringUTF8(entry.Text);
+        if (text is null) return;
+        // 缓存失效会由驱动重新编译；警告不能单独否决已成功执行的整条图。
+        if (text.Contains("cache", StringComparison.OrdinalIgnoreCase)) return;
+        if ((text.Contains("shader", StringComparison.OrdinalIgnoreCase) ||
+             text.Contains("GLSL", StringComparison.OrdinalIgnoreCase) ||
+             text.Contains("SPIR-V", StringComparison.OrdinalIgnoreCase) ||
+             text.Contains("hook", StringComparison.OrdinalIgnoreCase)) &&
+            (text.Contains("fail", StringComparison.OrdinalIgnoreCase) ||
+             text.Contains("error", StringComparison.OrdinalIgnoreCase) ||
+             text.Contains("invalid", StringComparison.OrdinalIgnoreCase)))
+        {
+            // 仅固定词表，既保留诊断阶段，又不复制路径、shader 原文或远端输入。
+            string[] stages = ["cache", "compile", "parsing", "hook", "bind", "texture", "link", "validation", "spir-v", "glsl"];
+            Volatile.Write(ref shaderFailureStage, string.Join('/', stages.Where(stage => text.Contains(stage, StringComparison.OrdinalIgnoreCase))));
+            Interlocked.Increment(ref shaderFailureVersion);
+            ShaderFailed?.Invoke();
+        }
     }
     private static unsafe MpvMessage.PropertyChanged CopyProperty(nint data)
     {

@@ -19,6 +19,7 @@ $mpvLock = Get-Content -LiteralPath (Join-Path $repoRoot 'third_party/libmpv/lib
 $nativeDll = Join-Path $repoRoot 'third_party/libmpv/bin/libmpv-2.dll'
 if (-not (Test-Path -LiteralPath $nativeDll -PathType Leaf)) { throw '缺少 libmpv；请先运行 scripts/fetch-libmpv.ps1。' }
 if ((Get-FileHash -LiteralPath $nativeDll -Algorithm SHA256).Hash.ToLowerInvariant() -ne $mpvLock.dllSha256) { throw 'libmpv DLL 与 lock 校验值不一致。' }
+& (Join-Path $PSScriptRoot 'build-video-shaders.ps1') -Verify
 if (Test-Path -LiteralPath $outputRoot) { throw '发布目录已存在，请稍后重试以创建新的构建目录。' }
 New-Item -ItemType Directory -Path $appRoot -Force | Out-Null
 
@@ -43,6 +44,19 @@ foreach ($font in $fontSources) {
 $xbfCount = @(Get-ChildItem -LiteralPath $appRoot -Recurse -File -Filter '*.xbf').Count
 if ($xbfCount -lt 2) { throw 'XAML 二进制资源不完整。' }
 if ((Get-FileHash -LiteralPath (Join-Path $appRoot 'mpv/libmpv-2.dll') -Algorithm SHA256).Hash.ToLowerInvariant() -ne $mpvLock.dllSha256) { throw '发布包 libmpv 校验失败。' }
+$qualityManifest = Get-Content -LiteralPath (Join-Path $repoRoot 'third_party/shaders/runtime/manifest.json') -Raw | ConvertFrom-Json
+foreach ($qualityFile in $qualityManifest.files) {
+    $qualityTarget = Join-Path $appRoot ('mpv/shaders/' + [IO.Path]::GetFileName($qualityFile.path))
+    if (-not (Test-Path -LiteralPath $qualityTarget -PathType Leaf) -or
+        (Get-FileHash -LiteralPath $qualityTarget -Algorithm SHA256).Hash.ToLowerInvariant() -ne $qualityFile.sha256) {
+        throw '发布包画质着色器缺失或校验失败。'
+    }
+}
+foreach ($qualityLicense in @('FidelityFX-CAS-MIT.txt', 'Anime4K-4.0.1-MIT.txt', 'Anime4K-AutoDownscale-Unlicense.txt')) {
+    if (-not (Test-Path -LiteralPath (Join-Path $appRoot ('LICENSES/' + $qualityLicense)) -PathType Leaf)) {
+        throw '发布包画质着色器许可证缺失。'
+    }
+}
 
 foreach ($document in @('THIRD_PARTY_NOTICES.md', 'LICENSE')) {
     Copy-Item -LiteralPath (Join-Path $repoRoot $document) -Destination $appRoot

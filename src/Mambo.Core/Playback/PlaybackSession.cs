@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Threading.Channels;
 using Mambo.Core.Contracts;
 using Mambo.Core.Networking;
+using Mambo.Core.Persistence;
 using Mambo.Core.Session;
 
 namespace Mambo.Core.Playback;
@@ -48,6 +49,9 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
     private bool desiredMuted;
     private Exception? closeError;
     private readonly Task actor;
+    private long videoQualityRevision;
+    private VideoQualityChange? videoQualityChange;
+    private Task videoQualityWork = Task.CompletedTask;
 
     public PlaybackSession(PlayRequest request, AccountSession account, IEntryPreparer preparer,
         Func<CancellationToken, Task<IPlayerEngine>> factory, PlaybackReporter reporter,
@@ -67,6 +71,7 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
     public SessionSnapshot Snapshot => Volatile.Read(ref snapshot);
     public IPlayerEngine? Engine => Volatile.Read(ref engine);
     public ISettingsService? Settings { get; internal set; }
+    internal VideoQualityPreferences? VideoQualityPreferences { get; set; }
     public event EventHandler? SnapshotChanged;
     // 这些是后端桥接 API，前端只调用 VideoSurface.Attach/Detach。
     public event Action<IPlayerEngine?>? EngineChanged;
@@ -241,6 +246,7 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
         {
             append &= active is { Confirmed: true, Ended: false } ||
                 (engine.Kind == EngineKind.External && externalPlaylist.Values.Any(value => !value.Ended && value != active));
+            if (!append) await PrepareVideoQualityAsync(entry).ConfigureAwait(false);
             entry.Candidate = candidate;
             entry.NativeId = await engine.LoadAsync(candidate.Url.Address.AbsoluteUri,
                 append ? LoadMode.Append : LoadMode.Replace, candidate.FileOptions, lifetime.Token).ConfigureAwait(false);
@@ -293,6 +299,7 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
         {
             case EngineEvent.StartFile start when loaded.TryGetValue(start.EntryId, out var entry):
                 if (closing) break;
+                CancelVideoQualityChange();
                 switching = false;
                 // START_FILE 是权威条目标识；playlist-pos 只描述播放器内部列表。
                 if (active is { Ended: false } old && old != entry) Stop(old);
@@ -308,12 +315,15 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
                     preparedEntries.Add(entry);
                 }
                 active = entry; appended = appended == entry ? null : appended;
+                if (!entry.VideoQualityPrepared) entry.VideoQualityMode = ResolveVideoQualityMode(entry.Prepared.Entry);
                 if (engine?.Kind == EngineKind.External) appended = ExternalNext(entry.Index);
                 entry.PositionTicks = entry.Prepared.StartTicks;
                 Update(snapshot with { Entry = entry.Prepared.Entry, CurrentEntryIndex = entry.Index,
                     PositionTicks = entry.PositionTicks, DurationTicks = entry.Prepared.Entry.DurationTicks ?? 0,
                     Phase = PlayerPhase.Opening, Error = null, AudioTracks = [], SubtitleTracks = [],
                     SelectedAudioTrackId = null, SelectedSubtitleTrackId = null, BufferedRanges = [], IsSlowOpening = false });
+                Update(snapshot with { IsVideoQualityChanging = engine is IVideoQualityEngine && engine.Kind == EngineKind.Embedded,
+                    VideoQualityError = entry.VideoQualityPreparationError });
                 if (entry.WasAppended && engine is { Kind: not EngineKind.External })
                 {
                     entry.WasAppended = false;
@@ -331,6 +341,8 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
                     await engine.SetAsync("mute", new MpvValue.Flag(desiredMuted), lifetime.Token).ConfigureAwait(false);
                     Update(snapshot with { Volume = desiredVolume, PlaybackRate = desiredRate, IsMuted = desiredMuted });
                 }
+                if (engine is IVideoQualityEngine && engine.Kind == EngineKind.Embedded)
+                    StartVideoQualityChange(current, current.VideoQualityMode, null, lifetime.Token, current.VideoQualityPreparationError);
                 TrackPreparation(LoadSubtitlesAsync(current));
                 break;
             case EngineEvent.PlaybackRestart when active is { Loaded: true, Ended: false } started && !closing:
@@ -350,6 +362,7 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
                 break;
             case EngineEvent.EndFile end when loaded.TryGetValue(end.EntryId, out var endedEntry):
                 if (end.Reason == EngineEndReason.Redirect) break;
+                if (active == endedEntry) CancelVideoQualityChange();
                 if (end.Reason == EngineEndReason.Error && !closing && !endedEntry.Ended && !endedEntry.NativeFailureLogged)
                 {
                     endedEntry.NativeFailureLogged = true;
@@ -393,6 +406,14 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
             case EngineEvent.QueueOverflow when !closing:
                 // 引擎随后补发关键属性快照，继续消费；不能制造一次虚假的停止上报。
                 break;
+            case EngineEvent.VideoQualityLost when !closing && active is { Ended: false } degraded:
+            {
+                // 经同一条串行通道回到标准，不会与仍在途中的切换结果互相覆盖；已保存的偏好不动。
+                var lost = new AppError(AppErrorKind.Player, "player.video_quality_lost", "画质效果已失效，已切回标准。", false);
+                log?.Invoke(lost);
+                StartVideoQualityChange(degraded, VideoQualityMode.Standard, null, lifetime.Token, lost);
+                break;
+            }
             case EngineEvent.Failure when !closing:
                 if (active is { } failed) Stop(failed);
                 Fail(new(AppErrorKind.Player, ErrorCodes.PlaybackFailed, "播放器事件处理失败，请重试。", true));
@@ -572,6 +593,7 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
     }
     private void Fail(AppError error)
     {
+        CancelVideoQualityChange();
         log?.Invoke(error);
         Update(snapshot with { Phase = PlayerPhase.Failed, Error = error, IsSlowOpening = false });
         // 外部播放没有 Mambo 控制页可供关闭，失败后自行释放窗口及会话。
@@ -607,6 +629,7 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
     {
         if (closing) return;
         closing = true; closeReason = reason; generation++;
+        CancelVideoQualityChange();
         if (reason == PlaybackEndReason.AppShutdown) reporter.BeginShutdown(TimeSpan.FromSeconds(1.5));
         slowTimer?.Dispose(); progressTimer?.Dispose();
         Update(snapshot with { Phase = PlayerPhase.Closing, IsSlowOpening = false });
@@ -662,6 +685,156 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
     { if (!double.IsFinite(rate) || rate is < 0.25 or > 4) throw InvalidCommand();
       await SetAsync("speed", new MpvValue.Number(rate)).ConfigureAwait(false); desiredRate = rate;
       Update(snapshot with { PlaybackRate = rate }); }, cancellationToken);
+
+    public async Task SetVideoQualityModeAsync(VideoQualityMode mode, CancellationToken cancellationToken = default)
+    {
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        await Command(() =>
+        {
+            if (!Enum.IsDefined(mode)) throw InvalidCommand();
+            if (engine is not IVideoQualityEngine || engine.Kind != EngineKind.Embedded)
+                throw new AppException(new(AppErrorKind.Player, "playback.video_quality_unavailable", "当前播放器不支持画质模式。", false));
+            if (active is not { Loaded: true, Ended: false } entry || switching)
+                throw new AppException(new(AppErrorKind.Player, ErrorCodes.PlaybackBusy, "画面尚未准备好，请稍后切换画质。", true));
+            StartVideoQualityChange(entry, mode, completion, cancellationToken);
+            return Task.CompletedTask;
+        }, cancellationToken).ConfigureAwait(false);
+        await completion.Task.ConfigureAwait(false);
+    }
+
+    private VideoQualityMode ResolveVideoQualityMode(PlaybackEntry entry)
+    {
+        if (engine is not { Kind: EngineKind.Embedded }) return VideoQualityMode.Standard;
+        try { return VideoQualityPreferences?.Get(account, entry) ?? VideoQualityMode.Standard; }
+        catch (OperationCanceledException) { return VideoQualityMode.Standard; }
+        catch (AppException error) { log?.Invoke(error.Error); return VideoQualityMode.Standard; }
+    }
+
+    private async Task PrepareVideoQualityAsync(LoadedEntry entry)
+    {
+        if (engine is not IVideoQualityEngine quality || engine.Kind != EngineKind.Embedded) return;
+        CancelVideoQualityChange();
+        // 已取消的渲染确认先完成回滚，再写入新条目的预设；后台工作不等待 actor 处理结果。
+        await videoQualityWork.ConfigureAwait(false);
+        entry.VideoQualityMode = ResolveVideoQualityMode(entry.Prepared.Entry);
+        entry.VideoQualityPrepared = true;
+        entry.VideoQualityPreparationError = null;
+        try { await quality.PrepareVideoQualityAsync(entry.VideoQualityMode, lifetime.Token).ConfigureAwait(false); }
+        catch (Exception exception)
+        {
+            entry.VideoQualityPreparationError = VideoQualityFailure(exception);
+            log?.Invoke(entry.VideoQualityPreparationError);
+            entry.VideoQualityMode = VideoQualityMode.Standard;
+            try { await quality.PrepareVideoQualityAsync(VideoQualityMode.Standard, lifetime.Token).ConfigureAwait(false); }
+            catch (Exception recovery) { log?.Invoke(VideoQualityFailure(recovery)); }
+        }
+    }
+
+    private void StartVideoQualityChange(LoadedEntry entry, VideoQualityMode mode, TaskCompletionSource? completion,
+        CancellationToken cancellationToken, AppError? retainedError = null)
+    {
+        CancelVideoQualityChange();
+        if (engine is not IVideoQualityEngine quality) return;
+        var cancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token, account.Token, cancellationToken);
+        var change = new VideoQualityChange(++videoQualityRevision, engine, entry, mode, completion, cancellation, retainedError);
+        videoQualityChange = change;
+        Update(snapshot with { IsVideoQualityChanging = true, VideoQualityError = retainedError });
+        var previous = videoQualityWork;
+        videoQualityWork = ApplyVideoQualityAsync(previous, quality, change);
+        background.Add(videoQualityWork);
+    }
+
+    private async Task ApplyVideoQualityAsync(Task previous, IVideoQualityEngine quality, VideoQualityChange change)
+    {
+        Exception? failure = null;
+        var restoredStandard = false;
+        try
+        {
+            await previous.ConfigureAwait(false);
+            change.Cancellation.Token.ThrowIfCancellationRequested();
+            await quality.ApplyVideoQualityAsync(change.Mode, change.Cancellation.Token).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            failure = exception;
+            // 连播复用引擎，原生的最近成功模式可能属于上一部影片。自动恢复失败必须重新
+            // 确认标准画质，不能把上一部影片的增强当作当前条目的回退；用户手动切换仍保留旧模式。
+            if (change.Completion is null && exception is not OperationCanceledException && !change.Cancellation.IsCancellationRequested)
+            {
+                try
+                {
+                    await quality.ApplyVideoQualityAsync(VideoQualityMode.Standard, change.Cancellation.Token).ConfigureAwait(false);
+                    restoredStandard = true;
+                }
+                catch (OperationCanceledException cancelled) { failure = cancelled; }
+                catch (Exception recovery)
+                {
+                    restoredStandard = recovery is AppException { Error.Code: "player.video_quality_reset_to_standard" };
+                    log?.Invoke(VideoQualityFailure(recovery));
+                }
+            }
+        }
+        if (!Post(() => CompleteVideoQualityAsync(change, failure, restoredStandard)))
+        {
+            change.Completion?.TrySetCanceled();
+            change.Cancellation.Dispose();
+        }
+    }
+
+    private async Task CompleteVideoQualityAsync(VideoQualityChange change, Exception? failure, bool restoredStandard)
+    {
+        try
+        {
+            if (closing || finalized || change.Revision != videoQualityRevision || engine != change.Engine || active != change.Entry || change.Entry.Ended)
+            { change.Completion?.TrySetCanceled(); return; }
+            videoQualityChange = null;
+            if (failure is not null)
+            {
+                var error = failure is OperationCanceledException ? null : VideoQualityFailure(failure);
+                var recoveredStandard = restoredStandard || error?.Code == "player.video_quality_reset_to_standard";
+                if (recoveredStandard) change.Entry.VideoQualityMode = VideoQualityMode.Standard;
+                Update(snapshot with { IsVideoQualityChanging = false,
+                    VideoQualityMode = recoveredStandard ? VideoQualityMode.Standard : snapshot.VideoQualityMode,
+                    VideoQualityError = change.Completion is null ? error : null });
+                if (error is not null)
+                {
+                    log?.Invoke(error);
+                    change.Completion?.TrySetException(new AppException(error));
+                }
+                else change.Completion?.TrySetCanceled();
+                return;
+            }
+            change.Entry.VideoQualityMode = change.Mode;
+            Update(snapshot with { VideoQualityMode = change.Mode, IsVideoQualityChanging = false, VideoQualityError = change.RetainedError });
+            if (change.Completion is not null)
+            {
+                try
+                {
+                    if (VideoQualityPreferences is { } preferences)
+                        await preferences.SaveAsync(account, change.Entry.Prepared.Entry, change.Mode, account.Token).ConfigureAwait(false);
+                    change.Completion.TrySetResult();
+                }
+                catch (OperationCanceledException) { change.Completion.TrySetCanceled(); }
+                catch (Exception exception) { change.Completion.TrySetException(new AppException(VideoQualityFailure(exception))); }
+            }
+        }
+        finally { change.Cancellation.Dispose(); }
+    }
+
+    private void CancelVideoQualityChange()
+    {
+        videoQualityRevision++;
+        if (videoQualityChange is { } change)
+        {
+            videoQualityChange = null;
+            change.Cancellation.Cancel();
+            change.Completion?.TrySetCanceled();
+        }
+        if (snapshot.IsVideoQualityChanging) Update(snapshot with { IsVideoQualityChanging = false });
+    }
+
+    private static AppError VideoQualityFailure(Exception exception) => exception is AppException safe ? safe.Error :
+        new(AppErrorKind.Player, "playback.video_quality_failed", "画质模式未能应用，已保留可用画面。", true);
     public Task SetVolumeAsync(double volume, CancellationToken cancellationToken = default) => Command(async () =>
     { if (!double.IsFinite(volume) || volume is < 0 or > 100) throw InvalidCommand();
       if (engine is not null) await SetAsync("volume", new MpvValue.Number(volume)).ConfigureAwait(false);
@@ -689,6 +862,7 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
     {
         if (index < 0 || index >= snapshot.Entries.Length) throw InvalidCommand();
         if (index == snapshot.CurrentEntryIndex) return;
+        CancelVideoQualityChange();
         if (appended is { } next && next.Index == index)
         { switching = true; await EngineRequired.CommandAsync(NextCommand, lifetime.Token).ConfigureAwait(false); }
         else { generation++; appended = null; Prepare(index, 0, false); }
@@ -699,6 +873,7 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
     public Task RetryAsync(CancellationToken cancellationToken = default) => Command(async () =>
     {
         if (snapshot.Phase != PlayerPhase.Failed) return;
+        CancelVideoQualityChange();
         generation++;
         foreach (var prepared in preparedEntries) Stop(prepared);
         try { await lastStop.ConfigureAwait(false); }
@@ -720,6 +895,8 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
         : new(AppErrorKind.Player, ErrorCodes.PlaybackFailed, exception is OperationCanceledException ? "播放准备已取消。" : "播放失败，请重试。", true);
 
     private sealed record Input(Func<Task> Action, TaskCompletionSource? Completion = null);
+    private sealed record VideoQualityChange(long Revision, IPlayerEngine Engine, LoadedEntry Entry, VideoQualityMode Mode,
+        TaskCompletionSource? Completion, CancellationTokenSource Cancellation, AppError? RetainedError);
     private sealed class LoadedEntry(PreparedEntry prepared, int index)
     {
         public PreparedEntry Prepared { get; } = prepared;
@@ -732,6 +909,9 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
         public long NativeId { get; set; }
         public bool Loaded { get; set; }
         public bool WasAppended { get; set; }
+        public VideoQualityMode VideoQualityMode { get; set; }
+        public bool VideoQualityPrepared { get; set; }
+        public AppError? VideoQualityPreparationError { get; set; }
         public bool Confirmed { get; set; }
         public bool Ended { get; set; }
         public long PositionTicks { get; set; }

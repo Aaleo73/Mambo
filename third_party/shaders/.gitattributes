@@ -1,0 +1,4 @@
+upstream/** -text
+runtime/** text eol=lf
+adapters/** text eol=lf
+*.json text eol=lf

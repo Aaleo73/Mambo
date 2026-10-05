@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Messaging;
 using Mambo.Core.Contracts;
 using Mambo.Core.Fakes;
 using Mambo.Core.Networking;
+using Mambo.Core.Persistence;
 using Mambo.Core.Reliability;
 using Mambo.Core.Session;
 
@@ -16,6 +17,7 @@ public sealed class PlaybackCoordinator : IPlaybackService, IDisposable, IAsyncD
     private readonly EmbyApi api;
     private readonly StopOutbox outbox;
     private readonly ISettingsService settings;
+    private readonly VideoQualityPreferences? videoQualityPreferences;
     private readonly IUiScheduler scheduler;
     private readonly IMessenger messenger;
     private readonly TimeProvider clock;
@@ -28,10 +30,11 @@ public sealed class PlaybackCoordinator : IPlaybackService, IDisposable, IAsyncD
     public PlaybackCoordinator(AccountContext accounts, IEntryPreparer preparer,
         Func<CancellationToken, Task<IPlayerEngine>> factory, EmbyApi api, StopOutbox outbox,
         ISettingsService settings, IUiScheduler scheduler, IMessenger messenger, TimeProvider clock,
-        Action<AppError>? log = null)
+        Action<AppError>? log = null, VideoQualityPreferences? videoQualityPreferences = null)
     {
         this.accounts = accounts; this.preparer = preparer; this.factory = factory; this.api = api;
         this.outbox = outbox; this.settings = settings; this.scheduler = scheduler;
+        this.videoQualityPreferences = videoQualityPreferences;
         this.messenger = messenger; this.clock = clock; this.log = log;
         var options = new FakeOptions();
         preview = new(new DemoCatalog(), new FakeOperation(options, clock), options, clock, scheduler, messenger);
@@ -83,6 +86,7 @@ public sealed class PlaybackCoordinator : IPlaybackService, IDisposable, IAsyncD
                     Ended, (entry, error) => EntrySkipped?.Invoke(this, new(entry, error)), log,
                     settings.Current.PlaybackMode == PlaybackMode.External ? EngineKind.External : EngineKind.Embedded);
                 session.Settings = settings;
+                session.VideoQualityPreferences = videoQualityPreferences;
                 current = session;
             }
             scheduler.TryEnqueue(() => { if (!disposed) { SessionStarted?.Invoke(this, new(session)); Changed?.Invoke(this, EventArgs.Empty); } });

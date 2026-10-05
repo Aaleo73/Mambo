@@ -23,6 +23,15 @@ Microsoft.Windows.CsWin32、xUnit、测试 SDK 等开发/测试工具不作为�
 
 安装器由 Inno Setup 6.7.3 生成，© Jordan Russell / Martijn Laan，许可原文附 `Inno-Setup-license.txt`。简体中文语言资源原样取自 [官方仓库该版本的贡献翻译](https://github.com/jrsoftware/issrc/blob/is-6_7_3/Files/Languages/Unofficial/ChineseSimplified.isl)，保留 Zhenghan Yang 的来源声明；文件 SHA-256 为 `7d544b9bb1d142cfa11f2e5d3cc8abe2e55f8e066c5124e3772675aa236e1278`。编译器安装不自带此贡献翻译，仓库单独固定该文件，避免依赖本机额外语言配置。
 
+## 内置画质着色器
+
+| 组件 | 固定来源 | 许可与接入修改 |
+|---|---|---|
+| Anime4K | v4.0.1，修订 `4029bf701ecaa15f163cdc49cffe5501c1acf410`；[官方源码](https://github.com/bloc97/Anime4K/tree/4029bf701ecaa15f163cdc49cffe5501c1acf410) | Clamp、Restore Soft M、Upscale M/S 为 MIT，© 2019–2021 bloc97；`Anime4K-4.0.1-MIT.txt`。两个 AutoDownscale 文件为 Unlicense，完整逐文件许可保留于 GLSL，另附 `Anime4K-AutoDownscale-Unlicense.txt` |
+| AMD FidelityFX CAS | 修订 `9fabcc9a2c45f958aff55ddfda337e74ef894b7f` 的 `ffx-cas/ffx_cas.h`；[官方源码](https://github.com/GPUOpen-Effects/FidelityFX-CAS/tree/9fabcc9a2c45f958aff55ddfda337e74ef894b7f) | MIT，© 2017–2019 Advanced Micro Devices, Inc.；`FidelityFX-CAS-MIT.txt`。移植 FP32 sharpen-only 核心，增加源线性空间处理、固定混合强度与边界保护 |
+
+`third_party/shaders/upstream/` 保留完整使用文件的上游原文，`shaders.lock.json` 记录逐文件来源和 SHA-256。Mambo 的接入修改位于 `adapters/`，生成脚本为 `scripts/build-video-shaders.ps1`，运行时文件与哈希位于 `runtime/`。Anime4K 的网络权重未改动；接入增加 HDR 灰度代理、受限细节增益、匹配尺寸变化的基线、alpha 恢复及 HDR Clamp 位置调整。生成的 GLSL 保留相应完整版权和许可。此处列出的 shader 不需要外部模型下载。
+
 ## libmpv、FFmpeg 与原生构建
 
 `mpv/libmpv-2.dll` 来自 [shinchiro 官方构建发布 20260610](https://github.com/shinchiro/mpv-winbuild-cmake/releases/tag/20260610)，没有从旧 Mambo 项目复制。

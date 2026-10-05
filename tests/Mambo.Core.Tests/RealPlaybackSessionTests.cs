@@ -21,6 +21,248 @@ public sealed class RealPlaybackSessionTests
     private static readonly string[] ProgressNames = ["Pause", "TimeUpdate", "Unpause"];
     private static readonly string[] CloseLifecycle = ["stop", "detach-start", "detach-complete", "dispose"];
     [Fact]
+    public async Task VideoQualityPreparesBeforeLoadAndRenderingConfirmationDoesNotBlockPlaybackCommands()
+    {
+        await using var harness = new Harness(videoQuality: true);
+        await harness.PreferAsync(VideoQualityMode.Clear);
+        var session = await harness.StartAsync();
+        var engine = harness.QualityEngine;
+        Assert.Equal(VideoQualityMode.Clear, Assert.Single(engine.Prepared));
+        Assert.StartsWith("quality.prepare:", harness.NetworkAndLoads.First(), StringComparison.Ordinal);
+        var hold = engine.Hold(VideoQualityMode.Clear);
+        await harness.ConfirmAsync(session);
+        await UntilAsync(() => engine.Applied.Contains(VideoQualityMode.Clear));
+        Assert.True(session.Snapshot.IsVideoQualityChanging);
+        Assert.Equal(VideoQualityMode.Standard, session.Snapshot.VideoQualityMode);
+        await session.TogglePauseAsync(TestContext.Current.CancellationToken);
+        await session.SeekAsync(TimeSpan.FromSeconds(12), TestContext.Current.CancellationToken);
+        Assert.True(session.Snapshot.IsPaused);
+        Assert.Equal(TimeSpan.FromSeconds(12).Ticks, session.Snapshot.PositionTicks);
+        hold.TrySetResult();
+        await UntilAsync(() => !session.Snapshot.IsVideoQualityChanging);
+        Assert.Equal(VideoQualityMode.Clear, session.Snapshot.VideoQualityMode);
+        Assert.Equal(PlayerPhase.Playing, session.Snapshot.Phase);
+        Assert.Single(engine.Loads);
+    }
+
+    [Fact]
+    public async Task VideoQualityChoicePersistsOnlyAfterSuccessfulApplyAndDoesNotReloadOrResetControls()
+    {
+        await using var harness = new Harness(videoQuality: true);
+        var session = await harness.StartAsync();
+        await harness.ConfirmAsync(session);
+        await UntilAsync(() => !session.Snapshot.IsVideoQualityChanging);
+        await session.TogglePauseAsync(TestContext.Current.CancellationToken);
+        await session.SetRateAsync(1.5, TestContext.Current.CancellationToken);
+        await session.SetVolumeAsync(37, TestContext.Current.CancellationToken);
+        var engine = harness.QualityEngine;
+        var hold = engine.Hold(VideoQualityMode.Anime);
+        var selection = session.SetVideoQualityModeAsync(VideoQualityMode.Anime, TestContext.Current.CancellationToken);
+        await UntilAsync(() => engine.Applied.Contains(VideoQualityMode.Anime));
+        Assert.Equal(VideoQualityMode.Standard, harness.QualityPreferences.Get(harness.Account, session.Snapshot.Entry!));
+        Assert.True(session.Snapshot.IsVideoQualityChanging);
+        hold.TrySetResult();
+        await selection;
+        Assert.Equal(VideoQualityMode.Anime, harness.QualityPreferences.Get(harness.Account, session.Snapshot.Entry!));
+        Assert.Equal(VideoQualityMode.Anime, session.Snapshot.VideoQualityMode);
+        Assert.True(session.Snapshot.IsPaused);
+        Assert.Equal(1.5, session.Snapshot.PlaybackRate);
+        Assert.Equal(37, session.Snapshot.Volume);
+        Assert.Single(engine.Loads);
+        engine.ApplyFailureMode = VideoQualityMode.Clear;
+        await Assert.ThrowsAsync<AppException>(() => session.SetVideoQualityModeAsync(VideoQualityMode.Clear, TestContext.Current.CancellationToken));
+        Assert.Equal(VideoQualityMode.Anime, session.Snapshot.VideoQualityMode);
+        Assert.Null(session.Snapshot.VideoQualityError);
+        Assert.Equal(VideoQualityMode.Anime, harness.QualityPreferences.Get(harness.Account, session.Snapshot.Entry!));
+        Assert.Equal(PlayerPhase.Playing, session.Snapshot.Phase);
+    }
+
+    [Fact]
+    public async Task AutomaticQualityFailureIsNonFatalAndRetainsTheSavedPreference()
+    {
+        await using var harness = new Harness(videoQuality: true);
+        await harness.PreferAsync(VideoQualityMode.Anime);
+        var session = await harness.StartAsync();
+        harness.QualityEngine.ApplyFailureMode = VideoQualityMode.Anime;
+        await harness.ConfirmAsync(session);
+        await UntilAsync(() => session.Snapshot.VideoQualityError is not null);
+        Assert.Equal(PlayerPhase.Playing, session.Snapshot.Phase);
+        Assert.Null(session.Snapshot.Error);
+        Assert.False(session.Snapshot.IsVideoQualityChanging);
+        Assert.Equal(VideoQualityMode.Standard, session.Snapshot.VideoQualityMode);
+        Assert.Equal(VideoQualityMode.Anime, harness.QualityPreferences.Get(harness.Account, session.Snapshot.Entry!));
+        await session.SetVideoQualityModeAsync(VideoQualityMode.Standard, TestContext.Current.CancellationToken);
+        Assert.Null(session.Snapshot.VideoQualityError);
+        Assert.Equal(VideoQualityMode.Standard, harness.QualityPreferences.Get(harness.Account, session.Snapshot.Entry!));
+    }
+
+    [Fact]
+    public async Task RestoringNewMovieQualityFailureUsesStandardRatherThanThePreviousMoviesEnhancement()
+    {
+        await using var harness = new Harness(entryCount: 2, videoQuality: true);
+        var session = await harness.StartAsync();
+        await harness.ConfirmAsync(session);
+        await UntilAsync(() => !session.Snapshot.IsVideoQualityChanging && harness.Engine.Loads.Count == 2);
+        var first = session.Snapshot.Entry!;
+        var next = session.Snapshot.Entries[1];
+        await session.SetVideoQualityModeAsync(VideoQualityMode.Anime, TestContext.Current.CancellationToken);
+        await harness.QualityPreferences.SaveAsync(harness.Account, next, VideoQualityMode.Clear, TestContext.Current.CancellationToken);
+        harness.QualityEngine.ApplyFailureMode = VideoQualityMode.Clear;
+        var fallback = harness.QualityEngine.Hold(VideoQualityMode.Standard);
+        await session.NextAsync(TestContext.Current.CancellationToken);
+        await UntilAsync(() => session.Snapshot.Entry?.ItemId == next.ItemId);
+        await harness.ConfirmAsync(session);
+        await UntilAsync(() => harness.QualityEngine.Applied.Count(mode => mode == VideoQualityMode.Standard) == 2);
+        Assert.True(session.Snapshot.IsVideoQualityChanging);
+        fallback.TrySetResult();
+        await UntilAsync(() => session.Snapshot.VideoQualityError is not null && !session.Snapshot.IsVideoQualityChanging);
+        Assert.Equal(VideoQualityMode.Standard, session.Snapshot.VideoQualityMode);
+        Assert.Equal(VideoQualityMode.Standard, harness.QualityEngine.Applied.Last());
+        Assert.Equal(VideoQualityMode.Anime, harness.QualityPreferences.Get(harness.Account, first));
+        Assert.Equal(VideoQualityMode.Clear, harness.QualityPreferences.Get(harness.Account, next));
+        Assert.Equal(PlayerPhase.Playing, session.Snapshot.Phase);
+        Assert.Null(session.Snapshot.Error);
+    }
+
+    [Fact]
+    public async Task MissingQualityResourcesFallBackToStandardBeforeLoadingWithoutErasingThePreference()
+    {
+        await using var harness = new Harness(videoQuality: true, prepareFailureMode: VideoQualityMode.Anime);
+        await harness.PreferAsync(VideoQualityMode.Anime);
+        var session = await harness.StartAsync();
+        Assert.Equal([VideoQualityMode.Anime, VideoQualityMode.Standard], harness.QualityEngine.Prepared.ToArray());
+        await harness.ConfirmAsync(session);
+        await UntilAsync(() => !session.Snapshot.IsVideoQualityChanging);
+        Assert.Equal(VideoQualityMode.Standard, session.Snapshot.VideoQualityMode);
+        Assert.NotNull(session.Snapshot.VideoQualityError);
+        Assert.Null(session.Snapshot.Error);
+        Assert.Equal(PlayerPhase.Playing, session.Snapshot.Phase);
+        Assert.Equal(VideoQualityMode.Anime, harness.QualityPreferences.Get(harness.Account, session.Snapshot.Entry!));
+        Assert.Single(harness.Engine.Loads);
+    }
+
+    [Fact]
+    public async Task PreparingNextEpisodeDoesNotChangeQualityAndTheConfirmedSeriesChoiceFollowsStartFile()
+    {
+        await using var harness = new Harness(entryCount: 2, videoQuality: true, seriesId: "series");
+        var session = await harness.StartAsync();
+        await harness.ConfirmAsync(session);
+        await UntilAsync(() => !session.Snapshot.IsVideoQualityChanging && harness.Engine.Loads.Count == 2);
+        await session.SetVideoQualityModeAsync(VideoQualityMode.Anime, TestContext.Current.CancellationToken);
+        Assert.Single(harness.QualityEngine.Prepared);
+        var applyCount = harness.QualityEngine.Applied.Count;
+        Assert.Equal("entry-0", session.Snapshot.Entry!.ItemId);
+        await session.NextAsync(TestContext.Current.CancellationToken);
+        await UntilAsync(() => session.Snapshot.Entry?.ItemId == "entry-1");
+        Assert.Equal(applyCount, harness.QualityEngine.Applied.Count);
+        await harness.ConfirmAsync(session);
+        await UntilAsync(() => !session.Snapshot.IsVideoQualityChanging);
+        Assert.Equal(VideoQualityMode.Anime, harness.QualityEngine.Applied.Last());
+        Assert.Equal(VideoQualityMode.Anime, session.Snapshot.VideoQualityMode);
+        Assert.Single(harness.QualityEngine.Prepared);
+    }
+
+    [Fact]
+    public async Task SupersededQualityResultCannotOverwriteTheLatestChoiceOrPersistItsPreference()
+    {
+        await using var harness = new Harness(videoQuality: true);
+        var session = await harness.StartAsync();
+        await harness.ConfirmAsync(session);
+        await UntilAsync(() => !session.Snapshot.IsVideoQualityChanging);
+        var engine = harness.QualityEngine;
+        var oldGate = engine.Hold(VideoQualityMode.Anime, ignoreCancellation: true);
+        var old = session.SetVideoQualityModeAsync(VideoQualityMode.Anime, TestContext.Current.CancellationToken);
+        await UntilAsync(() => engine.Applied.Contains(VideoQualityMode.Anime));
+        var latest = session.SetVideoQualityModeAsync(VideoQualityMode.Clear, TestContext.Current.CancellationToken);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => old);
+        oldGate.TrySetResult();
+        await latest;
+        Assert.Equal(VideoQualityMode.Clear, session.Snapshot.VideoQualityMode);
+        Assert.Equal(VideoQualityMode.Clear, harness.QualityPreferences.Get(harness.Account, session.Snapshot.Entry!));
+        Assert.Equal(VideoQualityMode.Clear, engine.Applied.Last());
+        Assert.Equal(1, engine.MaximumConcurrentApplies);
+    }
+
+    [Fact]
+    public async Task ChangingEntryCancelsPendingQualityChoiceAndDoesNotSaveItForEitherMovie()
+    {
+        await using var harness = new Harness(entryCount: 2, videoQuality: true);
+        var session = await harness.StartAsync();
+        await harness.ConfirmAsync(session);
+        await UntilAsync(() => !session.Snapshot.IsVideoQualityChanging && harness.Engine.Loads.Count == 2);
+        var first = session.Snapshot.Entry!;
+        var gate = harness.QualityEngine.Hold(VideoQualityMode.Anime, ignoreCancellation: true);
+        var old = session.SetVideoQualityModeAsync(VideoQualityMode.Anime, TestContext.Current.CancellationToken);
+        await UntilAsync(() => harness.QualityEngine.Applied.Contains(VideoQualityMode.Anime));
+        await session.NextAsync(TestContext.Current.CancellationToken);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => old);
+        await UntilAsync(() => session.Snapshot.Entry?.ItemId == "entry-1");
+        gate.TrySetResult();
+        await harness.ConfirmAsync(session);
+        await UntilAsync(() => !session.Snapshot.IsVideoQualityChanging);
+        Assert.Equal(VideoQualityMode.Standard, session.Snapshot.VideoQualityMode);
+        Assert.Equal(VideoQualityMode.Standard, harness.QualityPreferences.Get(harness.Account, first));
+        Assert.Equal(VideoQualityMode.Standard, harness.QualityPreferences.Get(harness.Account, session.Snapshot.Entry!));
+    }
+
+    [Fact]
+    public async Task CancelledQualityCommandClearsChangingStateWithoutSavingOrFailingPlayback()
+    {
+        await using var harness = new Harness(videoQuality: true);
+        var session = await harness.StartAsync();
+        await harness.ConfirmAsync(session);
+        await UntilAsync(() => !session.Snapshot.IsVideoQualityChanging);
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        harness.QualityEngine.Hold(VideoQualityMode.Anime);
+        var selection = session.SetVideoQualityModeAsync(VideoQualityMode.Anime, cancellation.Token);
+        await UntilAsync(() => harness.QualityEngine.Applied.Contains(VideoQualityMode.Anime));
+        await cancellation.CancelAsync();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => selection);
+        Assert.False(session.Snapshot.IsVideoQualityChanging);
+        Assert.Null(session.Snapshot.VideoQualityError);
+        Assert.Equal(VideoQualityMode.Standard, session.Snapshot.VideoQualityMode);
+        Assert.Equal(PlayerPhase.Playing, session.Snapshot.Phase);
+        Assert.Equal(VideoQualityMode.Standard, harness.QualityPreferences.Get(harness.Account, session.Snapshot.Entry!));
+    }
+
+    [Fact]
+    public async Task FailedRollbackUpdatesActualStandardModeWithoutErasingTheSavedChoice()
+    {
+        await using var harness = new Harness(videoQuality: true);
+        var session = await harness.StartAsync();
+        await harness.ConfirmAsync(session);
+        await UntilAsync(() => !session.Snapshot.IsVideoQualityChanging);
+        await session.SetVideoQualityModeAsync(VideoQualityMode.Anime, TestContext.Current.CancellationToken);
+        harness.QualityEngine.ApplyFailureMode = VideoQualityMode.Clear;
+        harness.QualityEngine.ResetToStandardOnFailure = true;
+        var failure = await Assert.ThrowsAsync<AppException>(() => session.SetVideoQualityModeAsync(VideoQualityMode.Clear, TestContext.Current.CancellationToken));
+        Assert.Equal("player.video_quality_reset_to_standard", failure.Error.Code);
+        Assert.Equal(VideoQualityMode.Standard, session.Snapshot.VideoQualityMode);
+        Assert.Equal(VideoQualityMode.Anime, harness.QualityPreferences.Get(harness.Account, session.Snapshot.Entry!));
+        Assert.Equal(PlayerPhase.Playing, session.Snapshot.Phase);
+    }
+    [Fact]
+    public async Task EnhancementLostAfterConfirmationFallsBackToStandardWithoutErasingTheSavedChoice()
+    {
+        await using var harness = new Harness(videoQuality: true);
+        var session = await harness.StartAsync();
+        await harness.ConfirmAsync(session);
+        await UntilAsync(() => !session.Snapshot.IsVideoQualityChanging);
+        await session.SetVideoQualityModeAsync(VideoQualityMode.Anime, TestContext.Current.CancellationToken);
+        harness.Engine.Emit(new EngineEvent.VideoQualityLost());
+        await UntilAsync(() => session.Snapshot.VideoQualityMode == VideoQualityMode.Standard && !session.Snapshot.IsVideoQualityChanging);
+        Assert.Equal("player.video_quality_lost", session.Snapshot.VideoQualityError?.Code);
+        Assert.Equal(VideoQualityMode.Standard, harness.QualityEngine.Applied.Last());
+        Assert.Equal(VideoQualityMode.Anime, harness.QualityPreferences.Get(harness.Account, session.Snapshot.Entry!));
+        Assert.Equal(PlayerPhase.Playing, session.Snapshot.Phase);
+        Assert.Null(session.Snapshot.Error);
+        Assert.Single(harness.Engine.Loads);
+        await session.SetVideoQualityModeAsync(VideoQualityMode.Clear, TestContext.Current.CancellationToken);
+        Assert.Null(session.Snapshot.VideoQualityError);
+        Assert.Equal(VideoQualityMode.Clear, session.Snapshot.VideoQualityMode);
+    }
+
+    [Fact]
     public async Task RestartBeforeFileLoadedDoesNotConfirmAndUnconfirmedCloseNeverReportsStopped()
     {
         await using var harness = new Harness();
@@ -489,6 +731,9 @@ public sealed class RealPlaybackSessionTests
         private readonly AppPaths paths = new(Path.Combine(Path.GetTempPath(), "mambo-session-" + Guid.NewGuid().ToString("N")));
         private readonly AccountContext accounts = new();
         private readonly SettingsStore settings;
+        public SettingsStore Settings => settings;
+        public AccountSession Account => accounts.Current!;
+        public VideoQualityPreferences QualityPreferences { get; }
         private readonly EmbyApi api;
         public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 10, 2, 0, 0, 0, TimeSpan.Zero));
         public QueueScheduler Scheduler { get; } = new();
@@ -498,11 +743,13 @@ public sealed class RealPlaybackSessionTests
         public ConcurrentQueue<string> NetworkAndLoads { get; } = new();
         public ConcurrentQueue<FakeEngine> Engines { get; } = new();
         public FakeEngine Engine => Engines.Last();
+        public FakeVideoQualityEngine QualityEngine => Assert.IsType<FakeVideoQualityEngine>(Engine);
         public FakePreparer Preparer { get; }
         public StopOutbox Outbox { get; }
         public PlaybackCoordinator Coordinator { get; }
 
-        public Harness(int entryCount = 1, int candidateCount = 1)
+        public Harness(int entryCount = 1, int candidateCount = 1, bool videoQuality = false, string? seriesId = null,
+            VideoQualityMode? prepareFailureMode = null)
         {
             accounts.Set(new(new("https://" + Guid.NewGuid().ToString("N") + ".invalid", Guid.NewGuid().ToString("N"),
                 Guid.NewGuid().ToString("N"), "测试用户", Guid.NewGuid().ToString("N"))));
@@ -527,15 +774,19 @@ public sealed class RealPlaybackSessionTests
                 return new(HttpStatusCode.OK);
             }));
             settings = new(paths, Scheduler);
+            QualityPreferences = new(settings, accounts);
             Outbox = new(paths, api, Clock);
-            Preparer = new(entryCount, candidateCount);
+            Preparer = new(entryCount, candidateCount, seriesId);
             Coordinator = new(accounts, Preparer, _ =>
             {
-                var engine = new FakeEngine(NetworkAndLoads);
+                var engine = videoQuality ? new FakeVideoQualityEngine(NetworkAndLoads) : new FakeEngine(NetworkAndLoads);
+                if (engine is FakeVideoQualityEngine quality) quality.PrepareFailureMode = prepareFailureMode;
                 engine.EmitInitialControls();
                 Engines.Enqueue(engine); return Task.FromResult<IPlayerEngine>(engine);
-            }, api, Outbox, settings, Scheduler, new WeakReferenceMessenger(), Clock, Diagnostics.Enqueue);
+            }, api, Outbox, settings, Scheduler, new WeakReferenceMessenger(), Clock, Diagnostics.Enqueue, QualityPreferences);
         }
+        public Task PreferAsync(VideoQualityMode mode) =>
+            QualityPreferences.SaveAsync(Account, new("entry-0", "测试条目 0"), mode, TestContext.Current.CancellationToken);
         public async Task<PlaybackSession> StartAsync()
         {
             var session = Assert.IsType<PlaybackSession>(await Coordinator.PlayAsync(new("entry-0"), TestContext.Current.CancellationToken));
@@ -553,6 +804,7 @@ public sealed class RealPlaybackSessionTests
         public async ValueTask DisposeAsync()
         {
             Preparer.ReleaseAll();
+            foreach (var engine in Engines.OfType<FakeVideoQualityEngine>()) engine.ReleaseAll();
             foreach (var engine in Engines) engine.AutoEndOnStop = true;
             if (Coordinator.Current is PlaybackSession session)
             {
@@ -568,10 +820,10 @@ public sealed class RealPlaybackSessionTests
         }
     }
 
-    private sealed class FakePreparer(int entryCount, int candidateCount) : IEntryPreparer
+    private sealed class FakePreparer(int entryCount, int candidateCount, string? seriesId) : IEntryPreparer
     {
         private readonly ImmutableArray<PlaybackEntry> entries = Enumerable.Range(0, entryCount).Select(index =>
-            new PlaybackEntry("entry-" + index, "测试条目 " + index) { SeasonId = entryCount > 1 ? "season" : null }).ToImmutableArray();
+            new PlaybackEntry("entry-" + index, "测试条目 " + index) { SeriesId = seriesId, SeasonId = entryCount > 1 ? "season" : null }).ToImmutableArray();
         private readonly ConcurrentDictionary<string, (TaskCompletionSource Source, bool IgnoreCancellation)> held = new();
         private readonly ConcurrentDictionary<string, int> counts = new();
         private readonly ConcurrentDictionary<string, bool> transcode = new();
@@ -618,7 +870,7 @@ public sealed class RealPlaybackSessionTests
         public Task ReleaseSubtitlesAsync(ImmutableArray<ResolvedSubtitle> subtitles) => Task.CompletedTask;
     }
 
-    private sealed class FakeEngine(ConcurrentQueue<string> operationOrder) : IPlayerEngine
+    private class FakeEngine(ConcurrentQueue<string> operationOrder) : IPlayerEngine
     {
         private readonly Channel<EngineEvent> events = Channel.CreateUnbounded<EngineEvent>();
         private long nextId;
@@ -679,6 +931,47 @@ public sealed class RealPlaybackSessionTests
         {
             if (!Disposed) { Disposed = true; Lifecycle.Enqueue("dispose"); events.Writer.TryComplete(); }
             return ValueTask.CompletedTask;
+        }
+    }
+    private sealed class FakeVideoQualityEngine(ConcurrentQueue<string> operationOrder) : FakeEngine(operationOrder), IVideoQualityEngine
+    {
+        private readonly ConcurrentQueue<string> qualityOperationOrder = operationOrder;
+        private readonly ConcurrentDictionary<VideoQualityMode, (TaskCompletionSource Gate, bool IgnoreCancellation)> holds = new();
+        private readonly ConcurrentBag<TaskCompletionSource> allHolds = [];
+        private int concurrentApplies;
+        public ConcurrentQueue<VideoQualityMode> Prepared { get; } = new();
+        public ConcurrentQueue<VideoQualityMode> Applied { get; } = new();
+        public VideoQualityMode? ApplyFailureMode { get; set; }
+        public VideoQualityMode? PrepareFailureMode { get; set; }
+        public bool ResetToStandardOnFailure { get; set; }
+        public int MaximumConcurrentApplies { get; private set; }
+        public TaskCompletionSource Hold(VideoQualityMode mode, bool ignoreCancellation = false)
+        {
+            var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            allHolds.Add(gate);
+            holds[mode] = (gate, ignoreCancellation);
+            return gate;
+        }
+        public void ReleaseAll() { foreach (var gate in allHolds) gate.TrySetResult(); }
+        public ValueTask PrepareVideoQualityAsync(VideoQualityMode mode, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Prepared.Enqueue(mode); qualityOperationOrder.Enqueue("quality.prepare:" + mode);
+            if (PrepareFailureMode == mode) throw new AppException(new(AppErrorKind.Player, "player.video_quality_failed", "测试画质资源缺失。", true));
+            return ValueTask.CompletedTask;
+        }
+        public async ValueTask ApplyVideoQualityAsync(VideoQualityMode mode, CancellationToken cancellationToken)
+        {
+            MaximumConcurrentApplies = Math.Max(MaximumConcurrentApplies, Interlocked.Increment(ref concurrentApplies));
+            try
+            {
+                Applied.Enqueue(mode);
+                if (holds.TryRemove(mode, out var held)) await held.Gate.Task.WaitAsync(held.IgnoreCancellation ? CancellationToken.None : cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
+                if (ApplyFailureMode == mode) throw new AppException(new(AppErrorKind.Player,
+                    ResetToStandardOnFailure ? "player.video_quality_reset_to_standard" : "player.video_quality_failed", "测试画质应用失败。", true));
+            }
+            finally { Interlocked.Decrement(ref concurrentApplies); }
         }
     }
     private sealed record Load(long Id, string ItemId, int CandidateIndex, LoadMode Mode);

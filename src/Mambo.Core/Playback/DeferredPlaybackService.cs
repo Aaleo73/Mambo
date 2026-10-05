@@ -116,6 +116,7 @@ public sealed class DeferredPlaybackService : IPlaybackService, IDisposable, IAs
         public Task TogglePauseAsync(CancellationToken cancellationToken = default) => Unavailable(cancellationToken);
         public Task SeekAsync(TimeSpan position, CancellationToken cancellationToken = default) => Unavailable(cancellationToken);
         public Task SetRateAsync(double rate, CancellationToken cancellationToken = default) => Unavailable(cancellationToken);
+        public Task SetVideoQualityModeAsync(VideoQualityMode mode, CancellationToken cancellationToken = default) => Unavailable(cancellationToken);
         public Task SetVolumeAsync(double volume, CancellationToken cancellationToken = default) => Unavailable(cancellationToken);
         public Task SetMutedAsync(bool muted, CancellationToken cancellationToken = default) => Unavailable(cancellationToken);
         public Task SelectAudioTrackAsync(string? trackId, CancellationToken cancellationToken = default) => Unavailable(cancellationToken);

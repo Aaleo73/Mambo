@@ -46,7 +46,7 @@ public sealed class BackendRuntime : IDisposable, IAsyncDisposable
                 : new HttpClient(playbackHandler) { Timeout = Timeout.InfiniteTimeSpan };
             var preparer = new EntryPreparer(Api, new StreamUrlResolver(playbackClient), Settings.Current.DeviceId, paths, Requests);
             Playback = new PlaybackCoordinator(Accounts, preparer, engineFactory, Api, Outbox, Settings, scheduler, messenger, clock,
-                error => Log.Error("播放会话", error));
+                error => Log.Error("播放会话", error), new VideoQualityPreferences(Settings, Accounts));
         }
         bulletChatCache = new(paths, clock);
         bulletChatClient = new(bulletChatHandler, bulletChatCache);

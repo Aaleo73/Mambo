@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "generator": "scripts/build-video-shaders.ps1",
+  "files": [
+    {
+      "path": "runtime/Mambo_Clear.glsl",
+      "sha256": "ecbedd1d2f04b064e5b59a81cc786140c09c1e2287a335684586634503deb6ee",
+      "bytes": 7062
+    },
+    {
+      "path": "runtime/Mambo_Anime.glsl",
+      "sha256": "1785f7faa473d722aafb25ad7224596a779890f92b6780debabe46cf7044aff6",
+      "bytes": 109642
+    }
+  ]
+}
