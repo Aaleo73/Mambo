@@ -79,3 +79,5 @@ R-017 后端设置增量已完成：AppSettings.ThemeMode 的类型为 SettingsT
 2026-10-02 P7：新增 SettingsThemeMode/ThemeMode、ExternalMpvApproval，以及 ISettingsService 的缓存统计/日志目录默认成员；外部批准仍使用既有 ValidateExternalPlayerAsync。旧设置及旧接口实现兼容，指纹记录由后端维护。
 
 2026-10-05 弹幕：新增 `IBulletChatService` 与 `BulletChat*` 模型（`BulletChatContracts.cs`）；`AppSettings` 增加 `BulletChat`（`BulletChatSettings`，旧文件缺失时落默认值），`PlaybackEntry` 增加 `ProductionYear`。全部为兼容增量。
+
+2026-10-05 弹幕（验收反馈）：`BulletChatSettings` 增加 `DefaultsVersion`，`Area` 默认值改为 0.25；仍是旧默认值 0.85 的已存设置在加载时迁移一次。解析时丢弃带控制字符的垃圾弹幕及其发送者的其余弹幕。均为兼容增量。
