@@ -2,11 +2,11 @@
 [CmdletBinding()]
 param(
     [ValidatePattern('^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$')]
-    [string]$Version = '0.1.2',
+    [string]$Version = '0.1.3',
     [switch]$Installer,
     [ValidatePattern('^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$')]
     [string]$UpdateRepository = 'Aaleo73/Mambo',
-    [string]$IsccPath
+    [string]$IsccPath = $env:MAMBO_ISCC_PATH
 )
 
 $ErrorActionPreference = 'Stop'
@@ -115,7 +115,7 @@ if ($Installer) {
         }
     }
     if (-not $IsccPath -or -not (Test-Path -LiteralPath $IsccPath -PathType Leaf)) { throw '未找到或当前进程无法读取 Inno Setup 编译器。便携包已生成；请核对安装目录和当前账户的读取权限，也可用 -IsccPath 指定已安装的 ISCC.exe。' }
-    & $IsccPath "/DMyAppVersion=$Version" "/DPublishDir=$appRoot" "/DInstallerOutputDir=$outputRoot" (Join-Path $repoRoot 'installer/Mambo.iss') | Out-Host
+    & $IsccPath '/Qp' "/DMyAppVersion=$Version" "/DPublishDir=$appRoot" "/DInstallerOutputDir=$outputRoot" (Join-Path $repoRoot 'installer/Mambo.iss') | Out-Host
     if ($LASTEXITCODE -ne 0) { throw 'Inno Setup 编译失败；便携包仍可审阅。' }
     $installerPath = Join-Path $outputRoot "Mambo-$Version-win-x64-setup.exe"
     if (-not (Test-Path -LiteralPath $installerPath -PathType Leaf)) { throw '未找到安装器输出。' }

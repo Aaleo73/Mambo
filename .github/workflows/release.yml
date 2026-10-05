@@ -42,7 +42,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw '测试失败。' }
       - name: 安装 Inno Setup
         if: steps.readiness.outputs.binary == 'true'
-        run: choco install innosetup --version=6.7.3 --yes --no-progress
+        shell: pwsh
+        run: ./scripts/setup-inno-ci.ps1
       - name: 打包或归档源码
         shell: pwsh
         env:

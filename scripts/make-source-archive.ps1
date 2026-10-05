@@ -2,7 +2,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)] [string]$OutputDirectory,
-    [ValidatePattern('^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$')] [string]$Version = '0.1.2'
+    [ValidatePattern('^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$')] [string]$Version = '0.1.3'
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
