@@ -146,6 +146,7 @@ public sealed class FakePlaybackService : IPlaybackService, IDisposable, IAsyncD
         EpisodeNumber = item.IndexNumber,
         EpisodeLabel = item.Kind == MediaKind.Episode ? $"S{item.ParentIndexNumber:00}E{item.IndexNumber:00}" : null,
         DurationTicks = item.RunTimeTicks ?? TimeSpan.FromMinutes(24).Ticks,
+        ProductionYear = item.ProductionYear ?? item.PremiereDate?.Year,
     };
 
     private void OnClosed(FakePlaybackSession session, PlaybackEndReason reason)

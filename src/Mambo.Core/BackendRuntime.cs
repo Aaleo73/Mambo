@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.Messaging;
+using Mambo.Core.BulletChat;
 using Mambo.Core.Contracts;
 using Mambo.Core.Data;
 using Mambo.Core.Diagnostics;
@@ -25,7 +26,7 @@ public sealed class BackendRuntime : IDisposable, IAsyncDisposable
     public BackendRuntime(AppPaths paths, ISecretStore secrets, IUiScheduler scheduler, IMessenger messenger,
         TimeProvider? clock = null, HttpMessageHandler? apiHandler = null, HttpMessageHandler? imageHandler = null,
         Func<CancellationToken, Task<IPlayerEngine>>? engineFactory = null, HttpMessageHandler? playbackHandler = null,
-        IExternalPlayerValidator? externalPlayerValidator = null)
+        IExternalPlayerValidator? externalPlayerValidator = null, HttpMessageHandler? bulletChatHandler = null)
     {
         this.scheduler = scheduler; this.messenger = messenger;
         clock ??= TimeProvider.System;
@@ -47,6 +48,12 @@ public sealed class BackendRuntime : IDisposable, IAsyncDisposable
             Playback = new PlaybackCoordinator(Accounts, preparer, engineFactory, Api, Outbox, Settings, scheduler, messenger, clock,
                 error => Log.Error("播放会话", error));
         }
+        bulletChatCache = new(paths, clock);
+        bulletChatClient = new(bulletChatHandler, bulletChatCache);
+        bulletChatHistory = new(paths, clock);
+        // 只对内置引擎生效：外置 mpv 的界面与脚本归用户，演示会话没有真实片名可匹配。
+        BulletChat = new BulletChatService(Playback, Settings, new DandanplayBulletChatProvider(bulletChatClient, bulletChatHistory, () => Accounts.Current?.Scope),
+            scheduler, static kind => kind == EngineKind.Embedded, error => Log.Error("弹幕", error));
         Session = new(Api, secrets, Accounts, scheduler, messenger, Playback, clock,
             flush: (account, token) => Outbox.FlushAsync(account, TimeSpan.FromSeconds(3), token),
             clear: async scope => { await QueryCache.ClearAsync(scope).ConfigureAwait(false); await ImageCache.ClearAsync().ConfigureAwait(false); });
@@ -67,7 +74,11 @@ public sealed class BackendRuntime : IDisposable, IAsyncDisposable
     public ImageByteCache ImageCache { get; }
     public ImageFetcher Images { get; }
     private readonly HttpClient? playbackClient;
+    private readonly BulletChatCache bulletChatCache;
+    private readonly DandanplayClient bulletChatClient;
+    private readonly BulletChatHistory bulletChatHistory;
     public IPlaybackService Playback { get; }
+    public BulletChatService BulletChat { get; }
     public StopOutbox Outbox { get; }
     public SessionManager Session { get; }
     public LibraryService Library { get; }
@@ -86,6 +97,7 @@ public sealed class BackendRuntime : IDisposable, IAsyncDisposable
         {
             if (Accounts.Current is { } account) await QueryCache.ResetAsync(account.Scope, cancellationToken).ConfigureAwait(false);
             await ImageCache.ClearAsync(cancellationToken).ConfigureAwait(false);
+            bulletChatCache.Clear();
         }
         catch (AppException error) { Log.Error("清理缓存", error.Error); throw; }
     }
@@ -143,6 +155,7 @@ public sealed class BackendRuntime : IDisposable, IAsyncDisposable
         Outbox.Delivered -= StopDelivered;
         if (observedPlayback is not null) observedPlayback.SnapshotChanged -= PlaybackUpdated;
         Images.AuthenticationExpired -= Session.NotifyAuthenticationExpired;
+        BulletChat.Dispose(); bulletChatClient.Dispose(); bulletChatHistory.Dispose();
         Preferences.Dispose(); Library.Dispose(); Session.Dispose(); (Playback as IDisposable)?.Dispose();
         Images.Dispose(); ImageCache.Dispose(); QueryCache.Dispose(); Outbox.Dispose(); Requests.Dispose();
         playbackClient?.Dispose(); Api.Dispose(); Accounts.Dispose(); Settings.Dispose(); Log.Dispose();

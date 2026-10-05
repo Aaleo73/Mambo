@@ -46,6 +46,7 @@ public sealed class SeasonPlan(PlaybackTargetResolver resolver)
             SeasonId = mapped.SeasonId, SeasonNumber = mapped.ParentIndexNumber, EpisodeNumber = mapped.IndexNumber,
             EpisodeLabel = episode && mapped.IndexNumber is not null ? $"第{number}集" : null,
             DurationTicks = mapped.RunTimeTicks, UserData = mapped.UserData,
+            ProductionYear = mapped.ProductionYear ?? mapped.PremiereDate?.Year,
             Image = mapped.Images.FirstOrDefault(image => image.Kind == ImageKind.Backdrop) ?? mapped.Images.FirstOrDefault(),
         };
     }

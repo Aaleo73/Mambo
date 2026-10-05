@@ -11,6 +11,8 @@ public sealed class AppPaths
     public string Settings => Path.Combine(Root, "settings.json");
     public string QueryCache => DirectoryPath("cache", "query");
     public string Images => DirectoryPath("cache", "images");
+    public string BulletChatCache => DirectoryPath("cache", "bullet-chat");
+    public string BulletChatHistory => Path.Combine(Root, "bullet-chat-history.json");
     public string Outbox => Path.Combine(DirectoryPath("outbox"), "stop-reports.json");
     public string Logs => DirectoryPath("logs");
     public string ShaderCache => DirectoryPath("mpv", "shader-cache");

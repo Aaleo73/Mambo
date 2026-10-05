@@ -52,6 +52,20 @@ public sealed class ConnectionDefaults
     public override string ToString() => "ConnectionDefaults { <redacted> }";
 }
 
+/// <summary>播放页弹幕菜单里的选择；不含服务器地址或任何凭据。</summary>
+public sealed record BulletChatSettings
+{
+    public bool Enabled { get; init; } = true;
+    /// <summary>0.2–1。</summary>
+    public double Opacity { get; init; } = 0.7;
+    /// <summary>字号倍率，0.6–2。</summary>
+    public double FontScale { get; init; } = 1;
+    /// <summary>滚动弹幕横穿画面所需的秒数，5–30。</summary>
+    public double ScrollSeconds { get; init; } = 15;
+    /// <summary>显示区域占视频高度的比例，0.1–1。</summary>
+    public double Area { get; init; } = 0.85;
+}
+
 public sealed record AppSettings
 {
     public Guid DeviceId { get; init; }
@@ -67,6 +81,7 @@ public sealed record AppSettings
     public HardwareDecodingMode HardwareDecoding { get; init; } = HardwareDecodingMode.Auto;
     public double Volume { get; init; } = 100;
     public WindowPlacement? Window { get; init; }
+    public BulletChatSettings BulletChat { get; init; } = new();
 }
 
 /// <summary>设置变更通知经 IUiScheduler 触发；命令失败抛出 AppException。</summary>

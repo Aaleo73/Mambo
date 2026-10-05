@@ -45,6 +45,8 @@ public sealed record PlaybackEntry(string ItemId, string Title)
     public int? SeasonNumber { get; init; }
     public int? EpisodeNumber { get; init; }
     public long? DurationTicks { get; init; }
+    /// <summary>该集或该片的首播年份，没有时为 null。</summary>
+    public int? ProductionYear { get; init; }
 }
 
 /// <summary>Id 是不透明的命令标识；Label 最长 96 字符，不包含外部文件名。</summary>

@@ -302,9 +302,12 @@ public sealed class SettingsStore : ISettingsService, IDisposable
             var arraysRepaired = RepairNullPreferenceArrays(root);
             var value = arraysRepaired ? JsonSerializer.Deserialize(root!.ToJsonString(), StorageJsonContext.Default.SettingsDocument) :
                 JsonSerializer.Deserialize(bytes, StorageJsonContext.Default.SettingsDocument);
-            if (value is null || value.Version != 1) return null;
-            Validate(value.Settings);
+            if (value is null || value.Version != 1 || value.Settings is null) return null;
             var settings = value.Settings;
+            // 旧文档没有弹幕设置：缺失的对象反序列化为 null、缺失的数值为 0，逐项落回默认值。
+            var bulletChat = NormalizeBulletChat(settings.BulletChat, out var bulletChatRepaired);
+            if (bulletChatRepaired) settings = settings with { BulletChat = bulletChat };
+            Validate(settings);
             // 源生成反序列化会为缺失的 init-only 布尔成员写入 false；显式迁移旧文档，
             // 不能靠属性初始化器，也不能覆盖用户已保存的列表选择。
             var episodeLayoutRepaired = root is JsonObject document &&
@@ -317,7 +320,7 @@ public sealed class SettingsStore : ISettingsService, IDisposable
             // 非关键字段损坏只丢弃对应输入，不重置有效的设备标识与其他偏好。
             var connection = NormalizeConnection(value.Connection, out var connectionRepaired);
             var preferences = NormalizePreferences(value.Preferences, out var preferencesRepaired);
-            repaired = arraysRepaired || connectionRepaired || preferencesRepaired || externalRepaired || episodeLayoutRepaired;
+            repaired = arraysRepaired || connectionRepaired || preferencesRepaired || externalRepaired || episodeLayoutRepaired || bulletChatRepaired;
             return value with
             {
                 Settings = settings,
@@ -332,6 +335,24 @@ public sealed class SettingsStore : ISettingsService, IDisposable
         if (value is null || value.DeviceId == Guid.Empty || !double.IsFinite(value.Volume) || value.Volume is < 0 or > 100 ||
             !Enum.IsDefined(value.PlaybackMode) || !Enum.IsDefined(value.HdrMode) || !Enum.IsDefined(value.HardwareDecoding) ||
             !Enum.IsDefined(value.ThemeMode)) throw Invalid("播放器设置无效。");
+        if (value.BulletChat is not { } bulletChat || NormalizeBulletChat(bulletChat, out _) != bulletChat) throw Invalid("弹幕设置无效。");
+    }
+
+    private static BulletChatSettings NormalizeBulletChat(BulletChatSettings? value, out bool repaired)
+    {
+        var defaults = new BulletChatSettings();
+        if (value is null) { repaired = true; return defaults; }
+        static double Keep(double stored, double minimum, double maximum, double fallback) =>
+            double.IsFinite(stored) && stored >= minimum && stored <= maximum ? stored : fallback;
+        var result = value with
+        {
+            Opacity = Keep(value.Opacity, 0.2, 1, defaults.Opacity),
+            FontScale = Keep(value.FontScale, 0.6, 2, defaults.FontScale),
+            ScrollSeconds = Keep(value.ScrollSeconds, 5, 30, defaults.ScrollSeconds),
+            Area = Keep(value.Area, 0.1, 1, defaults.Area),
+        };
+        repaired = result != value;
+        return result;
     }
 
     private static ConnectionDefaults NormalizeConnection(ConnectionDefaults? value, out bool repaired)
