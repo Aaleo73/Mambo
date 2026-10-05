@@ -48,6 +48,12 @@ R-003 外壳接入：启动解析 AppShutdownCoordinator（安装 WinUI 异常�
 
 全套 237/237 测试通过，无失败或跳过（Core 231、Player 6）；Debug 构建 / Native AOT 发布零警告零错误，本地 composition 播放冒烟均正常退出，并验证切集/重试后的三次停止保持 1.5 倍速。2026-10-02 用户回复“验收通过，继续”，确认 P3 真实服务器的位置/倍速、强制转码与停止清理、整季连播及断网补发通过，P3 已勾选。Video Lab 可“恢复 Emby 会话”后按 itemId 播放，人工输入不落盘。R-015 的测试发现问题同批修复；最终外壳关闭要求见 R-016。
 
+## 弹幕
+
+2026-10-05：`IBulletChatService` 已接入真假两个组合根。真实实现只对内置引擎生效，跟随当前播放条目自动匹配并加载；弹幕关闭、外置播放或没有播放时保持 Idle 且不发请求。取数走弹弹play 兼容协议，服务器地址是 `DandanplayClient.DefaultServer` 常量，只发送剧名、季号、集号。响应有磁盘缓存（弹幕 6 小时，搜索与剧集 24 小时），计入缓存占用并随清理缓存清空；匹配记忆存 `bullet-chat-history.json`，手动指定优先于自动结果。演示模式用程序生成的弹幕，同样跟随内置引擎。
+
+已知限制：默认服务器是第三方个人代理，会限流（429），失效时需改常量重新构建；第 0 季特别篇与没有集号的剧集不自动匹配；未实现弹弹play 官方接口的签名鉴权。前端只依赖 Contracts，不引用 `Mambo.Core.BulletChat`。详见 [弹幕](../decisions/bullet-chat.md)。
+
 ## P7 外部播放器后端与设置增量
 
 2026-10-05：按用户要求改为外置 mpv 接管画面与操作。Shell 保留浏览页面，配置/脚本/uosc/快捷键由外置播放器管理；播放列表支持原生跳集和返回重播，关闭或失败自动清理并上报。修复便携配置 `autocreate-playlist` 重新生成首项编号的问题，保留旧版 mpv 兼容性。后续修正未播放剧集显示地址：内存 M3U 预先携带每集标题，随程序发布的独立 hook 按原生编号设置逐项续播位置和请求头，重排/重播仍保持对应关系，不改用户配置。384 项单元测试及用户自备 mpv 的真实本地接管回归通过，详见 [外置 MPV 接管](../decisions/P7-external-handoff.md)。
@@ -71,3 +77,5 @@ R-017 后端设置增量已完成：AppSettings.ThemeMode 的类型为 SettingsT
 2026-10-02：初始草案评审有条件通过，R-004–R-009 完成后冻结 v1。破坏性变更在冻结前收敛：LogoutResult 返回值、结束原因/关闭重载、Preview 替换重载；同批完成稳定错误码、图片回退、异步通知、预取、分页刷新状态和原子设置更新。
 
 2026-10-02 P7：新增 SettingsThemeMode/ThemeMode、ExternalMpvApproval，以及 ISettingsService 的缓存统计/日志目录默认成员；外部批准仍使用既有 ValidateExternalPlayerAsync。旧设置及旧接口实现兼容，指纹记录由后端维护。
+
+2026-10-05 弹幕：新增 `IBulletChatService` 与 `BulletChat*` 模型（`BulletChatContracts.cs`）；`AppSettings` 增加 `BulletChat`（`BulletChatSettings`，旧文件缺失时落默认值），`PlaybackEntry` 增加 `ProductionYear`。全部为兼容增量。

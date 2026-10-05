@@ -647,12 +647,12 @@ public interface IPlayerEngine : IAsyncDisposable {
 
 ```
 PlayerOverlay（Grid，RequestedTheme=Dark，IsTabStop=True，持有焦点）
-├─ VideoHost（黑底、圆角裁剪）→ VideoSurface（SwapChainPanel）
+├─ VideoHost（黑底、圆角裁剪）→ VideoSurface（SwapChainPanel）+ BulletChatLayer（弹幕合成层，见 `docs/decisions/bullet-chat.md`）
 ├─ InputSurface（透明）：单击 250ms 后切换暂停 / 双击最大化；指针移动唤出控制层；隐藏时换空光标
 ├─ TopBar（渐变）：标题、关闭
 ├─ 状态层：打开中（ProgressRing + 20 秒"加载较慢"提示 + 关闭）| 缓冲胶囊 | 失败（重试 / 关闭）
 ├─ BottomBar（渐变 + 半透明纯色面板）：带已缓冲区间的进度条、上一集 / 下一集、播放 / 暂停、时间、
-│     倍速菜单、轨道菜单（字幕 / 音轨 / 关闭字幕）、悬停展开的音量、全屏、最大化
+│     倍速菜单、弹幕面板（开关 / 样式 / 匹配状态 / 搜索）、轨道菜单（字幕 / 音轨 / 关闭字幕）、悬停展开的音量、全屏、最大化
 └─ 选集面板：布局按设计稿（原版是侧栏位置的 208px 网格）
 ```
 
@@ -1328,6 +1328,7 @@ PlayerOverlay（Grid，RequestedTheme=Dark，IsTabStop=True，持有焦点）
 | `[` / `]` | 倍速降一档 / 升一档 |
 | C | 循环切换字幕（循环中包含"关闭"） |
 | V | 循环切换音轨 |
+| D | 开关弹幕 |
 | `,` / `.` | 逐帧后退 / 前进 |
 | ← / → | 后退 / 快进 5 秒（按住可连发） |
 | ↑ / ↓ | 音量 ±5 |
@@ -1513,3 +1514,4 @@ PlayerOverlay（Grid，RequestedTheme=Dark，IsTabStop=True，持有焦点）
 - [ ] P9 统一动效语言（六档时长/三条曲线、浏览交接、共享背景与 Hero 原子提交、可反向播放翻折、弹层及控件生命周期、公共 CSS/历史原型已迁移；最终 Debug/AOT 完整门禁通过，均包含 Motion 90 项、50 次开关/焦点恢复及播放器/Surface 零留存；实际原生播放通过。标题栏所有权切换后完整门禁未再出现原生释放异常；两种尺寸动态对比、物理最小化/恢复与标题栏操作已记录，不声称性能提升。Windows 动画设置切换、真实媒体观感及 Snap 弹出层人工确认仍待完成，见 `docs/decisions/P9-visual-parity.md`）
 - [x] 筛选与搜索专项修复（2026-10-04：独立分支兼容服务器忽略筛选参数；完整短语搜索、精确片名分组优先及动态计数；372 项回归、真实服务器原生页面自动化与渲染截图通过，见 `docs/handoff/backend-status.md`）
 - [x] 海报清晰度专项修复（2026-10-05：解码及缓存统一物理像素；卡片宽度/DPI 增大时保留旧图并升级；384 项测试、Debug 与 AOT 各 10 项图片专项通过，含实际 XAML 细条纹渲染对比。完整 UI 检查受窗口遮挡中断，跨显示器观感仍待人工确认，见 `docs/decisions/P6-image-resolution.md`）
+- [ ] P10 弹幕（2026-10-05：内置播放器的原生合成层弹幕、弹弹play 兼容取数与全自动匹配完成；445 项单元测试、Debug/AOT 弹幕诊断及线上匹配实测通过。真实 Emby 上的自动匹配、高刷新率与 HDR 观感待用户验收；完整界面回归未执行。见 `docs/decisions/bullet-chat.md`）
