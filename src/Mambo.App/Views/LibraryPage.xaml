@@ -38,10 +38,6 @@
                                       ToolTipService.ToolTip="筛选">
                             <themes:LineIcon Glyph="{StaticResource IconFilter}" Width="16" Height="16" StrokeWidth="2"/>
                         </ToggleButton>
-                        <Button Style="{StaticResource LinkButtonStyle}" VerticalAlignment="Center" Click="OnResetClick" AutomationProperties.Name="重置筛选"
-                                Visibility="{x:Bind ViewModel.HasFilters, Mode=OneWay}">
-                            <TextBlock Text="重置" TextDecorations="Underline"/>
-                        </Button>
                         <!-- 排序：胶囊在原位展开成弹出面，第一行就是当前排序 -->
                         <Grid Width="144" Height="{StaticResource PillHeight}">
                             <Button x:Name="SortButton" Style="{StaticResource PillButtonStyle}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
@@ -87,7 +83,19 @@
                     </StackPanel>
                 </controls:PageHeader.Actions>
             </controls:PageHeader>
-
+            <StackPanel x:Name="ApplyingState" Orientation="Horizontal" Spacing="10" Margin="0,0,0,10"
+                        Visibility="{x:Bind ViewModel.IsApplying, Mode=OneWay}">
+                <ProgressRing Width="16" Height="16" IsActive="{x:Bind ViewModel.IsApplying, Mode=OneWay}"/>
+                <TextBlock Style="{StaticResource CaptionTextStyle}" Text="正在筛选…" VerticalAlignment="Center"/>
+                <Button x:Name="CancelApplyButton" Style="{StaticResource LinkButtonStyle}" Content="取消" Click="OnCancelApplyClick"/>
+            </StackPanel>
+            <StackPanel x:Name="ApplyErrorState" Orientation="Horizontal" Spacing="10" Margin="0,0,0,10"
+                        Visibility="{x:Bind ViewModel.HasApplyError, Mode=OneWay}">
+                <TextBlock Style="{StaticResource CaptionTextStyle}" Text="{x:Bind ViewModel.ApplyErrorText, Mode=OneWay}"
+                           MaxWidth="520" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                <Button x:Name="RetryApplyButton" Style="{StaticResource LinkButtonStyle}" Content="重试" Click="OnRetryClick"/>
+                <Button Style="{StaticResource LinkButtonStyle}" Content="取消更改" Click="OnCancelApplyClick"/>
+            </StackPanel>
         </StackPanel>
 
         <Grid x:Name="BodyHost" Grid.Row="1" SizeChanged="OnBodySizeChanged">
@@ -96,6 +104,17 @@
                     VerticalAlignment="Top" Visibility="Collapsed" SizeChanged="OnFilterSizeChanged">
                 <ScrollViewer MaxHeight="180" VerticalScrollBarVisibility="Auto">
                     <StackPanel Padding="0,10">
+                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="52,0,0,8"
+                                    Visibility="{x:Bind ViewModel.IsLoadingFilters, Mode=OneWay}">
+                            <ProgressRing Width="14" Height="14" IsActive="{x:Bind ViewModel.IsLoadingFilters, Mode=OneWay}"/>
+                            <TextBlock Style="{StaticResource CaptionTextStyle}" Text="正在加载筛选项…"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="52,0,0,8"
+                                    Visibility="{x:Bind ViewModel.HasFilterError, Mode=OneWay}">
+                            <TextBlock Style="{StaticResource CaptionTextStyle}" Text="{x:Bind ViewModel.FilterErrorText, Mode=OneWay}"
+                                       VerticalAlignment="Center" MaxWidth="420" TextWrapping="Wrap"/>
+                            <Button Style="{StaticResource LinkButtonStyle}" Content="重试" Click="OnRetryFiltersClick"/>
+                        </StackPanel>
                         <Grid ColumnSpacing="12">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="40"/>
@@ -163,11 +182,7 @@
                 <Button Style="{StaticResource SoftButtonStyle}" Margin="0,24,0,8" HorizontalAlignment="Center" Content="重试加载" Click="OnLoadMoreClick"
                         Visibility="{x:Bind ViewModel.Cards.HasMoreError, Mode=OneWay}"/>
 
-                <controls:StateView x:Name="FilteredEmptyState" Title="当前筛选没有内容" Visibility="{x:Bind ViewModel.ShowFilteredEmpty, Mode=OneWay}">
-                    <controls:StateView.Actions>
-                        <Button Style="{StaticResource SoftButtonStyle}" Content="重置筛选" Click="OnResetClick"/>
-                    </controls:StateView.Actions>
-                </controls:StateView>
+                <controls:StateView x:Name="FilteredEmptyState" Title="当前筛选没有内容" Visibility="{x:Bind ViewModel.ShowFilteredEmpty, Mode=OneWay}"/>
                 <controls:StateView x:Name="EmptyState" Title="暂无内容" Visibility="{x:Bind ViewModel.ShowEmpty, Mode=OneWay}"/>
                 <controls:StateView x:Name="ErrorState" Title="资料库加载失败" Visibility="{x:Bind ViewModel.Cards.HasError, Mode=OneWay}">
                     <controls:StateView.Actions>

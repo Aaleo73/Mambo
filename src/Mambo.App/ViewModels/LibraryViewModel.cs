@@ -57,6 +57,9 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
     private readonly IQuery<FilterOptions> filters = null!;
     private PagedCards? pending;
     private LibraryQuery query;
+    private LibraryQuery displayedQuery;
+    private CancellationTokenSource? applyCancellation;
+    private bool disposed;
 
     public LibraryViewModel(ILibraryService library, ILibraryPreferences preferences, MediaLibrary model)
     {
@@ -65,7 +68,13 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
         this.preferences = preferences;
         libraryId = model.Id;
         Title = model.Name;
-        query = preferences.Get(libraryId);
+        var savedQuery = preferences.Get(libraryId);
+        query = savedQuery.Years.IsEmpty ? savedQuery : savedQuery with
+        {
+            Years = savedQuery.Years.Select(year => year / 10 * 10).Distinct()
+                .SelectMany(decade => Enumerable.Range(Math.Max(1, decade), decade == 0 ? 9 : 10)).Order().ToImmutableArray(),
+        };
+        displayedQuery = query;
         Sorts =
         [
             new(LibrarySort.DateCreated, SortDirection.Descending, "添加日期"),
@@ -83,6 +92,7 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
             Cards.Items.CollectionChanged += OnCardItemsChanged;
             BuildChips();
             ApplyQueryState();
+            if (!SameQuery(savedQuery, query)) _ = SavePreferencesAsync(query, scope.Token);
         }
         catch
         {
@@ -124,8 +134,24 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     public partial bool ShowEmpty { get; private set; }
 
+    [ObservableProperty]
+    public partial bool IsApplying { get; private set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasApplyError))]
+    public partial string ApplyErrorText { get; private set; } = "";
+
+    [ObservableProperty]
+    public partial bool IsLoadingFilters { get; private set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasFilterError))]
+    public partial string FilterErrorText { get; private set; } = "";
+
+    public bool HasApplyError => ApplyErrorText.Length > 0;
+    public bool HasFilterError => FilterErrorText.Length > 0;
+
     public bool HasFilters => FilterCount > 0;
-    public string FilterCountText => FilterCount.ToString(CultureInfo.InvariantCulture);
 
     /// <summary>新结果替换旧结果后触发，页面据此滚回顶部。</summary>
     public event EventHandler? ResultsReplaced;
@@ -144,20 +170,21 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
             ClearGroup(chip.Group);
             return;
         }
-        var available = filters.Current ?? new FilterOptions();
         switch (chip.Group)
         {
             case GenreGroup:
-                Apply(query with { Genres = Flip(query.Genres, chip.Value) });
+                Apply(query with { Genres = Flip(query.Genres, chip.Value) }, debounce: true);
                 break;
             case RatingGroup:
-                Apply(query with { OfficialRatings = Flip(query.OfficialRatings, chip.Value) });
+                Apply(query with { OfficialRatings = Flip(query.OfficialRatings, chip.Value) }, debounce: true);
                 break;
             case DecadeGroup:
                 var decade = int.Parse(chip.Value, CultureInfo.InvariantCulture);
-                var years = available.Years.Where(y => y / 10 * 10 == decade).ToArray();
+                // Options may still be arriving. A decade always means all ten years,
+                // including years absent from the first loaded page.
+                var years = Enumerable.Range(Math.Max(1, decade), decade == 0 ? 9 : 10);
                 var selected = query.Years.Any(y => y / 10 * 10 == decade);
-                Apply(query with { Years = selected ? query.Years.RemoveAll(y => y / 10 * 10 == decade) : query.Years.AddRange(years.Except(query.Years)) });
+                Apply(query with { Years = selected ? query.Years.RemoveAll(y => y / 10 * 10 == decade) : query.Years.AddRange(years.Except(query.Years)) }, debounce: true);
                 break;
         }
     }
@@ -169,45 +196,132 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
         _ => query with { OfficialRatings = [] },
     });
 
-    public void ResetFilters() => Apply(query with { Genres = [], Years = [], OfficialRatings = [] });
+    public Task LoadMoreAsync() => IsApplying ? Task.CompletedTask : Cards.LoadMoreAsync();
+    public Task RefreshAsync() => Task.WhenAll(RetryResultsAsync(), RefreshFiltersAsync());
+    public async Task RefreshFiltersAsync()
+    {
+        try { await filters.RefreshAsync(scope.Token); }
+        catch (OperationCanceledException) { }
+    }
+    public Task RetryResultsAsync()
+    {
+        if (pending is not null || IsApplying || HasApplyError)
+        {
+            Apply(query, force: true);
+            return Task.CompletedTask;
+        }
+        return Cards.RefreshAsync();
+    }
 
-    public Task LoadMoreAsync() => Cards.LoadMoreAsync();
-    public Task RefreshAsync() => Task.WhenAll(Cards.RefreshAsync(), filters.RefreshAsync());
+    public void CancelApply()
+    {
+        DiscardPending();
+        query = displayedQuery;
+        IsApplying = false;
+        ApplyErrorText = "";
+        ApplyQueryState();
+        _ = SavePreferencesAsync(query, scope.Token);
+    }
 
     public void Dispose()
     {
+        if (disposed) return;
+        disposed = true;
         scope.Cancel();
+        DiscardPending();
         Cards.PropertyChanged -= OnCardsPropertyChanged;
         Cards.Items.CollectionChanged -= OnCardItemsChanged;
         Cards.Dispose();
-        pending?.Dispose();
         filters.Updated -= OnFiltersUpdated;
         filters.Dispose();
         scope.Dispose();
     }
 
     private static ImmutableArray<string> Flip(ImmutableArray<string> values, string value) =>
-        values.Contains(value) ? values.Remove(value) : values.Add(value);
+        values.Contains(value, StringComparer.OrdinalIgnoreCase)
+            ? values.RemoveAll(item => item.Equals(value, StringComparison.OrdinalIgnoreCase)) : values.Add(value);
 
     private PagedCards Observe(LibraryQuery value) => new(library.ObserveLibrary(libraryId, value, 60, scope.Token), CardContext.Library, landscape: false);
 
-    private void Apply(LibraryQuery next)
+    private static bool SameQuery(LibraryQuery left, LibraryQuery right) =>
+        left.Sort == right.Sort && left.Direction == right.Direction &&
+        left.Genres.SequenceEqual(right.Genres, StringComparer.OrdinalIgnoreCase) && left.Years.SequenceEqual(right.Years) &&
+        left.OfficialRatings.SequenceEqual(right.OfficialRatings, StringComparer.OrdinalIgnoreCase);
+
+    private void Apply(LibraryQuery next, bool debounce = false, bool force = false)
     {
-        if (next == query) return;
+        if (disposed || !force && SameQuery(next, query)) return;
+        DiscardPending();
         query = next;
-        _ = preferences.SetAsync(libraryId, next);
-        pending?.Dispose();
-        pending = Observe(next);
-        pending.PropertyChanged += OnPendingPropertyChanged;
+        ApplyErrorText = "";
+        if (!force && SameQuery(next, displayedQuery) && Cards.IsInitialized && !Cards.HasError)
+        {
+            IsApplying = false;
+            ApplyQueryState();
+            _ = SavePreferencesAsync(next, scope.Token);
+            return;
+        }
+        IsApplying = true;
         ApplyQueryState();
-        SwapIfReady();
+        applyCancellation = CancellationTokenSource.CreateLinkedTokenSource(scope.Token);
+        _ = ApplyAsync(next, debounce, applyCancellation.Token);
+    }
+
+    private void DiscardPending()
+    {
+        applyCancellation?.Cancel();
+        applyCancellation?.Dispose();
+        applyCancellation = null;
+        if (pending is null) return;
+        pending.PropertyChanged -= OnPendingPropertyChanged;
+        pending.Dispose();
+        pending = null;
+    }
+
+    private async Task ApplyAsync(LibraryQuery next, bool debounce, CancellationToken token)
+    {
+        try
+        {
+            if (debounce) await Task.Delay(200, token);
+            token.ThrowIfCancellationRequested();
+            pending = Observe(next);
+            pending.PropertyChanged += OnPendingPropertyChanged;
+            SwapIfReady();
+            await SavePreferencesAsync(next, token);
+        }
+        catch (OperationCanceledException) { }
+        catch (AppException error)
+        {
+            if (token.IsCancellationRequested) return;
+            IsApplying = false;
+            ApplyErrorText = error.Error.Message;
+        }
+    }
+
+    private async Task SavePreferencesAsync(LibraryQuery value, CancellationToken token)
+    {
+        try { await preferences.SetAsync(libraryId, value, token); }
+        catch (OperationCanceledException) { }
+        catch (AppException error)
+        {
+            if (!disposed && !token.IsCancellationRequested) ApplyErrorText = error.Error.Message;
+        }
     }
 
     private void OnPendingPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e) => SwapIfReady();
 
     private void SwapIfReady()
     {
-        if (pending is null || (!pending.IsInitialized && !pending.HasError)) return;
+        if (disposed || pending is null) return;
+        if (pending.HasError && Cards.Items.Count > 0)
+        {
+            IsApplying = false;
+            ApplyErrorText = pending.ErrorText;
+            return;
+        }
+        // PagedCards publishes IsInitialized before the rest of its properties. Wait until
+        // its first-loading state has settled so the previous grid is replaced atomically.
+        if (!pending.HasError && (!pending.IsInitialized || pending.IsLoadingFirst)) return;
         var previous = Cards;
         previous.PropertyChanged -= OnCardsPropertyChanged;
         previous.Items.CollectionChanged -= OnCardItemsChanged;
@@ -216,7 +330,11 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
         Cards.PropertyChanged += OnCardsPropertyChanged;
         Cards.Items.CollectionChanged += OnCardItemsChanged;
         pending = null;
+        displayedQuery = query;
+        IsApplying = false;
+        ApplyErrorText = "";
         previous.Dispose();
+        BuildChips();
         UpdateCount();
         UpdateStates();
         ResultsReplaced?.Invoke(this, EventArgs.Empty);
@@ -226,9 +344,13 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
     {
         if (e.PropertyName is nameof(PagedCards.TotalCount) or nameof(PagedCards.IsInitialized) or nameof(PagedCards.HasMore)) UpdateCount();
         if (e.PropertyName is nameof(PagedCards.IsEmpty)) UpdateStates();
+        if (e.PropertyName is nameof(PagedCards.IsInitialized) or nameof(PagedCards.IsLoadingMore)) BuildChips();
     }
 
-    private void OnCardItemsChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) => UpdateCount();
+    private void OnCardItemsChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        UpdateCount();
+    }
 
     private void UpdateCount() =>
         CountText = Cards.TotalCount is { } total ? $"{total.ToString("N0", CultureInfo.GetCultureInfo("zh-CN"))} 项"
@@ -238,11 +360,10 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
     {
         FilterCount = query.Genres.Length + query.OfficialRatings.Length + query.Years.Select(y => y / 10).Distinct().Count();
         OnPropertyChanged(nameof(HasFilters));
-        OnPropertyChanged(nameof(FilterCountText));
         foreach (var sort in Sorts) sort.IsSelected = sort.Sort == query.Sort;
         SortLabel = Sorts.FirstOrDefault(s => s.IsSelected)?.Label ?? Sorts[0].Label;
-        foreach (var chip in GenreChips) chip.IsChecked = chip.Value.Length == 0 ? query.Genres.IsEmpty : query.Genres.Contains(chip.Value);
-        foreach (var chip in RatingChips) chip.IsChecked = chip.Value.Length == 0 ? query.OfficialRatings.IsEmpty : query.OfficialRatings.Contains(chip.Value);
+        foreach (var chip in GenreChips) chip.IsChecked = chip.Value.Length == 0 ? query.Genres.IsEmpty : query.Genres.Contains(chip.Value, StringComparer.OrdinalIgnoreCase);
+        foreach (var chip in RatingChips) chip.IsChecked = chip.Value.Length == 0 ? query.OfficialRatings.IsEmpty : query.OfficialRatings.Contains(chip.Value, StringComparer.OrdinalIgnoreCase);
         foreach (var chip in DecadeChips)
             chip.IsChecked = chip.Value.Length == 0 ? query.Years.IsEmpty : query.Years.Any(y => (y / 10 * 10).ToString(CultureInfo.InvariantCulture) == chip.Value);
         UpdateStates();
@@ -250,8 +371,9 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
 
     private void UpdateStates()
     {
-        ShowFilteredEmpty = Cards.IsEmpty && HasFilters;
-        ShowEmpty = Cards.IsEmpty && !HasFilters;
+        var displayedHasFilters = !displayedQuery.Genres.IsEmpty || !displayedQuery.Years.IsEmpty || !displayedQuery.OfficialRatings.IsEmpty;
+        ShowFilteredEmpty = Cards.IsEmpty && displayedHasFilters;
+        ShowEmpty = Cards.IsEmpty && !displayedHasFilters;
     }
 
     private void OnFiltersUpdated(object? sender, EventArgs e) => BuildChips();
@@ -259,10 +381,16 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
     private void BuildChips()
     {
         var options = filters.Current ?? new FilterOptions();
-        Sync(GenreChips, options.Genres.Select(g => (g, g)));
-        Sync(DecadeChips, options.Years.Select(y => y / 10 * 10).Distinct().OrderByDescending(d => d)
+        var items = Cards.Items.Select(card => card.Item).ToArray();
+        IsLoadingFilters = filters.IsRefreshing;
+        FilterErrorText = filters.Error?.Message ?? "";
+        Sync(GenreChips, options.Genres.Concat(items.SelectMany(item => item.Genres)).Concat(query.Genres)
+            .Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.Ordinal).Select(g => (g, g)));
+        Sync(DecadeChips, options.Years.Concat(items.Where(item => item.ProductionYear.HasValue).Select(item => item.ProductionYear!.Value))
+            .Concat(query.Years).Where(y => y is > 0 and <= 9999).Select(y => y / 10 * 10).Distinct().OrderByDescending(d => d)
             .Select(d => ($"{d} 年代", d.ToString(CultureInfo.InvariantCulture))));
-        Sync(RatingChips, options.OfficialRatings.Select(r => (r, r)));
+        Sync(RatingChips, options.OfficialRatings.Concat(items.Select(item => item.OfficialRating).OfType<string>()).Concat(query.OfficialRatings)
+            .Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.Ordinal).Select(r => (r, r)));
         ApplyQueryState();
 
         void Sync(ObservableCollection<FilterChipViewModel> target, IEnumerable<(string Label, string Value)> source)
@@ -270,8 +398,15 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
             var list = source.Prepend((Label: "全部", Value: "")).ToList();
             if (list.Select(p => p.Value).SequenceEqual(target.Select(c => c.Value))) return;
             var group = ReferenceEquals(target, GenreChips) ? GenreGroup : ReferenceEquals(target, DecadeChips) ? DecadeGroup : RatingGroup;
-            target.Clear();
-            foreach (var (label, value) in list) target.Add(new FilterChipViewModel(group, label, value));
+            // Preserve existing chip instances and keyboard focus as more options arrive.
+            for (var i = 0; i < list.Count; i++)
+            {
+                var (label, value) = list[i];
+                var existing = target.FirstOrDefault(chip => chip.Value.Equals(value, StringComparison.OrdinalIgnoreCase));
+                if (existing is null) target.Insert(i, new FilterChipViewModel(group, label, value));
+                else if (target.IndexOf(existing) != i) target.Move(target.IndexOf(existing), i);
+            }
+            while (target.Count > list.Count) target.RemoveAt(target.Count - 1);
         }
     }
 }

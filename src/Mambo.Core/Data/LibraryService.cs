@@ -9,7 +9,7 @@ using Mambo.Core.Session;
 namespace Mambo.Core.Data;
 
 /// <summary>按观察创建时的账号读取元数据，使用共享 SWR 与独立增量分页。</summary>
-public sealed class LibraryService : ILibraryService, IDisposable
+public sealed partial class LibraryService : ILibraryService, IDisposable
 {
     private const string EpisodeFields = "SortName,RunTimeTicks,PremiereDate,ProductionYear,Overview,ParentLogoItemId,ParentLogoImageTag,ParentBackdropItemId,ParentBackdropImageTags,PrimaryImageItemId,PrimaryImageTag,BackdropImageTags";
     private readonly AccountContext accounts;
@@ -22,6 +22,9 @@ public sealed class LibraryService : ILibraryService, IDisposable
     private readonly object gate = new();
     private readonly HashSet<Observation> observations = [];
     private readonly Dictionary<(string Scope, string Library), FilterOptions> loaded = [];
+    private readonly Dictionary<(string Scope, string Library, LibrarySort Sort, SortDirection Direction), LibraryScan> scans = [];
+    private readonly HashSet<(string Scope, string Library)> ignoredFilters = [];
+    private event Action<AccountSession, string>? FiltersChanged;
     private bool disposed;
 
     public LibraryService(AccountContext accounts, EmbyApi api, RequestScheduler requests, QueryCache cache,
@@ -70,30 +73,20 @@ public sealed class LibraryService : ILibraryService, IDisposable
     {
         ArgumentNullException.ThrowIfNull(query);
         var filtered = !query.Genres.IsDefaultOrEmpty || !query.Years.IsDefaultOrEmpty || !query.OfficialRatings.IsDefaultOrEmpty;
+        if (filtered) return ObserveFilteredLibrary(libraryId, query, pageSize, scopeToken);
         var defaultQuery = query.Sort == LibrarySort.DateCreated && query.Direction == SortDirection.Descending && !filtered;
         return Paged(defaultQuery ? "library-first" : "library", QueryArgs(libraryId, query), pageSize,
-            async (account, offset, count, token) =>
-            {
-                ValidateQuery(query); ValidateId(libraryId);
-                var libraries = await cache.FetchAsync(new(account.Scope, "libraries"), account,
-                    ct => FetchLibrariesAsync(account, ct), token).ConfigureAwait(false);
-                var library = libraries.FirstOrDefault(item => item.Id == libraryId) ?? throw Missing("媒体库");
-                return await GetItemsAsync(account, RequestPriority.Foreground, token,
-                    ("ParentId", libraryId), ("Recursive", "true"), ("IncludeItemTypes", library.Kind switch
-                    { LibraryKind.Movies => "Movie,Video", LibraryKind.TvShows => "Series", _ => "Movie,Series,Video" }),
-                    ("Fields", EmbyApi.ItemFields + ",ParentLogoItemId,ParentLogoImageTag"),
-                    ("SortBy", query.Sort switch { LibrarySort.Name => "SortName", LibrarySort.CommunityRating => "CommunityRating",
-                        LibrarySort.ProductionYear => "ProductionYear", LibrarySort.Runtime => "Runtime", _ => "DateCreated" }),
-                    ("SortOrder", query.Direction == SortDirection.Ascending ? "Ascending" : "Descending"),
-                    ("Genres", string.Join('|', query.Genres)), ("Years", string.Join(',', query.Years)),
-                    ("OfficialRatings", string.Join('|', query.OfficialRatings)),
-                    ("StartIndex", Number(offset)), ("Limit", Number(count))).ConfigureAwait(false);
-            }, libraryId, filters: filtered ? query : null, scope: scopeToken);
+            (account, offset, count, token) => FetchLibraryItemsAsync(account, libraryId, query, offset, count, token),
+            libraryId, scope: scopeToken);
     }
 
-    public IQuery<FilterOptions> ObserveFilters(string libraryId, CancellationToken scopeToken = default) =>
-        Observe("filters", libraryId, (account, token) => FetchFiltersAsync(account, libraryId, token),
+    public IQuery<FilterOptions> ObserveFilters(string libraryId, CancellationToken scopeToken = default)
+    {
+        var account = CaptureAccount();
+        var query = Observe("filters", libraryId, (session, token) => FetchFiltersAsync(session, libraryId, token),
             TimeSpan.FromMinutes(5), scopeToken);
+        return new FilterObservation(this, account, libraryId, query, scopeToken);
+    }
     public IQuery<MediaItem> ObserveDetail(string itemId, CancellationToken scopeToken = default) =>
         Observe("detail", itemId, (account, token) => FetchDetailAsync(account, itemId, RequestPriority.Foreground, token), scope: scopeToken);
     public IQuery<MediaItem> ObserveNextUp(string seriesId, CancellationToken scopeToken = default) =>
@@ -173,7 +166,7 @@ public sealed class LibraryService : ILibraryService, IDisposable
 
     private PageObservation Paged(string kind, string args, int pageSize,
         Func<AccountSession, int, int, CancellationToken, Task<EmbyItems>> fetch,
-        string? libraryId = null, bool foldEpisodes = false, LibraryQuery? filters = null, CancellationToken scope = default)
+        string? libraryId = null, bool foldEpisodes = false, CancellationToken scope = default)
     {
         if (pageSize is < 1 or > 500) throw new ArgumentOutOfRangeException(nameof(pageSize), "每页条数必须为 1 到 500。");
         var account = CaptureAccount();
@@ -181,11 +174,12 @@ public sealed class LibraryService : ILibraryService, IDisposable
         IQuery<QueryPage<MediaItem>> first = account is null ? new ObservableQuery<QueryPage<MediaItem>>(scheduler,
             _ => Task.FromException<QueryPage<MediaItem>>(NotLoggedIn()), cancellation.Token) :
             cache.Observe(new(account.Scope, kind, args + "|size=" + Number(pageSize)), account,
-                ct => PageAsync(account, fetch, 0, pageSize, libraryId, foldEpisodes, filters, [], ct), scopeToken: cancellation.Token);
+                ct => PageAsync(account, fetch, 0, pageSize, libraryId, foldEpisodes, [], ct), scopeToken: cancellation.Token);
         var initial = first.IsInitialized ? first.Current : null;
         var observation = new PageObservation(this, account, kind, args, cancellation, first, scheduler, pageSize, initial,
             (offset, seen, token) => account is null ? Task.FromException<QueryPage<MediaItem>>(NotLoggedIn()) :
-                PageAsync(account, fetch, offset, pageSize, libraryId, foldEpisodes, filters, seen, token));
+                PageAsync(account, fetch, offset, pageSize, libraryId, foldEpisodes, seen, token),
+            libraryId is not null && kind is "library-first" or "library" ? () => InvalidateScans(account, libraryId) : null);
         Register(observation);
         if (initial is null) Start(() => observation.LoadMoreAsync(CancellationToken.None));
         return observation;
@@ -193,10 +187,10 @@ public sealed class LibraryService : ILibraryService, IDisposable
 
     private async Task<QueryPage<MediaItem>> PageAsync(AccountSession account,
         Func<AccountSession, int, int, CancellationToken, Task<EmbyItems>> fetch, int offset, int pageSize,
-        string? libraryId, bool foldEpisodes, LibraryQuery? filters, ImmutableArray<string> seen, CancellationToken token)
+        string? libraryId, bool foldEpisodes, ImmutableArray<string> seen, CancellationToken token)
     {
         var known = seen.ToHashSet(StringComparer.Ordinal);
-        var totalUnknown = foldEpisodes || filters is not null;
+        var totalUnknown = foldEpisodes;
         while (true)
         {
             token.ThrowIfCancellationRequested();
@@ -217,7 +211,7 @@ public sealed class LibraryService : ILibraryService, IDisposable
                         await CachedDetailAsync(account, seriesId, token).ConfigureAwait(false) : item);
                 mapped = folded.Where(item => item.Kind is MediaKind.Movie or MediaKind.Series or MediaKind.Video).ToImmutableArray();
             }
-            var distinct = mapped.Where(item => (filters is null || MatchesFilters(item, filters)) && known.Add(item.Id)).ToImmutableArray();
+            var distinct = mapped.Where(item => known.Add(item.Id)).ToImmutableArray();
             totalUnknown |= distinct.Length != raw.Length;
             if (!distinct.IsEmpty || !more)
                 return new(distinct, totalUnknown ? null : response.TotalRecordCount, more) { NextOffset = next };
@@ -276,16 +270,26 @@ public sealed class LibraryService : ILibraryService, IDisposable
             return EmbyMapper.Item(dto, libraryId, series);
         })).ConfigureAwait(false);
         var result = mapped.Where(item => item is not null).Select(item => item!).ToImmutableArray();
-        if (libraryId is not null)
-            lock (gate)
-            {
-                if (!disposed && !account.Token.IsCancellationRequested)
-                {
-                    var key = (account.Scope, libraryId);
-                    loaded[key] = MergeFilters(loaded.GetValueOrDefault(key) ?? new(), DeriveFilters(result));
-                }
-            }
+        if (libraryId is not null) PublishFilters(account, libraryId, DeriveFilters(result));
         return result;
+    }
+
+    private void PublishFilters(AccountSession account, string libraryId, FilterOptions options)
+    {
+        lock (gate)
+        {
+            if (disposed || account.Token.IsCancellationRequested) return;
+            var key = (account.Scope, libraryId);
+            var previous = loaded.GetValueOrDefault(key) ?? new();
+            var merged = MergeFilters(previous, options);
+            if (previous.Genres.SequenceEqual(merged.Genres) && previous.Years.SequenceEqual(merged.Years) &&
+                previous.OfficialRatings.SequenceEqual(merged.OfficialRatings)) return;
+            loaded[key] = merged;
+        }
+        scheduler.TryEnqueue(() =>
+        {
+            if (!disposed && !account.Token.IsCancellationRequested) FiltersChanged?.Invoke(account, libraryId);
+        });
     }
 
     private async Task<MediaItem> FetchNextUpAsync(AccountSession account, string seriesId, CancellationToken token)
@@ -318,21 +322,18 @@ public sealed class LibraryService : ILibraryService, IDisposable
         }
         catch (AppException error) when (error.Error.Kind != AppErrorKind.Auth && !token.IsCancellationRequested)
         {
-            var all = ImmutableArray.CreateBuilder<MediaItem>();
+            // The fallback already visits the whole library. Retain the card metadata in the
+            // shared scan so subsequent combinations do not repeat the same network walk.
+            var scan = GetScan(account, libraryId, new LibraryQuery());
+            filters = new();
             var offset = 0;
             while (true)
             {
-                var page = await GetItemsAsync(account, RequestPriority.Visible, token, ("ParentId", libraryId),
-                    ("Recursive", "true"), ("IncludeItemTypes", "Movie,Series,Video"),
-                    ("Fields", "Genres,ProductionYear,OfficialRating"), ("EnableImages", "false"), ("EnableUserData", "false"),
-                    ("StartIndex", Number(offset)), ("Limit", "500"));
-                var rows = page.Items ?? [];
-                if (rows.Length > 500 || page.TotalRecordCount < 0 || rows.Length == 0 && page.TotalRecordCount > offset) throw InvalidResponse();
-                all.AddRange(rows.Select(dto => EmbyMapper.Item(dto)).Where(item => item is not null).Select(item => item!));
-                offset += rows.Length;
-                if (page.TotalRecordCount is { } total ? offset >= total : rows.Length < 500) break;
+                var page = await scan.ReadAsync(offset, token).ConfigureAwait(false);
+                filters = MergeFilters(filters, DeriveFilters(page.Items));
+                offset += page.Items.Length;
+                if (!page.HasMore) break;
             }
-            filters = DeriveFilters(all);
         }
         FilterOptions cards;
         lock (gate) cards = loaded.GetValueOrDefault((account.Scope, libraryId)) ?? new();
@@ -350,13 +351,18 @@ public sealed class LibraryService : ILibraryService, IDisposable
     private void AccountChanged()
     {
         Observation[] old;
-        lock (gate) { old = observations.Where(item => !ReferenceEquals(item.Account, accounts.Current)).ToArray(); loaded.Clear(); }
+        lock (gate)
+        {
+            old = observations.Where(item => !ReferenceEquals(item.Account, accounts.Current)).ToArray();
+            loaded.Clear(); scans.Clear(); ignoredFilters.Clear();
+        }
         foreach (var item in old) item.Cancel();
     }
     private void Stopped(PlaybackStopped message)
     {
         var account = accounts.Current;
         if (account is null) return;
+        lock (gate) scans.Clear();
         bool Related(string kind, string args) => kind is "continue" or "recent" or "library-first" or "library" ||
             kind == "detail" && args == message.ItemId || kind == "nextup" && args == message.SeriesId ||
             kind == "episodes" && message.SeasonId is not null && args.StartsWith(message.SeasonId + "|", StringComparison.Ordinal);
@@ -369,7 +375,12 @@ public sealed class LibraryService : ILibraryService, IDisposable
     public void Dispose()
     {
         Observation[] all;
-        lock (gate) { if (disposed) return; disposed = true; all = observations.ToArray(); observations.Clear(); loaded.Clear(); }
+        lock (gate)
+        {
+            if (disposed) return;
+            disposed = true; all = observations.ToArray(); observations.Clear(); loaded.Clear();
+            scans.Clear(); ignoredFilters.Clear(); FiltersChanged = null;
+        }
         accounts.Changed -= AccountChanged;
         messenger.UnregisterAll(this);
         lifetime.Cancel();
@@ -475,6 +486,7 @@ public sealed class LibraryService : ILibraryService, IDisposable
         private readonly IQuery<QueryPage<MediaItem>> first;
         private readonly ObservablePagedQuery<MediaItem> query;
         private readonly Func<int, ImmutableArray<string>, CancellationToken, Task<QueryPage<MediaItem>>> next;
+        private readonly Action? beforeRefresh;
         private readonly object sync = new();
         private QueryPage<MediaItem>? lastFirst;
         private AppError? lastError;
@@ -484,10 +496,12 @@ public sealed class LibraryService : ILibraryService, IDisposable
 
         public PageObservation(LibraryService owner, AccountSession? account, string kind, string args,
             CancellationTokenSource cancellation, IQuery<QueryPage<MediaItem>> first, IUiScheduler scheduler, int pageSize,
-            QueryPage<MediaItem>? initial, Func<int, ImmutableArray<string>, CancellationToken, Task<QueryPage<MediaItem>>> next)
+            QueryPage<MediaItem>? initial, Func<int, ImmutableArray<string>, CancellationToken, Task<QueryPage<MediaItem>>> next,
+            Action? beforeRefresh)
             : base(owner, account, kind, args, cancellation)
         {
-            this.first = first; this.next = next; lastFirst = initial; rawOffset = initial?.NextOffset ?? initial?.Items.Length ?? 0;
+            this.first = first; this.next = next; this.beforeRefresh = beforeRefresh;
+            lastFirst = initial; rawOffset = initial?.NextOffset ?? initial?.Items.Length ?? 0;
             query = new(scheduler, LoadAsync, pageSize, initial: initial, scopeToken: cancellation.Token);
             first.Updated += FirstUpdated;
             query.Updated += QueryUpdated;
@@ -541,9 +555,13 @@ public sealed class LibraryService : ILibraryService, IDisposable
         public bool IsRefreshing => query.IsRefreshing;
         public AppError? Error => query.Error;
         public event EventHandler? Updated;
-        public Task RefreshAsync(CancellationToken cancellationToken = default) => query.RefreshAsync(cancellationToken);
+        public Task RefreshAsync(CancellationToken cancellationToken = default)
+        {
+            if (query.IsInitialized) beforeRefresh?.Invoke();
+            return query.RefreshAsync(cancellationToken);
+        }
         public Task LoadMoreAsync(CancellationToken cancellationToken = default) => query.LoadMoreAsync(cancellationToken);
-        public override void Refresh() { if (!Disposed && !Lifetime.IsCancellationRequested) Start(() => query.RefreshAsync(CancellationToken.None)); }
+        public override void Refresh() { if (!Disposed && !Lifetime.IsCancellationRequested) Start(() => RefreshAsync(CancellationToken.None)); }
         protected override void Release() { first.Updated -= FirstUpdated; query.Updated -= QueryUpdated; Updated = null; query.Dispose(); first.Dispose(); }
     }
 }

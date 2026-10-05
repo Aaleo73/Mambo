@@ -18,6 +18,7 @@ internal sealed class MotionLibraryFixture(ILibraryService fallback, IUiSchedule
 
     public IReadOnlyList<MotionLibraryRequest> LibraryRequests => libraryRequests;
     public IReadOnlyList<MotionEpisodeRequest> EpisodeRequests => episodeRequests;
+    internal IQuery<FilterOptions>? FilterOptionsOverride { get; set; }
 
     public void HoldLibrary(string id)
     {
@@ -80,7 +81,7 @@ internal sealed class MotionLibraryFixture(ILibraryService fallback, IUiSchedule
     public IPagedQuery<MediaItem> ObserveRecent(int pageSize = 120, CancellationToken scopeToken = default) =>
         fallback.ObserveRecent(pageSize, scopeToken);
     public IQuery<FilterOptions> ObserveFilters(string libraryId, CancellationToken scopeToken = default) =>
-        fallback.ObserveFilters(libraryId, scopeToken);
+        FilterOptionsOverride ?? fallback.ObserveFilters(libraryId, scopeToken);
     public IQuery<MediaItem> ObserveDetail(string itemId, CancellationToken scopeToken = default) =>
         fallback.ObserveDetail(itemId, scopeToken);
     public IQuery<MediaItem> ObserveNextUp(string seriesId, CancellationToken scopeToken = default) =>

@@ -229,6 +229,7 @@ public sealed partial class LibraryPage : UserControl, INavigablePage, ITransiti
         if (e.PropertyName is nameof(LibraryViewModel.FiltersOpen) or nameof(LibraryViewModel.HasFilters)) ApplyFilterState();
         if (e.PropertyName == nameof(LibraryViewModel.FiltersOpen)) ChangeFilterPresentation();
         if (e.PropertyName == nameof(LibraryViewModel.SortLabel)) ApplySortState();
+        if (e.PropertyName == nameof(LibraryViewModel.IsApplying)) loader.SetActive(active && !ViewModel.IsApplying);
         if (e.PropertyName == nameof(LibraryViewModel.Cards))
         {
             observedCards.PropertyChanged -= OnCardsChanged;
@@ -629,8 +630,9 @@ public sealed partial class LibraryPage : UserControl, INavigablePage, ITransiti
         toggle.IsChecked = chip.IsChecked;
     }
 
-    private void OnResetClick(object sender, RoutedEventArgs e) => ViewModel.ResetFilters();
-    private void OnRetryClick(object sender, RoutedEventArgs e) => _ = ViewModel.Cards.RefreshAsync();
+    private void OnRetryClick(object sender, RoutedEventArgs e) => _ = ViewModel.RetryResultsAsync();
+    private void OnRetryFiltersClick(object sender, RoutedEventArgs e) => _ = ViewModel.RefreshFiltersAsync();
+    private void OnCancelApplyClick(object sender, RoutedEventArgs e) => ViewModel.CancelApply();
     private void OnLoadMoreClick(object sender, RoutedEventArgs e) => _ = ViewModel.LoadMoreAsync();
     private void OnScrollViewChanged(object? sender, ScrollViewerViewChangedEventArgs e) => loader.Check();
     private void OnGridSizeChanged(object sender, SizeChangedEventArgs e) => loader.Check();

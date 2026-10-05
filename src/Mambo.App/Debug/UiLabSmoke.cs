@@ -51,6 +51,11 @@ internal static partial class UiLabSmoke
             await RunImageResolutionOnlyAsync(window, reportPath, token);
             return;
         }
+        if (Program.Arguments.Contains("--library-filters-only", StringComparer.Ordinal))
+        {
+            await RunLibraryFiltersOnlyAsync(window, reportPath, token);
+            return;
+        }
         var shotRoot = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(reportPath))!, Path.GetFileNameWithoutExtension(reportPath));
         using var input = new UiInputProbe(window);
         // 六项假服务已验证；只为本轮合成页面保存构造错误，不订阅真实页面。
