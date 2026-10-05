@@ -5,6 +5,7 @@ using Mambo.App.BulletChat;
 using Mambo.Core.Contracts;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Graphics.Canvas;
+using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Hosting;
 using Windows.System;
 using Windows.UI;
@@ -71,6 +72,14 @@ internal static class BulletChatSmoke
                 report.Stage = "停留供截图";
                 Save(reportPath, report);
                 await Task.Delay(hold, token);
+                // 顺带留一张选集栏收起时的窗口：用标题栏按钮的点击路径收起，截完用 E 键展开。
+                new ButtonAutomationPeer(window.Shell.EpisodesToggle).Invoke();
+                await WaitAsync(() => !player.EpisodePanelVisible, token);
+                report.Stage = "选集收起停留供截图";
+                Save(reportPath, report);
+                await Task.Delay(hold, token);
+                await player.DispatchSmokeKeyAsync(VirtualKey.E);
+                await WaitAsync(() => player.EpisodePanelVisible, token);
             }
 
             report.Stage = "暂停与继续";

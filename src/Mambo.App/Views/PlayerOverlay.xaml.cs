@@ -38,6 +38,9 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     private readonly WindowMotionObserver motionObserver;
     private readonly PopupTransition bigPlayTransition;
     private readonly PopupTransition upNextTransition;
+    private readonly PopupTransition episodeTransition;
+    private readonly long episodeVisibilityToken;
+    private bool episodesAvailable;
     private readonly List<FlyoutBase> openFlyouts = [];
     private FlyoutBase[] panelFlyouts = [];
     private readonly List<WeakReference<Button>> episodeButtons = [];
@@ -96,6 +99,9 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         // 大播放钮在控制层里，只淡变；即将播放卡片是独立弹层，带 4 DIP 位移。
         bigPlayTransition = new(BigPlay, rise: 0);
         upNextTransition = new(UpNext);
+        // 选集栏只淡变；它一折叠或出现，画面卡片就跟着改右边距
+        episodeTransition = new(EpisodePanel, rise: 0);
+        episodeVisibilityToken = EpisodePanel.RegisterPropertyChangedCallback(VisibilityProperty, OnEpisodePanelVisibilityChanged);
         EpisodeListScroll.Visibility = settings.Current.UseEpisodeGrid ? Visibility.Collapsed : Visibility.Visible;
         EpisodeGridScroll.Visibility = settings.Current.UseEpisodeGrid ? Visibility.Visible : Visibility.Collapsed;
         clock = DispatcherQueue.CreateTimer();
@@ -153,6 +159,8 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     internal IPlaybackSession Session => session;
     internal bool ControlsVisible => chromeVisible;
     internal bool EpisodePanelVisible => EpisodePanel.Visibility == Visibility.Visible;
+    internal bool EpisodePanelCollapsed => episodePanelCollapsed;
+    internal bool CanToggleEpisodes => episodesAvailable;
     internal FrameworkElement ViewportElement => VideoViewport;
     internal bool KeyHintVisible => KeyHint.Visibility == Visibility.Visible;
     internal string KeyHintText => KeyHintLabel.Text;
@@ -216,7 +224,8 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         SelectVideoQuality(mode);
         await lastCommand;
     }
-    internal void ToggleEpisodesForSmoke() => ToggleEpisodePanel();
+    internal void ToggleEpisodes() => ToggleEpisodePanel(animate: true);
+    internal void ToggleEpisodesForSmoke() => ToggleEpisodePanel(animate: false);
     internal void DispatchSmokeSeekHover(double fraction) => PreviewSeekHover(fraction);
     internal void DispatchSmokeSeekExit() => ExitSeekHover();
     internal void SetEpisodeGridForSmoke(bool grid) => SetEpisodeLayout(grid);
@@ -376,6 +385,9 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         // An idle player can have no visible controls. Resolve its static closing
         // face before freezing; otherwise detaching video leaves only black canvas.
         SetChrome(true, animate: false);
+        // 选集栏先落到终态，画面卡片的右边距才和冻结面一致
+        episodeTransition.Settle();
+        EpisodePanel.UnregisterPropertyChangedCallback(VisibilityProperty, episodeVisibilityToken);
         presentationFrozen = true;
         seekEditVersion++;
         Bindings.StopTracking();
@@ -433,6 +445,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         disposed = true;
         bigPlayTransition.Dispose();
         upNextTransition.Dispose();
+        episodeTransition.Dispose();
         EpisodeList.ElementPrepared -= OnEpisodeElementPrepared;
         EpisodeGrid.ElementPrepared -= OnEpisodeElementPrepared;
         DetachXamlEvents();
@@ -490,7 +503,6 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         PauseButton.Click -= OnPauseClick;
         NextButton.Click -= OnNextClick;
         MuteButton.Click -= OnMuteClick;
-        EpisodesButton.Click -= OnEpisodesClick;
         FullscreenButton.Click -= OnFullscreenClick;
         MaximizeButton.Click -= OnMaximizeClick;
         SlowOpeningCloseButton.Click -= OnCloseClick;
@@ -755,6 +767,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     {
         bigPlayTransition.Settle();
         upNextTransition.Settle();
+        episodeTransition.Settle();
     }
 
     private void UpdateControls()
@@ -775,12 +788,21 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         TopBar.Visibility = window.IsFullscreen ? Visibility.Visible : Visibility.Collapsed;
         FullscreenGlyph.Glyph = (string)Application.Current.Resources[window.IsFullscreen ? "IconFullscreenExit" : "IconFullscreen"];
         MaximizeGlyph.Glyph = (string)Application.Current.Resources[window.IsMaximized ? "IconRestore" : "IconMaximize"];
-        VideoViewport.Margin = window.IsFullscreen ? new Thickness(0) : new Thickness(0, 12, 0, 0);
-        VideoViewport.CornerRadius = window.IsFullscreen ? new CornerRadius(0) : new CornerRadius(12, 12, 0, 0);
-        VideoHost.CornerRadius = VideoViewport.CornerRadius;
-        Surface.SetViewportClip(window.IsFullscreen ? 0 : 12, topOnly: true);
+        // 全屏、最大化这类切换直接落终态，不带着半透明的选集栏过去
+        episodeTransition.Settle();
         UpdateEpisodePanel();
+        UpdateViewportFrame();
         LayoutChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    // 窗口模式下画面是一张四边留白、四角全圆的卡片；右边有选集栏时，由选集栏自己的内边距充当间隔
+    private void UpdateViewportFrame()
+    {
+        var framed = !window.IsFullscreen;
+        VideoViewport.Margin = framed ? new Thickness(12, 12, EpisodePanelVisible ? 0 : 12, 12) : new Thickness(0);
+        VideoViewport.CornerRadius = new CornerRadius(framed ? 12 : 0);
+        VideoHost.CornerRadius = VideoViewport.CornerRadius;
+        Surface.SetViewportClip(framed ? 12 : 0, topOnly: false);
     }
 
     private void OnEpisodePanelPointerEntered(object sender, PointerRoutedEventArgs e)
@@ -877,6 +899,8 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
             case VirtualKey.C: CycleSubtitles(); break;
             case VirtualKey.V: CycleAudio(); break;
             case VirtualKey.D: ToggleBulletChat(); break;
+            // 选集开关在标题栏，播放器的 Tab 循环到不了；键盘靠这个键。全屏时选集栏本来就不显示，不改偏好。
+            case VirtualKey.E when ViewModel.HasEpisodes && !window.IsFullscreen: ToggleEpisodePanel(animate: true); break;
             case (VirtualKey)188: Run(() => session.StepFrameAsync(FrameStepDirection.Backward, lifetime.Token)); break;
             case (VirtualKey)190: Run(() => session.StepFrameAsync(FrameStepDirection.Forward, lifetime.Token)); break;
             case (VirtualKey)219: ChangeRate(-1); break;
@@ -1248,25 +1272,36 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     {
         if (!disposed && !presentationFrozen && !closing && !transitionActive) ViewModel.DismissUpNext();
     }
-    private void OnEpisodesClick(object sender, RoutedEventArgs e)
-    {
-        ToggleEpisodePanel();
-    }
-    private void ToggleEpisodePanel()
+    private void ToggleEpisodePanel(bool animate)
     {
         if (disposed || presentationFrozen || closing || transitionActive || !ViewModel.HasEpisodes) return;
         episodePanelCollapsed = !episodePanelCollapsed;
-        UpdateEpisodePanel();
+        UpdateEpisodePanel(animate && CanAnimate);
         layoutSave = SaveEpisodePreferenceAsync(null, episodePanelCollapsed, layoutSave);
+        // 标题栏的收起 / 展开按钮要立刻换提示，不等退场结束
+        LayoutChanged?.Invoke(this, EventArgs.Empty);
     }
-    private void UpdateEpisodePanel()
+    private void UpdateEpisodePanel(bool animate = false)
     {
         if (disposed || presentationFrozen) return;
-        var visible = ViewModel.HasEpisodes && !window.IsFullscreen && !episodePanelCollapsed;
-        if (visible == EpisodePanelVisible) return;
-        if (!visible && XamlRoot is not null && IsWithin(FocusManager.GetFocusedElement(XamlRoot) as DependencyObject, EpisodePanel))
-            Focus(FocusState.Programmatic);
-        EpisodePanel.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        var available = ViewModel.HasEpisodes && !window.IsFullscreen;
+        var visible = available && !episodePanelCollapsed;
+        if (visible != episodeTransition.TargetVisible)
+        {
+            // 逻辑收起立即禁输入并交还焦点；退场结束才折叠，画面那时再变宽。
+            if (!visible && XamlRoot is not null && IsWithin(FocusManager.GetFocusedElement(XamlRoot) as DependencyObject, EpisodePanel))
+                Focus(FocusState.Programmatic);
+            EpisodePanel.IsHitTestVisible = visible;
+            _ = visible ? episodeTransition.OpenAsync(animate) : episodeTransition.CloseAsync(animate);
+        }
+        if (available == episodesAvailable) return;
+        episodesAvailable = available;
+        LayoutChanged?.Invoke(this, EventArgs.Empty);
+    }
+    private void OnEpisodePanelVisibilityChanged(DependencyObject sender, DependencyProperty property)
+    {
+        if (disposed || presentationFrozen) return;
+        UpdateViewportFrame();
         LayoutChanged?.Invoke(this, EventArgs.Empty);
     }
     private void OnViewportSizeChanged(object sender, SizeChangedEventArgs e)

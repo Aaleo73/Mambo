@@ -225,11 +225,23 @@ internal static class PlayerControlsSmoke
             player.ToggleEpisodesForSmoke();
             await player.FlushPreferencesAsync();
             await CheckAsync(report, "EpisodePanelCollapseExpandsVideo", () => !player.EpisodePanelVisible &&
-                preferences.Current.EpisodePanelCollapsed && player.ViewportElement.ActualWidth > expandedViewportWidth + 200, token);
+                preferences.Current.EpisodePanelCollapsed && player.ViewportElement.ActualWidth > expandedViewportWidth + 180, token);
             player.ToggleEpisodesForSmoke();
             await player.FlushPreferencesAsync();
             await CheckAsync(report, "EpisodePanelRestoresVideo", () => player.EpisodePanelVisible &&
                 !preferences.Current.EpisodePanelCollapsed && Math.Abs(player.ViewportElement.ActualWidth - expandedViewportWidth) < 1, token);
+            // 标题栏上的开关走真实点击路径：带淡变，所以用轮询等退场结束。
+            var episodesToggle = window.Shell.EpisodesToggle;
+            Mark(report, "EpisodesToggleShown", episodesToggle.Visibility == Visibility.Visible &&
+                AutomationProperties.GetName(episodesToggle) == "收起选集");
+            new ButtonAutomationPeer(episodesToggle).Invoke();
+            await player.FlushPreferencesAsync();
+            await CheckAsync(report, "EpisodesToggleCollapses", () => !player.EpisodePanelVisible && preferences.Current.EpisodePanelCollapsed &&
+                AutomationProperties.GetName(episodesToggle) == "展开选集" && player.ViewportElement.ActualWidth > expandedViewportWidth + 180, token);
+            new ButtonAutomationPeer(episodesToggle).Invoke();
+            await player.FlushPreferencesAsync();
+            await CheckAsync(report, "EpisodesToggleExpands", () => player.EpisodePanelVisible && !preferences.Current.EpisodePanelCollapsed &&
+                AutomationProperties.GetName(episodesToggle) == "收起选集" && Math.Abs(player.ViewportElement.ActualWidth - expandedViewportWidth) < 1, token);
             await player.SetEpisodeGridForSmokeAsync(false);
             Mark(report, "EpisodeListLayout", !player.EpisodeGridVisible);
             await player.SetEpisodeGridForSmokeAsync(true);

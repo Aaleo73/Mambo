@@ -8,6 +8,7 @@ using Mambo.Core.Contracts;
 using Microsoft.UI.Composition;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Hosting;
 using Microsoft.UI.Xaml.Input;
@@ -89,6 +90,7 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
         Root.SizeChanged += OnRootSizeChanged;
         NavButtons.SizeChanged += (_, _) => TitleBarLayoutChanged?.Invoke(this, EventArgs.Empty);
         CenterContent.SizeChanged += (_, _) => TitleBarLayoutChanged?.Invoke(this, EventArgs.Empty);
+        EpisodesButton.SizeChanged += (_, _) => TitleBarLayoutChanged?.Invoke(this, EventArgs.Empty);
         AddHandler(PointerPressedEvent, new PointerEventHandler(OnPointerPressed), true);
         AddHandler(KeyDownEvent, new KeyEventHandler(OnKeyDown), true);
         InitializeShortcuts();
@@ -103,6 +105,7 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
     public FrameworkElement TitleBarElement => TitleBar;
     public FrameworkElement MaximizeElement => MaximizeButton;
     internal PlayerOverlay? ActivePlayer => player;
+    internal Button EpisodesToggle => EpisodesButton;
     internal PlayerOverlay? RetiringPlayer => retiringPlayer;
     internal double FoldProgress => fold.Progress;
     internal bool IsPlayerFacing => playerFacing;
@@ -111,7 +114,9 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
     internal bool LastPlayerFocusRestoreSucceeded { get; private set; }
     internal bool LastPlayerFocusRestoredWithinShell { get; private set; }
     public bool CanHandle => browseCovered;
-    public IEnumerable<FrameworkElement> PassthroughElements => [NavButtons, MinimizeButton, CloseButton, CenterContent];
+    public IEnumerable<FrameworkElement> PassthroughElements => EpisodesButton.Visibility == Visibility.Visible
+        ? [NavButtons, EpisodesButton, MinimizeButton, CloseButton, CenterContent]
+        : [NavButtons, MinimizeButton, CloseButton, CenterContent];
 
     public event EventHandler? TitleBarLayoutChanged;
     public event EventHandler? MinimizeRequested;
@@ -435,8 +440,9 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
         MinimizeButton.Focus(FocusState.Programmatic);
     }
 
+    // 画面卡片左右留白相等时标题本来就居中；只有选集栏展开时才需要让出右侧多出来的那一段
     private double PlayerPanelWidth => player is { EpisodePanelVisible: true } active
-        ? Math.Max(0, active.ActualWidth - active.ViewportElement.ActualWidth)
+        ? Math.Max(0, active.ActualWidth - active.ViewportElement.ActualWidth - 2 * active.ViewportElement.Margin.Left)
         : retiringPlayer is not null ? retiringPanelWidth : 0;
 
     private bool CanRestoreFocus(Control? candidate) =>
@@ -506,8 +512,26 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
         Grid.SetColumnSpan(CenterArea, playerFacing ? 3 : 2);
         // 玩家视口是标题对齐的唯一尺寸来源，不把选集栏算入画面中心。
         CenterArea.Margin = new Thickness(0, 0, playerFacing ? PlayerPanelWidth : 0, 0);
+        UpdateEpisodesButton();
         TitleBarLayoutChanged?.Invoke(this, EventArgs.Empty);
     }
+
+    private void UpdateEpisodesButton()
+    {
+        var active = playerFacing ? player : null;
+        var visible = active is { CanToggleEpisodes: true };
+        if (visible)
+        {
+            var label = active!.EpisodePanelCollapsed ? "展开选集" : "收起选集";
+            ToolTipService.SetToolTip(EpisodesButton, label + "（E）");
+            AutomationProperties.SetName(EpisodesButton, label);
+        }
+        EpisodesButton.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        // 标题两侧对称让位；多了一个按钮就多让出它的宽度
+        CenterArea.Padding = new Thickness(visible ? 180 : 140, 0, visible ? 180 : 140, 0);
+    }
+
+    private void OnEpisodesClick(object sender, RoutedEventArgs e) => player?.ToggleEpisodes();
 
     /// <summary>标题栏中间的可交互内容，例如首页 hero 分页点。</summary>
     public void SetCenterContent(UIElement? content)

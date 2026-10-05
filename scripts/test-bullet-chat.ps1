@@ -74,8 +74,8 @@ try {
     if ($Screenshot) { $start.Environment['MAMBO_BULLET_CHAT_HOLD_MS'] = '4000' }
     $process = [Diagnostics.Process]::Start($start)
     if ($Screenshot) {
-        # 诊断在四个阶段各停留一次：弹幕滚动中，以及弹幕、倍速、轨道三个面板打开时。
-        $pending = [ordered]@{ '停留供截图' = $screenshotPath; '面板停留供截图' = $panelScreenshotPath
+        # 诊断在五个阶段各停留一次：弹幕滚动中、选集栏收起时，以及弹幕、倍速、轨道三个面板打开时。
+        $pending = [ordered]@{ '停留供截图' = $screenshotPath; '选集收起停留供截图' = (Join-Path $root 'collapsed.png'); '面板停留供截图' = $panelScreenshotPath
             '倍速面板停留供截图' = (Join-Path $root 'rate.png'); '轨道面板停留供截图' = (Join-Path $root 'tracks.png') }
         $waiting = [Diagnostics.Stopwatch]::StartNew()
         while ($pending.Count -gt 0 -and $waiting.Elapsed.TotalSeconds -lt 200 -and -not $process.HasExited) {

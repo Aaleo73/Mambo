@@ -170,8 +170,8 @@
     </UserControl.Resources>
     <Grid x:Name="Root" Background="Transparent">
         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-        <Grid x:Name="VideoViewport" Margin="0,12,0,0" CornerRadius="12,12,0,0" Background="{ThemeResource PlayerCanvasBrush}" SizeChanged="OnViewportSizeChanged">
-        <Grid x:Name="VideoHost" Background="{ThemeResource PlayerCanvasBrush}" CornerRadius="12,12,0,0"><video:VideoSurface x:Name="Surface"/><bullet:BulletChatLayer x:Name="BulletChatView"/></Grid>
+        <Grid x:Name="VideoViewport" Margin="12" CornerRadius="12" Background="{ThemeResource PlayerCanvasBrush}" SizeChanged="OnViewportSizeChanged">
+        <Grid x:Name="VideoHost" Background="{ThemeResource PlayerCanvasBrush}" CornerRadius="12"><video:VideoSurface x:Name="Surface"/><bullet:BulletChatLayer x:Name="BulletChatView"/></Grid>
         <Grid x:Name="InputSurface" Background="Transparent" Tapped="OnSurfaceTapped" DoubleTapped="OnSurfaceDoubleTapped"
               PointerMoved="OnSurfacePointerMoved" PointerEntered="OnSurfacePointerEntered" PointerExited="OnSurfacePointerExited"
               PointerPressed="OnSurfacePointerPressed" PointerReleased="OnSurfacePointerReleased" PointerCanceled="OnSurfacePointerReleased"/>
@@ -262,8 +262,6 @@
                                 <Slider x:Name="VolumeSlider" Style="{StaticResource PlayerSeek}" IsThumbToolTipEnabled="False" Width="84" Margin="14,0,2,0" VerticalAlignment="Center" Minimum="0" Maximum="100" SmallChange="5" LargeChange="10" Visibility="Collapsed" AllowFocusOnInteraction="False"
                                         ValueChanged="OnVolumeChanged" IsEnabled="{x:Bind ViewModel.CanControl, Mode=OneWay}" AutomationProperties.Name="音量"/>
                             </Grid>
-                            <Button x:Name="EpisodesButton" Style="{ThemeResource PlayerButton}" Click="OnEpisodesClick" Visibility="{x:Bind ViewModel.HasEpisodes, Mode=OneWay}"
-                                    AutomationProperties.Name="收起或展开选集面板" ToolTipService.ToolTip="收起 / 展开选集"><themes:LineIcon Glyph="{StaticResource IconPanelRight}" Width="18" Height="18"/></Button>
                             <Button x:Name="FullscreenButton" Style="{ThemeResource PlayerButton}" Click="OnFullscreenClick" AutomationProperties.Name="切换全屏" ToolTipService.ToolTip="全屏（F11）"><themes:LineIcon x:Name="FullscreenGlyph" Glyph="{StaticResource IconFullscreen}" Width="18" Height="18"/></Button>
                             <Button x:Name="MaximizeButton" Style="{ThemeResource PlayerButton}" Click="OnMaximizeClick" AutomationProperties.Name="最大化或还原" ToolTipService.ToolTip="最大化 / 还原"><themes:LineIcon x:Name="MaximizeGlyph" Glyph="{StaticResource IconMaximize}" Width="18" Height="18"/></Button>
                         </StackPanel>

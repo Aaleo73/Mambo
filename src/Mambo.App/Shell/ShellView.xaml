@@ -60,6 +60,11 @@
                 <ContentPresenter x:Name="CenterContent" HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Grid>
             <StackPanel Grid.Column="2" Orientation="Horizontal">
+                <!-- 播放页的选集栏开关：不抢焦点，播放快捷键才不会在点过之后失效 -->
+                <Button x:Name="EpisodesButton" Style="{StaticResource TitleBarButtonStyle}" Margin="0,0,8,0" VerticalAlignment="Center" Visibility="Collapsed"
+                        AllowFocusOnInteraction="False" Click="OnEpisodesClick" ToolTipService.ToolTip="收起选集（E）" AutomationProperties.Name="收起选集">
+                    <themes:LineIcon Glyph="{StaticResource IconPanelRight}" Width="16" Height="16"/>
+                </Button>
                 <Button x:Name="MinimizeButton" Style="{StaticResource CaptionButtonStyle}" Click="OnMinimizeClick" IsTabStop="True" UseSystemFocusVisuals="True"
                         ToolTipService.ToolTip="最小化" AutomationProperties.Name="最小化">
                     <themes:LineIcon Glyph="{StaticResource CaptionMinimize}" Box="10" StrokeWidth="1" Width="10" Height="10"/>
