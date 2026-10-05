@@ -2,6 +2,8 @@
 
 服务实现与接入状态如下。契约定义见 `docs/PLAN.md` §14。
 
+2026-10-05：筛选响应专项改为按账号、资料库及排序共享 500 条批次扫描，复用不同筛选组合的数据；筛选选项逐步出现，界面增加 200ms 连续点击合并、等待、取消和失败重试，修正完整年代展开及旧偏好。保留正常服务器的原生筛选路径。合成 5000 条尾页匹配首次列表请求由约 84 次降至 11 次，随后组合查询不新增列表请求；本轮没有重新连接真实服务器。实现和验证见 [筛选响应优化](../decisions/library-filter-responsiveness.md)。
+
 2026-10-04：独立分支 `fix/library-filter-search` 修复资料库筛选与中文搜索。真实服务器的筛选选项接口返回 404，列表接口忽略类型、年份、分级条件；保留完整分页推导选项，并在发布卡片前按元数据校验条件，原始分页游标不受过滤影响。搜索改为完整短语查询，媒体库分组按已加载标题相关性排序，完整片名优先，同级保留原库顺序；移动和刷新分组保留原分页观察。原生 WinUI 页面已通过真实类型筛选、类型与年代组合、下一页、重置及搜索刷新；“斗破苍穹”返回 4 个非空库、各 1 张卡，首组首卡为精确片名。真实电影库未提供分级元数据，分级验证覆盖无匹配时读完后返回空结果，正向及组合匹配由合成回归覆盖。验证会话仅在内存，不读写用户凭据。
 
 本次验收：`dotnet build -p:Platform=x64` 零警告零错误；`dotnet test -p:Platform=x64 --no-build` 372/372 通过，无跳过。临时原生页面探针通过真实筛选按钮、筛选后动态「已加载 N 项」、搜索排序及刷新，报告与渲染截图位于隔离工作区的 `artifacts/filter-search-live.txt` 及同名前缀 PNG；探针源码验收后删除。没有重新验收封面下载、安装包或 Native AOT 发布。服务器忽略筛选时，稀疏条件需扫描多页；计数只反映已验证的结果，不提前估算总数。
@@ -81,3 +83,5 @@ R-017 后端设置增量已完成：AppSettings.ThemeMode 的类型为 SettingsT
 2026-10-05 弹幕：新增 `IBulletChatService` 与 `BulletChat*` 模型（`BulletChatContracts.cs`）；`AppSettings` 增加 `BulletChat`（`BulletChatSettings`，旧文件缺失时落默认值），`PlaybackEntry` 增加 `ProductionYear`。全部为兼容增量。
 
 2026-10-05 弹幕（验收反馈）：`BulletChatSettings` 增加 `DefaultsVersion`，`Area` 默认值改为 0.25；仍是旧默认值 0.85 的已存设置在加载时迁移一次。解析时丢弃带控制字符的垃圾弹幕及其发送者的其余弹幕。均为兼容增量。
+
+2026-10-05 画质模式：新增 `VideoQualityMode`、`IPlaybackSession.SetVideoQualityModeAsync`（默认实现返回不支持），`SessionSnapshot` 增加 `VideoQualityMode`、`IsVideoQualityChanging`、`VideoQualityError`。选择按整剧或条目由后端记忆，没有全局默认设置项；确认之后才失效的增强会回到标准，并经 `VideoQualityError`（`player.video_quality_lost`）提示。均为兼容增量，见 `docs/decisions/video-quality-modes.md`。
