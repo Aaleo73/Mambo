@@ -39,4 +39,8 @@ $checksums = @(Get-ChildItem -LiteralPath $output -File | Sort-Object Name | For
     (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() + '  ' + $_.Name
 })
 $checksums | Set-Content -LiteralPath (Join-Path $output 'SHA256SUMS.txt') -Encoding utf8NoBOM
+$versionNotes = Join-Path $repoRoot "docs/releases/v$Version.md"
+if (Test-Path -LiteralPath $versionNotes -PathType Leaf) {
+    $notes = (Get-Content -LiteralPath $versionNotes -Raw).Trim() + "`n`n" + $notes
+}
 $notes | Set-Content -LiteralPath (Join-Path $repoRoot 'artifacts/github-release-notes.md') -Encoding utf8NoBOM
