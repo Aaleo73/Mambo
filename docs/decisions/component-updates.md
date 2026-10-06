@@ -35,3 +35,10 @@
 - **最终交付包复验通过**：`artifacts/component-update-validation/0bd9e3e1e6aa45348e8eca14c5e77098/result.json` 中 portable/installed 均为 Passed，使用交付包内的 helper，没有覆盖诊断版本；均只使用 app 组件，全部 3,291 个发布文件哈希正确。旧进程与重启后的新进程均正常退出，安装登记更新为 0.1.5；卸载清理了模拟新增的诊断页文件、其他程序文件与注册项，自定义文件保留。本轮测试进程和测试安装已清理。
 - `scripts/test-component-update.ps1` 在仓库内独立目录测试，应用仅使用内存假服务。检测到已有正式安装注册项时拒绝安装生命周期测试；测试快捷方式使用本轮独立分组。旧版夹具补入 helper，且移除一个未使用的诊断页文件以模拟新版新增文件；不把这个夹具描述为旧公开程序原生支持新协议。
 - 未发布新 GitHub Release，组件 HTTP 下载由真实服务配合模拟响应验证，尚无新协议的线上端到端证据。本次没有执行全套物理界面输入、真实 Emby 播放中更新、GPU 或人工 HDR 验收。
+
+## v0.1.5 公开发布（2026-10-06）
+
+- 用户要求推送并发布。提交 `d19a4ff` 的[构建与测试](https://github.com/Aaleo73/Mambo/actions/runs/37400955768)和 `v0.1.5` 标签的[发布工作流](https://github.com/Aaleo73/Mambo/actions/runs/37401302322)均成功。
+- [公开 v0.1.5 Release](https://github.com/Aaleo73/Mambo/releases/tag/v0.1.5) 含安装器（112,813,321 字节）、便携包（165,577,189 字节）、`update.json`（686,655 字节）与 app / runtime / mpv / assets / licenses 五个组件包、应用源码、两份原生源码分包和 `SHA256SUMS.txt`；`releases/latest` 指向 v0.1.5。资产名称和大小取自 GitHub API，没有重新下载核对内容。
+- 发布前在本机按同一脚本打出的 0.1.5 上：Native AOT 发布无 IL / CS 警告，弹幕诊断与原生播放诊断各一轮通过，设置页用内存假服务实际打开查看。完整界面烟测没有执行。
+- 仍然没有新协议的线上端到端证据：组件更新要从 0.1.5 升到下一个版本时才会真正走到。旧版本经安装包升级到 0.1.5 的路径本次没有实测。
