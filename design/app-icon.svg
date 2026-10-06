@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <!-- Mambo 应用图标母版，由 scripts/build-app-icon.ps1 生成，不要手改。 -->
+  <defs>
+    <linearGradient id="tile256" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3b3d44"/>
+      <stop offset="1" stop-color="#17181b"/>
+    </linearGradient>
+    <linearGradient id="rim256" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.3"/>
+      <stop offset=".45" stop-color="#fff" stop-opacity="0.066"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0.09"/>
+    </linearGradient>
+  </defs>
+  <rect x="10" y="10" width="236" height="236" rx="55.46" fill="url(#tile256)"/>
+  <rect x="11" y="11" width="234" height="234" rx="54.46" fill="none" stroke="url(#rim256)" stroke-width="2"/>
+  <g stroke="#fff" stroke-width="27.393" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M128 128 L187.304 81.696 V174.304" fill="none"/>
+    <path d="M68.696 81.696 L128 128 L68.696 174.304 Z" fill="#fff"/>
+  </g>
+</svg>

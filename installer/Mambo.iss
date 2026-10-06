@@ -29,6 +29,7 @@ CloseApplications=yes
 CloseApplicationsFilter=Mambo.exe
 RestartApplications=no
 UninstallDisplayIcon={app}\Mambo.exe
+SetupIconFile=..\src\Mambo.App\Assets\AppIcon.ico
 LicenseFile={#PublishDir}\LICENSE
 SetupLogging=yes
 

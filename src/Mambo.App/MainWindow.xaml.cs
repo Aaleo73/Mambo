@@ -45,6 +45,7 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
         Debug.StartupTimeline.Mark("WindowInitializeComponent");
         hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+        WindowIcon.Apply(hwnd);
         theme = services.GetRequiredService<ThemeService>();
         settings = services.GetRequiredService<ISettingsService>();
         context = services.GetRequiredService<WindowContext>();
