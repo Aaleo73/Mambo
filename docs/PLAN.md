@@ -1212,8 +1212,8 @@ PlayerOverlay（Grid，RequestedTheme=Dark，IsTabStop=True，持有焦点）
 
 **目标解析**
 - Movie / Episode / Video：用显式起点，否则用 `UserData.PlaybackPositionTicks`，没有阈值。
-- Series：先取 NextUp；没有时在全部剧集（recursive，最多 500）里依次找：续播位置 ≥ 30 秒的第一集 → 第一个未看的集 → 第一集。
-- Season：在本季剧集（最多 300）里按同样规则找。
+- Series：先取 NextUp；没有时分页读完全部剧集（recursive，每页最多 500，不限制总集数），依次找：续播位置 ≥ 30 秒的第一集 → 第一个未看的集 → 第一集。详情页的 NextUp 回退使用相同分页规则。
+- Season：分页读完本季剧集后按同样规则找。
 - 其它类型：返回契约错误。
 
 **标题**
@@ -1221,7 +1221,8 @@ PlayerOverlay（Grid，RequestedTheme=Dark，IsTabStop=True，持有焦点）
 - 播放层顶栏标题：「剧名 · 第3集 标题」。
 
 **连播计划**
-- 只针对有 SeasonId 的 Episode；取该季全部剧集，最多 500，按 ParentIndexNumber、IndexNumber、SortName 升序。
+- 只针对有 SeasonId 的 Episode；分页取完该季全部剧集，每页最多 500，不限制总集数，按 ParentIndexNumber、IndexNumber、SortName 升序。
+- 按服务器实际返回的原始条数推进 StartIndex；总数已知时继续到总数，未提供总数时继续探测到空页，不能将服务器限制的短页视作末页。重复页终止请求；服务器仍声明有未读项时按失败处理。见 `docs/decisions/episode-pagination.md`。
 - 只保留 Type=Episode 且 SeasonId 匹配的项（没有 SeasonId 的行也接受）；选中的集必须在其中。
 - 任何失败都降级为单集播放。
 
@@ -1503,6 +1504,7 @@ PlayerOverlay（Grid，RequestedTheme=Dark，IsTabStop=True，持有焦点）
 
 ## 进度
 
+- [x] 长篇剧集分页修复（2026-10-06：播放选集和 NextUp 回退按实际返回条数读完整季，移除 300 / 500 集总量截断；1001 集、服务器每页 200 条、第 801 集定位、续播与跨第 200 集切集等 18 项新增回归通过；构建零警告/错误，完整测试 586 通过、23 按配置跳过。真实片库待复验，见 `docs/decisions/episode-pagination.md`）
 - [x] 安装版/便携版应用内组件更新（2026-10-06：复用未变化组件、下载后确认重启、原位替换与故障恢复；构建零警告/错误，568 项测试通过、23 项既有 GPU/测量用例按配置跳过；最终 AOT 包的两种版本退出/更新/重启与安装版卸载新增文件验收通过。本轮样包从完整安装器约 113 MB 降为组件加清单约 13 MB，旧版需一次过渡升级；尚未发布新 Release，详见 `docs/decisions/component-updates.md`）
 - [x] GitHub 源码托管与自动更新实现（2026-10-05：公开仓库 Aaleo73/Mambo 已上传；公开稳定版检查、SHA-256 校验下载安装器和 Actions 已接入。独立构建及 AOT 通过，更新专项 37/37、回归 532 通过/23 按配置跳过；线上构建/测试与 v0.1.0 源码发布通过。完整界面输入检查受超时/遮挡限制，见 `docs/decisions/github-auto-update.md`）
 - [x] 完整原生对应源码（2026-10-05：替换为匹配源码包的 MSYS2 UCRT64 组件，固定 105 个包/131 个 DLL 与 897 份源码；原配方、补丁、构建环境、Rust 锁和许可归属随包提供；32 项真实播放器/GPU 检查及 4K 硬解、合成画面、连播验证通过，详见 `docs/decisions/native-distribution.md`）

@@ -47,7 +47,7 @@ public sealed class PlaybackPreparationTests
 
     [Theory]
     [InlineData("Series", 500)]
-    [InlineData("Season", 300)]
+    [InlineData("Season", 500)]
     public async Task TargetFallbackPrefersThirtySecondResumeThenUnplayedThenFirst(string type, int limit)
     {
         using var account = Account();
@@ -79,11 +79,163 @@ public sealed class PlaybackPreparationTests
         {
             Items = [selected, Episode(Id(), 4) with { SeasonId = Id() }, first,
                 new() { Id = Id(), Type = "Movie", SeasonId = season }, Episode(Id(), 3)],
+            TotalRecordCount = 5,
         })));
         var plan = await new SeasonPlan(new(api)).BuildAsync(account, selected, 25, Token);
         Assert.Equal(3, plan.Entries.Length); Assert.Equal(1, plan.SelectedIndex); Assert.Equal(25, plan.StartTicks);
         Assert.Equal(first.Id, plan.Entries[0].ItemId); Assert.Equal("剧名 S01E02 - 第二集", plan.Entries[1].Title);
         Assert.Equal("第二集", plan.Entries[1].EpisodeName);
+    }
+
+    [Theory]
+    [InlineData(200, true, 1)]
+    [InlineData(200, true, 801)]
+    [InlineData(200, false, 801)]
+    [InlineData(500, true, 801)]
+    [InlineData(500, false, 801)]
+    public async Task SeasonPlanLoadsAllEpisodesWhenServerCapsEachPage(int serverPageSize, bool includeTotal, int selectedNumber)
+    {
+        using var account = Account();
+        var season = Id();
+        var rows = Enumerable.Range(1, 1001).Select(number => Episode(Id(), number) with { SeasonId = season }).ToArray();
+        var selected = rows[selectedNumber - 1] with { Name = "最新集名" };
+        var offsets = new List<int>();
+        using var api = new EmbyApi(Guid.NewGuid(), new Stub(request =>
+        {
+            var parameters = Parameters(request);
+            Assert.Equal("500", parameters["Limit"]);
+            Assert.Equal(season, parameters["ParentId"]);
+            Assert.Equal("ParentIndexNumber,IndexNumber,SortName", parameters["SortBy"]);
+            Assert.Equal("Ascending", parameters["SortOrder"]);
+            Assert.DoesNotContain("MediaSources", parameters["Fields"], StringComparison.Ordinal);
+            var offset = int.Parse(parameters["StartIndex"], System.Globalization.CultureInfo.InvariantCulture);
+            offsets.Add(offset);
+            return Json(new EmbyItems { Items = rows.Skip(offset).Take(serverPageSize).ToArray(),
+                TotalRecordCount = includeTotal ? rows.Length : null });
+        }));
+        var plan = await new SeasonPlan(new(api)).BuildAsync(account, selected, 35, Token);
+        Assert.Equal(rows.Select(item => item.Id), plan.Entries.Select(entry => entry.ItemId));
+        Assert.Equal(selectedNumber - 1, plan.SelectedIndex);
+        Assert.Equal("最新集名", plan.Entries[plan.SelectedIndex].EpisodeName);
+        Assert.Equal(35, plan.StartTicks);
+        var expectedOffsets = Enumerable.Range(0, (rows.Length + serverPageSize - 1) / serverPageSize)
+            .Select(page => page * serverPageSize);
+        Assert.Equal(includeTotal ? expectedOffsets : expectedOffsets.Append(rows.Length), offsets);
+    }
+
+    [Theory]
+    [InlineData("Series")]
+    [InlineData("Season")]
+    public async Task TargetFallbackFindsResumeAndUnplayedEpisodesBeyondFirstFiveHundred(string type)
+    {
+        using var account = Account();
+        var parent = Id();
+        var rows = Enumerable.Range(1, 1001).Select(number => Episode(Id(), number, played: true)).ToArray();
+        rows[600] = rows[600] with { UserData = new() { Played = false } };
+        rows[800] = rows[800] with { UserData = new() { Played = true, PlaybackPositionTicks = TimeSpan.FromSeconds(45).Ticks } };
+        using var api = new EmbyApi(Guid.NewGuid(), new Stub(request =>
+        {
+            if (request.RequestUri!.AbsolutePath.EndsWith("/" + parent, StringComparison.Ordinal))
+                return Json(new EmbyItem { Id = parent, Type = type });
+            if (request.RequestUri.AbsolutePath.EndsWith("/NextUp", StringComparison.Ordinal))
+                return Json(new EmbyItems { Items = [], TotalRecordCount = 0 });
+            var offset = int.Parse(Parameters(request)["StartIndex"], System.Globalization.CultureInfo.InvariantCulture);
+            return Json(new EmbyItems { Items = rows.Skip(offset).Take(200).ToArray(), TotalRecordCount = rows.Length });
+        }));
+        var resolver = new PlaybackTargetResolver(api);
+        var resumed = await resolver.ResolveAsync(account, new(parent), Token);
+        Assert.Equal(rows[800].Id, resumed.Item.Id);
+        Assert.Equal(TimeSpan.FromSeconds(45).Ticks, resumed.StartTicks);
+        rows[800] = rows[800] with { UserData = new() { Played = true } };
+        Assert.Equal(rows[600].Id, (await resolver.ResolveAsync(account, new(parent), Token)).Item.Id);
+        rows[600] = rows[600] with { UserData = new() { Played = true } };
+        Assert.Equal(rows[0].Id, (await resolver.ResolveAsync(account, new(parent), Token)).Item.Id);
+    }
+
+    [Fact]
+    public async Task SeasonPlanAdvancesByRawRowsBeforeFilteringAndDeduplicating()
+    {
+        using var account = Account();
+        var season = Id();
+        var first = Episode(Id(), 1) with { SeasonId = season };
+        var selected = Episode(Id(), 2) with { SeasonId = season };
+        var last = Episode(Id(), 3) with { SeasonId = season };
+        EmbyItem[] rows = [null!, first, first, Episode(Id(), 4) with { SeasonId = Id() },
+            new() { Id = Id(), Type = "Movie" }, selected, last, first];
+        var offsets = new List<int>();
+        using var api = new EmbyApi(Guid.NewGuid(), new Stub(request =>
+        {
+            var offset = int.Parse(Parameters(request)["StartIndex"], System.Globalization.CultureInfo.InvariantCulture);
+            offsets.Add(offset);
+            return Json(new EmbyItems { Items = rows.Skip(offset).Take(4).ToArray(), TotalRecordCount = rows.Length });
+        }));
+        var plan = await new SeasonPlan(new(api)).BuildAsync(account, selected, 0, Token);
+        Assert.Equal([first.Id, selected.Id, last.Id], plan.Entries.Select(entry => entry.ItemId));
+        Assert.Equal(1, plan.SelectedIndex);
+        Assert.Equal([0, 4], offsets);
+    }
+
+    [Theory]
+    [InlineData("failure")]
+    [InlineData("empty")]
+    [InlineData("repeated")]
+    public async Task SeasonPlanIncompletePaginationFallsBackToSelectedEpisode(string secondPage)
+    {
+        using var account = Account();
+        var season = Id();
+        var selected = Episode(Id(), 1) with { SeasonId = season };
+        EmbyItem[] rows = [selected, Episode(Id(), 2) with { SeasonId = season }];
+        var calls = 0;
+        using var api = new EmbyApi(Guid.NewGuid(), new Stub(_ =>
+        {
+            Assert.True(++calls <= 2, "分页没有继续前进时应终止请求。");
+            return calls == 1 || secondPage == "repeated" ? Json(new EmbyItems { Items = rows, TotalRecordCount = 1000 }) :
+                secondPage == "empty" ? Json(new EmbyItems { Items = [], TotalRecordCount = 1000 }) : new(HttpStatusCode.ServiceUnavailable);
+        }));
+        var plan = await new SeasonPlan(new(api)).BuildAsync(account, selected, 17, Token);
+        Assert.Equal(selected.Id, Assert.Single(plan.Entries).ItemId);
+        Assert.Equal(17, plan.StartTicks);
+        Assert.Equal(2, calls);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SeasonPlanCancelsRemainingPagesWhenCallerOrAccountEnds(bool cancelAccount)
+    {
+        using var account = Account();
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
+        var selected = Episode(Id(), 1) with { SeasonId = Id() };
+        var calls = 0;
+        using var api = new EmbyApi(Guid.NewGuid(), new Stub(_ =>
+        {
+            if (++calls == 2)
+            {
+                if (cancelAccount) account.Dispose();
+                else cancellation.Cancel();
+            }
+            return Json(new EmbyItems { Items = [selected], TotalRecordCount = 1000 });
+        }));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            new SeasonPlan(new(api)).BuildAsync(account, selected, 0, cancellation.Token));
+        Assert.Equal(2, calls);
+    }
+
+    [Fact]
+    public async Task SeasonPlanStopsWhenServerWithoutTotalIgnoresPageOffset()
+    {
+        using var account = Account();
+        var selected = Episode(Id(), 1) with { SeasonId = Id() };
+        var last = Episode(Id(), 2) with { SeasonId = selected.SeasonId };
+        var calls = 0;
+        using var api = new EmbyApi(Guid.NewGuid(), new Stub(_ =>
+        {
+            Assert.True(++calls <= 2, "服务器忽略分页时不应无限请求。");
+            return Json(new EmbyItems { Items = [selected, last] });
+        }));
+        var plan = await new SeasonPlan(new(api)).BuildAsync(account, selected, 0, Token);
+        Assert.Equal([selected.Id, last.Id], plan.Entries.Select(entry => entry.ItemId));
+        Assert.Equal(2, calls);
     }
 
     [Theory]
@@ -296,6 +448,9 @@ public sealed class PlaybackPreparationTests
     }
 
     private static string Id() => Guid.NewGuid().ToString("N");
+    private static Dictionary<string, string> Parameters(HttpRequestMessage request) => request.RequestUri!.Query.TrimStart('?')
+        .Split('&', StringSplitOptions.RemoveEmptyEntries).Select(pair => pair.Split('=', 2))
+        .ToDictionary(pair => Uri.UnescapeDataString(pair[0]), pair => pair.Length == 2 ? Uri.UnescapeDataString(pair[1]) : "", StringComparer.Ordinal);
     private static AccountSession Account() => new(new SessionSecret("https://" + Id() + ".invalid/emby", Id(), Id(), "测试用户", Id()));
     private static EmbyItem Episode(string id, int number, bool played = false, long position = 0) => new()
     { Id = id, Name = "单集", Type = "Episode", ParentIndexNumber = 1, IndexNumber = number, UserData = new() { Played = played, PlaybackPositionTicks = position } };

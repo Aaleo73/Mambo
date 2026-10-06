@@ -14,12 +14,12 @@ public sealed class SeasonPlan(PlaybackTargetResolver resolver)
         try
         {
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, account.Token);
-            var items = await resolver.EpisodesAsync(account, seasonId, 500, linked.Token).ConfigureAwait(false);
-            var episodes = (items.Items ?? []).Where(item => PlaybackTargetResolver.IsEpisode(item) &&
+            var items = await resolver.EpisodesAsync(account, seasonId, linked.Token).ConfigureAwait(false);
+            var episodes = items.Where(item => PlaybackTargetResolver.IsEpisode(item) &&
                 (string.IsNullOrWhiteSpace(item.SeasonId) || item.SeasonId == seasonId))
                 .OrderBy(item => item.ParentIndexNumber ?? int.MaxValue).ThenBy(item => item.IndexNumber ?? int.MaxValue)
                 .ThenBy(item => item.SortName ?? item.Name, StringComparer.Ordinal)
-                .DistinctBy(item => item.Id, StringComparer.Ordinal).Take(500).ToImmutableArray();
+                .DistinctBy(item => item.Id, StringComparer.Ordinal).ToImmutableArray();
             var index = -1;
             for (var position = 0; position < episodes.Length; position++)
                 if (episodes[position].Id == selected.Id) { index = position; break; }

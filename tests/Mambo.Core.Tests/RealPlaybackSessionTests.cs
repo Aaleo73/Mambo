@@ -445,6 +445,30 @@ public sealed class RealPlaybackSessionTests
     }
 
     [Fact]
+    public async Task LongSeasonCanAdvancePastEpisodeTwoHundredAndSelectAfterFiveHundred()
+    {
+        await using var harness = new Harness(entryCount: 1001);
+        var token = TestContext.Current.CancellationToken;
+        var session = await harness.StartAsync();
+        await harness.ConfirmAsync(session);
+        Assert.Equal(1001, session.Snapshot.Entries.Length);
+        await session.SelectEntryAsync("entry-199", token);
+        await UntilAsync(() => session.Snapshot.CurrentEntryIndex == 199);
+        await harness.ConfirmAsync(session);
+        await session.NextAsync(token);
+        await UntilAsync(() => session.Snapshot.CurrentEntryIndex == 200);
+        await harness.ConfirmAsync(session);
+        await session.SelectEntryAsync("entry-800", token);
+        await UntilAsync(() => session.Snapshot.CurrentEntryIndex == 800);
+        await harness.ConfirmAsync(session);
+        Assert.Equal("entry-800", session.Snapshot.Entry?.ItemId);
+        await session.PreviousAsync(token);
+        await UntilAsync(() => session.Snapshot.CurrentEntryIndex == 799);
+        await harness.ConfirmAsync(session);
+        Assert.Empty(harness.Diagnostics);
+    }
+
+    [Fact]
     public async Task ManualNextToAppendedEntryDoesNotLeaveSwitchingSetAtSeasonEnd()
     {
         await using var harness = new Harness(entryCount: 2);

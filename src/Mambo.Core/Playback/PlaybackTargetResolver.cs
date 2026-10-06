@@ -23,22 +23,17 @@ public sealed class PlaybackTargetResolver(EmbyApi api, RequestScheduler? schedu
                 "&SeriesId=" + EmbyApi.Escape(item.Id!) + "&Limit=1&Fields=" + EmbyApi.Escape(EpisodeFields), ct), linked.Token).ConfigureAwait(false);
             var selected = next.Items?.FirstOrDefault(IsEpisode);
             if (selected is null)
-                selected = SelectFallback(await EpisodesAsync(account, item.Id!, 500, linked.Token).ConfigureAwait(false));
+                selected = SelectFallback(await EpisodesAsync(account, item.Id!, linked.Token).ConfigureAwait(false));
             item = selected ?? throw NotPlayable();
         }
         else if (kind is MediaKind.Season)
-            item = SelectFallback(await EpisodesAsync(account, item.Id!, 300, linked.Token).ConfigureAwait(false)) ?? throw NotPlayable();
+            item = SelectFallback(await EpisodesAsync(account, item.Id!, linked.Token).ConfigureAwait(false)) ?? throw NotPlayable();
         else if (kind is not (MediaKind.Movie or MediaKind.Episode or MediaKind.Video)) throw NotPlayable();
         return (item, request.StartTicks ?? Math.Max(0, item.UserData?.PlaybackPositionTicks ?? 0));
     }
 
-    internal async Task<EmbyItems> EpisodesAsync(AccountSession account, string parentId, int limit, CancellationToken token)
-    {
-        var result = await FetchAsync(ct => api.ItemsAsync(account, "Users/" + EmbyApi.Escape(account.Secret.UserId) + "/Items?ParentId=" + EmbyApi.Escape(parentId) +
-            "&IncludeItemTypes=Episode&Recursive=true&SortBy=ParentIndexNumber,IndexNumber,SortName&SortOrder=Ascending&StartIndex=0&Limit=" + limit +
-            "&Fields=" + EmbyApi.Escape(EpisodeFields), ct), token).ConfigureAwait(false);
-        return result with { Items = result.Items?.Take(limit).ToArray() };
-    }
+    internal Task<EmbyItem[]> EpisodesAsync(AccountSession account, string parentId, CancellationToken token) =>
+        new EmbyEpisodeReader(api, scheduler).ReadAllAsync(account, parentId, EpisodeFields, token);
 
     internal Task<T> FetchAsync<T>(Func<CancellationToken, Task<T>> operation, CancellationToken token) =>
         scheduler is null ? operation(token) : scheduler.RunAsync(operation, scopeToken: token);
@@ -46,9 +41,9 @@ public sealed class PlaybackTargetResolver(EmbyApi api, RequestScheduler? schedu
     internal static bool IsEpisode(EmbyItem? item) => item is not null && EmbyMapper.Identity(item.Id) is not null &&
         item.Type?.Equals("Episode", StringComparison.OrdinalIgnoreCase) == true;
 
-    internal static EmbyItem? SelectFallback(EmbyItems items)
+    internal static EmbyItem? SelectFallback(EmbyItem[] items)
     {
-        var episodes = (items.Items ?? []).Where(IsEpisode).OrderBy(item => item.ParentIndexNumber ?? int.MaxValue)
+        var episodes = items.Where(IsEpisode).OrderBy(item => item.ParentIndexNumber ?? int.MaxValue)
             .ThenBy(item => item.IndexNumber ?? int.MaxValue).ThenBy(item => item.SortName ?? item.Name, StringComparer.Ordinal).ToArray();
         return episodes.FirstOrDefault(item => item.UserData?.PlaybackPositionTicks >= 30 * TimeSpan.TicksPerSecond) ??
             episodes.FirstOrDefault(item => item.UserData?.Played != true) ?? episodes.FirstOrDefault();

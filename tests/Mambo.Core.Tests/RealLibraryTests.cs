@@ -170,6 +170,67 @@ public sealed class RealLibraryTests
     }
 
     [Fact]
+    public async Task NextUpFallbackFindsResumeBeyondFiveHundredEpisodes()
+    {
+        var offsets = new ConcurrentQueue<int>();
+        var rows = Enumerable.Range(1, 1001).Select(number => Episode("episode-" + number, "series", number) with
+            { UserData = new() { Played = true } }).ToArray();
+        rows[600] = rows[600] with { UserData = new() { Played = false } };
+        rows[800] = rows[800] with { UserData = new() { PlaybackPositionTicks = TimeSpan.FromSeconds(45).Ticks } };
+        using var harness = new LibraryHarness((request, _) =>
+        {
+            if (request.RequestUri!.AbsolutePath.EndsWith("/Shows/NextUp", StringComparison.Ordinal))
+                return Task.FromResult(Items([], 0));
+            if (request.RequestUri.AbsolutePath.EndsWith("/Items/series", StringComparison.Ordinal))
+                return Task.FromResult(Item(new() { Id = "series", Name = "剧集", Type = "Series" }));
+            var parameters = Parameters(request);
+            Assert.Equal("500", parameters["Limit"]);
+            Assert.DoesNotContain("MediaSources", parameters["Fields"], StringComparison.Ordinal);
+            var offset = int.Parse(parameters["StartIndex"], System.Globalization.CultureInfo.InvariantCulture);
+            offsets.Enqueue(offset);
+            return Task.FromResult(Items(rows.Skip(offset).Take(200).ToArray(), rows.Length));
+        });
+        using var query = harness.Library.ObserveNextUp("series", TestContext.Current.CancellationToken);
+        await query.RefreshAsync(TestContext.Current.CancellationToken);
+        Assert.Null(query.Error);
+        Assert.Equal("episode-801", query.Current?.Id);
+        Assert.Equal([0, 200, 400, 600, 800, 1000], offsets.Distinct());
+        rows[800] = rows[800] with { UserData = new() { Played = true } };
+        await query.RefreshAsync(TestContext.Current.CancellationToken);
+        Assert.Null(query.Error);
+        Assert.Equal("episode-601", query.Current?.Id);
+    }
+
+    [Theory]
+    [InlineData(30)]
+    [InlineData(500)]
+    public async Task EpisodeBrowsingLoadsTheWholeSeasonBeyondTwoHundredAndFiveHundred(int pageSize)
+    {
+        var rows = Enumerable.Range(1, 1001).Select(number => Episode("episode-" + number, "series", number)).ToArray();
+        using var harness = new LibraryHarness((request, _) =>
+        {
+            if (request.RequestUri!.AbsolutePath.EndsWith("/Items/series", StringComparison.Ordinal))
+                return Task.FromResult(Item(new() { Id = "series", Name = "剧集", Type = "Series" }));
+            var parameters = Parameters(request);
+            var offset = int.Parse(parameters["StartIndex"], System.Globalization.CultureInfo.InvariantCulture);
+            var count = int.Parse(parameters["Limit"], System.Globalization.CultureInfo.InvariantCulture);
+            Assert.Equal(pageSize, count);
+            return Task.FromResult(Items(rows.Skip(offset).Take(Math.Min(200, count)).ToArray(), rows.Length));
+        });
+        using var query = harness.Library.ObserveEpisodes("season", pageSize, TestContext.Current.CancellationToken);
+        await InitializedAsync(query);
+        while (query.HasMore)
+        {
+            Assert.Null(query.Error);
+            var before = query.Items.Length;
+            await query.LoadMoreAsync(TestContext.Current.CancellationToken);
+            Assert.True(query.Items.Length > before);
+        }
+        Assert.Null(query.Error);
+        Assert.Equal(rows.Select(item => item.Id), query.Items.Select(item => item.Id));
+    }
+
+    [Fact]
     public async Task PagingCachesOnlyDefaultFirstPageAndRefreshReplacesIncrementalPages()
     {
         using var harness = new LibraryHarness((request, _) =>

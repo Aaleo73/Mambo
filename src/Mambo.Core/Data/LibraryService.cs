@@ -299,12 +299,11 @@ public sealed partial class LibraryService : ILibraryService, IDisposable
             ("UserId", account.Secret.UserId), ("SeriesId", seriesId), ("Limit", "1"), ("Fields", EpisodeFields)), ct), scopeToken: token).ConfigureAwait(false);
         var items = await MapItemsAsync(account, next.Items ?? [], null, token).ConfigureAwait(false);
         if (items.FirstOrDefault(item => item.Kind == MediaKind.Episode && (item.SeriesId is null || item.SeriesId == seriesId)) is { } target) return target;
-        var all = await GetItemsAsync(account, RequestPriority.Foreground, token, ("ParentId", seriesId),
-            ("Recursive", "true"), ("IncludeItemTypes", "Episode"), ("Limit", "500"),
-            ("SortBy", "ParentIndexNumber,IndexNumber,SortName"), ("SortOrder", "Ascending"), ("Fields", EpisodeFields));
-        var episodes = (await MapItemsAsync(account, all.Items ?? [], null, token)).Where(item => item.Kind == MediaKind.Episode &&
-                (item.SeriesId is null || item.SeriesId == seriesId)).OrderBy(item => item.ParentIndexNumber).ThenBy(item => item.IndexNumber)
-            .ThenBy(item => item.SortName, StringComparer.Ordinal).Take(500).ToArray();
+        var all = await new EmbyEpisodeReader(api, requests).ReadAllAsync(account, seriesId, EpisodeFields, token).ConfigureAwait(false);
+        var candidates = all.Where(item => item is not null && item.Type?.Equals("Episode", StringComparison.OrdinalIgnoreCase) == true &&
+            (item.SeriesId is null || item.SeriesId == seriesId)).ToArray();
+        var episodes = (await MapItemsAsync(account, candidates, null, token)).OrderBy(item => item.ParentIndexNumber).ThenBy(item => item.IndexNumber)
+            .ThenBy(item => item.SortName, StringComparer.Ordinal).ToArray();
         return episodes.FirstOrDefault(item => item.UserData.PlaybackPositionTicks >= TimeSpan.FromSeconds(30).Ticks) ??
             episodes.FirstOrDefault(item => !item.UserData.Played) ?? episodes.FirstOrDefault()!;
     }
