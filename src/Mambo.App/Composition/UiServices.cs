@@ -16,7 +16,7 @@ public static class UiServices
         services.AddSingleton(_ => new ToastService());
         services.AddSingleton(_ => new DialogService());
         services.AddSingleton(p => new AppUpdateViewModel(p.GetRequiredService<IAppUpdateService>(), p.GetRequiredService<ISettingsService>(),
-            p.GetRequiredService<DialogService>(), p.GetRequiredService<ToastService>(), p.GetRequiredService<Navigator>()));
+            p.GetRequiredService<DialogService>(), p.GetRequiredService<ToastService>(), p.GetRequiredService<Navigator>(), p.GetRequiredService<WindowContext>()));
         services.AddSingleton(p => new ThemeService(p.GetRequiredService<ISettingsService>()));
         services.AddSingleton(_ => new WindowContext());
         services.AddSingleton(_ => new TitleBarService());

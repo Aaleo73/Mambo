@@ -21,6 +21,7 @@ public static class Program
     private static void Main(string[] args)
     {
         Arguments = args;
+        if (!Composition.UpdateBootstrap.CanStart()) return;
         // This diagnostic client has no App, window, services or single-instance registration.
         // Reject malformed invocations without falling through to a normal application launch.
         if (args.Contains(Debug.NativeUiaProbe.Argument, StringComparer.Ordinal))

@@ -6,7 +6,7 @@ using Mambo.Core.Contracts;
 namespace Mambo.Core.Updates;
 
 /// <summary>专用无凭据客户端；只接受公开稳定版及 GitHub 计算的 SHA-256。</summary>
-public sealed class GitHubUpdateService : IAppUpdateService, IDisposable
+public sealed partial class GitHubUpdateService : IAppUpdateService, IDisposable
 {
     private const long MaximumInstallerBytes = 512L * 1024 * 1024;
     private const int MaximumMetadataBytes = 2 * 1024 * 1024;
@@ -15,13 +15,16 @@ public sealed class GitHubUpdateService : IAppUpdateService, IDisposable
     private readonly string cacheDirectory;
     private readonly ReleaseVersion currentVersion;
 
-    public GitHubUpdateService(string repository, string version, string cacheDirectory, HttpMessageHandler? handler = null)
+    public GitHubUpdateService(string repository, string version, string cacheDirectory, HttpMessageHandler? handler = null,
+        string? applicationDirectory = null)
     {
         ArgumentNullException.ThrowIfNull(repository);
         ArgumentException.ThrowIfNullOrWhiteSpace(cacheDirectory);
         this.repository = repository;
         this.cacheDirectory = Path.GetFullPath(cacheDirectory);
+        this.applicationDirectory = applicationDirectory is null ? null : Path.GetFullPath(applicationDirectory);
         IsConfigured = IsRepository(repository) && ReleaseVersion.TryParse(version, out currentVersion);
+        CleanCompletedPreparations();
         client = new HttpClient(handler ?? new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false })
         { Timeout = Timeout.InfiniteTimeSpan };
         client.DefaultRequestHeaders.UserAgent.ParseAdd("Mambo-Updater/1.0");
@@ -65,6 +68,18 @@ public sealed class GitHubUpdateService : IAppUpdateService, IDisposable
             var update = new AppUpdate(versionText,
                 new($"https://github.com/{repository}/releases/tag/{Uri.EscapeDataString(release.TagName)}"), uri, asset.Size, asset.Digest[7..]);
             Validate(update);
+            var manifestName = $"Mambo-{versionText}-win-x64-update.json";
+            var manifests = release.Assets?.Where(a => a is not null && a.Name == manifestName).ToArray() ?? [];
+            if (applicationDirectory is not null && manifests.Length > 0)
+            {
+                if (manifests.Length != 1) throw UpdateFiles.Invalid();
+                var manifest = manifests[0];
+                if (manifest.State != "uploaded" || manifest.Digest?.StartsWith("sha256:", StringComparison.Ordinal) != true ||
+                    !Uri.TryCreate(manifest.DownloadUrl, UriKind.Absolute, out var manifestUri)) throw UpdateFiles.Invalid();
+                var source = new AppUpdateAsset(manifestUri, manifest.Size, manifest.Digest[7..]);
+                ValidateManifestSource(versionText, source);
+                update = update with { ComponentManifest = source };
+            }
             return update;
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
@@ -171,5 +186,10 @@ public sealed class GitHubUpdateService : IAppUpdateService, IDisposable
         }
     }
 
-    public void Dispose() => client.Dispose();
+    public void Dispose()
+    {
+        client.Dispose();
+        foreach (var entry in preparations)
+            if (!handedOff.ContainsKey(entry.Key)) UpdateTransaction.TryClean(entry.Key);
+    }
 }

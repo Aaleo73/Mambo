@@ -57,6 +57,9 @@ public sealed class WindowContext : IDisposable, IAsyncDisposable
     internal Action<bool>? FullscreenRequested { get; set; }
     internal Action? MaximizeRequested { get; set; }
     internal Action<bool>? PlaybackActiveRequested { get; set; }
+    internal Func<Task>? UpdateCloseRequested { get; set; }
+
+    public Task CloseForUpdateAsync() => UpdateCloseRequested?.Invoke() ?? Task.CompletedTask;
 
     public void ToggleFullscreen() => FullscreenRequested?.Invoke(!IsFullscreen);
     public void ExitFullscreen() => FullscreenRequested?.Invoke(false);

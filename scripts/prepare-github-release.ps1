@@ -25,10 +25,10 @@ try {
     if (@(& git status --porcelain).Count -ne 0) { throw '发布必须使用已提交且干净的源码。' }
     if ($IncludeBinaries) {
         $package = & (Join-Path $PSScriptRoot 'publish.ps1') -Version $Version -Installer -UpdateRepository $UpdateRepository
-        foreach ($file in @($package.PortableZip, $package.SourceZip, $package.Installer) + @($package.NativeSourceBundles.path)) {
+        foreach ($file in @($package.PortableZip, $package.SourceZip, $package.Installer) + @($package.NativeSourceBundles.path) + @($package.UpdateAssets)) {
             Copy-Item -LiteralPath $file -Destination $output
         }
-        $notes = "Windows x64 稳定版。安装版可以在设置页检查、下载并安装更新。`n`n安装请下载 setup.exe；免安装请下载 portable.zip。源码由 sources.zip 和全部 native-sources 分包组成，SHA256SUMS.txt 提供校验值。`n`n已改用有匹配源码、补丁及构建记录的 MSYS2 libmpv 组件；原生依赖和 Rust 源码随本 Release 提供。"
+        $notes = "Windows x64 稳定版。安装版和便携版均支持应用内下载更新、重启后原位更新；未变化的组件直接复用本地文件。`n`n首次安装请下载 setup.exe；免安装请下载 portable.zip。update 文件由应用自动使用，无需手工下载。旧版本需要先升级一次以获得新的更新功能。`n`n源码由 sources.zip 和全部 native-sources 分包组成，SHA256SUMS.txt 提供校验值。原生依赖、补丁及构建记录随本 Release 提供。"
     } else {
         & git archive --format=zip "--output=$(Join-Path $output "Mambo-$Version-sources.zip")" HEAD
         if ($LASTEXITCODE -ne 0) { throw '源码归档失败。' }

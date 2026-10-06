@@ -35,7 +35,9 @@ public static class BackendServices
             fake ? "" : typeof(BackendServices).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
                 .FirstOrDefault(static attribute => attribute.Key == "MamboUpdateRepository")?.Value ?? "",
             typeof(BackendServices).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "0.0.0",
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Mambo", "updates")));
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Mambo", "updates"),
+            applicationDirectory: File.Exists(Path.Combine(AppContext.BaseDirectory, "release-manifest.json")) &&
+                File.Exists(Path.Combine(AppContext.BaseDirectory, "Mambo.Updater.exe")) ? AppContext.BaseDirectory : null));
         if (!fake)
         {
             services.AddSingleton<ISecretStore>(_ => new WindowsCredentialStore());

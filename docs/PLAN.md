@@ -118,6 +118,7 @@ qt-mambo/
 │  ├─ Mambo.Player/  net10.0
 │  │  ├─ LibMpv/      LibMpvNative（LibraryImport）、MpvStructs、MpvHandle（SafeHandle）、MpvNodeReader/Builder、MpvRuntime、MpvCore、LibMpvEngine
 │  │  └─ External/    ExternalMpvEngine、MpvIpcClient、MpvExecutableApproval（P7）
+│  ├─ Mambo.Updater/  独立 Native AOT 更新器；等待退出、原位更新/恢复及重启，无 XAML
 │  └─ Mambo.App/     net10.0-windows10.0.26100.0，WinUI 3，全部 XAML 都在这里
 │     ├─ Program.cs、App.xaml、MainWindow.xaml、app.manifest（PerMonitorV2）、NativeMethods.txt（CsWin32）
 │     ├─ Composition/ BackendServices、UiServices、AppShutdownCoordinator、UiScheduler
@@ -1502,6 +1503,7 @@ PlayerOverlay（Grid，RequestedTheme=Dark，IsTabStop=True，持有焦点）
 
 ## 进度
 
+- [x] 安装版/便携版应用内组件更新（2026-10-06：复用未变化组件、下载后确认重启、原位替换与故障恢复；构建零警告/错误，568 项测试通过、23 项既有 GPU/测量用例按配置跳过；最终 AOT 包的两种版本退出/更新/重启与安装版卸载新增文件验收通过。本轮样包从完整安装器约 113 MB 降为组件加清单约 13 MB，旧版需一次过渡升级；尚未发布新 Release，详见 `docs/decisions/component-updates.md`）
 - [x] GitHub 源码托管与自动更新实现（2026-10-05：公开仓库 Aaleo73/Mambo 已上传；公开稳定版检查、SHA-256 校验下载安装器和 Actions 已接入。独立构建及 AOT 通过，更新专项 37/37、回归 532 通过/23 按配置跳过；线上构建/测试与 v0.1.0 源码发布通过。完整界面输入检查受超时/遮挡限制，见 `docs/decisions/github-auto-update.md`）
 - [x] 完整原生对应源码（2026-10-05：替换为匹配源码包的 MSYS2 UCRT64 组件，固定 105 个包/131 个 DLL 与 897 份源码；原配方、补丁、构建环境、Rust 锁和许可归属随包提供；32 项真实播放器/GPU 检查及 4K 硬解、合成画面、连播验证通过，详见 `docs/decisions/native-distribution.md`）
 - [x] 首次公开二进制与真实跨版本更新验收（2026-10-05：v0.1.3 安装器、便携包、应用源码、两份原生源码分包及校验文件已公开；应用实际服务线上检查/下载/摘要校验通过；私有 0.1.0 安装器升级至线上 0.1.3 的正常退出、文件校验与卸载保留用户数据通过。线上便携包真实 4K 播放通过，完整界面输入门禁仍受遮挡限制；见 `docs/decisions/github-auto-update.md`）

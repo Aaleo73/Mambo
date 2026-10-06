@@ -53,6 +53,7 @@ public sealed partial class MainWindow : Window
         context.FullscreenRequested = SetFullscreen;
         context.MaximizeRequested = ToggleMaximize;
         context.PlaybackActiveRequested = power.SetPlaying;
+        context.UpdateCloseRequested = () => RequestCloseAsync(forUpdate: true);
         Activated += (_, e) => context.SetActive(e.WindowActivationState != WindowActivationState.Deactivated);
         services.GetRequiredService<ToastService>().Attach(DispatcherQueue);
         // XAML 模板里的图片和卡片经静态入口取得这两个服务，先创建它们。
@@ -177,21 +178,21 @@ public sealed partial class MainWindow : Window
 
     private async void OnShellCloseRequested(object? sender, EventArgs args) => await RequestCloseAsync();
 
-    private Task RequestCloseAsync()
+    private Task RequestCloseAsync(bool forUpdate = false)
     {
         if (closing || isClosed) return closeRequest ?? Task.CompletedTask;
         closing = true;
         CloseRequestCountForSmoke++;
-        return closeRequest = CloseRequestedCoreAsync();
+        return closeRequest = CloseRequestedCoreAsync(forUpdate);
     }
 
-    private async Task CloseRequestedCoreAsync()
+    private async Task CloseRequestedCoreAsync(bool forUpdate)
     {
         Debug.FakeLifetimeProbe.Mark("WindowClosing");
         // 系统 Closing 与自绘按钮共用确认/清理；先返回原生回调，最终 Close 仍须排队。
         await Task.Yield();
         var playback = services.GetRequiredService<IPlaybackService>();
-        if (playback.Current is not null &&
+        if (!forUpdate && playback.Current is not null &&
             !await services.GetRequiredService<DialogService>().ConfirmAsync(new ConfirmRequest("退出应用？", "正在播放。关闭应用会结束播放并保存进度，是否退出？", "退出", danger: true)))
         {
             closing = false;
@@ -252,6 +253,7 @@ public sealed partial class MainWindow : Window
         context.FullscreenRequested = null;
         context.MaximizeRequested = null;
         context.PlaybackActiveRequested = null;
+        context.UpdateCloseRequested = null;
         resizeHook.Dispose(); chrome.Dispose(); power.Dispose();
         Debug.FakeLifetimeProbe.Mark("WindowHooksDisposed");
     }

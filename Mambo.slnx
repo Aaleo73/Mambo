@@ -6,6 +6,7 @@
     <Project Path="src/Mambo.Core/Mambo.Core.csproj"><Platform Project="x64" /></Project>
     <Project Path="src/Mambo.Player/Mambo.Player.csproj"><Platform Project="x64" /></Project>
     <Project Path="src/Mambo.App/Mambo.App.csproj"><Platform Project="x64" /></Project>
+    <Project Path="src/Mambo.Updater/Mambo.Updater.csproj"><Platform Project="x64" /></Project>
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Mambo.Core.Tests/Mambo.Core.Tests.csproj"><Platform Project="x64" /></Project>

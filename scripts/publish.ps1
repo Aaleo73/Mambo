@@ -33,7 +33,25 @@ try {
     $fileVersion = ($Version -split '-')[0] + '.0'
     & dotnet publish $project --no-restore -c Release -r win-x64 --self-contained true -p:Platform=x64 -p:PublishAot=true -p:WindowsAppSDKSelfContained=true "-p:Version=$Version" "-p:FileVersion=$fileVersion" "-p:InformationalVersion=$Version" "-p:UpdateRepository=$UpdateRepository" -p:TrimmerSingleWarn=false -o $appRoot | Out-Host
     if ($LASTEXITCODE -ne 0) { throw 'AOT 发布失败。' }
+    $updaterProject = Join-Path $repoRoot 'src/Mambo.Updater/Mambo.Updater.csproj'
+    & dotnet restore $updaterProject -p:Platform=x64 --locked-mode | Out-Host
+    if ($LASTEXITCODE -ne 0) { throw '更新程序依赖还原失败。' }
+    $updaterOutput = Join-Path $outputRoot 'updater'
+    & dotnet publish $updaterProject --no-restore -c Release -r win-x64 -p:Platform=x64 -o $updaterOutput | Out-Host
+    if ($LASTEXITCODE -ne 0) { throw '独立更新程序 AOT 发布失败。' }
+    Copy-Item -LiteralPath (Join-Path $updaterOutput 'Mambo.Updater.exe') -Destination $appRoot
 } finally { Pop-Location }
+
+# 调试符号留在本次构建目录，避免每次应用更新传输上百 MB 的 PDB。
+$symbolRoot = Join-Path $outputRoot 'symbols'
+New-Item -ItemType Directory -Path $symbolRoot -Force | Out-Null
+foreach ($symbol in (Get-ChildItem -LiteralPath $appRoot -Filter '*.pdb' -File)) {
+    $symbolSource = [IO.Path]::GetFullPath($symbol.FullName)
+    $symbolTarget = [IO.Path]::GetFullPath((Join-Path $symbolRoot $symbol.Name))
+    if (-not $symbolSource.StartsWith($appRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase) -or
+        -not $symbolTarget.StartsWith($symbolRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) { throw '符号文件路径越界。' }
+    Move-Item -LiteralPath $symbolSource -Destination $symbolTarget
+}
 
 foreach ($relative in @('Mambo.exe', 'Mambo.pri', 'App.xbf', 'mpv/libmpv-2.dll', 'Microsoft.UI.Xaml.dll', 'Microsoft.WindowsAppRuntime.dll')) {
     if (-not (Test-Path -LiteralPath (Join-Path $appRoot $relative) -PathType Leaf)) { throw "发布文件缺失：$relative" }
@@ -87,6 +105,9 @@ $manifest = [ordered]@{
     })
 }
 $manifest | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $appRoot 'release-manifest.json') -Encoding utf8NoBOM
+$updatePackages = if ($Version -notmatch '-') {
+    & (Join-Path $PSScriptRoot 'build-update-packages.ps1') -AppDirectory $appRoot -OutputDirectory $outputRoot -Version $Version
+} else { $null }
 $zipPath = Join-Path $outputRoot "Mambo-$Version-win-x64-portable.zip"
 # ZipFile 会包括隐藏文件，不依赖 Compress-Archive 的默认过滤行为。
 [IO.Compression.ZipFile]::CreateFromDirectory($appRoot, $zipPath, [IO.Compression.CompressionLevel]::Optimal, $false)
@@ -130,6 +151,7 @@ if ($Installer) {
     SourceBytes = $sourceArchive.SourceBytes
     SourceSha256 = $sourceArchive.SourceSha256
     NativeSourceBundles = $sourceArchive.NativeSourceBundles
+    UpdateAssets = if ($updatePackages) { $updatePackages.Assets } else { @() }
     Installer = $installerPath
     InstallerBytes = if ($installerPath) { (Get-Item -LiteralPath $installerPath).Length } else { $null }
     InstallerSha256 = if ($installerPath) { (Get-FileHash -LiteralPath $installerPath -Algorithm SHA256).Hash.ToLowerInvariant() } else { $null }
