@@ -30,7 +30,8 @@ public sealed partial class AppUpdateViewModel : ObservableObject, IDisposable
         this.toasts = toasts;
         this.navigator = navigator;
         this.window = window;
-        Status = service.IsConfigured ? "可检查新版本" : "此构建尚未配置更新来源";
+        // 空闲时不出文字；检查、下载和出错才有状态。
+        Status = "";
         settings.Changed += OnSettingsChanged;
     }
 
@@ -55,8 +56,10 @@ public sealed partial class AppUpdateViewModel : ObservableObject, IDisposable
     public partial bool IsReady { get; private set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasStatus))]
     public partial string Status { get; private set; }
 
+    public bool HasStatus => Status.Length > 0;
     public bool CanCheck => service.IsConfigured && !IsBusy && !IsReady;
     public bool CanInstall => HasUpdate && !IsBusy;
     public string UpdateActionLabel => IsReady ? "重启并更新" : "下载更新";

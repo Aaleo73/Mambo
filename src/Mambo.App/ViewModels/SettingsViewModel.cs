@@ -6,14 +6,6 @@ using Microsoft.UI.Dispatching;
 
 namespace Mambo.App.ViewModels;
 
-public enum StatusTone
-{
-    None,
-    Info,
-    Ok,
-    Warning,
-}
-
 /// <summary>设置页：服务器、播放、外观、关于四组。</summary>
 public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 {
@@ -134,23 +126,18 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     public partial string MpvPath { get; set; } = "";
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CanValidateMpv), nameof(CanEditMpvPath))]
+    [NotifyPropertyChangedFor(nameof(CanValidateMpv), nameof(CanEditMpvPath), nameof(ValidateMpvText))]
     public partial bool IsValidatingMpv { get; private set; }
 
     public bool CanValidateMpv => !IsValidatingMpv && MpvPath.Trim().Length > 0;
     public bool CanEditMpvPath => !IsValidatingMpv;
+    public string ValidateMpvText => IsValidatingMpv ? "验证中…" : "验证并启用";
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasMpvStatus), nameof(IsMpvOk), nameof(IsMpvWarning), nameof(IsMpvInfo))]
-    public partial StatusTone MpvStatusTone { get; private set; }
+    [NotifyPropertyChangedFor(nameof(HasMpvError))]
+    public partial string MpvError { get; private set; } = "";
 
-    [ObservableProperty]
-    public partial string MpvStatusText { get; private set; } = "";
-
-    public bool HasMpvStatus => MpvStatusTone != StatusTone.None;
-    public bool IsMpvOk => MpvStatusTone == StatusTone.Ok;
-    public bool IsMpvWarning => MpvStatusTone == StatusTone.Warning;
-    public bool IsMpvInfo => MpvStatusTone == StatusTone.Info;
+    public bool HasMpvError => MpvError.Length > 0;
 
     [ObservableProperty]
     public partial HdrMode Hdr { get; private set; }
@@ -162,8 +149,6 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     public partial bool HardwareDecoding { get; private set; }
-
-    public string HardwareDecodingText => HardwareDecoding ? "开" : "关";
 
     [ObservableProperty]
     public partial bool IsThemeSystem { get; private set; }
@@ -421,7 +406,6 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             OnPropertyChanged(nameof(IsHdrAuto));
             OnPropertyChanged(nameof(IsHdrAlways));
             OnPropertyChanged(nameof(IsHdrOff));
-            OnPropertyChanged(nameof(HardwareDecodingText));
             OnPropertyChanged(nameof(LogDirectory));
             OnPropertyChanged(nameof(CanOpenLogs));
         }
@@ -445,14 +429,9 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         IsValidatingMpv = validatingMpv || status == ExternalPlayerStatus.Validating;
         var draftMatches = string.Equals(MpvPath.Trim(), settings.Current.ExternalMpvPath ?? "", StringComparison.OrdinalIgnoreCase);
         CanUseExternal = status == ExternalPlayerStatus.Approved && draftMatches && !IsValidatingMpv;
-        (MpvStatusTone, MpvStatusText) = status switch
-        {
-            _ when IsValidatingMpv => (StatusTone.Info, "正在验证…"),
-            _ when !draftMatches && MpvPath.Trim().Length > 0 => (StatusTone.Info, "等待批准"),
-            ExternalPlayerStatus.Approved => (StatusTone.Ok, "已批准"),
-            ExternalPlayerStatus.Invalid => (StatusTone.Warning, "请重新批准，当前使用内置播放器"),
-            _ => (StatusTone.Info, "当前使用内置播放器"),
-        };
+        // 只在需要用户处理时出文字：批准过的文件变了。验证中写在按钮上，其余状态看分段按钮就够。
+        var pendingDraft = !draftMatches && MpvPath.Trim().Length > 0;
+        MpvError = !IsValidatingMpv && !pendingDraft && status == ExternalPlayerStatus.Invalid ? "需要重新验证" : "";
     }
 
     private void ApplyTheme()

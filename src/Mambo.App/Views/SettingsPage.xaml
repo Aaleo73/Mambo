@@ -5,19 +5,32 @@
     xmlns:controls="using:Mambo.App.Views.Controls"
     xmlns:themes="using:Mambo.App.Themes">
     <UserControl.Resources>
-        <!-- 分区：左栏 220 放分区名，右栏放内容；分区之间一条细线 -->
+        <!-- 分区：左栏 220 放分区名，中栏是表单、到 700 封顶，多出的宽度留在右边；分区之间一条细线 -->
         <Style x:Key="SectionStyle" TargetType="Grid">
             <Setter Property="Padding" Value="0,24"/>
             <Setter Property="ColumnSpacing" Value="20"/>
             <Setter Property="BorderBrush" Value="{ThemeResource DividerBrush}"/>
             <Setter Property="BorderThickness" Value="0,0,0,1"/>
         </Style>
-        <!-- 每一项：标签在上（13 中等、次要色），控件在下 -->
-        <Style x:Key="FieldLabelStyle" TargetType="TextBlock" BasedOn="{StaticResource BodySmallTextStyle}">
+        <!-- 表单的一行：左 112 放名称，右边放控件；所有行的控件从同一条竖线开始 -->
+        <Style x:Key="RowStyle" TargetType="Grid">
+            <Setter Property="ColumnSpacing" Value="16"/>
+            <Setter Property="MinHeight" Value="{StaticResource ControlHeight}"/>
+        </Style>
+        <!-- 行名称：对齐到一个控件高度的中线，行里再多出一行错误文字时也不跟着下移 -->
+        <Style x:Key="RowLabelStyle" TargetType="TextBlock" BasedOn="{StaticResource BodySmallTextStyle}">
             <Setter Property="FontFamily" Value="{StaticResource MiSansMediumFontFamily}"/>
             <Setter Property="FontWeight" Value="Medium"/>
             <Setter Property="Foreground" Value="{ThemeResource TextSecondaryBrush}"/>
-            <Setter Property="Margin" Value="0,0,0,4"/>
+            <Setter Property="VerticalAlignment" Value="Top"/>
+            <Setter Property="Margin" Value="0,12,0,0"/>
+        </Style>
+        <!-- 行里的值（版本号、缓存大小）：定宽，后面的按钮才能上下对齐 -->
+        <Style x:Key="RowValueStyle" TargetType="TextBlock" BasedOn="{StaticResource BodySmallTextStyle}">
+            <Setter Property="FontFamily" Value="{StaticResource MiSansMediumFontFamily}"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Width" Value="84"/>
         </Style>
     </UserControl.Resources>
     <!-- 设置页整页滚动，滚动条不显示 -->
@@ -31,128 +44,153 @@
                     <Grid Style="{StaticResource SectionStyle}">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="220"/>
+                            <ColumnDefinition Width="1000*" MaxWidth="700"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <TextBlock Style="{StaticResource GroupTitleTextStyle}" Text="服务器"/>
-                        <Grid Grid.Column="1" ColumnSpacing="12" Visibility="{x:Bind ViewModel.IsLoggedIn, Mode=OneWay}">
+                        <Grid Grid.Column="1" Style="{StaticResource RowStyle}" Visibility="{x:Bind ViewModel.IsLoggedIn, Mode=OneWay}">
                             <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="112"/>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <StackPanel VerticalAlignment="Center" Spacing="2">
-                                <TextBlock Style="{StaticResource BodyTextStyle}" FontFamily="{StaticResource MiSansMediumFontFamily}" FontWeight="Medium"
-                                           Text="{x:Bind ViewModel.UserName, Mode=OneWay}"/>
-                                <TextBlock Style="{StaticResource CaptionTextStyle}" Text="{x:Bind ViewModel.ConnectedServer, Mode=OneWay}"
+                            <TextBlock Style="{StaticResource RowLabelStyle}" Text="账号"/>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                                <TextBlock Style="{StaticResource BodySmallTextStyle}" FontFamily="{StaticResource MiSansMediumFontFamily}" FontWeight="Medium"
+                                           TextTrimming="CharacterEllipsis" Text="{x:Bind ViewModel.UserName, Mode=OneWay}"/>
+                                <TextBlock Style="{StaticResource CaptionTextStyle}" TextTrimming="CharacterEllipsis" Text="{x:Bind ViewModel.ConnectedServer, Mode=OneWay}"
                                            Visibility="{x:Bind ViewModel.HasConnectedServer, Mode=OneWay}"/>
                             </StackPanel>
                             <!-- 平时显示"已连接"，指针移上去变成"断开连接" -->
-                            <Button x:Name="DisconnectButton" Grid.Column="1" Style="{StaticResource SoftButtonStyle}" MinWidth="92" Click="OnDisconnectClick"
+                            <Button x:Name="DisconnectButton" Grid.Column="2" Style="{StaticResource SoftButtonStyle}" MinWidth="92" Click="OnDisconnectClick"
                                     IsEnabled="{x:Bind ViewModel.CanDisconnect, Mode=OneWay}" AutomationProperties.Name="断开连接"
                                     PointerEntered="OnDisconnectPointerEntered" PointerExited="OnDisconnectPointerExited"
                                     GotFocus="OnDisconnectFocusChanged" LostFocus="OnDisconnectFocusChanged">
                                 <TextBlock x:Name="DisconnectLabel" Style="{StaticResource ButtonLabelTextStyle}" Text="已连接"/>
                             </Button>
                         </Grid>
-                        <StackPanel Grid.Column="1" HorizontalAlignment="Left" Spacing="14" Visibility="{x:Bind ViewModel.IsLoggedOut, Mode=OneWay}">
-                            <StackPanel Width="520">
-                                <TextBlock Style="{StaticResource FieldLabelStyle}" Text="服务器地址"/>
-                                <TextBox Style="{StaticResource SoftInputStyle}" PlaceholderText="https://your-emby-server" MaxLength="2048" IsSpellCheckEnabled="False"
+                        <StackPanel Grid.Column="1" Spacing="10" Visibility="{x:Bind ViewModel.IsLoggedOut, Mode=OneWay}">
+                            <Grid Style="{StaticResource RowStyle}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="112"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource RowLabelStyle}" Text="服务器地址"/>
+                                <TextBox Grid.Column="1" Style="{StaticResource SoftInputStyle}" Width="360" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                         PlaceholderText="https://your-emby-server" MaxLength="2048" IsSpellCheckEnabled="False"
                                          Text="{x:Bind ViewModel.ServerAddress, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="服务器地址"/>
-                            </StackPanel>
-                            <StackPanel>
-                                <TextBlock Style="{StaticResource FieldLabelStyle}" Text="用户名"/>
-                                <TextBox Style="{StaticResource SoftInputStyle}" PlaceholderText="用户名" MaxLength="256" IsSpellCheckEnabled="False"
+                            </Grid>
+                            <Grid Style="{StaticResource RowStyle}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="112"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource RowLabelStyle}" Text="用户名"/>
+                                <TextBox Grid.Column="1" Style="{StaticResource SoftInputStyle}" Width="360" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                         MaxLength="256" IsSpellCheckEnabled="False"
                                          Text="{x:Bind ViewModel.LoginUserName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="用户名"/>
+                            </Grid>
+                            <Grid Style="{StaticResource RowStyle}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="112"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource RowLabelStyle}" Text="密码"/>
+                                <PasswordBox x:Name="PasswordInput" Grid.Column="1" Style="{StaticResource SoftPasswordStyle}" Width="360" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                             KeyDown="OnPasswordKeyDown" AutomationProperties.Name="密码"/>
+                            </Grid>
+                            <StackPanel Margin="128,0,0,0" Spacing="10">
+                                <StackPanel Orientation="Horizontal" Spacing="6" Visibility="{x:Bind ViewModel.HasLoginError, Mode=OneWay}">
+                                    <themes:LineIcon Glyph="{StaticResource IconAlertTriangle}" Width="13" Height="13" StrokeWidth="2" Foreground="{ThemeResource DangerBrush}"/>
+                                    <TextBlock Style="{StaticResource CaptionTextStyle}" Foreground="{ThemeResource DangerBrush}" TextWrapping="Wrap"
+                                               Text="{x:Bind ViewModel.LoginError, Mode=OneWay}"/>
+                                </StackPanel>
+                                <Button Style="{StaticResource SoftButtonStyle}" HorizontalAlignment="Left"
+                                        IsEnabled="{x:Bind ViewModel.CanConnect, Mode=OneWay}" Content="{x:Bind ViewModel.ConnectText, Mode=OneWay}" Click="OnConnectClick"/>
                             </StackPanel>
-                            <StackPanel>
-                                <TextBlock Style="{StaticResource FieldLabelStyle}" Text="密码"/>
-                                <PasswordBox x:Name="PasswordInput" Style="{StaticResource SoftPasswordStyle}" PlaceholderText="密码" KeyDown="OnPasswordKeyDown"
-                                             AutomationProperties.Name="密码"/>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" Spacing="6" Visibility="{x:Bind ViewModel.HasLoginError, Mode=OneWay}">
-                                <themes:LineIcon Glyph="{StaticResource IconAlertTriangle}" Width="13" Height="13" StrokeWidth="2" Foreground="{ThemeResource DangerBrush}"/>
-                                <TextBlock Style="{StaticResource CaptionTextStyle}" Foreground="{ThemeResource DangerBrush}" TextWrapping="Wrap"
-                                           Text="{x:Bind ViewModel.LoginError, Mode=OneWay}"/>
-                            </StackPanel>
-                            <Button Style="{StaticResource SoftButtonStyle}" HorizontalAlignment="Left"
-                                    IsEnabled="{x:Bind ViewModel.CanConnect, Mode=OneWay}" Content="{x:Bind ViewModel.ConnectText, Mode=OneWay}" Click="OnConnectClick"/>
                         </StackPanel>
                     </Grid>
 
-                    <!-- 播放 -->
+                    <!-- 播放：HDR 和硬件解码只属于内置播放器，选了外置 MPV 就不出现 -->
                     <Grid Style="{StaticResource SectionStyle}">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="220"/>
+                            <ColumnDefinition Width="1000*" MaxWidth="700"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <TextBlock Style="{StaticResource GroupTitleTextStyle}" Text="播放"/>
-                        <StackPanel Grid.Column="1" Spacing="16">
-                            <StackPanel>
-                                <TextBlock Style="{StaticResource FieldLabelStyle}" Text="播放方式"/>
-                                <StackPanel Orientation="Horizontal" Spacing="8">
+                        <StackPanel Grid.Column="1" Spacing="10">
+                            <Grid Style="{StaticResource RowStyle}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="112"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource RowLabelStyle}" Text="播放方式"/>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
                                     <RadioButton Style="{StaticResource SegmentStyle}" GroupName="PlaybackMode" Content="内置播放器"
                                                  IsChecked="{x:Bind ViewModel.IsEmbedded, Mode=OneWay}" Click="OnEmbeddedClick"/>
                                     <RadioButton Style="{StaticResource SegmentStyle}" GroupName="PlaybackMode" Content="外置 MPV"
                                                  IsChecked="{x:Bind ViewModel.IsExternal, Mode=OneWay}" IsEnabled="{x:Bind ViewModel.CanUseExternal, Mode=OneWay}" Click="OnExternalClick"/>
                                 </StackPanel>
-                            </StackPanel>
-                            <StackPanel>
-                                <TextBlock Style="{StaticResource FieldLabelStyle}" Text="外部 mpv 路径"/>
-                                <Grid ColumnSpacing="8">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBox Style="{StaticResource SoftInputStyle}" VerticalAlignment="Center" PlaceholderText="mpv.exe 或所在文件夹" IsSpellCheckEnabled="False"
-                                             IsEnabled="{x:Bind ViewModel.CanEditMpvPath, Mode=OneWay}" KeyDown="OnMpvKeyDown"
-                                             Text="{x:Bind ViewModel.MpvPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="外部 mpv 路径"/>
-                                    <Button Grid.Column="1" Style="{StaticResource SoftButtonStyle}" Content="选择文件" Click="OnPickMpvClick" IsEnabled="{x:Bind ViewModel.CanEditMpvPath, Mode=OneWay}"/>
-                                    <Button Grid.Column="2" Style="{StaticResource SoftButtonStyle}" Content="验证并启用" Click="OnValidateMpvClick" IsEnabled="{x:Bind ViewModel.CanValidateMpv, Mode=OneWay}"/>
-                                </Grid>
-                                <Grid Margin="0,6,0,0" Visibility="{x:Bind ViewModel.HasMpvStatus, Mode=OneWay}">
-                                    <TextBlock Style="{StaticResource CaptionTextStyle}" TextWrapping="Wrap" Text="{x:Bind ViewModel.MpvStatusText, Mode=OneWay}"
-                                               Visibility="{x:Bind ViewModel.IsMpvInfo, Mode=OneWay}"/>
-                                    <TextBlock Style="{StaticResource CaptionTextStyle}" TextWrapping="Wrap" Foreground="{ThemeResource SuccessBrush}" Text="{x:Bind ViewModel.MpvStatusText, Mode=OneWay}"
-                                               Visibility="{x:Bind ViewModel.IsMpvOk, Mode=OneWay}"/>
-                                    <TextBlock Style="{StaticResource CaptionTextStyle}" TextWrapping="Wrap" Foreground="{ThemeResource DangerBrush}" Text="{x:Bind ViewModel.MpvStatusText, Mode=OneWay}"
-                                               Visibility="{x:Bind ViewModel.IsMpvWarning, Mode=OneWay}"/>
-                                </Grid>
-                            </StackPanel>
-                            <TextBlock Style="{StaticResource CaptionTextStyle}" TextWrapping="Wrap"
-                                       Text="外置 MPV 使用自己的配置、脚本和播放控件，Mambo 会保留当前页面并同步播放进度。下方 HDR 和硬件解码设置仅用于内置播放器。"/>
-                            <!-- HDR 和硬件解码并排 -->
-                            <StackPanel Orientation="Horizontal" Spacing="40">
-                                <StackPanel>
-                                    <TextBlock Style="{StaticResource FieldLabelStyle}" Text="HDR"/>
-                                    <Button Style="{StaticResource SoftButtonStyle}" MinWidth="150" Padding="14,0,12,0" HorizontalContentAlignment="Stretch" AutomationProperties.Name="HDR">
-                                        <Grid ColumnSpacing="10">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Style="{StaticResource ButtonLabelTextStyle}" VerticalAlignment="Center" Text="{x:Bind ViewModel.HdrLabel, Mode=OneWay}"/>
-                                            <themes:LineIcon Grid.Column="1" Glyph="{StaticResource IconChevronDown}" Width="12" Height="12" StrokeWidth="2"/>
-                                        </Grid>
-                                        <Button.Flyout>
-                                            <MenuFlyout Placement="BottomEdgeAlignedLeft" MenuFlyoutPresenterStyle="{StaticResource PopupMenuPresenterStyle}">
-                                                <RadioMenuFlyoutItem GroupName="Hdr" Text="自动" IsChecked="{x:Bind ViewModel.IsHdrAuto, Mode=OneWay}" Click="OnHdrAutoClick"/>
-                                                <RadioMenuFlyoutItem GroupName="Hdr" Text="始终 HDR" IsChecked="{x:Bind ViewModel.IsHdrAlways, Mode=OneWay}" Click="OnHdrAlwaysClick"/>
-                                                <RadioMenuFlyoutItem GroupName="Hdr" Text="关闭" IsChecked="{x:Bind ViewModel.IsHdrOff, Mode=OneWay}" Click="OnHdrOffClick"/>
-                                            </MenuFlyout>
-                                        </Button.Flyout>
-                                    </Button>
+                            </Grid>
+                            <Grid Style="{StaticResource RowStyle}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="112"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource RowLabelStyle}" Text="外置 MPV"/>
+                                <StackPanel Grid.Column="1" Spacing="6">
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox Style="{StaticResource SoftInputStyle}" VerticalAlignment="Center" PlaceholderText="mpv.exe 或所在文件夹" IsSpellCheckEnabled="False"
+                                                 IsEnabled="{x:Bind ViewModel.CanEditMpvPath, Mode=OneWay}" KeyDown="OnMpvKeyDown"
+                                                 Text="{x:Bind ViewModel.MpvPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="外部 mpv 路径"/>
+                                        <Button Grid.Column="1" Style="{StaticResource SoftButtonStyle}" Content="选择文件" Click="OnPickMpvClick" IsEnabled="{x:Bind ViewModel.CanEditMpvPath, Mode=OneWay}"/>
+                                        <Button Grid.Column="2" Style="{StaticResource SoftButtonStyle}" Content="{x:Bind ViewModel.ValidateMpvText, Mode=OneWay}" Click="OnValidateMpvClick"
+                                                IsEnabled="{x:Bind ViewModel.CanValidateMpv, Mode=OneWay}"/>
+                                    </Grid>
+                                    <TextBlock Style="{StaticResource CaptionTextStyle}" Foreground="{ThemeResource DangerBrush}" Text="{x:Bind ViewModel.MpvError, Mode=OneWay}"
+                                               Visibility="{x:Bind ViewModel.HasMpvError, Mode=OneWay}"/>
                                 </StackPanel>
-                                <StackPanel>
-                                    <TextBlock Style="{StaticResource FieldLabelStyle}" Text="硬件解码"/>
-                                    <StackPanel Orientation="Horizontal" Spacing="10" Height="{StaticResource ControlHeight}">
-                                        <ToggleSwitch x:Name="HardwareSwitch" MinWidth="0" OnContent="" OffContent="" VerticalAlignment="Center"
-                                                      IsOn="{x:Bind ViewModel.HardwareDecoding, Mode=OneWay}" Toggled="OnHardwareToggled" AutomationProperties.Name="硬件解码"/>
-                                        <TextBlock Style="{StaticResource BodySmallTextStyle}" FontFamily="{StaticResource MiSansSemiboldFontFamily}" FontWeight="SemiBold"
-                                                   Foreground="{ThemeResource TextSecondaryBrush}" VerticalAlignment="Center" Text="{x:Bind ViewModel.HardwareDecodingText, Mode=OneWay}"/>
-                                    </StackPanel>
-                                </StackPanel>
-                            </StackPanel>
+                            </Grid>
+                            <Grid Style="{StaticResource RowStyle}" Visibility="{x:Bind ViewModel.IsEmbedded, Mode=OneWay}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="112"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource RowLabelStyle}" Text="HDR"/>
+                                <Button Grid.Column="1" Style="{StaticResource SoftButtonStyle}" MinWidth="150" Padding="14,0,12,0" HorizontalAlignment="Left"
+                                        HorizontalContentAlignment="Stretch" AutomationProperties.Name="HDR">
+                                    <Grid ColumnSpacing="10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Style="{StaticResource ButtonLabelTextStyle}" VerticalAlignment="Center" Text="{x:Bind ViewModel.HdrLabel, Mode=OneWay}"/>
+                                        <themes:LineIcon Grid.Column="1" Glyph="{StaticResource IconChevronDown}" Width="12" Height="12" StrokeWidth="2"/>
+                                    </Grid>
+                                    <Button.Flyout>
+                                        <MenuFlyout Placement="BottomEdgeAlignedLeft" MenuFlyoutPresenterStyle="{StaticResource PopupMenuPresenterStyle}">
+                                            <RadioMenuFlyoutItem GroupName="Hdr" Text="自动" IsChecked="{x:Bind ViewModel.IsHdrAuto, Mode=OneWay}" Click="OnHdrAutoClick"/>
+                                            <RadioMenuFlyoutItem GroupName="Hdr" Text="始终 HDR" IsChecked="{x:Bind ViewModel.IsHdrAlways, Mode=OneWay}" Click="OnHdrAlwaysClick"/>
+                                            <RadioMenuFlyoutItem GroupName="Hdr" Text="关闭" IsChecked="{x:Bind ViewModel.IsHdrOff, Mode=OneWay}" Click="OnHdrOffClick"/>
+                                        </MenuFlyout>
+                                    </Button.Flyout>
+                                </Button>
+                            </Grid>
+                            <Grid Style="{StaticResource RowStyle}" Visibility="{x:Bind ViewModel.IsEmbedded, Mode=OneWay}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="112"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource RowLabelStyle}" Text="硬件解码"/>
+                                <ToggleSwitch x:Name="HardwareSwitch" Grid.Column="1" MinWidth="0" OnContent="" OffContent="" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                              IsOn="{x:Bind ViewModel.HardwareDecoding, Mode=OneWay}" Toggled="OnHardwareToggled" AutomationProperties.Name="硬件解码"/>
+                            </Grid>
                         </StackPanel>
                     </Grid>
 
@@ -160,64 +198,78 @@
                     <Grid Style="{StaticResource SectionStyle}">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="220"/>
+                            <ColumnDefinition Width="1000*" MaxWidth="700"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <TextBlock Style="{StaticResource GroupTitleTextStyle}" Text="外观"/>
-                        <StackPanel Grid.Column="1">
-                            <TextBlock Style="{StaticResource FieldLabelStyle}" Text="主题"/>
-                            <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Grid Grid.Column="1" Style="{StaticResource RowStyle}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="112"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Style="{StaticResource RowLabelStyle}" Text="主题"/>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
                                 <RadioButton Style="{StaticResource SegmentStyle}" GroupName="Theme" Content="跟随系统" IsChecked="{x:Bind ViewModel.IsThemeSystem, Mode=OneWay}" Click="OnThemeSystemClick"/>
                                 <RadioButton Style="{StaticResource SegmentStyle}" GroupName="Theme" Content="浅色" IsChecked="{x:Bind ViewModel.IsThemeLight, Mode=OneWay}" Click="OnThemeLightClick"/>
                                 <RadioButton Style="{StaticResource SegmentStyle}" GroupName="Theme" Content="深色" IsChecked="{x:Bind ViewModel.IsThemeDark, Mode=OneWay}" Click="OnThemeDarkClick"/>
                             </StackPanel>
-                        </StackPanel>
+                        </Grid>
                     </Grid>
 
-                    <Grid Style="{StaticResource SectionStyle}">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="220"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Style="{StaticResource GroupTitleTextStyle}" Text="应用更新"/>
-                        <StackPanel Grid.Column="1" Spacing="12">
-                            <ToggleSwitch x:Name="AutomaticUpdateSwitch" Header="启动时自动检查更新" OnContent="开启" OffContent="关闭"
-                                          IsOn="{x:Bind Updates.AutomaticallyCheck, Mode=OneWay}" Toggled="OnAutomaticUpdateToggled"/>
-                            <TextBlock Style="{StaticResource BodySmallTextStyle}" Text="{x:Bind Updates.Status, Mode=OneWay}" TextWrapping="Wrap"/>
-                            <ProgressBar Minimum="0" Maximum="100" Value="{x:Bind Updates.DownloadProgress, Mode=OneWay}"
-                                         Visibility="{x:Bind Updates.IsDownloading, Mode=OneWay}" AutomationProperties.Name="更新下载进度"/>
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <Button Style="{StaticResource SoftButtonStyle}" Content="检查更新" Click="OnCheckUpdateClick" IsEnabled="{x:Bind Updates.CanCheck, Mode=OneWay}"/>
-                                <Button Style="{StaticResource SoftButtonStyle}" Content="{x:Bind Updates.UpdateActionLabel, Mode=OneWay}" Click="OnInstallUpdateClick" IsEnabled="{x:Bind Updates.CanInstall, Mode=OneWay}"/>
-                                <Button Style="{StaticResource SoftButtonStyle}" Content="取消下载" Click="OnCancelUpdateClick" Visibility="{x:Bind Updates.IsDownloading, Mode=OneWay}"/>
-                                <Button Style="{StaticResource SoftButtonStyle}" Content="发行页面" Click="OnReleasesClick" IsEnabled="{x:Bind Updates.CanOpenReleases}"/>
-                            </StackPanel>
-                        </StackPanel>
-                    </Grid>
-
-                    <!-- 关于：最后一个分区没有底线，外框的底线就是它 -->
+                    <!-- 关于：版本与更新、缓存和几个入口。最后一个分区没有底线，外框的底线就是它 -->
                     <Grid Style="{StaticResource SectionStyle}" BorderThickness="0">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="220"/>
+                            <ColumnDefinition Width="1000*" MaxWidth="700"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <TextBlock Style="{StaticResource GroupTitleTextStyle}" Text="关于"/>
-                        <StackPanel Grid.Column="1" Spacing="16">
-                            <StackPanel Orientation="Horizontal" Spacing="12">
-                                <TextBlock Style="{StaticResource BodyStrongTextStyle}" VerticalAlignment="Center" Text="Mambo"/>
-                                <Border Padding="8,2" CornerRadius="{StaticResource CornerRadiusPill}" Background="{ThemeResource WashBrush}" VerticalAlignment="Center">
-                                    <TextBlock Style="{StaticResource CaptionTextStyle}" FontFamily="{StaticResource MiSansMediumFontFamily}" FontWeight="Medium"
-                                               Text="{x:Bind ViewModel.AppVersion}"/>
-                                </Border>
-                            </StackPanel>
-                            <StackPanel>
-                                <TextBlock Style="{StaticResource FieldLabelStyle}">
-                                    <Run Text="缓存"/><Run Text="  "/><Run Text="{x:Bind ViewModel.CacheSizeText, Mode=OneWay}"/>
-                                </TextBlock>
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <Button Style="{StaticResource SoftButtonStyle}" Content="{x:Bind ViewModel.ClearCacheText, Mode=OneWay}" Click="OnClearCacheClick" IsEnabled="{x:Bind ViewModel.CanClearCache, Mode=OneWay}"/>
-                                    <Button Style="{StaticResource SoftButtonStyle}" Content="打开日志目录" Click="OnLogsClick" IsEnabled="{x:Bind ViewModel.CanOpenLogs, Mode=OneWay}"/>
-                                    <Button Style="{StaticResource SoftButtonStyle}" Content="第三方许可" Click="OnLicensesClick"/>
+                        <StackPanel Grid.Column="1" Spacing="10">
+                            <Grid Style="{StaticResource RowStyle}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="112"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource RowLabelStyle}" Text="版本"/>
+                                <!-- 空闲时只有版本号和"检查更新"；有新版才出现下载按钮，状态文字只在检查、下载和出错时出现 -->
+                                <StackPanel Grid.Column="1" Spacing="8">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <TextBlock Style="{StaticResource RowValueStyle}" Text="{x:Bind ViewModel.AppVersion}"/>
+                                        <Button Style="{StaticResource SoftButtonStyle}" Content="检查更新" Click="OnCheckUpdateClick" IsEnabled="{x:Bind Updates.CanCheck, Mode=OneWay}"/>
+                                        <Button Style="{StaticResource SoftButtonStyle}" Content="{x:Bind Updates.UpdateActionLabel, Mode=OneWay}" Click="OnInstallUpdateClick"
+                                                IsEnabled="{x:Bind Updates.CanInstall, Mode=OneWay}" Visibility="{x:Bind Updates.HasUpdate, Mode=OneWay}"/>
+                                        <Button Style="{StaticResource SoftButtonStyle}" Content="取消下载" Click="OnCancelUpdateClick" Visibility="{x:Bind Updates.IsDownloading, Mode=OneWay}"/>
+                                    </StackPanel>
+                                    <ProgressBar Width="320" HorizontalAlignment="Left" Minimum="0" Maximum="100" Value="{x:Bind Updates.DownloadProgress, Mode=OneWay}"
+                                                 Visibility="{x:Bind Updates.IsDownloading, Mode=OneWay}" AutomationProperties.Name="更新下载进度"/>
+                                    <TextBlock Style="{StaticResource CaptionTextStyle}" TextWrapping="Wrap" Text="{x:Bind Updates.Status, Mode=OneWay}"
+                                               Visibility="{x:Bind Updates.HasStatus, Mode=OneWay}"/>
                                 </StackPanel>
+                            </Grid>
+                            <Grid Style="{StaticResource RowStyle}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="112"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource RowLabelStyle}" Text="自动检查更新"/>
+                                <ToggleSwitch x:Name="AutomaticUpdateSwitch" Grid.Column="1" MinWidth="0" OnContent="" OffContent="" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                              IsOn="{x:Bind Updates.AutomaticallyCheck, Mode=OneWay}" Toggled="OnAutomaticUpdateToggled" AutomationProperties.Name="自动检查更新"/>
+                            </Grid>
+                            <Grid Style="{StaticResource RowStyle}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="112"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource RowLabelStyle}" Text="缓存"/>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Style="{StaticResource RowValueStyle}" Text="{x:Bind ViewModel.CacheSizeText, Mode=OneWay}"/>
+                                    <Button Style="{StaticResource SoftButtonStyle}" Content="{x:Bind ViewModel.ClearCacheText, Mode=OneWay}" Click="OnClearCacheClick" IsEnabled="{x:Bind ViewModel.CanClearCache, Mode=OneWay}"/>
+                                </StackPanel>
+                            </Grid>
+                            <StackPanel Margin="128,0,0,0" Orientation="Horizontal" Spacing="8">
+                                <Button Style="{StaticResource SoftButtonStyle}" Content="打开日志目录" Click="OnLogsClick" IsEnabled="{x:Bind ViewModel.CanOpenLogs, Mode=OneWay}"/>
+                                <Button Style="{StaticResource SoftButtonStyle}" Content="第三方许可" Click="OnLicensesClick"/>
+                                <Button Style="{StaticResource SoftButtonStyle}" Content="发行页面" Click="OnReleasesClick" IsEnabled="{x:Bind Updates.CanOpenReleases}"/>
                             </StackPanel>
                         </StackPanel>
                     </Grid>
