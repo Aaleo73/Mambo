@@ -42,8 +42,8 @@ public static class TrackSelection
     {
         "auto" => "",
         "off" when subtitle => "",
-        "zh" when subtitle => "zh,zho,chi,chs,cht,zh-Hans,zh-Hant,en,eng",
-        "zh" => "zh,zho,chi,chs,cht,zh-Hans,zh-Hant",
+        "zh" when subtitle => "zh-CN,zh-Hans,chi,zho,chs,zh,cht,zh-Hant,zh-TW,eng,en",
+        "zh" => "zh-CN,zh-Hans,chi,zho,chs,zh,cht,zh-Hant,zh-TW",
         "ja" => "ja,jpn",
         "en" => "en,eng",
         "ko" => "ko,kor",
