@@ -614,7 +614,7 @@ PlayerOverlay（Grid，RequestedTheme=Dark，IsTabStop=True，持有焦点）
 
 - 画面上方**不用亚克力**，弹出菜单的 presenter 也要改成半透明纯色背景。
 - 按钮设 `AllowFocusOnInteraction=False`，键盘焦点始终留在播放层上。
-- 按键在 `PreviewKeyDown` 里处理（包括已被标记为处理过的事件）。按键表、自动隐藏规则见 SPEC A.10。
+- 播放层内按键在 `PreviewKeyDown` 里处理（包括已被标记为处理过的事件）；焦点留在标题栏等外壳控件时，由外壳 `KeyDown` 转交未处理的播放按键。进度条沿用播放按键表，字幕编辑器和音量滑块保留自身按键。按键表、自动隐藏规则见 SPEC A.10。
 - 支持假数据模式，供设置页的「预览播放页」使用。
 
 ### 6.7 全局快捷键

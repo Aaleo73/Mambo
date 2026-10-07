@@ -19,7 +19,7 @@ using WinRT;
 namespace Mambo.App.Debug;
 
 /// <summary>使用真实播放层的共享事件分派及按钮 AutomationPeer；仅允许本地假服务。</summary>
-internal static class PlayerControlsSmoke
+internal static partial class PlayerControlsSmoke
 {
     internal const string Argument = "--player-controls-smoke";
     private static readonly string[] IconActionNames = ["RateButton", "BulletChatButton", "SubtitlesButton", "AudioButton", "FullscreenButton"];
@@ -82,6 +82,11 @@ internal static class PlayerControlsSmoke
             var player = window.Shell.ActivePlayer!;
             if (!session.Snapshot.IsPaused) await session.TogglePauseAsync(token);
             await WaitAsync(() => player.ViewModel.IsPaused, token);
+            if (Environment.GetEnvironmentVariable("MAMBO_PLAYER_KEYBOARD_INPUT") == "1")
+            {
+                report.Scope = "Playback controls with OS keyboard input; fake session and real XAML; no native rendering claim";
+                await ProbeKeyboardInputAsync(window, player, session, report, token);
+            }
             Mark(report, "DemoRejectsRealFileImport", session.Snapshot.EngineKind == EngineKind.Demo &&
                 !session.Snapshot.CanImportSubtitles && session.BeginSubtitleImport() is null);
             report.SeriesEpisodeCount = session.Snapshot.Entries.Length;
@@ -119,12 +124,12 @@ internal static class PlayerControlsSmoke
         catch (SmokeCheckException error)
         {
             report.Status = "Failed";
-            report.Reason = "字幕控件检查未通过：" + error.Check;
+            report.Reason = "播放控件检查未通过：" + error.Check;
         }
         catch (Exception error)
         {
             report.Status = "Failed";
-            report.Reason = "字幕控件在 " + report.Stage + " 阶段中止：" + error.GetType().Name;
+            report.Reason = "播放控件在 " + report.Stage + " 阶段中止：" + error.GetType().Name;
         }
         finally
         {
@@ -729,9 +734,11 @@ internal static class PlayerControlsSmoke
         var thumb = Descendants(slider).OfType<FrameworkElement>().FirstOrDefault(element => element.Name == "VerticalThumb");
         Mark(report, "VolumeUsesVerticalTemplate", thumb is not null);
         await player.DispatchSmokeVolumeAsync(0);
+        await WaitAsync(() => player.ViewModel.Volume == 0, token);
         player.UpdateLayout();
         var bottom = Bounds(thumb!).Top;
         await player.DispatchSmokeVolumeAsync(100);
+        await WaitAsync(() => player.ViewModel.Volume == 100, token);
         player.UpdateLayout();
         Mark(report, "VolumeTopIsLouder", Bounds(thumb!).Top < bottom && player.ViewModel.Volume == 100);
         await player.DispatchSmokeVolumeAsync(55);

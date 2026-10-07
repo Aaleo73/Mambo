@@ -14,6 +14,7 @@
 
 | 项 | 待办 | 记录 |
 |---|---|---|
+| 播放进度快捷键【需用户】 | 使用本轮新构建在真实播放中复验左右键每次跳转 5 秒和长按连发，覆盖焦点留在进度条或标题栏后的操作 | [P4–P6 集成](decisions/P4-P6-integration.md) |
 | 播放页圆角黑框【需用户】 | 真实 Emby 下复验选集展开 / 收起后的共同圆角，覆盖近似铺满、控制条底角与黑边内字幕；不同 DPI、HDR 显示器及背景下复验 | [player-card-frame](decisions/player-card-frame.md) |
 | 字幕与音轨体验【需用户】 | 真实 Emby 上拖入单字幕/多集字幕、重启后采用、晚到服务器外挂与手选保护；暂停时检查 SRT/ASS 字体、描边、位置和覆盖效果；实际键鼠输入及高 DPI 布局，包括音量向上展开、跨入滑块和拖出释放，以及选集展开/收起和窗口缩放后的画面覆盖 | [playback-tracks](decisions/playback-tracks.md) |
 | 5000 项资料库滚动 60 fps | GPU 呈现帧率没有验收：本机没有 PresentMon，当前账户也没有启动实时 ETW 跟踪的权限。已测的是 UI 回调间隔，不等于呈现帧率 | [P4–P6 集成](decisions/P4-P6-integration.md) |
@@ -48,6 +49,7 @@
 | 长篇剧集分页修复 | 2026-10-06，v0.1.6 | [episode-pagination](decisions/episode-pagination.md) |
 | 应用图标 | 2026-10-06，v0.1.7 | [app-icon](decisions/app-icon.md) |
 | 输入框竖线光标 | 2026-10-07，尚未发布 | [input-caret](decisions/input-caret.md) |
+| 播放进度快捷键修复（实现与自动验证） | 2026-10-07，进度条聚焦后沿用 5 秒跳转，标题栏未处理按键转交播放器；构建 0 警告、0 错误，786 项测试通过、23 项既有专项跳过，Debug 与 AOT 各通过 80 项播放控件及系统键盘输入检查；尚未发布，真实播放复验见上方【需用户】 | [P4–P6 集成](decisions/P4-P6-integration.md) |
 | 播放控制条精简 | 2026-10-07，移除最右侧最大化按钮，字幕/音轨拆为独立入口，模式按钮置首并显示标准/清晰/动画，其余按钮图标化（音轨为双音符），音量向上竖向展开；撤掉额外播放器外框和视频内缩，影片保持完整矩形；尚未发布 | [播放页交互](SPEC.md#a10-播放页交互)、[外框](decisions/player-card-frame.md) |
 | 播放页圆角黑框（实现与自动验证） | 2026-10-07，圆角只切自然黑边；选集展开、收起共用两种布局都能容纳的较小圆角，最大 12 DIP，任一种铺满时两者均为 0，全屏为 0。影片大小保持不变，真实比例事件与界面裁剪已接入。构建 0 警告，786 项测试通过、23 项既有专项跳过；Debug 与 AOT 的六阶段原生截图通过，两种窗口尺寸下展开、收起的圆角一致；Debug 播放控件与 Video Lab 回归通过（资源稳定性仍为上方 NVIDIA 已知限制）。用户确认本轮修改可以提交；尚未发布，其他环境的观感见上方【需用户】 | [player-card-frame](decisions/player-card-frame.md) |
 | 字幕与音轨体验（实现与自动验证） | 2026-10-07，静默选轨偏好、现有组件内的时间/样式、按项目保存并自动加载拖入字幕；尚未发布，真实体验待上方人工验收 | [playback-tracks](decisions/playback-tracks.md) |
@@ -60,7 +62,7 @@
 
 - **每次改动后**：`dotnet build -p:Platform=x64` 成功，`dotnet test` 全部通过。
 - **界面与播放**：`scripts/test-*.ps1` 是本机验收脚本，配合 `src/Mambo.App/Debug/` 下的入口运行，会激活窗口，不在 CI 里。
-- **播放控件定向检查**：`pwsh scripts/test-player-controls.ps1`（加 `-Aot` 检查 AOT），只运行控制条布局、竖向音量、字幕/音轨组件及其全屏、输入隔离路径，不重复完整 UiLab。
+- **播放控件定向检查**：`pwsh scripts/test-player-controls.ps1`（加 `-Aot` 检查 AOT），只运行控制条布局、竖向音量、字幕/音轨组件及其全屏、输入隔离路径，不重复完整 UiLab。加 `-KeyboardInput` 会额外通过系统输入验证播放快捷键、焦点切换和编辑控件隔离；运行期间保持测试窗口在前台。
 - **完整界面回归**：`pwsh scripts/test-ui-lab.ps1`（加 `-Aot` 验 AOT 产物），一轮约 3 分钟，用真实键鼠输入，窗口必须全程在前台。运行期间不要操作这台电脑，包括点聊天或终端窗口；被打断时脚本会报出占用前台的进程并自动重跑，最多 3 次。
 - **AOT 诊断目录**：带 `-Aot` 的验收脚本读取 `publish/aot`，需要先发布：`dotnet publish src/Mambo.App/Mambo.App.csproj -c Release -r win-x64 --self-contained true -p:Platform=x64 -p:PublishAot=true -p:WindowsAppSDKSelfContained=true -o publish/aot`。链接步骤报「文件名、目录名或卷标语法不正确」时，把 `%ProgramFiles(x86)%\Microsoft Visual Studio\Installer` 加进 PATH 再试；`scripts/publish.ps1` 已自动处理。
 - **真实服务器**【需用户】：直链播放、302 到 CDN、强制转码、带外挂字幕的片源、一整季连播、断网后恢复；在 Emby 后台核对会话、进度和已播放标记。

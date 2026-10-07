@@ -637,13 +637,20 @@ public sealed partial class ShellView : UserControl, IBackInterceptor, IDisposab
 
     private void OnKeyDown(object sender, KeyRoutedEventArgs e)
     {
-        if (e.Handled || dialogs.IsOpen || player is not null) return;
+        if (e.Handled || dialogs.IsOpen) return;
+        var alt = (InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Menu) & Windows.UI.Core.CoreVirtualKeyStates.Down) != 0;
+        if (player is not null)
+        {
+            // 标题栏等播放层之外的控件也可能持有焦点；只转交尚未处理的按键，避免重复跳转。
+            var control = (InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control) & Windows.UI.Core.CoreVirtualKeyStates.Down) != 0;
+            e.Handled = player.HandleKey(e.Key, alt, control);
+            return;
+        }
         if (startingSession is not null && e.Key == VirtualKey.Escape)
         {
             e.Handled = TryHandleBack();
             return;
         }
-        var alt = (InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Menu) & Windows.UI.Core.CoreVirtualKeyStates.Down) != 0;
         if (alt && e.Key == VirtualKey.Left) { navigator.GoBack(); e.Handled = true; }
         else if (alt && e.Key == VirtualKey.Right) { navigator.GoForward(); e.Handled = true; }
         else if (e.Key == VirtualKey.Escape && !e.Handled && !IsTextInputFocused()) { e.Handled = navigator.GoBack(); }

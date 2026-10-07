@@ -2,6 +2,7 @@
 [CmdletBinding()]
 param(
     [switch]$Aot,
+    [switch]$KeyboardInput,
     [string]$AppDirectory,
     [ValidateRange(30, 600)][int]$TimeoutSeconds = 180
 )
@@ -33,6 +34,7 @@ try {
     }
     $controlsStart.Environment['MAMBO_FAKE'] = '1'
     $controlsStart.Environment['MAMBO_PLAYER_CONTROLS_REPORT'] = $controlsReportPath
+    $controlsStart.Environment['MAMBO_PLAYER_KEYBOARD_INPUT'] = if ($KeyboardInput) { '1' } else { '0' }
     $controlsStart.Environment['MAMBO_FAKE_DELAY_MS'] = '10'
     $controlsStart.Environment['MAMBO_FAKE_FAILURE_RATE'] = '0'
     $controlsProcess = [Diagnostics.Process]::Start($controlsStart)

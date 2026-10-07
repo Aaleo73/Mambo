@@ -943,7 +943,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         if (HandleKey(e.Key, alt, control)) e.Handled = true;
     }
 
-    private bool HandleKey(VirtualKey key, bool alt, bool control)
+    internal bool HandleKey(VirtualKey key, bool alt, bool control)
     {
         if (disposed || presentationFrozen || closing || transitionActive) return false;
         lastCommand = Task.CompletedTask;
@@ -958,7 +958,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         }
         if (alt && key == VirtualKey.Left) { lastCommand = CloseAsync(); return true; }
         if (alt && key == VirtualKey.Right) return true;
-        // 文本、下拉选择与滑块使用自己的按键；编辑字幕时不能触发 C/V、空格或左右跳转。
+        // 文本、下拉选择与编辑滑块使用自己的按键；播放进度条仍使用播放快捷键。
         if (IsEditingControlFocused()) return false;
         if (alt || control) return false;
         if (!ViewModel.CanControl) return false;
@@ -993,6 +993,8 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         var focused = XamlRoot is null ? null : FocusManager.GetFocusedElement(XamlRoot) as DependencyObject;
         for (var current = focused; current is not null; current = VisualTreeHelper.GetParent(current))
         {
+            // 进度条获得焦点后仍按 5 秒跳转，并允许空格暂停；Home/End 等未映射键留给 Slider。
+            if (ReferenceEquals(current, SeekSlider)) return false;
             if (current is TextBox or PasswordBox or AutoSuggestBox or ComboBox or Slider or ColorPicker or CheckBox) return true;
             if (ReferenceEquals(current, this)) break;
         }

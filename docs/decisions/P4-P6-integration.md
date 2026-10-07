@@ -26,6 +26,7 @@
   - 脚本只在报告里有这类证据时重跑，默认最多 3 次（`-MaxAttempts`）；普通的检查失败、异常和超时不重跑。通过仍然要求一整轮完整跑完，没有放宽任何检查。
   - 测试不会抢回前台，也不置顶窗口。
 - **看门狗**：应用内的总时限从 180 秒改为 300 秒。它只用来防止挂死，不是性能指标；Debug 和 AOT 构建完整跑完实测都在 170–179 秒，原来的时限没有余量。脚本通过时会打印实际用时。
+- **播放键盘定向回归**：`scripts/test-player-controls.ps1 -KeyboardInput`（AOT 加 `-Aot`）在 Debug、AOT 各通过 80 项控件及系统输入检查；构建和 AOT 发布成功，`dotnet test` 为 786 通过、0 失败、23 项既有专项跳过。仅验证本次播放输入修复，未重复完整 UiLab，也未代办真实服务器及物理长按体验的【需用户】验收。
 
 ## 定位到的问题与修复
 
@@ -33,6 +34,7 @@
 - **深滚动崩溃**（`AG_E_LAYOUT_CYCLE` / `0x88000FA8`）：同步布局过程中调用了 ChangeView、分页和 `SearchPage.UpdateLayout`。修复：把这些调用移出同步布局，并在 `LandscapeCard.MeasureOverride` 中设置自适应高度，避免冷创建或回收的第零项测量值与实际排列高度不一致。
 - **AOT 下资源类型转换失败**：首页和资料库构造时抛 `InvalidCastException`。同一资源在 Debug 可直接转换，在 AOT 下返回的对象类型是 `DependencyObject`，`is Style` 为假。这是原生资源的托管投影问题，不是漏发布资源。修复：`Themes/XamlResources.cs` 对 Style、DataTemplate 等使用具体类型的 `WinRT.CastExtensions.As<T>`（[源码](https://github.com/microsoft/CsWinRT/blob/master/src/WinRT.Runtime/CastExtensions.cs)），不增加反射。AOT 下的 `RenderingEventArgs` 同样要用具体的 WinRT 投影才能取到时间戳。
 - **关闭播放层后焦点丢失**：`ShellView.RemovePlayer` 原先在浏览页和侧栏仍禁用时就释放播放器，之后才尝试恢复焦点，而且忽略 `Focus` 的失败结果。修复：先恢复浏览区的可见性与可用性，确认原目标已加载、可聚焦、属于当前 Shell 且不是旧播放器的后代，再恢复焦点；失败时转到导航控件。
+- **播放进度快捷键被焦点阻断**：进度条被统一的编辑控件保护拦住，左右键绕过了播放器的 5 秒跳转；焦点落在标题栏时，事件不经过播放层，外壳又在播放期间直接忽略按键。修复：进度条沿用播放按键表，字幕编辑器与音量滑块继续使用自身按键；外壳把未处理按键转交同一播放处理函数，已处理事件不再分派，避免重复跳转。`scripts/test-player-controls.ps1 -KeyboardInput` 使用 `SendInput` 验证打开播放、画面、进度条、控制按钮、标题栏、连续跳转、首尾限位、暂停、音量与字幕输入隔离、关闭菜单及全屏；需要窗口保持前台。假会话的自动输入检查不代替用户在真实播放中复验。
 - **播放菜单计数竞态**：Hide 的延迟 Closed 回调可能扣减后来打开的新菜单的计数。修复：按具体菜单实例增删，关闭时解除对应事件。
 - **程序化关闭绕过清理**：冒烟完成后直接调用 `Window.Close()`，而清理只挂在 `AppWindow.Closing` 上，定时器随后访问已销毁的 XAML，进程以 `0xC000027B` 退出。主窗口的自绘关闭按钮有同样的问题。根因、定位方法和修复见 [P8 打包交付](P8-packaging.md) 的「关闭顺序故障与修复」。
 - **诊断报告的并发读写**：Windows 上 `File.Move(overwrite: true)` 遇到仍打开的共享读取句柄会返回 `80070005`，即使读者允许 FileShare.Delete；`File.Replace` 成功。报告写入因此改用原子替换。
