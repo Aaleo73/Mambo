@@ -11,6 +11,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+. (Join-Path $PSScriptRoot 'release-files.ps1')
 $repoRoot = [IO.Path]::GetFullPath((Split-Path $PSScriptRoot -Parent))
 $releaseRoot = [IO.Path]::GetFullPath((Join-Path $repoRoot 'publish/releases'))
 $buildId = Get-Date -Format 'yyyyMMdd-HHmmss-fff'
@@ -70,7 +71,7 @@ foreach ($font in $fontSources) {
     $publishedFont = Join-Path $appRoot "Assets/Fonts/$($font.Name)"
     if (-not (Test-Path -LiteralPath $publishedFont -PathType Leaf) -or (Get-FileHash -LiteralPath $publishedFont).Hash -ne (Get-FileHash -LiteralPath $font.FullName).Hash) { throw "字体发布或校验失败：$($font.Name)" }
 }
-$xbfCount = @(Get-ChildItem -LiteralPath $appRoot -Recurse -File -Filter '*.xbf').Count
+$xbfCount = @(Get-MamboReleaseFiles -Directory $appRoot | Where-Object Extension -eq '.xbf').Count
 if ($xbfCount -lt 2) { throw 'XAML 二进制资源不完整。' }
 if ((Get-FileHash -LiteralPath (Join-Path $appRoot 'mpv/libmpv-2.dll') -Algorithm SHA256).Hash.ToLowerInvariant() -ne $mpvLock.dllSha256) { throw '发布包 libmpv 校验失败。' }
 & (Join-Path $PSScriptRoot 'verify-native-runtime.ps1') -Directory (Join-Path $appRoot 'mpv')
@@ -98,6 +99,9 @@ foreach ($license in (Get-ChildItem -LiteralPath $licenseRoot -Recurse -File)) {
     New-Item -ItemType Directory -Path ([IO.Path]::GetDirectoryName($licenseTarget)) -Force | Out-Null
     Copy-Item -LiteralPath $license.FullName -Destination $licenseTarget -Force
 }
+# 打包读取独立 staging，避免运行发布目录后生成的用户字幕进入任何发行资产。
+$packageRoot = Join-Path $outputRoot 'package'
+Copy-MamboReleaseFiles -SourceDirectory $appRoot -DestinationDirectory $packageRoot
 $manifest = [ordered]@{
     schemaVersion = 1
     version = $Version
@@ -108,17 +112,16 @@ $manifest = [ordered]@{
     libmpvRevision = $mpvLock.revision
     libmpvSha256 = $mpvLock.dllSha256
     xbfCount = $xbfCount
-    files = @(Get-ChildItem -LiteralPath $appRoot -Recurse -File | Sort-Object FullName | ForEach-Object {
-        [ordered]@{ path = [IO.Path]::GetRelativePath($appRoot, $_.FullName).Replace('\', '/'); bytes = $_.Length; sha256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() }
-    })
+    files = @(Get-MamboReleaseFileManifest -Directory $packageRoot)
 }
 $manifest | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $appRoot 'release-manifest.json') -Encoding utf8NoBOM
+Copy-Item -LiteralPath (Join-Path $appRoot 'release-manifest.json') -Destination $packageRoot
 $updatePackages = if ($Version -notmatch '-') {
-    & (Join-Path $PSScriptRoot 'build-update-packages.ps1') -AppDirectory $appRoot -OutputDirectory $outputRoot -Version $Version
+    & (Join-Path $PSScriptRoot 'build-update-packages.ps1') -AppDirectory $packageRoot -OutputDirectory $outputRoot -Version $Version
 } else { $null }
 $zipPath = Join-Path $outputRoot "Mambo-$Version-win-x64-portable.zip"
 # ZipFile 会包括隐藏文件，不依赖 Compress-Archive 的默认过滤行为。
-[IO.Compression.ZipFile]::CreateFromDirectory($appRoot, $zipPath, [IO.Compression.CompressionLevel]::Optimal, $false)
+[IO.Compression.ZipFile]::CreateFromDirectory($packageRoot, $zipPath, [IO.Compression.CompressionLevel]::Optimal, $false)
 $sourceArchive = & (Join-Path $PSScriptRoot 'make-source-archive.ps1') -OutputDirectory $outputRoot -Version $Version
 $installerPath = $null
 if ($Installer) {
@@ -144,7 +147,7 @@ if ($Installer) {
         }
     }
     if (-not $IsccPath -or -not (Test-Path -LiteralPath $IsccPath -PathType Leaf)) { throw '未找到或当前进程无法读取 Inno Setup 编译器。便携包已生成；请核对安装目录和当前账户的读取权限，也可用 -IsccPath 指定已安装的 ISCC.exe。' }
-    & $IsccPath '/Qp' "/DMyAppVersion=$Version" "/DPublishDir=$appRoot" "/DInstallerOutputDir=$outputRoot" (Join-Path $repoRoot 'installer/Mambo.iss') | Out-Host
+    & $IsccPath '/Qp' "/DMyAppVersion=$Version" "/DPublishDir=$packageRoot" "/DInstallerOutputDir=$outputRoot" (Join-Path $repoRoot 'installer/Mambo.iss') | Out-Host
     if ($LASTEXITCODE -ne 0) { throw 'Inno Setup 编译失败；便携包仍可审阅。' }
     $installerPath = Join-Path $outputRoot "Mambo-$Version-win-x64-setup.exe"
     if (-not (Test-Path -LiteralPath $installerPath -PathType Leaf)) { throw '未找到安装器输出。' }

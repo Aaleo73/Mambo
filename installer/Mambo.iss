@@ -40,7 +40,7 @@ Name: "chinesesimp"; MessagesFile: "ChineseSimplified.isl"
 Name: "desktopicon"; Description: "创建桌面快捷方式"; GroupDescription: "快捷方式："; Flags: unchecked
 
 [Files]
-Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#PublishDir}\*"; DestDir: "{app}"; Excludes: "\Subtitles,\Subtitles\*"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\Mambo"; Filename: "{app}\Mambo.exe"; WorkingDir: "{app}"
@@ -53,5 +53,5 @@ Filename: "{app}\Mambo.exe"; Description: "启动 Mambo"; Flags: nowait postinst
 ; 应用内更新可能增加新文件；按当前发布清单清理，保留自定义文件与用户数据。
 Filename: "{app}\Mambo.Updater.exe"; Parameters: "--uninstall-cleanup ""{app}"""; Flags: runhidden waituntilterminated skipifdoesntexist; RunOnceId: "MamboManifestCleanup"
 
-; 用户数据位于 {localappdata}\Mambo，不添加 UninstallDelete 或扫描其他路径。
+; 用户数据位于 {localappdata}\Mambo 和 {app}\Subtitles，不添加 UninstallDelete 或扫描其他路径。
 ; 升级通过 Restart Manager 请求关闭本安装目录下的 Mambo.exe，不强制终止外部 mpv。

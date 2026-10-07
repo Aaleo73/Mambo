@@ -125,6 +125,9 @@ public static class UpdateFiles
     public static void ValidateRelativePath(string path)
     {
         if (string.IsNullOrEmpty(path) || path.Length > 240 || path.Contains('\\') || path.Any(c => c < 32 || ":*?\"<>|".Contains(c))) throw Invalid();
+        // Persistent user subtitles live beside Mambo.exe, including in portable installations.
+        if (path.Equals("Subtitles", StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWith("Subtitles/", StringComparison.OrdinalIgnoreCase)) throw Invalid();
         foreach (var segment in path.Split('/'))
         {
             if (segment.Length == 0 || segment is "." or ".." || segment.EndsWith('.') || segment.EndsWith(' ') ||
