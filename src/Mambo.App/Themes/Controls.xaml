@@ -204,15 +204,25 @@
         </Setter>
     </Style>
 
+    <!-- 光标单独着色，不改变正文、占位文字和选中高亮；未指定 Soft 样式的输入框也覆盖。 -->
+    <Style x:Key="CaretTextBoxStyle" TargetType="TextBox" BasedOn="{StaticResource DefaultTextBoxStyle}">
+        <Setter Property="themes:InputCaret.Brush" Value="{ThemeResource InputCaretBrush}"/>
+    </Style>
+    <Style TargetType="TextBox" BasedOn="{StaticResource CaretTextBoxStyle}"/>
+    <Style x:Key="CaretPasswordBoxStyle" TargetType="PasswordBox" BasedOn="{StaticResource DefaultPasswordBoxStyle}">
+        <Setter Property="themes:InputCaret.Brush" Value="{ThemeResource InputCaretBrush}"/>
+    </Style>
+    <Style TargetType="PasswordBox" BasedOn="{StaticResource CaretPasswordBoxStyle}"/>
+
     <!-- 输入框：12 圆角、黑 2.5% 底、1px 黑 20% 边；聚焦时边加深到黑 38%、底略深，不用主色 -->
-    <Style x:Key="SoftInputStyle" TargetType="TextBox" BasedOn="{StaticResource DefaultTextBoxStyle}">
+    <Style x:Key="SoftInputStyle" TargetType="TextBox" BasedOn="{StaticResource CaretTextBoxStyle}">
         <Setter Property="MinHeight" Value="{StaticResource InputHeight}"/>
         <Setter Property="Padding" Value="{StaticResource TextControlThemePadding}"/>
         <Setter Property="CornerRadius" Value="{StaticResource SoftControlCornerRadius}"/>
         <Setter Property="FontSize" Value="{StaticResource BodySmallFontSize}"/>
         <Setter Property="VerticalContentAlignment" Value="Center"/>
     </Style>
-    <Style x:Key="SoftPasswordStyle" TargetType="PasswordBox" BasedOn="{StaticResource DefaultPasswordBoxStyle}">
+    <Style x:Key="SoftPasswordStyle" TargetType="PasswordBox" BasedOn="{StaticResource CaretPasswordBoxStyle}">
         <Setter Property="MinHeight" Value="{StaticResource InputHeight}"/>
         <Setter Property="Padding" Value="{StaticResource TextControlThemePadding}"/>
         <Setter Property="CornerRadius" Value="{StaticResource SoftControlCornerRadius}"/>

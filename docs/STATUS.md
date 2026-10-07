@@ -65,6 +65,7 @@
 
 | 项 | 待办 | 记录 |
 |---|---|---|
+| 输入框竖线光标 | 已改为随主题适配的柔和灰色，Debug / AOT 专项检查通过；【需用户】实际观感、输入法、DPI 与高对比度 | [input-caret](decisions/input-caret.md) |
 | 长篇剧集分页 | 真实片库复验 | [episode-pagination](decisions/episode-pagination.md) |
 | 筛选响应优化 | 真实服务器耗时复验 | [library-filter-responsiveness](decisions/library-filter-responsiveness.md) |
 | 海报清晰度 | 【需用户】跨显示器观感 | [P6-image-resolution](decisions/P6-image-resolution.md) |

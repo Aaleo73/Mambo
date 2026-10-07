@@ -46,6 +46,11 @@ internal static partial class UiLabSmoke
             await SaveReportAsync(report, reportPath);
             return;
         }
+        if (Program.Arguments.Contains("--input-caret-only", StringComparer.Ordinal))
+        {
+            await RunInputCaretOnlyAsync(window, reportPath, token);
+            return;
+        }
         if (Program.Arguments.Contains("--image-resolution-only", StringComparer.Ordinal))
         {
             await RunImageResolutionOnlyAsync(window, reportPath, token);

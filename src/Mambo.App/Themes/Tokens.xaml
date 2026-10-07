@@ -34,6 +34,7 @@
             <SolidColorBrush x:Key="InputFillFocusedBrush" Color="#09000000"/>
             <SolidColorBrush x:Key="InputStrokeBrush" Color="#33000000"/>
             <SolidColorBrush x:Key="InputStrokeFocusedBrush" Color="#61000000"/>
+            <SolidColorBrush x:Key="InputCaretBrush" Color="#FF60656F"/>
             <SolidColorBrush x:Key="FocusStrokeBrush" Color="#B8181818"/>
             <SolidColorBrush x:Key="FocusGlowBrush" Color="#1F000000"/>
             <SolidColorBrush x:Key="NavActiveBrush" Color="#1F000000"/>
@@ -228,6 +229,7 @@
             <SolidColorBrush x:Key="InputFillFocusedBrush" Color="#12FFFFFF"/>
             <SolidColorBrush x:Key="InputStrokeBrush" Color="#33FFFFFF"/>
             <SolidColorBrush x:Key="InputStrokeFocusedBrush" Color="#73FFFFFF"/>
+            <SolidColorBrush x:Key="InputCaretBrush" Color="#FFA4A9B3"/>
             <SolidColorBrush x:Key="FocusStrokeBrush" Color="#D9FFFFFF"/>
             <SolidColorBrush x:Key="FocusGlowBrush" Color="#24FFFFFF"/>
             <SolidColorBrush x:Key="NavActiveBrush" Color="#1FFFFFFF"/>
@@ -422,6 +424,7 @@
             <SolidColorBrush x:Key="InputFillFocusedBrush" Color="{ThemeResource SystemColorWindowColor}"/>
             <SolidColorBrush x:Key="InputStrokeBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
             <SolidColorBrush x:Key="InputStrokeFocusedBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
+            <SolidColorBrush x:Key="InputCaretBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
             <SolidColorBrush x:Key="CardSelectedStrokeBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
             <SolidColorBrush x:Key="CardSelectedInnerBrush" Color="{ThemeResource SystemColorWindowColor}"/>
             <SolidColorBrush x:Key="FocusStrokeBrush" Color="{ThemeResource SystemColorHighlightColor}"/>
