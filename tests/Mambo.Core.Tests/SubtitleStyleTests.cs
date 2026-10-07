@@ -67,7 +67,8 @@ public sealed class SubtitleStyleTests
     [InlineData("auto", false, "")]
     [InlineData("auto", true, "")]
     [InlineData("off", true, "")]
-    [InlineData("zh", true, "zh,zho,chi,chs,cht,zh-Hans,zh-Hant,en,eng")]
+    [InlineData("zh", true, "zh-CN,zh-Hans,chi,zho,chs,zh,cht,zh-Hant,zh-TW,eng,en")]
+    [InlineData("zh", false, "zh-CN,zh-Hans,chi,zho,chs,zh,cht,zh-Hant,zh-TW")]
     [InlineData("ja", false, "ja,jpn")]
     [InlineData("fr", false, "fr,fra,fre")]
     public void LanguageCodesUseMpvLanguageLists(string preference, bool subtitle, string expected) =>
