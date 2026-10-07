@@ -151,6 +151,23 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     public partial bool HardwareDecoding { get; private set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(AudioLanguageLabel))]
+    public partial string PreferredAudioLanguage { get; private set; } = "auto";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SubtitleLanguageLabel))]
+    public partial string PreferredSubtitleLanguage { get; private set; } = "zh";
+
+    public string AudioLanguageLabel => LanguageLabel(PreferredAudioLanguage);
+    public string SubtitleLanguageLabel => LanguageLabel(PreferredSubtitleLanguage);
+
+    private static string LanguageLabel(string code) => code switch
+    {
+        "zh" => "中文", "ja" => "日语", "en" => "英语", "ko" => "韩语", "fr" => "法语",
+        "de" => "德语", "es" => "西班牙语", "ru" => "俄语", "off" => "默认关闭", _ => "自动",
+    };
+
+    [ObservableProperty]
     public partial bool IsThemeSystem { get; private set; }
 
     [ObservableProperty]
@@ -235,6 +252,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         mode == PlaybackMode.External && !CanUseExternal ? Task.CompletedTask
             : UpdateAsync(s => s with { PlaybackMode = mode });
     public Task SetHdrAsync(HdrMode mode) => UpdateAsync(s => s with { HdrMode = mode });
+    public Task SetAudioLanguageAsync(string code) => UpdateAsync(s => s with { PreferredAudioLanguage = code });
+    public Task SetSubtitleLanguageAsync(string code) => UpdateAsync(s => s with { PreferredSubtitleLanguage = code });
 
     public Task SetHardwareDecodingAsync(bool enabled) =>
         enabled == HardwareDecoding ? Task.CompletedTask
@@ -401,6 +420,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             IsExternal = current.PlaybackMode == PlaybackMode.External;
             Hdr = current.HdrMode;
             HardwareDecoding = current.HardwareDecoding == HardwareDecodingMode.Auto;
+            PreferredAudioLanguage = current.PreferredAudioLanguage;
+            PreferredSubtitleLanguage = current.PreferredSubtitleLanguage;
             ApplyMpvStatus();
             OnPropertyChanged(nameof(HdrLabel));
             OnPropertyChanged(nameof(IsHdrAuto));

@@ -105,6 +105,14 @@ public sealed partial class SettingsPage : UserControl, INavigablePage, IDisposa
     private async void OnHdrAlwaysClick(object sender, RoutedEventArgs e) => await ViewModel.SetHdrAsync(HdrMode.Always);
     private async void OnHdrOffClick(object sender, RoutedEventArgs e) => await ViewModel.SetHdrAsync(HdrMode.Off);
     private async void OnHardwareToggled(object sender, RoutedEventArgs e) => await ViewModel.SetHardwareDecodingAsync(HardwareSwitch.IsOn);
+    private async void OnAudioLanguageClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuFlyoutItem { Tag: string code }) await ViewModel.SetAudioLanguageAsync(code);
+    }
+    private async void OnSubtitleLanguageClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuFlyoutItem { Tag: string code }) await ViewModel.SetSubtitleLanguageAsync(code);
+    }
     private async void OnThemeSystemClick(object sender, RoutedEventArgs e) => await ViewModel.SetThemeAsync(ThemeMode.System);
     private async void OnThemeLightClick(object sender, RoutedEventArgs e) => await ViewModel.SetThemeAsync(ThemeMode.Light);
     private async void OnThemeDarkClick(object sender, RoutedEventArgs e) => await ViewModel.SetThemeAsync(ThemeMode.Dark);

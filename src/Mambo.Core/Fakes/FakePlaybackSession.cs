@@ -14,6 +14,7 @@ public sealed class FakePlaybackSession : IPlaybackSession, IDisposable, IAsyncD
     private readonly TimeProvider clock;
     private readonly IUiScheduler scheduler;
     private readonly IMessenger messenger;
+    private readonly ISettingsService? settings;
     private readonly Action<FakePlaybackSession, PlaybackEndReason> onClosed;
     private readonly Action<PlaybackEntry, AppError> onSkipped;
     private readonly object gate = new();
@@ -35,7 +36,8 @@ public sealed class FakePlaybackSession : IPlaybackSession, IDisposable, IAsyncD
 
     internal FakePlaybackSession(ImmutableArray<PlaybackEntry> entries, int entryIndex, long startTicks,
         FakeOperation operation, FakeOptions options, TimeProvider clock, IUiScheduler scheduler,
-        IMessenger messenger, Action<FakePlaybackSession, PlaybackEndReason> onClosed, Action<PlaybackEntry, AppError> onSkipped, Func<(ImmutableArray<PlaybackEntry> Entries, int Index, long Start)>? prepare = null)
+        IMessenger messenger, Action<FakePlaybackSession, PlaybackEndReason> onClosed, Action<PlaybackEntry, AppError> onSkipped,
+        Func<(ImmutableArray<PlaybackEntry> Entries, int Index, long Start)>? prepare = null, ISettingsService? settings = null)
     {
         if (options.PlaybackTick <= TimeSpan.Zero || options.BufferEvery < TimeSpan.Zero || options.BufferDuration < TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(options), "演示播放计时设置无效。");
@@ -44,6 +46,7 @@ public sealed class FakePlaybackSession : IPlaybackSession, IDisposable, IAsyncD
         this.clock = clock;
         this.scheduler = scheduler;
         this.messenger = messenger;
+        this.settings = settings;
         this.onClosed = onClosed;
         this.onSkipped = onSkipped;
         this.prepare = prepare;
@@ -60,10 +63,12 @@ public sealed class FakePlaybackSession : IPlaybackSession, IDisposable, IAsyncD
             PositionTicks = Math.Clamp(startTicks, 0, duration),
             AudioTracks = [new("audio-1", TrackKind.Audio, "原声 · 中文") { Language = "zho", IsDefault = true },
                 new("audio-2", TrackKind.Audio, "配音 · 英语") { Language = "eng" }],
-            SubtitleTracks = [new("subtitle-1", TrackKind.Subtitle, "简体中文 · 中文") { Language = "zho", IsDefault = true },
-                new("subtitle-2", TrackKind.Subtitle, "English · 英语") { Language = "eng" }],
-            SelectedAudioTrackId = "audio-1",
-            SelectedSubtitleTrackId = "subtitle-1",
+            SubtitleTracks = [new("subtitle-1", TrackKind.Subtitle, "简体中文 · 中文 · SRT · 内封") { Language = "zho", IsDefault = true, Codec = "subrip", SubtitleStyleKind = SubtitleStyleKind.Text },
+                new("subtitle-2", TrackKind.Subtitle, "English · 英语 · ASS · 外挂") { Language = "eng", Codec = "ass", Source = TrackSource.External, SubtitleStyleKind = SubtitleStyleKind.Ass }],
+            SelectedAudioTrackId = settings?.Current.PreferredAudioLanguage == "en" ? "audio-2" : "audio-1",
+            SelectedSubtitleTrackId = settings?.Current.PreferredSubtitleLanguage switch { "off" => null, "en" => "subtitle-2", _ => "subtitle-1" },
+            EntryGeneration = 1,
+            SubtitleStyle = settings?.Current.SubtitleStyle ?? new(),
             CapturedAtUtc = clock.GetUtcNow(),
             DemoColorArgb = ColorFor(entry.ItemId),
         };
@@ -217,20 +222,62 @@ public sealed class FakePlaybackSession : IPlaybackSession, IDisposable, IAsyncD
     }
 
     public Task SelectAudioTrackAsync(string? trackId, CancellationToken cancellationToken = default) =>
-        ChangeActive(current =>
+        SelectAudioTrackAsync(trackId, Snapshot.EntryGeneration, cancellationToken);
+
+    public Task SelectAudioTrackAsync(string? trackId, long expectedEntryGeneration, CancellationToken cancellationToken = default) =>
+        ChangePlaying(current =>
         {
+            EnsureGeneration(current, expectedEntryGeneration);
             if (trackId is not null && !current.AudioTracks.Any(track => track.Id == trackId))
                 throw Error("demo.playback.track", "未找到这个音轨。");
             return current with { SelectedAudioTrackId = trackId };
         }, cancellationToken);
 
     public Task SelectSubtitleTrackAsync(string? trackId, CancellationToken cancellationToken = default) =>
-        ChangeActive(current =>
+        SelectSubtitleTrackAsync(trackId, Snapshot.EntryGeneration, cancellationToken);
+
+    public Task SelectSubtitleTrackAsync(string? trackId, long expectedEntryGeneration, CancellationToken cancellationToken = default) =>
+        ChangePlaying(current =>
         {
+            EnsureGeneration(current, expectedEntryGeneration);
             if (trackId is not null && !current.SubtitleTracks.Any(track => track.Id == trackId))
                 throw Error("demo.playback.track", "未找到这个字幕轨道。");
-            return current with { SelectedSubtitleTrackId = trackId };
+            return current with { SelectedSubtitleTrackId = trackId, SubtitleDelaySeconds = current.SelectedSubtitleTrackId == trackId ? current.SubtitleDelaySeconds : 0 };
         }, cancellationToken);
+
+    public Task SetSubtitleDelayAsync(double seconds, long expectedEntryGeneration, string? expectedSubtitleTrackId,
+        CancellationToken cancellationToken = default) => ChangePlaying(current =>
+    {
+        EnsureGeneration(current, expectedEntryGeneration);
+        if (!current.CanAdjustSubtitleDelay || current.SelectedSubtitleTrackId != expectedSubtitleTrackId)
+            throw Error("playback.subtitle_unavailable", "当前字幕控制不可用。");
+        if (!double.IsFinite(seconds) || seconds is < -60 or > 60 || Math.Abs(seconds * 10 - Math.Round(seconds * 10)) > .000001)
+            throw Error(ErrorCodes.InvalidArgument, "字幕时间范围为 -60.0 至 60.0 秒，精度为 0.1 秒。");
+        return current with { SubtitleDelaySeconds = seconds };
+    }, cancellationToken);
+
+    public async Task SetSubtitleStyleAsync(SubtitleStyleSettings style, long expectedEntryGeneration, CancellationToken cancellationToken = default)
+    {
+        await ChangePlaying(current =>
+        {
+            EnsureGeneration(current, expectedEntryGeneration);
+            if (!FakeSettingsService.ValidSubtitleStyle(style)) throw Error(ErrorCodes.InvalidArgument, "字幕样式设置无效。");
+            if (current.SubtitleStyleKind is SubtitleStyleKind.Bitmap or SubtitleStyleKind.Unknown)
+                throw Error("playback.subtitle_unavailable", "当前字幕不支持文字样式。");
+            return current with { SubtitleStyle = style };
+        }, cancellationToken).ConfigureAwait(false);
+        if (settings is not null) await settings.UpdateAsync(value => value with { SubtitleStyle = style }, cancellationToken).ConfigureAwait(false);
+    }
+
+    // 演示不读取路径、复制文件或创建任何真实持久字幕。
+    public SubtitleImportContext? BeginSubtitleImport() => null;
+    public Task ImportSubtitlesAsync(SubtitleImportContext context, IReadOnlyList<LocalSubtitleFile> files,
+        CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+    private static void EnsureGeneration(SessionSnapshot current, long expected)
+    {
+        if (current.EntryGeneration != expected) throw Error("playback.subtitle_stale", "播放条目已切换，请重新操作。");
+    }
 
     public Task PreviousAsync(CancellationToken cancellationToken = default) => Move(-1, cancellationToken);
     public Task NextAsync(CancellationToken cancellationToken = default) => Move(1, cancellationToken);
@@ -275,6 +322,7 @@ public sealed class FakePlaybackSession : IPlaybackSession, IDisposable, IAsyncD
         lastTimestamp = clock.GetTimestamp();
         openingStartedUtc = clock.GetUtcNow();
         snapshot = snapshot with { Phase = phase, Entry = entry, CurrentEntryIndex = index, PositionTicks = 0,
+            EntryGeneration = snapshot.EntryGeneration + 1, SubtitleDelaySeconds = 0,
             DurationTicks = Math.Max(1, entry.DurationTicks ?? TimeSpan.FromMinutes(24).Ticks), IsPaused = false,
             IsBuffering = false, IsSeeking = false, IsSlowOpening = false, Error = null, BufferedRanges = [],
             CapturedAtUtc = clock.GetUtcNow(), DemoColorArgb = ColorFor(entry.ItemId) };
@@ -301,10 +349,10 @@ public sealed class FakePlaybackSession : IPlaybackSession, IDisposable, IAsyncD
         {
             EnsureActive();
             if (snapshot.Phase != PlayerPhase.Failed) return Task.CompletedTask;
-            if (!prepared) { snapshot = snapshot with { Phase = PlayerPhase.Preparing, Error = null }; Publish(); _ = PrepareAsync(); return Task.CompletedTask; }
+            if (!prepared) { snapshot = snapshot with { Phase = PlayerPhase.Preparing, Error = null, EntryGeneration = snapshot.EntryGeneration + 1, SubtitleDelaySeconds = 0 }; Publish(); _ = PrepareAsync(); return Task.CompletedTask; }
             transition++;
             openingStartedUtc = clock.GetUtcNow();
-            snapshot = snapshot with { Phase = PlayerPhase.Opening, Error = null, IsBuffering = false,
+            snapshot = snapshot with { Phase = PlayerPhase.Opening, Error = null, IsBuffering = false, EntryGeneration = snapshot.EntryGeneration + 1, SubtitleDelaySeconds = 0,
                 IsSlowOpening = false, CapturedAtUtc = clock.GetUtcNow() };
             Publish();
             _ = OpenAsync(transition);
@@ -437,7 +485,13 @@ public sealed class FakePlaybackSession : IPlaybackSession, IDisposable, IAsyncD
         return cancellationToken.CanBeCanceled ? cleanup.WaitAsync(cancellationToken) : cleanup;
     }
 
-    private void Publish() => Enqueue(() => SnapshotChanged?.Invoke(this, EventArgs.Empty));
+    private void Publish()
+    {
+        var subtitle = snapshot.SubtitleTracks.FirstOrDefault(track => track.Id == snapshot.SelectedSubtitleTrackId);
+        snapshot = snapshot with { CanAdjustSubtitleDelay = snapshot.Phase == PlayerPhase.Playing && subtitle is not null,
+            SubtitleStyleKind = subtitle?.SubtitleStyleKind ?? SubtitleStyleKind.None, CanImportSubtitles = false };
+        Enqueue(() => SnapshotChanged?.Invoke(this, EventArgs.Empty));
+    }
 
     private void SendStopped(PlaybackEntry? entry)
     {

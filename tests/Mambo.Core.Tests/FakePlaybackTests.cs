@@ -10,6 +10,106 @@ namespace Mambo.Core.Tests;
 public sealed class FakePlaybackTests
 {
     [Fact]
+    public async Task SubtitleDelayPreservesPauseAndSeekButResetsOnTrackAndEntryChanges()
+    {
+        using var harness = new Harness();
+        var token = TestContext.Current.CancellationToken;
+        var session = await harness.Service.PreviewAsync(token);
+        await harness.OpenAsync(session);
+        var generation = session.Snapshot.EntryGeneration;
+        await session.SetSubtitleDelayAsync(-.3, generation, "subtitle-1", token);
+        await session.TogglePauseAsync(token);
+        await session.SeekAsync(TimeSpan.FromSeconds(20), token);
+        await session.SelectSubtitleTrackAsync("subtitle-1", generation, token);
+        Assert.Equal(-.3, session.Snapshot.SubtitleDelaySeconds);
+        Assert.True(session.Snapshot.IsPaused);
+        await Assert.ThrowsAsync<AppException>(() => session.SetSubtitleDelayAsync(.15, generation, "subtitle-1", token));
+        await Assert.ThrowsAsync<AppException>(() => session.SetSubtitleDelayAsync(60.1, generation, "subtitle-1", token));
+        Assert.Equal(-.3, session.Snapshot.SubtitleDelaySeconds);
+        await session.SelectSubtitleTrackAsync("subtitle-2", generation, token);
+        Assert.Equal(0, session.Snapshot.SubtitleDelaySeconds);
+        Assert.Equal(SubtitleStyleKind.Ass, session.Snapshot.SubtitleStyleKind);
+        await Assert.ThrowsAsync<AppException>(() => session.SetSubtitleDelayAsync(.1, generation, "subtitle-1", token));
+        await session.SetSubtitleDelayAsync(.2, generation, "subtitle-2", token);
+        await session.NextAsync(token);
+        await harness.OpenAsync(session);
+        Assert.NotEqual(generation, session.Snapshot.EntryGeneration);
+        Assert.Equal(0, session.Snapshot.SubtitleDelaySeconds);
+        await Assert.ThrowsAsync<AppException>(() => session.SelectSubtitleTrackAsync(null, generation, token));
+        await session.SelectSubtitleTrackAsync(null, session.Snapshot.EntryGeneration, token);
+        Assert.False(session.Snapshot.CanAdjustSubtitleDelay);
+        Assert.Equal(SubtitleStyleKind.None, session.Snapshot.SubtitleStyleKind);
+        await session.CloseAsync(token);
+    }
+
+    [Fact]
+    public async Task SubtitleStyleAndLanguageSettingsApplyToNewFakeSessionsWithoutChangingTheCurrentSession()
+    {
+        using var harness = new Harness();
+        var token = TestContext.Current.CancellationToken;
+        var session = await harness.Service.PreviewAsync(token);
+        await harness.OpenAsync(session);
+        await harness.Settings.UpdateAsync(value => value with { PreferredAudioLanguage = "en", PreferredSubtitleLanguage = "off" }, token);
+        Assert.Equal("audio-1", session.Snapshot.SelectedAudioTrackId);
+        Assert.Equal("subtitle-1", session.Snapshot.SelectedSubtitleTrackId);
+        var style = new SubtitleStyleSettings { FontSize = 52, OutlineSize = 2.5, BottomMargin = 60, TextColor = "#FFA040" };
+        await session.SetSubtitleStyleAsync(style, session.Snapshot.EntryGeneration, token);
+        Assert.Equal(style, session.Snapshot.SubtitleStyle);
+        Assert.Equal(style, harness.Settings.Current.SubtitleStyle);
+        await Assert.ThrowsAsync<AppException>(() => session.SetSubtitleStyleAsync(style with { FontSize = 73 }, session.Snapshot.EntryGeneration, token));
+        Assert.Equal(style, session.Snapshot.SubtitleStyle);
+        await session.CloseAsync(token);
+        var replacement = await harness.Service.PreviewAsync(token);
+        await harness.OpenAsync(replacement);
+        Assert.Equal("audio-2", replacement.Snapshot.SelectedAudioTrackId);
+        Assert.Null(replacement.Snapshot.SelectedSubtitleTrackId);
+        Assert.Equal(style, replacement.Snapshot.SubtitleStyle);
+        await replacement.CloseAsync(token);
+    }
+
+    [Fact]
+    public async Task RetryRejectsOldSubtitleCommandsAndDemoImportNeverInspectsFiles()
+    {
+        using var harness = new Harness();
+        var token = TestContext.Current.CancellationToken;
+        var session = (FakePlaybackSession)await harness.Service.PreviewAsync(token);
+        await harness.OpenAsync(session);
+        var generation = session.Snapshot.EntryGeneration;
+        await session.SetSubtitleDelayAsync(1.2, generation, "subtitle-1", token);
+        Assert.False(session.Snapshot.CanImportSubtitles);
+        Assert.Null(session.BeginSubtitleImport());
+        await session.ImportSubtitlesAsync(null!, new InaccessibleFiles(), token);
+        await session.SimulateFailureAsync(cancellationToken: token);
+        await session.RetryAsync(token);
+        await harness.OpenAsync(session);
+        Assert.NotEqual(generation, session.Snapshot.EntryGeneration);
+        Assert.Equal(0, session.Snapshot.SubtitleDelaySeconds);
+        await Assert.ThrowsAsync<AppException>(() => session.SetSubtitleStyleAsync(new(), generation, token));
+        await session.CloseAsync(token);
+    }
+
+    [Fact]
+    public async Task FakeSettingsRejectUnsupportedLanguagesAndInvalidSubtitleStyles()
+    {
+        using var harness = new Harness();
+        var token = TestContext.Current.CancellationToken;
+        var original = harness.Settings.Current;
+        await Assert.ThrowsAsync<AppException>(() => harness.Settings.UpdateAsync(value => value with { PreferredAudioLanguage = "off" }, token));
+        await Assert.ThrowsAsync<AppException>(() => harness.Settings.UpdateAsync(value => value with { PreferredSubtitleLanguage = "invalid" }, token));
+        await Assert.ThrowsAsync<AppException>(() => harness.Settings.UpdateAsync(value => value with { SubtitleStyle = new() { TextColor = "#FFFFFFFF" } }, token));
+        await Assert.ThrowsAsync<AppException>(() => harness.Settings.UpdateAsync(value => value with { SubtitleStyle = new() { BottomMargin = double.NaN } }, token));
+        Assert.Equal(original, harness.Settings.Current);
+    }
+
+    private sealed class InaccessibleFiles : IReadOnlyList<LocalSubtitleFile>
+    {
+        public int Count => throw new InvalidOperationException("演示不应查看真实文件。");
+        public LocalSubtitleFile this[int index] => throw new InvalidOperationException("演示不应查看真实文件。");
+        public IEnumerator<LocalSubtitleFile> GetEnumerator() => throw new InvalidOperationException("演示不应查看真实文件。");
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    }
+
+    [Fact]
     public async Task PlaybackControlsPreserveProgressAndNotifyOnUiScheduler()
     {
         using var harness = new Harness();
@@ -243,12 +343,14 @@ public sealed class FakePlaybackTests
         public WeakReferenceMessenger Messenger { get; } = new();
         public FakeOptions Options { get; }
         public FakePlaybackService Service { get; }
+        public FakeSettingsService Settings { get; }
 
         public Harness(UiScheduler? scheduler = null, FakeOptions? options = null)
         {
             Scheduler = scheduler ?? new UiScheduler();
             Options = options ?? new FakeOptions { Delay = TimeSpan.FromMilliseconds(100), BufferEvery = TimeSpan.Zero };
-            Service = new FakePlaybackService(new DemoCatalog(), new FakeOperation(Options, Clock), Options, Clock, Scheduler, Messenger);
+            Settings = new FakeSettingsService(new FakeOperation(new FakeOptions { Delay = TimeSpan.Zero }, Clock), Scheduler);
+            Service = new FakePlaybackService(new DemoCatalog(), new FakeOperation(Options, Clock), Options, Clock, Scheduler, Messenger, Settings);
         }
 
         public Task OpenAsync(IPlaybackSession session) => AdvanceUntilAsync(session, PlayerPhase.Playing);
@@ -263,7 +365,7 @@ public sealed class FakePlaybackTests
             Assert.Equal(phase, session.Snapshot.Phase);
         }
 
-        public void Dispose() => Service.Dispose();
+        public void Dispose() { Service.Dispose(); Settings.Dispose(); }
     }
 
     private class UiScheduler : IUiScheduler
