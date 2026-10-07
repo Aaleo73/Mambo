@@ -170,9 +170,9 @@
     </UserControl.Resources>
     <Grid x:Name="Root" Background="Transparent">
         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-        <Grid x:Name="VideoViewport" Margin="12" Background="{ThemeResource PlayerCanvasBrush}" SizeChanged="OnViewportSizeChanged"
+        <Grid x:Name="VideoViewport" Margin="12" CornerRadius="12" Background="{ThemeResource PlayerCanvasBrush}" SizeChanged="OnViewportSizeChanged"
               AllowDrop="True" DragOver="OnSubtitleDragOver" Drop="OnSubtitleDrop">
-        <Grid x:Name="VideoHost" Background="{ThemeResource PlayerCanvasBrush}"><video:VideoSurface x:Name="Surface"/><bullet:BulletChatLayer x:Name="BulletChatView"/></Grid>
+        <Grid x:Name="VideoHost"><video:VideoSurface x:Name="Surface"/><bullet:BulletChatLayer x:Name="BulletChatView"/></Grid>
         <Grid x:Name="InputSurface" Background="Transparent" Tapped="OnSurfaceTapped" DoubleTapped="OnSurfaceDoubleTapped"
               PointerMoved="OnSurfacePointerMoved" PointerEntered="OnSurfacePointerEntered" PointerExited="OnSurfacePointerExited"
               PointerPressed="OnSurfacePointerPressed" PointerReleased="OnSurfacePointerReleased" PointerCanceled="OnSurfacePointerReleased"/>

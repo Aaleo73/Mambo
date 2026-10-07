@@ -16,6 +16,7 @@ public sealed class LibMpvEngine : IPlayerEngine, IVideoQualityEngine
     private readonly object disposeGate = new();
     private Task? disposeTask;
     private MpvSwapChain? currentSwapChain;
+    private double videoAspect;
     private readonly VideoQualityController videoQuality;
 
     public EngineKind Kind => EngineKind.Embedded;
@@ -27,6 +28,10 @@ public sealed class LibMpvEngine : IPlayerEngine, IVideoQualityEngine
     public MpvSwapChain? CurrentSwapChain => Volatile.Read(ref currentSwapChain);
     /// <summary>在后台事件转发线程触发，App 必须切回 UI 线程后绑定。</summary>
     public event Action<MpvSwapChain>? SwapChainChanged;
+    /// <summary>最近一次有效的显示比例；尚未取得时为 0，起播与切集期间保留旧值。</summary>
+    public double VideoAspect => Volatile.Read(ref videoAspect);
+    /// <summary>在后台事件转发线程触发，App 必须切回 UI 线程后布局。</summary>
+    public event Action<double>? VideoAspectChanged;
 
     private LibMpvEngine(MpvCore core, Func<VideoQualityMode, string[]>? videoQualityResources)
     {
@@ -123,16 +128,49 @@ public sealed class LibMpvEngine : IPlayerEngine, IVideoQualityEngine
                     catch { events.Writer.TryWrite(new EngineEvent.Failure("视频画面绑定失败。")); }
                     continue;
                 }
+                if (message is MpvMessage.PropertyChanged { Name: "video-params" } parameters)
+                    UpdateVideoAspect(parameters.Value);
                 if (ToEngineEvent(message) is { } copied) events.Writer.TryWrite(copied);
                 // 溢出后的关键属性在后台重新读取，恢复状态而不让 UI 处理原始事件。
                 if (message is MpvMessage.QueueOverflow)
                     foreach (var pair in Properties)
-                        events.Writer.TryWrite(new EngineEvent.PropertyChanged(pair.Value, ToEngineValue(Core.GetProperty(pair.Key))));
+                    {
+                        var value = Core.GetProperty(pair.Key);
+                        if (pair.Key == "video-params") UpdateVideoAspect(value);
+                        events.Writer.TryWrite(new EngineEvent.PropertyChanged(pair.Value, ToEngineValue(value)));
+                    }
             }
         }
         catch (ObjectDisposedException) { }
         catch { events.Writer.TryWrite(new EngineEvent.Failure("播放器事件转发意外结束。")); }
         finally { events.Writer.TryComplete(); }
+    }
+
+    private void UpdateVideoAspect(MpvValue? parameters)
+    {
+        if (ParseVideoAspect(parameters) is not { } aspect || VideoAspect == aspect) return;
+        Volatile.Write(ref videoAspect, aspect);
+        try { VideoAspectChanged?.Invoke(aspect); }
+        catch { events.Writer.TryWrite(new EngineEvent.Failure("视频画面布局失败。")); }
+    }
+
+    internal static double? ParseVideoAspect(MpvValue? parameters)
+    {
+        if (parameters is not MpvValue.Map map) return null;
+        static double Number(MpvValue? value) => value switch
+        {
+            MpvValue.WholeNumber integer => integer.Value,
+            MpvValue.Number number => number.Value,
+            _ => double.NaN,
+        };
+        var width = Number(map.Values.GetValueOrDefault("dw"));
+        var height = Number(map.Values.GetValueOrDefault("dh"));
+        var rotation = map.Values.TryGetValue("rotate", out var rotate) ? Number(rotate) : 0;
+        if (!double.IsFinite(width) || width <= 0 || !double.IsFinite(height) || height <= 0 || !double.IsFinite(rotation))
+            return null;
+        rotation = (rotation % 360 + 360) % 360;
+        var aspect = rotation is 90 or 270 ? height / width : width / height;
+        return double.IsFinite(aspect) && aspect > 0 ? aspect : null;
     }
 
     private static EngineEvent? ToEngineEvent(MpvMessage message) => message switch
@@ -204,6 +242,7 @@ public sealed class LibMpvEngine : IPlayerEngine, IVideoQualityEngine
             await forwarding.ConfigureAwait(false);
             Volatile.Write(ref currentSwapChain, null);
             SwapChainChanged = null;
+            VideoAspectChanged = null;
         }
     }
 }

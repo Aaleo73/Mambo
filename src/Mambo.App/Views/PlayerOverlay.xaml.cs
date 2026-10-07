@@ -56,6 +56,8 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     private ScalarKeyFrameAnimation? pulseAnimation;
     private ScalarKeyFrameAnimation? pingFadeAnimation;
     private Vector3KeyFrameAnimation? pingAnimation;
+    private CompositionRoundedRectangleGeometry? viewportClipGeometry;
+    private CompositionGeometricClip? viewportClip;
     private bool openingAnimationRunning;
     private bool bufferingAnimationRunning;
     private long hintUntil;
@@ -95,6 +97,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         this.bulletChat = bulletChat;
         ViewModel = new(session);
         InitializeComponent();
+        Surface.EffectiveCornerRadiusChanged += OnEffectiveCornerRadiusChanged;
         SubtitlesPanel.EnableSubtitleControls(session);
         BulletChatPanel.Initialize(bulletChat, settings, () => ViewModel.Snapshot.Entry is { } entry ? entry.SeriesName ?? entry.Title : null);
         BulletChatView.Apply(settings.Current.BulletChat);
@@ -404,6 +407,8 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         episodeTransition.Settle();
         EpisodePanel.UnregisterPropertyChangedCallback(VisibilityProperty, episodeVisibilityToken);
         presentationFrozen = true;
+        Surface.EffectiveCornerRadiusChanged -= OnEffectiveCornerRadiusChanged;
+        UpdateViewportClip();
         seekEditVersion++;
         Bindings.StopTracking();
         session.SnapshotChanged -= OnSnapshotChanged;
@@ -470,6 +475,9 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         DetachXamlEvents();
         EpisodeList.ItemsSource = null;
         EpisodeGrid.ItemsSource = null;
+        ElementCompositionPreview.GetElementVisual(VideoViewport).Clip = null;
+        viewportClip?.Dispose(); viewportClip = null;
+        viewportClipGeometry?.Dispose(); viewportClipGeometry = null;
         Content = null;
     }
 
@@ -823,14 +831,48 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         LayoutChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    // 窗口模式下画面是一张四边留白、四角全圆的卡片；右边有选集栏时，由选集栏自己的内边距充当间隔
+    // 窗口四边留白，黑边决定实际圆角；右边有选集栏时，由选集栏自己的内边距充当间隔。
     private void UpdateViewportFrame()
     {
         var framed = !window.IsFullscreen;
         VideoViewport.Margin = framed ? new Thickness(12, 12, EpisodePanelVisible ? 0 : 12, 12) : new Thickness(0);
-        VideoViewport.CornerRadius = new CornerRadius(0);
-        VideoHost.CornerRadius = VideoViewport.CornerRadius;
-        Surface.SetViewportClip(0, topOnly: false);
+        Surface.SetMaxCornerRadius(framed ? 12 : 0);
+        UpdateCornerRadiusReferences();
+        UpdateViewportClip();
+    }
+
+    private void UpdateCornerRadiusReferences()
+    {
+        if (disposed || presentationFrozen) return;
+        if (window.IsFullscreen || !ViewModel.HasEpisodes)
+        {
+            Surface.SetCornerRadiusReferenceWidths(0, 0);
+            return;
+        }
+        // 从不随选集开关变化的 Root 求两种宽度，避免用当前宽度推算时混入上一轮布局。
+        var expanded = Math.Max(0, Root.ActualWidth - 12 - EpisodePanel.Width
+            - EpisodePanel.Margin.Left - EpisodePanel.Margin.Right);
+        var collapsed = Math.Max(0, Root.ActualWidth - 24);
+        Surface.SetCornerRadiusReferenceWidths(expanded, collapsed);
+    }
+
+    private void OnEffectiveCornerRadiusChanged(object? sender, EventArgs args) => UpdateViewportClip();
+
+    private void UpdateViewportClip()
+    {
+        if (disposed) return;
+        var radius = presentationFrozen ? (window.IsFullscreen ? 0 : 12) : Surface.EffectiveCornerRadius;
+        VideoViewport.CornerRadius = new CornerRadius(radius);
+        var visual = ElementCompositionPreview.GetElementVisual(VideoViewport);
+        if (viewportClipGeometry is null)
+        {
+            viewportClipGeometry = visual.Compositor.CreateRoundedRectangleGeometry();
+            viewportClip = visual.Compositor.CreateGeometricClip(viewportClipGeometry);
+            visual.Clip = viewportClip;
+        }
+        // 只约束界面绘制的黑底、渐变、弹幕与状态层；视频矩形本身已经避开四角。
+        viewportClipGeometry.CornerRadius = new Vector2((float)radius);
+        viewportClipGeometry.Size = new Vector2((float)VideoViewport.ActualWidth, (float)VideoViewport.ActualHeight);
     }
 
     private void OnEpisodePanelPointerEntered(object sender, PointerRoutedEventArgs e)
@@ -1394,6 +1436,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         }
         if (available == episodesAvailable) return;
         episodesAvailable = available;
+        UpdateCornerRadiusReferences();
         LayoutChanged?.Invoke(this, EventArgs.Empty);
     }
     private void OnEpisodePanelVisibilityChanged(DependencyObject sender, DependencyProperty property)
@@ -1404,6 +1447,8 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     }
     private void OnViewportSizeChanged(object sender, SizeChangedEventArgs e)
     {
+        UpdateCornerRadiusReferences();
+        UpdateViewportClip();
         if (!disposed && !presentationFrozen) LayoutChanged?.Invoke(this, EventArgs.Empty);
     }
     private void OnEpisodeListClick(object sender, RoutedEventArgs e) => SetEpisodeLayout(false);

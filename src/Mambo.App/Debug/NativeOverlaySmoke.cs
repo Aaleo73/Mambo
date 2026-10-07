@@ -67,6 +67,26 @@ internal static class NativeOverlaySmoke
         };
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(120));
         var token = deadline.Token;
+        var hold = int.TryParse(Environment.GetEnvironmentVariable("MAMBO_NATIVE_OVERLAY_HOLD_MS"), NumberStyles.None, CultureInfo.InvariantCulture, out var requested)
+            && requested is > 0 and <= 10000 ? requested : 0;
+        // 截图模式下在几个固定阶段停留；脚本读到阶段名后截取窗口自身的内容。
+        async Task HoldAsync(string stage)
+        {
+            if (hold == 0) return;
+            report.Stage = stage;
+            Checkpoint(fixture.ReportPath, report);
+            if (stage == "控制条停留供截图")
+            {
+                // 截图窗口未处于鼠标下方时仍保持控制条，避免 PointerExited 把它提前隐藏。
+                var until = Environment.TickCount64 + hold;
+                do
+                {
+                    window.Shell.ActivePlayer?.ShowControlsForSmoke();
+                    await Task.Delay(100, token);
+                } while (Environment.TickCount64 < until);
+            }
+            else await Task.Delay(hold, token);
+        }
         IPlaybackSession? session = null;
         try
         {
@@ -108,17 +128,25 @@ internal static class NativeOverlaySmoke
             report.SizeMatched = player.VideoSurface.BufferSize == player.VideoSurface.PixelSize;
             report.BufferWidth = player.VideoSurface.BufferSize.Width;
             report.BufferHeight = player.VideoSurface.BufferSize.Height;
-            report.ExpectedPixelWidth = (int)Math.Round(player.VideoViewportElement.ActualWidth * player.VideoSurface.DpiScale);
-            report.ExpectedPixelHeight = (int)Math.Round(player.VideoViewportElement.ActualHeight * player.VideoSurface.DpiScale);
+            report.ExpectedPixelWidth = player.VideoSurface.PixelSize.Width;
+            report.ExpectedPixelHeight = player.VideoSurface.PixelSize.Height;
             report.ViewportMatched = ViewportMatched(player);
+            report.FrameInsideRoundedViewport = FrameInsideRoundedViewport(player);
             report.TitleBound = player.ViewModel.Title == LocalPreparer.Title;
             report.ProductionEngineParameters = fixture.EngineCreateCount == 1;
             if (real.Engine is not LibMpvEngine engine) throw new InvalidOperationException("NativeAudioEngineRequired");
+            await WaitAsync(() => engine.VideoAspect > 0 && ViewportMatched(player), token);
+            report.VideoAspect = engine.VideoAspect;
+            report.VideoAspectObserved = true;
             report.Stage = "等待真实音轨和音频输出";
             // Playing alone also succeeds with an unusable AO. Require the real driver,
             // selected external PCM track and output format before testing any controls.
             await WaitAsync(() => ReadAudioState(engine.Core, session.Snapshot, report), token);
             await WaitAsync(() => fixture.Handler.Count("Playing") == 1, token);
+            // 画面四角只能在真实交换链上看：演示画面由合成器自己绘制，裁剪结果不同。
+            await HoldAsync("窗口播放停留供截图");
+            player.ShowControlsForSmoke();
+            await HoldAsync("控制条停留供截图");
 
             report.Stage = "正式音量和静音控件回写";
             player.ShowControlsForSmoke();
@@ -146,7 +174,7 @@ internal static class NativeOverlaySmoke
             await player.DispatchSmokeSeekAsync(2);
             await WaitAsync(() => session.Snapshot.PositionTicks >= TimeSpan.TicksPerSecond, token);
             report.SeekControl = true;
-            await VerifyViewportChangesAsync(window, player, report, token);
+            await VerifyViewportChangesAsync(window, player, report, HoldAsync, token);
             await VerifyVideoQualityAsync(player, session, engine, fixture, report, token);
             InvokeButton(player, player.ViewModel.PauseAccessibleName);
             await WaitAsync(() => !session.Snapshot.IsPaused && !player.ViewModel.IsPaused, token);
@@ -164,8 +192,12 @@ internal static class NativeOverlaySmoke
             await WaitAsync(() => services.GetRequiredService<WindowContext>().IsFullscreen &&
                 player.VideoSurface.BufferSize.Height != report.BufferHeight && ViewportMatched(player), token);
             report.FullscreenViewportMatched = true;
+            report.FullscreenSquareCorners = player.VideoSurface.EffectiveCornerRadius == 0
+                && player.VideoSurface.VideoFrame.X == 0 && player.VideoSurface.VideoFrame.Y == 0;
+            report.FrameInsideRoundedViewport &= FrameInsideRoundedViewport(player);
             report.FullscreenPixelWidth = player.VideoSurface.BufferSize.Width;
             report.FullscreenPixelHeight = player.VideoSurface.BufferSize.Height;
+            await HoldAsync("全屏停留供截图");
             InvokeButton(player, "切换全屏");
             await WaitAsync(() => !services.GetRequiredService<WindowContext>().IsFullscreen &&
                 ViewportMatched(player) && player.VideoSurface.BufferSize == (report.BufferWidth, report.BufferHeight), token);
@@ -234,6 +266,9 @@ internal static class NativeOverlaySmoke
                 && report.RestoredViewportMatched && report.NativeReleaseBeforeShellAwait &&
                     (!report.AnimationsEnabled || report.FrozenFaceRenderingObserved)
                 && report.EpisodeCollapseViewportMatched && report.EpisodeExpandViewportMatched && report.ResizeViewportMatched
+                && report.EpisodeCornerRadiusConsistent && report.NearFillEpisodeCornerRadiusConsistent
+                && report.FrameInsideRoundedViewport
+                && report.VideoAspectObserved && report.NearFillViewportMatched && report.NearFillNaturalSizePreserved && report.FullscreenSquareCorners
                 && report.AudioFixtureGenerated && report.AudioOutputAvailable && report.AudioTrackSelected && report.ExternalAudioTrackSelected
                 && report.AudioOutputSampleRate > 0 && report.AudioOutputChannels > 0 && report.AudioPlaybackAdvanced
                 && report.VolumeControl && report.MuteButton && report.UnmuteButton && report.NativeUnmuted && Math.Abs(report.NativeVolume - 10) < .01
@@ -258,36 +293,97 @@ internal static class NativeOverlaySmoke
 
     private static bool ViewportMatched(PlayerOverlay player)
     {
-        // A stale initial 1x1 target must not pass merely because buffer == PixelSize.
-        // Measure the video rectangle independently of the episode panel and top gutter.
-        var expected = ((int)Math.Round(player.VideoViewportElement.ActualWidth * player.VideoSurface.DpiScale),
-            (int)Math.Round(player.VideoViewportElement.ActualHeight * player.VideoSurface.DpiScale));
-        return expected.Item1 > 200 && expected.Item2 > 200 && player.VideoSurface.BufferSize == expected
+        var surface = player.VideoSurface;
+        var expected = surface.PixelSize;
+        var frame = surface.VideoFrame;
+        return expected.Width > 200 && expected.Height > 200 && surface.BufferSize == expected
             && Math.Abs(player.ViewportElement.ActualWidth - player.VideoViewportElement.ActualWidth) < .75
             && Math.Abs(player.ViewportElement.ActualHeight - player.VideoViewportElement.ActualHeight) < .75
-            && Math.Abs(player.VideoSurface.ActualWidth - player.VideoViewportElement.ActualWidth) < .75
-            && Math.Abs(player.VideoSurface.ActualHeight - player.VideoViewportElement.ActualHeight) < .75
-            && player.VideoSurface.RenderTransform is CompositeTransform { ScaleX: 1, ScaleY: 1 };
+            && Math.Abs(surface.ActualWidth * surface.DpiScale - expected.Width) < .75
+            && Math.Abs(surface.ActualHeight * surface.DpiScale - expected.Height) < .75
+            && surface.RenderTransform is CompositeTransform { ScaleX: 1, ScaleY: 1 } transform
+            && Math.Abs(transform.TranslateX * surface.DpiScale - frame.X) < .01
+            && Math.Abs(transform.TranslateY * surface.DpiScale - frame.Y) < .01
+            && FrameInsideRoundedViewport(player);
     }
 
-    private static async Task VerifyViewportChangesAsync(MainWindow window, PlayerOverlay player, NativeOverlayReport report, CancellationToken token)
+    private static bool FrameInsideRoundedViewport(PlayerOverlay player)
+    {
+        var surface = player.VideoSurface;
+        var frame = surface.VideoFrame;
+        var width = (int)Math.Round(player.ViewportElement.ActualWidth * surface.DpiScale);
+        var height = (int)Math.Round(player.ViewportElement.ActualHeight * surface.DpiScale);
+        var radius = surface.EffectiveCornerRadius * surface.DpiScale;
+        if (width <= 0 || height <= 0 || radius < 0 || radius * 2 > Math.Min(width, height)) return false;
+        bool Inside(double x, double y)
+        {
+            if (x < 0 || x > width || y < 0 || y > height) return false;
+            var dx = x - Math.Clamp(x, radius, width - radius);
+            var dy = y - Math.Clamp(y, radius, height - radius);
+            return dx * dx + dy * dy <= radius * radius + .01;
+        }
+        return frame.Width > 0 && frame.Height > 0
+            && Inside(frame.X, frame.Y) && Inside(frame.X + frame.Width, frame.Y)
+            && Inside(frame.X, frame.Y + frame.Height) && Inside(frame.X + frame.Width, frame.Y + frame.Height);
+    }
+
+    private static async Task VerifyViewportChangesAsync(MainWindow window, PlayerOverlay player, NativeOverlayReport report,
+        Func<string, Task> holdAsync, CancellationToken token)
     {
         async Task ObserveAsync(string stage)
         {
             report.Stage = stage;
             await WaitAsync(() => ViewportMatched(player), token);
             await Task.Delay(700, token);
+            report.FrameInsideRoundedViewport &= FrameInsideRoundedViewport(player);
         }
         await ObserveAsync("初始选集展开");
         var expanded = player.VideoViewportElement.ActualWidth;
+        report.ExpandedCornerRadius = player.VideoSurface.EffectiveCornerRadius;
         InvokeButton(window.Shell, "收起选集");
         await WaitAsync(() => !player.EpisodePanelVisible && player.VideoViewportElement.ActualWidth > expanded + 180, token);
         await ObserveAsync("选集收起");
         report.EpisodeCollapseViewportMatched = true;
+        report.CollapsedCornerRadius = player.VideoSurface.EffectiveCornerRadius;
+        report.EpisodeCornerRadiusConsistent = report.ExpandedCornerRadius == report.CollapsedCornerRadius;
+        await holdAsync("选集收起停留供截图");
+        if (player.EpisodePanelVisible || !player.EpisodePanelCollapsed)
+            throw new NativeOverlayCheckException("viewport.episode-state-changed-during-capture");
+        // 同一片源、同一高度，只把黑框调到接近影片比例，左右各留约 6 DIP 黑边。
+        var beforeNearFill = window.AppWindow.Size;
+        var scale = player.VideoSurface.DpiScale;
+        var nearWidth = (int)Math.Round(player.VideoViewportElement.ActualHeight * scale * report.VideoAspect + 12 * scale);
+        var widthDelta = nearWidth - (int)Math.Round(player.VideoViewportElement.ActualWidth * scale);
+        window.AppWindow.Resize(new Windows.Graphics.SizeInt32(beforeNearFill.Width + widthDelta, beforeNearFill.Height));
+        await WaitAsync(() => Math.Abs(player.VideoViewportElement.ActualWidth * scale - nearWidth) < 1, token);
+        await ObserveAsync("近似铺满");
+        report.NearFillCornerRadius = player.VideoSurface.EffectiveCornerRadius;
+        report.NearFillViewportMatched = report.NearFillCornerRadius is > 0 and < 12;
+        var frame = player.VideoSurface.VideoFrame;
+        var height = (int)Math.Round(player.VideoViewportElement.ActualHeight * scale);
+        report.NearFillNaturalSizePreserved = Math.Min(nearWidth, height * report.VideoAspect) <= frame.Width
+            && Math.Min(height, nearWidth / report.VideoAspect) <= frame.Height;
+        await holdAsync("近似铺满停留供截图");
+        if (player.EpisodePanelVisible || !player.EpisodePanelCollapsed)
+            throw new NativeOverlayCheckException("viewport.episode-state-changed-during-capture");
+        // 保持同一个窗口尺寸展开选集：即便此时黑边充足，也必须沿用收起时的小圆角。
         InvokeButton(window.Shell, "展开选集");
-        await WaitAsync(() => player.EpisodePanelVisible && Math.Abs(player.VideoViewportElement.ActualWidth - expanded) < 1, token);
+        await WaitAsync(() => player.EpisodePanelVisible && player.VideoViewportElement.ActualWidth * scale < nearWidth - 180 * scale, token);
+        await ObserveAsync("近似铺满选集展开");
+        report.NearFillExpandedCornerRadius = player.VideoSurface.EffectiveCornerRadius;
+        report.NearFillEpisodeCornerRadiusConsistent = report.NearFillExpandedCornerRadius == report.NearFillCornerRadius;
+        frame = player.VideoSurface.VideoFrame;
+        var nearExpandedWidth = (int)Math.Round(player.VideoViewportElement.ActualWidth * scale);
+        report.NearFillNaturalSizePreserved &= Math.Min(nearExpandedWidth, height * report.VideoAspect) <= frame.Width
+            && Math.Min(height, nearExpandedWidth / report.VideoAspect) <= frame.Height;
+        await holdAsync("近似铺满选集展开停留供截图");
+        if (!player.EpisodePanelVisible || player.EpisodePanelCollapsed)
+            throw new NativeOverlayCheckException("viewport.episode-state-changed-during-capture");
+        window.AppWindow.Resize(beforeNearFill);
+        await WaitAsync(() => Math.Abs(player.VideoViewportElement.ActualWidth - expanded) < 1, token);
         await ObserveAsync("选集再次展开");
         report.EpisodeExpandViewportMatched = true;
+        report.EpisodeCornerRadiusConsistent &= player.VideoSurface.EffectiveCornerRadius == report.ExpandedCornerRadius;
         var size = window.AppWindow.Size;
         player.SetLiveResize(true);
         window.AppWindow.Resize(new Windows.Graphics.SizeInt32(size.Width - 120, size.Height - 80));
@@ -441,8 +537,21 @@ internal static class NativeOverlaySmoke
             return null;
         }
         var found = Find(root);
-        if (found is not { IsEnabled: true }) throw new InvalidOperationException("NativeOverlayControlUnavailable");
+        if (found is not { IsEnabled: true }) throw new NativeOverlayCheckException("control.unavailable");
         new ButtonAutomationPeer(found).Invoke();
+    }
+
+    private static void Checkpoint(string path, NativeOverlayReport report)
+    {
+        try
+        {
+            // 先写临时文件再替换，脚本不会读到写了一半的报告。
+            var pending = path + ".tmp";
+            File.WriteAllText(pending, JsonSerializer.Serialize(report, NativeOverlayJsonContext.Default.NativeOverlayReport));
+            File.Move(pending, path, overwrite: true);
+        }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
     }
 
     private static async Task WaitAsync(Func<bool> ready, CancellationToken token)
@@ -613,6 +722,18 @@ internal sealed class NativeOverlayReport
     public int ExpectedPixelWidth { get; set; }
     public int ExpectedPixelHeight { get; set; }
     public bool ViewportMatched { get; set; }
+    public bool FrameInsideRoundedViewport { get; set; }
+    public bool VideoAspectObserved { get; set; }
+    public double VideoAspect { get; set; }
+    public bool NearFillViewportMatched { get; set; }
+    public bool NearFillNaturalSizePreserved { get; set; }
+    public double NearFillCornerRadius { get; set; }
+    public double NearFillExpandedCornerRadius { get; set; }
+    public bool NearFillEpisodeCornerRadiusConsistent { get; set; }
+    public double ExpandedCornerRadius { get; set; }
+    public double CollapsedCornerRadius { get; set; }
+    public bool EpisodeCornerRadiusConsistent { get; set; }
+    public bool FullscreenSquareCorners { get; set; }
     public bool FullscreenViewportMatched { get; set; }
     public bool RestoredViewportMatched { get; set; }
     public bool EpisodeCollapseViewportMatched { get; set; }

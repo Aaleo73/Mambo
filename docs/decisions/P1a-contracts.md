@@ -59,7 +59,7 @@ VideoSurface 的诊断成员为 internal。外壳用 WindowResizeHook（或等�
 
 - **2026-10-02 冻结前**：`LogoutAsync` 返回 `LogoutResult`；会话结束带原因（UserClosed / Replaced / SeasonEnded / Failed / Logout / AppShutdown）；`PreviewAsync` 增加替换确认重载。同批完成稳定错误码 `ErrorCodes`、图片回退顺序、通知一律异步、`PrefetchDetail`、分页的 `IsRefreshing`、设置的原子更新。
 - **2026-10-02 外部播放器与设置**：新增 `SettingsThemeMode` / `ThemeMode`、`ExternalMpvApproval`，`ISettingsService` 增加缓存统计 `GetCacheSizeAsync` 和 `LogDirectory`（假模式为空）。旧设置文件默认 System。
-- **2026-10-03 选集布局**：`AppSettings` 增加 `UseEpisodeGrid`、`EpisodePanelCollapsed`，缺失字段由 `SettingsStore` 显式迁移；`VideoSurface` 增加公开的 `SetViewportClip`。
+- **2026-10-03 选集布局**：`AppSettings` 增加 `UseEpisodeGrid`、`EpisodePanelCollapsed`，缺失字段由 `SettingsStore` 显式迁移；`VideoSurface` 增加公开的 `SetViewportClip`。该 API 已由 `SetMaxCornerRadius` / `EffectiveCornerRadius` 及黑边让位方案取代，见 [播放区域布局](player-card-frame.md)。
 - **2026-10-05 弹幕**：新增 `IBulletChatService` 与 `BulletChat*` 模型；`AppSettings` 增加 `BulletChat`，`PlaybackEntry` 增加 `ProductionYear`。随后 `BulletChatSettings` 增加 `DefaultsVersion`，`Area` 默认值改为 0.25，仍是旧默认值 0.85 的已存设置在加载时迁移一次。
 - **2026-10-05 画质模式**：新增 `VideoQualityMode`、`IPlaybackSession.SetVideoQualityModeAsync`（默认实现返回不支持），`SessionSnapshot` 增加 `VideoQualityMode`、`IsVideoQualityChanging`、`VideoQualityError`。
 - **2026-10-06 组件更新**：`IAppUpdateService` 增加组件清单、准备更新和启动更新器的成员。

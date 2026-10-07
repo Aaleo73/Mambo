@@ -230,7 +230,7 @@ gpu-shader-cache-dir=%LOCALAPPDATA%\Mambo\mpv\shader-cache（缩短 gpu-next 首
 
   这个调用必须在 UI 线程执行，兼容 AOT。互操作代码集中在一个文件里，以便日后 CsWinRT 3 迁移时只改一处。
 - **DPI**：
-  - 像素尺寸 = `round(ActualWidth × XamlRoot.RasterizationScale)`。
+  - 宿主像素尺寸 = `round(ActualWidth × XamlRoot.RasterizationScale)`；播放页由 `VideoFrameFit` 扣除自然黑边中的圆角让位，交换链使用算出的整像素 `PixelSize`。
   - 绑定后以及每次 `XamlRoot.Changed`，都要 QueryInterface 取 `IDXGISwapChain2`（IID `a8be2ac4-199f-4946-b331-79599fb98de7`），调用 `SetMatrixTransform(1/scale, 1/scale)`。否则在高 DPI 下画面会被放大裁切。
   - 缩放比例用 `RasterizationScale`，不要用 `CompositionScaleX`。
 - **改尺寸不闪烁**：
@@ -238,7 +238,7 @@ gpu-shader-cache-dir=%LOCALAPPDATA%\Mambo\mpv\shader-cache（缩短 gpu-next 首
   - 新尺寸通过写 `d3d11-composition-size` 生效。
   - 每 8ms 用 `IDXGISwapChain2::GetDesc1` 检查缓冲区实际尺寸，1 秒后放弃；尺寸到位后再等一帧（约 40ms）才提交。
   - 拖动缩放期间（`WM_ENTERSIZEMOVE` 到 `WM_EXITSIZEMOVE`）不改 mpv 的尺寸。
-- **画面边界**：视频填满 `VideoViewport`，使用矩形裁剪，不添加独立黑框、视频内缩或圆角遮罩。窗口留白仍由 `PlayerOverlay` 控制。详见 [播放区域布局](decisions/player-card-frame.md)。
+- **画面边界**：`VideoViewport` 绘制最大 12 DIP 的圆角黑底（全屏为 0），圆角只切自然黑边。`VideoFrameFit` 让视频矩形只在有黑边的方向避开四角，保留影片大小与位置；选集展开、收起共用两种布局都能容纳的较小圆角，任一种铺满时两者均为方角。没有选集时按当前视口计算。`LibMpvEngine` 从 `video-params` 提供显示比例，经 `PlaybackVideoBridge` 更新 `VideoSurface`；界面层合成裁剪只约束控制条、弹幕和状态层，不裁外部交换链。详见 [播放区域布局](decisions/player-card-frame.md)。
 - **解绑**：销毁 mpv 前先 `SetSwapChain(null)`。
 
 ### 3.9 HDR（composition 模式下 mpv 看不到显示器，必须由应用告诉它）
@@ -602,7 +602,7 @@ public interface IPlayerEngine : IAsyncDisposable {
 
 ```
 PlayerOverlay（Grid，RequestedTheme=Dark，IsTabStop=True，持有焦点）
-├─ VideoHost（黑底、圆角裁剪）→ VideoSurface（SwapChainPanel）+ BulletChatLayer（弹幕合成层，见 `docs/decisions/bullet-chat.md`）
+├─ VideoViewport（圆角黑底、界面层裁剪）→ VideoHost → VideoSurface（矩形避开圆角，只让出黑边）+ BulletChatLayer（弹幕合成层，见 `docs/decisions/bullet-chat.md`）
 ├─ InputSurface（透明）：单击 250ms 后切换暂停 / 双击最大化；指针移动唤出控制层；隐藏时换空光标
 ├─ TopBar（渐变）：标题、关闭
 ├─ 状态层：打开中（ProgressRing + 20 秒"加载较慢"提示 + 关闭）| 缓冲胶囊 | 失败（重试 / 关闭）

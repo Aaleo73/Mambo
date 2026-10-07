@@ -33,12 +33,18 @@ internal sealed class PlaybackVideoBridge : IDisposable
     {
         if (!queue.HasThreadAccess) { queue.TryEnqueue(() => EngineChanged(value)); return; }
         if (disposed || !ReferenceEquals(session.Engine, value)) return;
-        if (engine is { } previous) previous.SwapChainChanged -= SwapChainChanged;
+        if (engine is { } previous)
+        {
+            previous.SwapChainChanged -= SwapChainChanged;
+            previous.VideoAspectChanged -= VideoAspectChanged;
+        }
         hdr?.Detach();
         engine = value as LibMpvEngine;
         bindingAttempts = 0;
         if (engine is null) { surface.ClearNativeSwapChain(); return; }
         engine.SwapChainChanged += SwapChainChanged;
+        engine.VideoAspectChanged += VideoAspectChanged;
+        ApplyVideoAspect();
         if (surface.XamlRoot?.ContentIslandEnvironment.AppWindowId is { Value: not 0 } windowId)
             hdr ??= new HdrController(windowId, queue);
         hdr?.Attach(engine.Core);
@@ -51,6 +57,16 @@ internal sealed class PlaybackVideoBridge : IDisposable
     {
         // reference 由引擎持有；队列只使用当前引擎的最新指针，不保存旧引用。
         queue.TryEnqueue(() => { if (!disposed) { bindingAttempts = 0; TryBind(); retry.Start(); } });
+    }
+    private void VideoAspectChanged(double aspect)
+    {
+        // 和交换链通知一样，只读取当前引擎最新值，忽略排队中的旧引擎通知。
+        queue.TryEnqueue(() => { if (!disposed) ApplyVideoAspect(); });
+    }
+    private void ApplyVideoAspect()
+    {
+        // 新引擎尚无比例时沿用 Surface 上次的值；首次由 Surface 默认 16:9。
+        if (engine?.VideoAspect is > 0 and var aspect) surface.SetVideoAspect(aspect);
     }
     private void TryBind()
     {
@@ -100,7 +116,11 @@ internal sealed class PlaybackVideoBridge : IDisposable
     private void ReleaseEngine()
     {
         retry.Stop();
-        if (engine is { } previous) previous.SwapChainChanged -= SwapChainChanged;
+        if (engine is { } previous)
+        {
+            previous.SwapChainChanged -= SwapChainChanged;
+            previous.VideoAspectChanged -= VideoAspectChanged;
+        }
         hdr?.Detach();
         engine = null;
     }

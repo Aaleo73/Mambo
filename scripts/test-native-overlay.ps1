@@ -1,6 +1,6 @@
 #Requires -Version 7.0
 [CmdletBinding()]
-param([string]$SamplePath, [string]$AppDirectory, [switch]$NoBuild)
+param([string]$SamplePath, [string]$AppDirectory, [switch]$NoBuild, [switch]$Screenshot)
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -23,7 +23,7 @@ $null = [IO.Directory]::CreateDirectory($overlayRoot)
 $overlayReportPath = Join-Path $overlayRoot 'app-report.json'
 $overlayResultPath = Join-Path $overlayRoot 'result.json'
 $overlayResult = [ordered]@{
-    schemaVersion = 2
+    schemaVersion = 4
     status = 'Failed'
     reason = 'NotStarted'
     runId = $overlayRunId
@@ -54,6 +54,10 @@ $overlayResult = [ordered]@{
     standardRestores = $false
     videoQualityPauseAndPositionPreserved = $false
     videoQualityFileUnchanged = $false
+    frameInsideRoundedViewport = $false
+    episodeCornerRadiusConsistent = $false
+    nearFillEpisodeCornerRadiusConsistent = $false
+    screenshots = @()
     appPassed = $false
     appStage = $null
     appErrorKind = $null
@@ -84,6 +88,41 @@ public static class MamboNativeOverlayProcessIdentity {
 '@
 }
 
+if ($Screenshot -and -not ('MamboNativeOverlayWindow' -as [type])) {
+    Add-Type -AssemblyName System.Drawing
+    Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class MamboNativeOverlayWindow {
+    [StructLayout(LayoutKind.Sequential)] private struct Rect { public int Left, Top, Right, Bottom; }
+    [DllImport("user32.dll")] private static extern bool SetProcessDPIAware();
+    [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr window, out Rect rect);
+    [DllImport("user32.dll")] private static extern bool PrintWindow(IntPtr window, IntPtr deviceContext, uint flags);
+    public static int[] Size(IntPtr window) {
+        SetProcessDPIAware();
+        return GetWindowRect(window, out var rect) ? new[] { rect.Right - rect.Left, rect.Bottom - rect.Top } : new int[0];
+    }
+    public static bool Print(IntPtr window, IntPtr deviceContext) { return PrintWindow(window, deviceContext, 2); }
+}
+'@
+}
+function Save-OverlayWindowCapture([IntPtr]$Window, [string]$Path) {
+    $size = [MamboNativeOverlayWindow]::Size($Window)
+    if ($size.Length -ne 2 -or $size[0] -lt 100 -or $size[1] -lt 100) { return $false }
+    $bitmap = [Drawing.Bitmap]::new($size[0], $size[1])
+    try {
+        $graphics = [Drawing.Graphics]::FromImage($bitmap)
+        try {
+            $deviceContext = $graphics.GetHdc()
+            try { $printed = [MamboNativeOverlayWindow]::Print($Window, $deviceContext) }
+            finally { $graphics.ReleaseHdc($deviceContext) }
+        } finally { $graphics.Dispose() }
+        if (-not $printed) { return $false }
+        $bitmap.Save($Path, [Drawing.Imaging.ImageFormat]::Png)
+    } finally { $bitmap.Dispose() }
+    return $true
+}
+
 $overlayProcess = $null
 $overlayStartTicks = 0L
 $overlayClock = [Diagnostics.Stopwatch]::StartNew()
@@ -111,6 +150,8 @@ try {
     $overlayStart.Environment['MAMBO_NATIVE_OVERLAY_SAMPLE'] = $overlaySample
     $overlayStart.Environment['MAMBO_NATIVE_OVERLAY_REPORT'] = $overlayReportPath
     $overlayStart.Environment['MAMBO_NATIVE_OVERLAY_RUN'] = $overlayRunId
+    $null = $overlayStart.Environment.Remove('MAMBO_NATIVE_OVERLAY_HOLD_MS')
+    if ($Screenshot) { $overlayStart.Environment['MAMBO_NATIVE_OVERLAY_HOLD_MS'] = '3000' }
     $overlayProcess = [Diagnostics.Process]::Start($overlayStart)
     $null = $overlayProcess.Handle
     $overlayStartTicks = $overlayProcess.StartTime.ToUniversalTime().Ticks
@@ -120,7 +161,29 @@ try {
         $overlayResult.reason = 'OwnedProcessIdentityNotConfirmed'
         throw [InvalidOperationException]::new('无法确认本轮验证进程。')
     }
-    if (-not $overlayProcess.WaitForExit(150000)) {
+    if ($Screenshot) {
+        $pending = [ordered]@{ '窗口播放停留供截图' = 'playing.png'; '控制条停留供截图' = 'controls.png';
+            '选集收起停留供截图' = 'collapsed.png'; '近似铺满停留供截图' = 'near-fill.png';
+            '近似铺满选集展开停留供截图' = 'near-fill-expanded.png'; '全屏停留供截图' = 'fullscreen.png' }
+        $captureCount = $pending.Count
+        while ($pending.Count -gt 0 -and $overlayClock.Elapsed.TotalSeconds -lt 150 -and -not $overlayProcess.HasExited) {
+            Start-Sleep -Milliseconds 150
+            if (-not (Test-Path -LiteralPath $overlayReportPath -PathType Leaf)) { continue }
+            try { $checkpoint = Get-Content -LiteralPath $overlayReportPath -Raw | ConvertFrom-Json } catch { continue }
+            if ($checkpoint.RunId -cne $overlayRunId -or $checkpoint.ProcessId -ne $overlayProcess.Id -or
+                $checkpoint.ProcessStartUtcTicks -ne $overlayStartTicks -or -not $pending.Contains($checkpoint.Stage)) { continue }
+            # 等布局与入场动画稳定；PrintWindow 只读取已核对身份的诊断窗口，不读取桌面。
+            Start-Sleep -Milliseconds 900
+            $overlayProcess.Refresh()
+            $capturePath = Join-Path $overlayRoot $pending[$checkpoint.Stage]
+            if ((Test-OverlayOwnedProcess) -and $overlayProcess.MainWindowHandle -ne [IntPtr]::Zero -and
+                (Save-OverlayWindowCapture $overlayProcess.MainWindowHandle $capturePath)) {
+                $overlayResult.screenshots += $capturePath
+            }
+            $pending.Remove($checkpoint.Stage)
+        }
+    }
+    if (-not $overlayProcess.WaitForExit([Math]::Max(1, 150000 - [int]$overlayClock.ElapsedMilliseconds))) {
         $overlayResult.reason = 'ProcessDeadlineExceeded'
         throw [TimeoutException]::new('正式播放界面诊断超时。')
     }
@@ -130,7 +193,7 @@ try {
         $overlayResult.reason = 'FreshReportMissing'
         throw [InvalidOperationException]::new('未生成本轮验证报告。')
     }
-    # Read only after exit, so atomic checkpoints cannot conflict with a reader.
+    # Read the final report after exit; screenshot polling above reads atomic checkpoints.
     $overlayReport = Get-Content -LiteralPath $overlayReportPath -Raw | ConvertFrom-Json
     $overlayResult.reportIdentityMatched = $overlayReport.RunId -ceq $overlayRunId -and
         $overlayReport.ProcessId -eq $overlayResult.processId -and $overlayReport.ProcessStartUtcTicks -eq $overlayStartTicks
@@ -159,16 +222,21 @@ try {
     $overlayResult.standardRestores = [bool]$overlayReport.StandardRestores
     $overlayResult.videoQualityPauseAndPositionPreserved = [bool]$overlayReport.VideoQualityPauseAndPositionPreserved
     $overlayResult.videoQualityFileUnchanged = [bool]$overlayReport.VideoQualityFileUnchanged
+    $overlayResult.frameInsideRoundedViewport = [bool]$overlayReport.FrameInsideRoundedViewport
+    $overlayResult.episodeCornerRadiusConsistent = [bool]$overlayReport.EpisodeCornerRadiusConsistent
+    $overlayResult.nearFillEpisodeCornerRadiusConsistent = [bool]$overlayReport.NearFillEpisodeCornerRadiusConsistent
     $overlayResult.appStage = $overlayReport.Stage
     $overlayResult.appErrorKind = $overlayReport.ErrorKind
     $overlayResult.appErrorCode = $overlayReport.ErrorCode
     $overlayResult.appHResult = $overlayReport.HResult
     $overlayChecks = @('IsolatedServicesVerified', 'ProductionEngineParameters', 'FormalOverlayLoaded', 'RealEmbeddedEngine',
-        'TitleBound', 'Playing', 'Bound', 'SizeMatched', 'ViewportMatched', 'FullscreenViewportMatched', 'AudioFixtureGenerated', 'AudioOutputAvailable',
+        'TitleBound', 'Playing', 'Bound', 'SizeMatched', 'ViewportMatched', 'FrameInsideRoundedViewport', 'FullscreenViewportMatched', 'AudioFixtureGenerated', 'AudioOutputAvailable',
         'AudioTrackSelected', 'ExternalAudioTrackSelected', 'AudioPlaybackAdvanced', 'VolumeControl', 'MuteButton', 'UnmuteButton', 'NativeUnmuted',
         'PauseButton', 'SeekControl', 'ResumeButton', 'VideoQualitySwitches', 'StandardRestores',
         'VideoQualityPauseAndPositionPreserved', 'VideoQualityFileUnchanged', 'Closed', 'Detached',
         'RestoredViewportMatched', 'EpisodeCollapseViewportMatched', 'EpisodeExpandViewportMatched', 'ResizeViewportMatched', 'NativeReleaseBeforeShellAwait',
+        'VideoAspectObserved', 'NearFillViewportMatched', 'NearFillNaturalSizePreserved', 'FullscreenSquareCorners',
+        'EpisodeCornerRadiusConsistent', 'NearFillEpisodeCornerRadiusConsistent',
         'Stopped', 'OutboxEmpty', 'ReportSequenceOrdered', 'ShutdownCompleted')
     $overlayAllChecks = $true
     $overlayAllChecks = $overlayAllChecks -and (-not $overlayReport.AnimationsEnabled -or $overlayReport.FrozenFaceRenderingObserved)
@@ -182,6 +250,10 @@ try {
         $overlayReport.BufferWidth -ne $overlayReport.ExpectedPixelWidth -or $overlayReport.BufferHeight -ne $overlayReport.ExpectedPixelHeight) {
         $overlayResult.reason = 'NativeOverlayChecksFailed'
         throw [InvalidOperationException]::new('正式真实播放界面验证未通过。')
+    }
+    if ($Screenshot -and ($pending.Count -gt 0 -or $overlayResult.screenshots.Count -ne $captureCount)) {
+        $overlayResult.reason = 'WindowScreenshotsMissing'
+        throw [InvalidOperationException]::new('诊断窗口截图不完整。')
     }
     $overlayResult.status = 'Passed'
     $overlayResult.reason = 'RealShellOverlayCompositionAudioClosed'

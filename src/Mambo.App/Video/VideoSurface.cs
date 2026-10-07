@@ -33,18 +33,21 @@ public sealed partial class VideoSurface : SwapChainPanel, IDisposable
     private SpriteVisual? demoVisual;
     private CompositionColorBrush? demoBrush;
     private readonly InputSystemCursor arrow = InputSystemCursor.Create(InputSystemCursorShape.Arrow);
-    private CompositionRoundedRectangleGeometry? clipGeometry;
-    private CompositionGeometricClip? clip;
-    private float clipRadius = 8;
-    private bool clipTopOnly;
+    private double maxCornerRadius;
+    private (double First, double Second) cornerRadiusReferenceWidths;
+    private double videoAspect = 16.0 / 9;
+    private VideoFrameFit.Frame frame;
     private bool disposed;
     internal event Action<int, int>? PixelSizeRequested;
     internal event Action<string>? DiagnosticError;
     internal double DpiScale => XamlRoot?.RasterizationScale ?? 1;
-    internal (int Width, int Height) PixelSize =>
-        (Math.Max(1, (int)Math.Round(target.Width * DpiScale)), Math.Max(1, (int)Math.Round(target.Height * DpiScale)));
+    internal (int Width, int Height) PixelSize => (Math.Max(1, frame.Width), Math.Max(1, frame.Height));
+    internal VideoFrameFit.Frame VideoFrame => frame;
     internal (int Width, int Height) BufferSize => SwapChainPanelInterop.BufferSize(swapChain);
     internal bool IsDemoAttached => demoSession is not null;
+    /// <summary>当前及参考布局的黑边共同允许的圆角，单位为 DIP；任一布局铺满时为 0。</summary>
+    public double EffectiveCornerRadius { get; private set; }
+    public event EventHandler? EffectiveCornerRadiusChanged;
 
     public VideoSurface()
     {
@@ -63,16 +66,37 @@ public sealed partial class VideoSurface : SwapChainPanel, IDisposable
         Unloaded += OnUnloaded;
     }
 
-    /// <summary>设置视口裁剪；只圆上角时向下延伸几何，不改变交换链的目标像素尺寸。</summary>
-    public void SetViewportClip(float radius, bool topOnly)
+    /// <summary>设置黑框的最大圆角（DIP）；只让出自然黑边，不缩小或裁剪影片。</summary>
+    public void SetMaxCornerRadius(double radius)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
-        if (!DispatcherQueue.HasThreadAccess) throw new InvalidOperationException("视频裁剪必须在界面线程执行。");
-        if (!float.IsFinite(radius) || radius < 0) throw new ArgumentOutOfRangeException(nameof(radius));
-        if (clipRadius == radius && clipTopOnly == topOnly) return;
-        clipRadius = radius;
-        clipTopOnly = topOnly;
-        ApplyClip();
+        if (!DispatcherQueue.HasThreadAccess) throw new InvalidOperationException("视频布局必须在界面线程执行。");
+        if (!double.IsFinite(radius) || radius < 0) throw new ArgumentOutOfRangeException(nameof(radius));
+        if (maxCornerRadius == radius) return;
+        maxCornerRadius = radius;
+        UpdateFrame();
+    }
+
+    /// <summary>同一高度下切换的两种视口宽度（DIP），共用可容纳的较小圆角；均为 0 时取消约束。</summary>
+    public void SetCornerRadiusReferenceWidths(double firstWidth, double secondWidth)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        if (!DispatcherQueue.HasThreadAccess) throw new InvalidOperationException("视频布局必须在界面线程执行。");
+        if (!double.IsFinite(firstWidth) || firstWidth < 0) throw new ArgumentOutOfRangeException(nameof(firstWidth));
+        if (!double.IsFinite(secondWidth) || secondWidth < 0) throw new ArgumentOutOfRangeException(nameof(secondWidth));
+        var widths = (firstWidth, secondWidth);
+        if (cornerRadiusReferenceWidths == widths) return;
+        cornerRadiusReferenceWidths = widths;
+        UpdateFrame();
+    }
+
+    internal void SetVideoAspect(double aspect)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        if (!DispatcherQueue.HasThreadAccess) throw new InvalidOperationException("视频布局必须在界面线程执行。");
+        if (videoAspect == aspect) return;
+        videoAspect = aspect;
+        UpdateFrame();
     }
 
     private void CommitBuffer(DispatcherQueueTimer sender, object args)
@@ -90,14 +114,8 @@ public sealed partial class VideoSurface : SwapChainPanel, IDisposable
 
     private void ReleaseHost()
     {
-        if (host is not null)
-        {
-            host.SizeChanged -= HostSizeChanged;
-            if (clip is not null) ElementCompositionPreview.GetElementVisual(host).Clip = null;
-        }
+        if (host is not null) host.SizeChanged -= HostSizeChanged;
         if (root is not null) root.Changed -= DpiChanged;
-        clip?.Dispose(); clip = null;
-        clipGeometry?.Dispose(); clipGeometry = null;
         host = null;
         root = null;
     }
@@ -118,6 +136,7 @@ public sealed partial class VideoSurface : SwapChainPanel, IDisposable
         arrow.Dispose();
         PixelSizeRequested = null;
         DiagnosticError = null;
+        EffectiveCornerRadiusChanged = null;
     }
 
     private void OnLoaded(object sender, RoutedEventArgs args)
@@ -125,14 +144,10 @@ public sealed partial class VideoSurface : SwapChainPanel, IDisposable
         if (disposed) return;
         host = Parent as FrameworkElement;
         root = XamlRoot;
-        if (host is not null)
-        {
-            host.SizeChanged += HostSizeChanged;
-            target = committed = new Size(host.ActualWidth, host.ActualHeight);
-            LayoutPanel();
-        }
+        if (host is not null) host.SizeChanged += HostSizeChanged;
         if (root is not null) root.Changed += DpiChanged;
-        ApplyClip();
+        lastDpiScale = DpiScale;
+        UpdateFrame();
     }
 
     // P0 内部探针入口；P1a 以后对前端只公开 Attach(IPlaybackSession)。
@@ -148,8 +163,7 @@ public sealed partial class VideoSurface : SwapChainPanel, IDisposable
         SwapChainPanelInterop.SetScale(swapChain, DpiScale);
         var actual = BufferSize;
         committed = new Size(actual.Width / DpiScale, actual.Height / DpiScale);
-        LayoutPanel();
-        RequestSize();
+        UpdateFrame();
     }
 
     public void Detach()
@@ -174,6 +188,7 @@ public sealed partial class VideoSurface : SwapChainPanel, IDisposable
         if (swapChain != 0) SwapChainPanelInterop.Bind(this, 0);
         swapChain = 0;
         HideCursor(false);
+        UpdateFrame();
     }
 
     internal void ClearNativeSwapChain()
@@ -181,6 +196,7 @@ public sealed partial class VideoSurface : SwapChainPanel, IDisposable
         poll.Stop(); commit.Stop();
         if (swapChain != 0) SwapChainPanelInterop.Bind(this, 0);
         swapChain = 0;
+        UpdateFrame();
     }
     internal void ReportDiagnosticError(string message) => DiagnosticError?.Invoke(message);
     /// <summary>前端绑定入口；交换链、HDR 和关闭解绑由后端桥接管理。</summary>
@@ -193,6 +209,7 @@ public sealed partial class VideoSurface : SwapChainPanel, IDisposable
         if (session is PlaybackSession real)
         {
             playbackSession = real;
+            UpdateFrame();
             real.SnapshotChanged += PlaybackChanged;
             playbackBridge = new(this, real);
             return;
@@ -200,6 +217,7 @@ public sealed partial class VideoSurface : SwapChainPanel, IDisposable
         if (session.Snapshot.EngineKind != EngineKind.Demo)
             throw new AppException(new AppError(AppErrorKind.Player, ErrorCodes.PlaybackFailed, "此播放会话不支持内置视频画面。", false));
         demoSession = session;
+        UpdateFrame();
         session.SnapshotChanged += DemoChanged;
         DemoChanged(session, EventArgs.Empty);
     }
@@ -239,11 +257,7 @@ public sealed partial class VideoSurface : SwapChainPanel, IDisposable
 
     private void HostSizeChanged(object sender, SizeChangedEventArgs args)
     {
-        target = args.NewSize;
-        if (committed.Width <= 0 || committed.Height <= 0) committed = target;
-        LayoutPanel();
-        ApplyClip();
-        if (!liveResize) RequestSize();
+        UpdateFrame();
     }
 
     private void DpiChanged(XamlRoot sender, XamlRootChangedEventArgs args)
@@ -251,6 +265,34 @@ public sealed partial class VideoSurface : SwapChainPanel, IDisposable
         if (Math.Abs(lastDpiScale - DpiScale) < 0.0001) return;
         lastDpiScale = DpiScale;
         SwapChainPanelInterop.SetScale(swapChain, DpiScale);
+        UpdateFrame();
+    }
+
+    private void UpdateFrame()
+    {
+        if (host is null) return;
+        var scale = DpiScale;
+        var width = Math.Max(0, (int)Math.Round(host.ActualWidth * scale));
+        var height = Math.Max(0, (int)Math.Round(host.ActualHeight * scale));
+        var radius = (int)Math.Min(Math.Floor(maxCornerRadius * scale), Math.Min(width, height) / 2);
+        // 原生探针直接绑定交换链；正式播放在交换链出现前就按会话与上次比例布局。
+        if (playbackSession is not null || swapChain != 0)
+        {
+            if (cornerRadiusReferenceWidths is { First: > 0, Second: > 0 } references)
+                radius = VideoFrameFit.ComputeSharedRadius((int)Math.Round(references.First * scale),
+                    (int)Math.Round(references.Second * scale), height, radius, videoAspect);
+            frame = VideoFrameFit.Compute(width, height, radius, videoAspect);
+        }
+        else frame = new(0, 0, width, height, radius);
+        target = new Size(frame.Width / scale, frame.Height / scale);
+        if (swapChain == 0 || committed.Width <= 0 || committed.Height <= 0) committed = target;
+        LayoutPanel();
+        var effective = frame.Radius / scale;
+        if (EffectiveCornerRadius != effective)
+        {
+            EffectiveCornerRadius = effective;
+            EffectiveCornerRadiusChanged?.Invoke(this, EventArgs.Empty);
+        }
         if (!liveResize) RequestSize();
     }
 
@@ -261,6 +303,8 @@ public sealed partial class VideoSurface : SwapChainPanel, IDisposable
         Height = committed.Height;
         stretch.ScaleX = target.Width / committed.Width;
         stretch.ScaleY = target.Height / committed.Height;
+        stretch.TranslateX = frame.X / DpiScale;
+        stretch.TranslateY = frame.Y / DpiScale;
     }
 
     private void RequestSize()
@@ -286,21 +330,5 @@ public sealed partial class VideoSurface : SwapChainPanel, IDisposable
             }
         }
         catch { poll.Stop(); DiagnosticError?.Invoke("无法读取视频缓冲区尺寸。"); }
-    }
-
-    private void ApplyClip()
-    {
-        if (host is null || target.Width <= 0 || target.Height <= 0) return;
-        var visual = ElementCompositionPreview.GetElementVisual(host);
-        var compositor = visual.Compositor;
-        if (clipGeometry is null)
-        {
-            clipGeometry = compositor.CreateRoundedRectangleGeometry();
-            clip = compositor.CreateGeometricClip(clipGeometry);
-            visual.Clip = clip;
-        }
-        clipGeometry.CornerRadius = new System.Numerics.Vector2(clipRadius, clipRadius);
-        clipGeometry.Size = new System.Numerics.Vector2((float)target.Width,
-            (float)target.Height + (clipTopOnly ? clipRadius : 0));
     }
 }
