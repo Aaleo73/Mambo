@@ -16,6 +16,9 @@ public sealed record SettingsDocument
     public ConnectionDefaults Connection { get; init; } = new();
     public Dictionary<string, LibraryQuery> Preferences { get; init; } = new(StringComparer.Ordinal);
     public Dictionary<string, VideoQualityMode> VideoQualityPreferences { get; init; } = new(StringComparer.Ordinal);
+    public long AudioLanguageRevision { get; init; }
+    public long SubtitleLanguageRevision { get; init; }
+    public Dictionary<string, TrackPreferenceRecord> TrackPreferences { get; init; } = new(StringComparer.Ordinal);
 }
 
 public sealed class SettingsStore : ISettingsService, IDisposable
@@ -58,7 +61,15 @@ public sealed class SettingsStore : ISettingsService, IDisposable
             value = value with { PlaybackMode = PlaybackMode.Embedded, ExternalMpvApproval = null };
         if (value.PlaybackMode == PlaybackMode.External && !MatchesApproval(value))
             throw ApprovalRequired("请先验证外部播放器，再启用外部播放。");
-        return current with { Settings = value };
+        var audioChanged = value.PreferredAudioLanguage != current.Settings.PreferredAudioLanguage;
+        var subtitleChanged = value.PreferredSubtitleLanguage != current.Settings.PreferredSubtitleLanguage;
+        return current with
+        {
+            Settings = value,
+            AudioLanguageRevision = audioChanged ? checked(current.AudioLanguageRevision + 1) : current.AudioLanguageRevision,
+            SubtitleLanguageRevision = subtitleChanged ? checked(current.SubtitleLanguageRevision + 1) : current.SubtitleLanguageRevision,
+            TrackPreferences = audioChanged || subtitleChanged ? ClearTrackKinds(current.TrackPreferences, audioChanged, subtitleChanged) : current.TrackPreferences,
+        };
     }, cancellationToken);
     public Task SaveConnectionDefaultsAsync(ConnectionDefaults defaults, CancellationToken cancellationToken = default) => MutateAsync(current =>
     {
@@ -188,6 +199,42 @@ public sealed class SettingsStore : ISettingsService, IDisposable
         return current with { VideoQualityPreferences = preferences };
     }, token);
     private const int VideoQualityPreferenceLimit = 500;
+    internal TrackPreferenceEpoch CaptureTrackEpoch() => Epoch(Volatile.Read(ref document));
+    private static TrackPreferenceEpoch Epoch(SettingsDocument current) => new(current.Settings.PreferredAudioLanguage,
+        current.Settings.PreferredSubtitleLanguage, current.AudioLanguageRevision, current.SubtitleLanguageRevision);
+    private static bool SameEpoch(SettingsDocument current, TrackKind kind, TrackPreferenceEpoch epoch) => kind == TrackKind.Audio ?
+        current.AudioLanguageRevision == epoch.AudioRevision && current.Settings.PreferredAudioLanguage == epoch.AudioLanguage :
+        current.SubtitleLanguageRevision == epoch.SubtitleRevision && current.Settings.PreferredSubtitleLanguage == epoch.SubtitleLanguage;
+    internal TrackChoice? TrackPreference(string key, TrackKind kind, TrackPreferenceEpoch epoch)
+    {
+        var current = Volatile.Read(ref document);
+        if (!SameEpoch(current, kind, epoch) || !current.TrackPreferences.TryGetValue(key, out var preference)) return null;
+        return kind == TrackKind.Audio ? preference.Audio : preference.Subtitle;
+    }
+    internal Task SaveTrackPreferenceAsync(string key, TrackKind kind, TrackChoice? choice, TrackPreferenceEpoch epoch, CancellationToken token) => MutateAsync(current =>
+    {
+        // 校验在写锁内：语言改回原值也不允许旧会话复活已清空的选择。
+        if (!SameEpoch(current, kind, epoch)) return current;
+        var previous = current.TrackPreferences.GetValueOrDefault(key) ?? new();
+        var record = kind == TrackKind.Audio ? previous with { Audio = choice } : previous with { Subtitle = choice };
+        var preferences = new Dictionary<string, TrackPreferenceRecord>(StringComparer.Ordinal);
+        var kept = current.TrackPreferences.Where(pair => pair.Key != key).ToArray();
+        var present = record.Audio is not null || record.Subtitle is not null;
+        foreach (var pair in kept.Skip(Math.Max(0, kept.Length - (TrackPreferenceLimit - (present ? 1 : 0))))) preferences[pair.Key] = pair.Value;
+        if (present) preferences[key] = record;
+        return current with { TrackPreferences = preferences };
+    }, token);
+    private const int TrackPreferenceLimit = 500;
+    private static Dictionary<string, TrackPreferenceRecord> ClearTrackKinds(Dictionary<string, TrackPreferenceRecord> values, bool audio, bool subtitle)
+    {
+        var result = new Dictionary<string, TrackPreferenceRecord>(StringComparer.Ordinal);
+        foreach (var (key, value) in values)
+        {
+            var record = new TrackPreferenceRecord(audio ? null : value.Audio, subtitle ? null : value.Subtitle);
+            if (record.Audio is not null || record.Subtitle is not null) result[key] = record;
+        }
+        return result;
+    }
     private async Task MutateAsync(Func<SettingsDocument, SettingsDocument> update, CancellationToken token)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
@@ -196,6 +243,7 @@ public sealed class SettingsStore : ISettingsService, IDisposable
         {
             ObjectDisposedException.ThrowIf(disposed, this);
             var value = update(document);
+            if (ReferenceEquals(value, document)) return;
             var pathChanged = !SamePath(value.Settings.ExternalMpvPath, document.Settings.ExternalMpvPath);
             var approvalRemoved = document.Settings.ExternalMpvApproval is not null && value.Settings.ExternalMpvApproval is null;
             await SaveLockedAsync(value, token).ConfigureAwait(false);
@@ -314,13 +362,20 @@ public sealed class SettingsStore : ISettingsService, IDisposable
             var root = JsonNode.Parse(bytes);
             var arraysRepaired = RepairNullPreferenceArrays(root);
             var qualityJsonRepaired = RepairVideoQualityJson(root);
-            var value = arraysRepaired || qualityJsonRepaired ? JsonSerializer.Deserialize(root!.ToJsonString(), StorageJsonContext.Default.SettingsDocument) :
+            var tracksJsonRepaired = RepairTrackJson(root);
+            var value = arraysRepaired || qualityJsonRepaired || tracksJsonRepaired ? JsonSerializer.Deserialize(root!.ToJsonString(), StorageJsonContext.Default.SettingsDocument) :
                 JsonSerializer.Deserialize(bytes, StorageJsonContext.Default.SettingsDocument);
             if (value is null || value.Version != 1 || value.Settings is null) return null;
             var settings = value.Settings;
             // 旧文档没有弹幕设置：缺失的对象反序列化为 null、缺失的数值为 0，逐项落回默认值。
             var bulletChat = NormalizeBulletChat(settings.BulletChat, out var bulletChatRepaired);
             if (bulletChatRepaired) settings = settings with { BulletChat = bulletChat };
+            var style = SubtitleStyle.Normalize(settings.SubtitleStyle);
+            var styleRepaired = style != settings.SubtitleStyle;
+            var languagesRepaired = !TrackSelection.IsPreference(settings.PreferredAudioLanguage, false) || !TrackSelection.IsPreference(settings.PreferredSubtitleLanguage, true);
+            settings = settings with { SubtitleStyle = style,
+                PreferredAudioLanguage = TrackSelection.IsPreference(settings.PreferredAudioLanguage, false) ? settings.PreferredAudioLanguage : "auto",
+                PreferredSubtitleLanguage = TrackSelection.IsPreference(settings.PreferredSubtitleLanguage, true) ? settings.PreferredSubtitleLanguage : "zh" };
             Validate(settings);
             // 源生成反序列化会为缺失的 init-only 布尔成员写入 false；显式迁移旧文档，
             // 不能靠属性初始化器，也不能覆盖用户已保存的列表选择。
@@ -335,13 +390,16 @@ public sealed class SettingsStore : ISettingsService, IDisposable
             var connection = NormalizeConnection(value.Connection, out var connectionRepaired);
             var preferences = NormalizePreferences(value.Preferences, out var preferencesRepaired);
             var videoQualityPreferences = NormalizeVideoQualityPreferences(value.VideoQualityPreferences, out var qualityPreferencesRepaired);
-            repaired = arraysRepaired || connectionRepaired || preferencesRepaired || externalRepaired || episodeLayoutRepaired || bulletChatRepaired || qualityPreferencesRepaired || qualityJsonRepaired;
+            var trackPreferences = NormalizeTrackPreferences(value.TrackPreferences, out var trackPreferencesRepaired);
+            repaired = arraysRepaired || connectionRepaired || preferencesRepaired || externalRepaired || episodeLayoutRepaired || bulletChatRepaired || qualityPreferencesRepaired || qualityJsonRepaired ||
+                tracksJsonRepaired || styleRepaired || languagesRepaired || trackPreferencesRepaired;
             return value with
             {
                 Settings = settings,
                 Connection = connection,
                 Preferences = preferences,
                 VideoQualityPreferences = videoQualityPreferences,
+                TrackPreferences = trackPreferences,
             };
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException or AppException) { return null; }
@@ -352,6 +410,101 @@ public sealed class SettingsStore : ISettingsService, IDisposable
             !Enum.IsDefined(value.PlaybackMode) || !Enum.IsDefined(value.HdrMode) || !Enum.IsDefined(value.HardwareDecoding) ||
             !Enum.IsDefined(value.ThemeMode)) throw Invalid("播放器设置无效。");
         if (value.BulletChat is not { } bulletChat || NormalizeBulletChat(bulletChat, out _) != bulletChat) throw Invalid("弹幕设置无效。");
+        if (!TrackSelection.IsPreference(value.PreferredAudioLanguage, false) || !TrackSelection.IsPreference(value.PreferredSubtitleLanguage, true)) throw Invalid("首选语言无效。");
+        SubtitleStyle.Validate(value.SubtitleStyle);
+    }
+
+    private static bool RepairTrackJson(JsonNode? root)
+    {
+        if (root is not JsonObject document) return false;
+        var repaired = false;
+        static KeyValuePair<string, JsonNode?> Field(JsonObject value, string name) => value.FirstOrDefault(property => property.Key.Equals(name, StringComparison.OrdinalIgnoreCase));
+        static bool StringValue(JsonNode? node, out string? value)
+        {
+            value = null;
+            return node is JsonValue json && json.TryGetValue(out value);
+        }
+        var settingsField = Field(document, nameof(SettingsDocument.Settings));
+        var clearAudio = false;
+        var clearSubtitle = false;
+        if (settingsField.Value is JsonObject settings)
+        {
+            foreach (var (name, subtitle, fallback) in new[] { (nameof(AppSettings.PreferredAudioLanguage), false, "auto"), (nameof(AppSettings.PreferredSubtitleLanguage), true, "zh") })
+            {
+                var field = Field(settings, name);
+                if (field.Key is null) { settings[name] = fallback; repaired = true; continue; }
+                if (StringValue(field.Value, out var language) && TrackSelection.IsPreference(language, subtitle)) continue;
+                settings[field.Key] = fallback;
+                if (subtitle) clearSubtitle = true; else clearAudio = true;
+                repaired = true;
+            }
+            var styleField = Field(settings, nameof(AppSettings.SubtitleStyle));
+            var defaults = new SubtitleStyleSettings();
+            if (styleField.Value is not JsonObject style)
+            {
+                settings[styleField.Key ?? nameof(AppSettings.SubtitleStyle)] = JsonSerializer.SerializeToNode(defaults, StorageJsonContext.Default.SubtitleStyleSettings);
+                repaired = true;
+            }
+            else
+            {
+                foreach (var (name, minimum, maximum, fallback) in new[] { (nameof(SubtitleStyleSettings.FontSize), 18d, 72d, defaults.FontSize),
+                    (nameof(SubtitleStyleSettings.OutlineSize), 0d, 6d, defaults.OutlineSize), (nameof(SubtitleStyleSettings.BottomMargin), 0d, 180d, defaults.BottomMargin) })
+                {
+                    var field = Field(style, name);
+                    if (field.Key is not null && field.Value is JsonValue json && json.TryGetValue<double>(out var number) && SubtitleStyle.ValidNumber(number, minimum, maximum)) continue;
+                    style[field.Key ?? name] = fallback;
+                    repaired = true;
+                }
+                foreach (var (name, fallback, font) in new[] { (nameof(SubtitleStyleSettings.FontFamily), defaults.FontFamily, true), (nameof(SubtitleStyleSettings.TextColor), defaults.TextColor, false) })
+                {
+                    var field = Field(style, name);
+                    if (field.Key is not null && StringValue(field.Value, out var text) && (font ? SubtitleStyle.ValidFont(text) : SubtitleStyle.ValidColor(text))) continue;
+                    style[field.Key ?? name] = fallback;
+                    repaired = true;
+                }
+                var ass = Field(style, nameof(SubtitleStyleSettings.OverrideAssStyle));
+                if (ass.Key is not null && !(ass.Value is JsonValue assJson && assJson.TryGetValue<bool>(out _)))
+                { style[ass.Key] = false; repaired = true; }
+            }
+        }
+        foreach (var name in new[] { nameof(SettingsDocument.AudioLanguageRevision), nameof(SettingsDocument.SubtitleLanguageRevision) })
+        {
+            var field = Field(document, name);
+            if (field.Key is null) continue;
+            if (field.Value is JsonValue json && json.TryGetValue<long>(out var revision) && revision is >= 0 and < long.MaxValue) continue;
+            document[field.Key] = 0;
+            if (name == nameof(SettingsDocument.AudioLanguageRevision)) clearAudio = true; else clearSubtitle = true;
+            repaired = true;
+        }
+        var tracksField = Field(document, nameof(SettingsDocument.TrackPreferences));
+        if (tracksField.Key is not null)
+        {
+            if (tracksField.Value is not JsonObject tracks)
+            { document[tracksField.Key] = new JsonObject(); repaired = true; }
+            else foreach (var (key, node) in tracks.ToArray())
+            {
+                TrackPreferenceRecord? record = null;
+                try { if (TrackPreferences.IsValidKey(key) && node is not null) record = JsonSerializer.Deserialize(node, StorageJsonContext.Default.TrackPreferenceRecord); }
+                catch (JsonException) { }
+                if (record is null) { tracks.Remove(key); repaired = true; continue; }
+                var exact = key.AsSpan(64).StartsWith("|item|", StringComparison.Ordinal);
+                var audio = !clearAudio && TrackPreferences.ValidChoice(record.Audio, TrackKind.Audio, exact) ? record.Audio : null;
+                var subtitle = !clearSubtitle && TrackPreferences.ValidChoice(record.Subtitle, TrackKind.Subtitle, exact) ? record.Subtitle : null;
+                if (audio is null && subtitle is null) { tracks.Remove(key); repaired = true; }
+                else if (audio != record.Audio || subtitle != record.Subtitle)
+                { tracks[key] = JsonSerializer.SerializeToNode(new TrackPreferenceRecord(audio, subtitle), StorageJsonContext.Default.TrackPreferenceRecord); repaired = true; }
+            }
+        }
+        return repaired;
+    }
+
+    private static Dictionary<string, TrackPreferenceRecord> NormalizeTrackPreferences(Dictionary<string, TrackPreferenceRecord>? values, out bool repaired)
+    {
+        repaired = values is null || values.Count > TrackPreferenceLimit;
+        var result = new Dictionary<string, TrackPreferenceRecord>(StringComparer.Ordinal);
+        if (values is null) return result;
+        foreach (var pair in values.Skip(Math.Max(0, values.Count - TrackPreferenceLimit))) result[pair.Key] = pair.Value;
+        return result;
     }
 
     private static bool RepairVideoQualityJson(JsonNode? root)
