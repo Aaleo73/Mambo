@@ -8,7 +8,7 @@
 
 播放器手动成功选择后按账号作用域和整剧 ID 保存；没有整剧 ID 时按条目 ID 保存，电影按条目保存。没有内容偏好的条目使用标准。**不提供全局默认画质**：新功能的控制只放在功能自己的界面里，设置页不出现画质项；早期版本写过的 `DefaultVideoQualityMode` 字段读取时忽略，下次保存后消失。
 
-公开边界为 `VideoQualityMode`、`IPlaybackSession.SetVideoQualityModeAsync` 和快照的已应用模式、切换中状态、独立画质错误。生产前端不接触算法、路径或 Player 内部类型。Demo、延迟会话包装、真实会话均支持相同契约。
+公开边界为 `VideoQualityMode`、`IPlaybackSession.SetVideoQualityModeAsync` 和快照的已应用模式、切换中状态、独立画质错误。界面不接触算法、路径或 Player 内部类型。Demo、延迟会话包装、真实会话均支持相同契约。
 
 `SettingsStore` 在现有文档内增加独立 `VideoQualityPreferences` 字典，复用原子合并写入和 JSON 源生成。键使用已有账号作用域 SHA-256 加 `|series|ID` 或 `|item|ID`；不写入服务器地址或凭据。缺字段采用标准/空字典；错误类型、未知枚举和损坏条目局部修复，其他设置保留。偏好与音量、主题、弹幕等更新经过同一写入串行器。整份设置文档每次保存（包括调音量）都会重写，所以偏好只保留最近选择过的 500 项：再次选择会把该项排到最新，超出时丢弃最早的，读取更长的旧字典时同样截断。
 
@@ -75,12 +75,10 @@ HDR 包装是 **Mambo 自定义处理，并非 Anime4K 官方原生 HDR**：
 - Core：379 项通过，含电影/整剧跨季、账号和服务器作用域、显式标准、重启、旧字段/损坏字段、并发合并、预加载/切集、快速命令、关闭取消、失败和旧异步结果。
 - GPU 专项：15 项通过，含 SDR→SDR/HDR、PQ/HLG→SDR/HDR，逐模式检查实际目标传递函数，放大/等大/缩小、暂停互切、实际末段 pass、资源缺失/哈希损坏、真实 GLSL 编译错误及已渲染预设回滚。
 - 数值和资源：16 项覆盖灰度代理往返、平坦/黑位、有限范围、HDR 色度比、峰值增益限制、同采样基线及所有锁定文件哈希。
-- 完整 Debug 构建：0 警告、0 错误。`MAMBO_TEST_GPU=1` 下 `dotnet test --no-build`：499/499 通过，0 跳过。
-- 正式画质 UI：默认设置、菜单三项、互斥、异步禁用、错误提示和释放通过。报告 `artifacts/video-quality-ui/7799aa30f4d7416cafa677ff506ded98/app-report.json`。
-- 正式真实播放：本地 4K HEVC HDR10 片源，实际暂停画面 Clear→Anime→Standard，确认 NODE 参数、实际模式、无残留、位置/暂停/playlist id/引擎实例不变；音量、音频恢复、全屏、交换链解绑和正常关闭通过。报告 `artifacts/native-overlay-validation/795f23658d9b48b1b4cea83060f3843f/result.json`。
-- Video Lab：Debug、无音频、2 次生命周期检查，三模式/窗口尺寸/全屏通过，报告 `artifacts/p0-debug-no-audio-smoke.json`。独立的 `ResourcesStable` 为 false：Mutant 20→21，Section 54→54，私有内存 369,061,888→192,921,600 字节；没有把这一结果归因于画质功能，也没有把它记为资源稳定性通过。它与计划中既有 P0 原生资源遗留一起保留跟踪。
-- Native AOT：`dotnet publish src/Mambo.App -c Release -r win-x64 --self-contained true -p:Platform=x64 -p:PublishAot=true --no-restore -o artifacts/video-quality-aot` 成功；发布目录两份 GLSL 与三份许可分别和源文件比对 SHA-256 通过。
-- AOT 正式画质 UI 通过：`artifacts/video-quality-ui/5fd7fa5f581445e7ac6a8c2444770bfb/app-report.json`。AOT 正式真实播放、三模式、全屏和正常关闭通过：`artifacts/native-overlay-validation/23da0620bad34d2fb813202ce2b12c7f/result.json`。Debug/AOT 诊断均正常退出，未强制结束进程。
+- 正式画质 UI（Debug 与 AOT）：默认设置、菜单三项、互斥、异步禁用、错误提示和释放通过。
+- 正式真实播放（Debug 与 AOT）：本地 4K HEVC HDR10 片源，实际暂停画面 Clear→Anime→Standard，确认 NODE 参数、实际模式、无残留、位置 / 暂停 / playlist id / 引擎实例不变；音量、音频恢复、全屏、交换链解绑和正常关闭通过。
+- Video Lab：三模式、窗口尺寸和全屏通过。独立的 `ResourcesStable` 为 false（Mutant 20→21，Section 不变）；没有把这个结果归因于画质功能，也没有把它记为资源稳定性通过，与 P0 的原生资源遗留一起跟踪。
+- Native AOT 发布目录里的两份 GLSL 与三份许可分别和源文件比对 SHA-256 通过。
 
 GPU 矩阵中的 HDR 输出指 mpv 实际目标为 PQ，并不代表已自动验收 Windows 的 HDR 显示模式；系统开关与跨屏仍在下方人工清单。发布脚本现会在发布前验证着色器生成结果，发布后校验安装目录 GLSL 哈希与许可存在性。
 
@@ -103,8 +101,7 @@ GPU 矩阵中的 HDR 输出指 mpv 实际目标为 PQ，并不代表已自动验
 - `MAMBO_TEST_GPU=1 dotnet test`：518 项，517 通过，0 失败，1 项测量按设计跳过。
 - 画质 GPU 专项 22 项。新增覆盖：确认之后才编译失败的 pass 触发清除，并经引擎事件流发出 `VideoQualityLost`；加载前准备好的预设在暂停的首帧上直接确认，清晰与动画互切、同模式换集全程着色器列表不为空；清晰在放大、等大、缩小时各只运行一个 pass，等大与缩小时窗口截图与标准的 RMS 差不低于 0.002，平坦区域变化不超过两个 10 位量化步长；PQ 片源缩小到 SDR 和 HDR 输出的编译与切换。
 - Core 新增覆盖：增强失效后会话回到标准、保留偏好并可重新选择；偏好只保留最近 500 项；已移除的默认字段无论内容如何都被忽略。
-- `dotnet build src/Mambo.App/Mambo.App.csproj -p:Platform=x64 --no-restore -o artifacts/app-debug`：0 警告、0 错误。
-- Native AOT 发布到 `artifacts/video-quality-aot-check` 成功；发布目录两份 GLSL 与源文件 SHA-256 一致，三份许可存在。发布期间另有会话在修改 `LibraryPage.xaml`，产生一条与画质无关的 CS1697 校验和警告。
+- Native AOT 发布目录里的两份 GLSL 与源文件 SHA-256 一致，三份许可存在。
 
 本机测量由 `VideoQualityMeasurementTests` 记录：lavfi 合成片源、软件解码、24 fps，不含真实片源的解码开销；只记录，不设门槛，因为显卡的频率状态会让绝对时间波动。复现：设置 `MAMBO_QUALITY_REPORT=<目录>` 后运行 `dotnet test`，结果写入该目录的 `video-quality-measurements.md`。
 

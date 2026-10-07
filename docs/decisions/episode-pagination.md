@@ -34,4 +34,4 @@
 - [线上构建与测试](https://github.com/Aaleo73/Mambo/actions/runs/37414106835)和 [AOT 打包与发布](https://github.com/Aaleo73/Mambo/actions/runs/37414106748)均成功。
 - [v0.1.6 Release](https://github.com/Aaleo73/Mambo/releases/tag/v0.1.6) 已公开，`releases/latest` 指向 v0.1.6。共 12 个资产：安装器、便携包、更新清单及五个组件包、应用源码、两个完整原生源码分包与 SHA256SUMS.txt。
 - 安装器 112,824,426 字节，便携包 165,579,910 字节，app 更新组件 12,339,284 字节，更新清单 686,655 字节。已下载更新清单和 SHA256SUMS.txt，并核对其 GitHub SHA-256、全部资产摘要、五个组件的大小与摘要。没有重新下载全部 ZIP 或安装器内容。
-- 核验记录：忽略目录 `artifacts/release-0.1.6-verification/result.json`。本轮未替换用户的已安装程序，也未访问真实 Emby 片库；v0.1.5 用户可通过设置检查更新获取修复。
+- 本轮未替换用户的已安装程序，也未访问真实 Emby 片库；v0.1.5 用户可通过设置检查更新获取修复。

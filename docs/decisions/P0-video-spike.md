@@ -2,30 +2,13 @@
 
 日期：2026-10-02。状态：用户在知悉下列未通过与待测项后，明确要求“提交，进入P1”，批准携遗留问题结束 P0 并进入 P1。以下验收结果保持原样，不将未通过项改记为通过。
 
-## 环境与可复现命令
+## 验证环境
 
-工作区为 `backend`。开工时已执行 `git merge frontend`，结果为已是最新；Qt 雏形由已有的 `qt-prototype` 标签保留。本仓库的 MiSans 原样移动到 App 的字体目录，没有使用旧 Tauri 项目的文件或资产。
-
-- Windows 11，系统版本 `10.0.28000`；已有 VS2022 BuildTools / MSVC 与 Windows SDK 26100，仅通过命令行构建。
-- 经用户授权安装 .NET SDK `10.0.401`；`global.json` 使用 `latestFeature`，不允许预览版。
-- Windows App SDK `2.5.1`、CsWin32 `0.3.335`、CommunityToolkit.Mvvm `8.4.2`；集中包管理及各项目的 NuGet lock 文件已配置。
-- GPU：NVIDIA GeForce RTX 4060 Laptop GPU，驱动 `32.0.16.1692`；系统另有 GameViewer Virtual Display Adapter `15.6.5.199`。
-- libmpv 固定为 shinchiro release `20260610`，mpv 修订 `304426c390901436fb1d4a63efbd582ae80c88f4`。下载脚本验证压缩包和 DLL 的 SHA-256，后续运行不会自动刷新 lock。
-
-在仓库根目录执行：
-
-```powershell
-pwsh scripts/fetch-libmpv.ps1
-pwsh scripts/fetch-video-sample.ps1
-dotnet build -p:Platform=x64 -bl:artifacts/p0-build.binlog
-dotnet test
-dotnet publish src/Mambo.App -p:Platform=x64 -p:PublishProfile=Aot -o publish/aot -bl:artifacts/p0-aot.binlog
-pwsh scripts/test-video-lab.ps1
-pwsh scripts/test-video-lab.ps1 -Aot
-pwsh scripts/test-video-lab.ps1 -Aot -MissingLibrary
-```
-
-下载的样片是 Jellyfin / Gnattu 的 **Test Jellyfin 4K HEVC HDR10 40M**，30 秒、3840×2160，约 141 MiB。发布方标注 CC BY-SA，出处为 [Jellyfin test-videos](https://repo.jellyfin.org/main/test-videos/)，下载使用其官方纽约镜像。SHA-256：`da108da499153ae4816b6cd50296a6dc56996ae3d30a08c7a14a1108b25a4221`。样片、原生 DLL、下载缓存、诊断报告和发布产物均被 Git 忽略。
+- Windows 11（`10.0.28000`），VS2022 BuildTools / MSVC 与 Windows SDK 26100，只用命令行构建。
+- GPU：NVIDIA GeForce RTX 4060 Laptop GPU，驱动 `32.0.16.1692`；系统另有 GameViewer Virtual Display Adapter。
+- 当时的 libmpv 是 shinchiro release `20260610`（mpv 修订 `304426c390901436fb1d4a63efbd582ae80c88f4`）；发布用的运行时后来换成 MSYS2 包，见 [原生组件对应源码](native-distribution.md)。
+- 样片：Jellyfin / Gnattu 的 **Test Jellyfin 4K HEVC HDR10 40M**（30 秒、3840×2160，CC BY-SA），由 `scripts/fetch-video-sample.ps1` 下载并校验 SHA-256。样片、原生 DLL 和下载缓存都被 Git 忽略。
+- 复测：`pwsh scripts/test-video-lab.ps1`，AOT 加 `-Aot`，DLL 缺失场景加 `-MissingLibrary`。
 
 ## 已验证的管线与实现决定
 
@@ -37,17 +20,15 @@ pwsh scripts/test-video-lab.ps1 -Aot -MissingLibrary
 
 面板像素尺寸为 DIP 尺寸乘 `RasterizationScale` 并取整。拖动窗口期间保留已提交的缓冲区尺寸，用 XAML transform 临时伸缩；拖动结束后更新 mpv，轮询 `GetDesc1`，缓冲区匹配后延迟 40 ms 提交面板布局。`SetMatrixTransform` 仅在绑定和 DPI 变化时设置。
 
-全屏暂采用 `AppWindow.SetPresenter(FullScreen)`，退出时恢复同一个显式创建的 `OverlappedPresenter`。AOT 下从 `AppWindow.Presenter` 动态强转曾失败，现改为保存创建时的强类型实例，已重新通过 AOT 最大化 / 全屏验证。是否需要 PLAN §5.12 的无边框方案，要由人工闪烁检查决定。
+全屏暂采用 `AppWindow.SetPresenter(FullScreen)`，退出时恢复同一个显式创建的 `OverlappedPresenter`。AOT 下从 `AppWindow.Presenter` 动态强转曾失败，现改为保存创建时的强类型实例，已重新通过 AOT 最大化 / 全屏验证。是否需要无边框的备选方案（`docs/ARCHITECTURE.md` §3.10），要由人工闪烁检查决定。
 
 `HdrController` 通过窗口所属的 `Microsoft.Graphics.Display.DisplayInformation` 监听高级颜色变化。自动模式仅在 Windows HDR 已开启时设置 PQ / BT.2020、峰值、对比度和参考白；关闭 HDR 则回到 auto，交换链输出格式保留 auto。显示器监听由窗口持有，每次播放只连接或断开 mpv。
 
-`StreamUrlResolver` 的探测关闭自动重定向和 Cookie。同源认证只放在 `X-Emby-Token` 请求头；同源认证 query 会移除，跨 scheme / host / port 的跳转立即结束探测并移除认证头，不预先请求 CDN。跨域 URL 保留 CDN 自己的签名，仅剔除与 Emby 令牌相同的复制凭据。支持 Range → HEAD → 普通 GET 回退、5 跳限制、单次 3 秒和总计 6 秒超时。异常不保留可能包含地址的原始网络消息；P0 不接收原始 mpv 日志。
+`StreamUrlResolver` 的探测关闭自动重定向和 Cookie。同源认证只放在 `X-Emby-Token` 请求头；同源认证 query 会移除，跨 scheme / host / port 的跳转立即结束探测并移除认证头，不预先请求 CDN。跨域 URL 保留 CDN 自己的签名，仅剔除与 Emby 令牌相同的复制凭据。支持 Range → HEAD → 普通 GET 回退、5 跳限制、单次 3 秒和总计 6 秒超时。异常不保留可能包含地址的原始网络消息；P0 不接收原始 mpv 日志。跨域跳转的处理后来有调整，见 [播放跳转兼容](playback-issued-redirect.md)。
 
 Native AOT 使用 `LibraryImport`、函数指针、JSON 源生成、partial WinRT 类型；发布显式携带 `Mambo.pri`、`App.xbf`、`MainWindow.xbf`、`Debug/VideoLab.xbf`。另有 ReadyToRun、不裁剪配置，本轮未单独发布验证。
 
 ## 自动验收结果
-
-最新 `dotnet build -p:Platform=x64`：0 警告、0 错误。`dotnet test`：13 通过、0 失败、0 跳过，覆盖请求同源边界、重定向与认证处理，以及真实 libmpv 的探测、node 命令、事件复制和无头实例生命周期。
 
 | 项目 | Debug JIT | Native AOT |
 |---|---|---|
@@ -69,8 +50,6 @@ Native AOT 使用 `LibraryImport`、函数指针、JSON 源生成、partial WinR
 | 开始创建播放器 → 首次 PlaybackRestart | 405 ms | 261 ms |
 
 窗口计时从操作系统的进程 StartTime 开始，包含 native bootstrap。首帧使用 mpv 的 PlaybackRestart 作为代理，包含实例创建和打开片源，不是屏幕扫描输出时间，也不包含 URL 预解析。这些数值来自全新的应用进程，但系统文件缓存和 shader cache 已热；不代表重启系统后的磁盘冷启动。早期首次打开、shader cache 尚冷时观测到约 1.5 秒，旧窗口计时口径只从托管 Main 开始，不能与上表直接比较。
-
-原始报告在本地 `artifacts/p0-debug-smoke.json`、`artifacts/p0-aot-smoke.json` 和 `artifacts/p0-aot-missing-library-smoke.json`；重复运行脚本会覆盖同名报告。
 
 ## 未通过：硬件渲染生命周期的句柄增长
 
@@ -115,7 +94,7 @@ pwsh scripts/test-video-lab.ps1 -Aot -RequireStableResources
 
 ## 需用户完成的验收与关卡
 
-运行 `dotnet run --project src/Mambo.App -p:Platform=x64`，或启动 `publish/aot/Mambo.exe`，在 Video Lab 选择下载的样片。也可先设置 `$env:MAMBO_VIDEO_LAB_SAMPLE` 为样片的绝对路径，让输入框自动填入；不要给交互运行加 `--smoke`。
+在 Video Lab 选择下载的样片检查；交互运行不要加 `--smoke`。
 
 - [x] Windows HDR 开启后，自动模式输出 PQ / BT.2020，高光和亮度正确（用户确认）。
 - [x] 播放中关闭 Windows HDR，无需重启切到 SDR（用户确认）。
@@ -127,4 +106,4 @@ pwsh scripts/test-video-lab.ps1 -Aot -RequireStableResources
 - [ ] 解决当前 DXGI composition 的句柄增长；若继续受环境阻挡，由用户决定后续验证环境与验收安排。
 - [x] 用户确认 P0 关卡，批准携下述遗留项进入 P1a 契约与假实现（2026-10-02：“提交，进入P1”）。
 
-PLAN 的 P0 进度按用户明确批准推进，并注明遗留项。进入 P1 时，`VideoSurface` 仍只有 P0 的 internal 指针绑定入口，不能作为前端依赖；公开 `Attach(IPlaybackSession)` 接口将在 P1a 形成。资源增长及尚未完成的人工检查继续跟踪，进入 P1 不代表这些检查已经通过。
+资源增长及尚未完成的人工检查继续跟踪（见 `docs/STATUS.md`），进入 P1 不代表这些检查已经通过。

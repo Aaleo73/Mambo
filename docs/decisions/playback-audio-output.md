@@ -22,8 +22,6 @@
 
 上一轮 NativeOverlaySmoke 只记录 AudioOutputAvailable，并未作为通过条件，无法检出这次无声问题。本次把音频输出、选中音轨、采样率/声道、真实音量/静音控件回写纳入正式界面验证门禁，并给原本无音轨的视频样片附加本地合成的低幅音轨。自动验证证明音频已送入 Windows 音频驱动，不宣称替代人工听感检查。
 
-`dotnet test --no-build --no-restore -p:Platform=x64`：357/357 通过，零跳过（Core 280、Player 77）。新增四组真实 libmpv 配置测试读取原生 options/ao，确认正常模式为空驱动列表、禁用音频/headless 为 null，且 audio-device 保持 auto；不加载媒体、不打开声卡，不依赖 CI 音频硬件。
+新增四组真实 libmpv 配置测试读取原生 options/ao，确认正常模式为空驱动列表、禁用音频/headless 为 null，且 audio-device 保持 auto；不加载媒体、不打开声卡，不依赖 CI 音频硬件。
 
-Debug 全量构建零警告零错误，严格正式界面音频回归报告位于 `artifacts/native-overlay-validation/6990dd033f294bbea46f2ef491ade22e/`：WASAPI、选中外部 PCM 音轨、48000 Hz / 2 channels、音量10回写、静音/取消静音回写、恢复播放时间推进、交换链匹配、正常关闭及停止上报全部通过，exit 0，无强制清理。实际服务器音频对照结果在 `artifacts/audio-output-validation.json`。
-
-Native AOT 同样零警告零错误。发布目录 `publish/releases/0.1.0/20261003-144025-553/app` 的严格音频回归报告为 `artifacts/native-overlay-validation/fda159cf0a9e4940a34caa2c9c0f9cd4/`，上述音频和正式界面检查全部通过，exit 0、无强制清理。安装器/便携包重新生成；`publish/aot` 原入口同步并验证全部 436 个清单文件。
+Debug 与 Native AOT 的正式界面音频回归都通过：WASAPI、选中外部 PCM 音轨、48000 Hz / 2 channels、音量回写、静音 / 取消静音回写、恢复播放后时间推进、交换链匹配、正常关闭及停止上报，进程正常退出、没有强制清理。

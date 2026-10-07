@@ -1,12 +1,12 @@
 # P9：视觉基准与统一动效
 
-日期：2026-10-03。范围：WinUI 前端的视觉基准与播放页交互；不改变 WinUI 3 + C#/.NET 10 + libmpv 技术路线，也不重新定义 `docs/PLAN.md` 的阶段验收。
+日期：2026-10-03，统一动效为 2026-10-04。范围：界面的视觉基准与播放页交互；不改变 WinUI 3 + C#/.NET 10 + libmpv 技术路线。
 
 ## 决策
 
 布局、配色、内容层级与交互识别度继续以原 Tauri 应用为参考；动效按用户随后确认的「克制、有辨识度」统一，不再逐项复刻旧参数。旧项目只作只读参照，不复制源码、图片或其他资产；字体继续使用本仓库 MiSans。假数据图片仍由本仓库生成。
 
-`design/` 保留 P2 原型，便于追溯。其布局不再是当前验收标准；对应的公共 token 仍与 `Themes/Tokens.xaml` 同步。
+P2 的 HTML 原型已从仓库移除，其布局不是当前的验收标准；现行取值在 `Themes/Tokens.xaml`。
 
 ### 被取代的 P2 结论
 
@@ -42,8 +42,6 @@
 - **轻反馈统一。** 卡片 hover/键盘焦点 Y−2 DIP、按下 Y−1 DIP；普通按钮只刷色/描边。筛选用 240 ms 连续占位和裁剪，终点才提交布局；排序、确认卡片、Toast 和播放页的「即将播放」卡片使用 160/120 ms 与 4 DIP，不缩放；暂停时的中央大播放钮同样 160/120 ms，但只淡变。详情页播放钮按下只加深底色，不再缩到 .95。逻辑关闭立即禁输入，实际退出结束才卸载；Dialog 的焦点围栏与队列也保持到此时。
 - **生命周期是收尾边界。** 每窗口一个原生动画设置订阅；离页、非活动、关闭动画和释放落最新有效终态，恢复仅影响后续动作。回收清除旧 hover/按下与图片动画，rail 释放捕获，Toast 业务删除/Action 不等待退场。
 
-`design/` 只迁移公共 token 和现有消费者、清除退休效果；历史 HTML 播放容器仍使用 Content，不重建 WinUI 翻折或完整路由/弹层状态机。其浏览器兼容结果不能替代真实 WinUI 动态验收。
-
 ### 六项已选优化
 
 1. 首页主视觉随可用宽度增长，受最小/最大高度约束。
@@ -65,7 +63,7 @@
 - 音量滑块向左展开：底栏右侧按钮组靠右对齐，滑块若在静音按钮右边展开，按钮会从指针下移走 100 DIP，悬停后的点击落在滑块或胶囊空白处而不是静音按钮（按布局推算，未用真实鼠标复现）。视觉树内仍是先按钮后滑块，Tab 顺序不变。展开本身是瞬切。
 - 进度条保持缓冲区间；悬停与拖动预览互不覆盖。浮动提示在边缘钳制，离开后隐藏；键盘跳转仍走既有会话契约。
 - 高对比度使用系统颜色，不使用硬编码品牌色或玻璃透明度替代系统可读性。
-- 前端只消费 `Mambo.Core.Contracts` 与 `VideoSurface` 公开 API。未增加 NuGet 包。
+- 界面只消费 `Mambo.Core.Contracts` 与 `VideoSurface` 公开 API。未增加 NuGet 包。
 
 ### 设置兼容
 
@@ -88,9 +86,7 @@
 - `NativeOverlaySmoke` 的全屏检查必须等待交换链高度实际变化后再核对视口，不能在呈现器刚切换、布局尚未更新时用旧尺寸判为通过。
 - `UiLabSmoke` 的运行中检查点改为原文件写入，不反复 `File.Replace`。仓库内的验收读取者均等进程退出后解析终报；运行中的文件可能尚未写完，不能用作完整验收结果。写入失败仍记录并抛出，不重试或忽略。这不改变真实用户设置、停止上报等持久化数据的原子写入约定。
 
-初轮 Debug 与 AOT 导航检查曾因报告替换失败返回 `IOException / 80070497`，不是滚动偏移断言失败。独立复现中，允许 Write、未共享 Delete 的读取句柄会阻止替换/移动而不阻止原文件写入；未识别本机当次持句柄的具体进程，不把它归因于某个后台软件。
-
-原生播放首轮也曾在起播阶段返回 `playback.failed`（`artifacts/native-overlay-validation/29a0e7c709ab4fccad2927706f6e5755/app-report.json`）；随后 Debug、AOT 均实际起播、关闭成功。该次原生失败原因未定位，不能据此宣称修复了原生引擎缺陷。临时诊断代码已移除。
+独立复现表明：允许 Write、未共享 Delete 的读取句柄会阻止文件替换和移动，但不阻止原文件写入。这是上面改用原文件写入的原因。
 
 ## 浏览页补充调整
 
@@ -98,110 +94,45 @@
 - 设置页移除 1024 DIP 最大宽度，分区与分隔线铺满右侧可用宽度，保留页面内边距。
 - 2026-10-06：设置页改为对齐的表单。分隔线仍铺满，表单列到 700 DIP 封顶；每行左 112 DIP 放名称，控件从同一条竖线开始。按用户要求去掉外置 MPV 的“已批准”等状态和说明文字，只在批准过的文件变动时提示重新验证；HDR 与硬件解码只在内置播放器下显示；“应用更新”并入“关于”，空闲时不出状态文字。更新中、有新版和需要重新验证这几种状态没有实际查看。
 - 详情页剧集行采用与首页一致的 `ScrollView` + `ItemsRepeater`，保留虚拟化、目标集定位、换季复位与末尾加载；通过按住拖动或左右箭头横向移动，不再接收滚轮横移，纵向滚轮留给整页。
-- 该轮 `dotnet build -p:Platform=x64 --no-restore` 通过，0 警告、0 错误；实际假数据窗口的最大化与最小尺寸设置页均保持 24 DIP 右内边距，侧栏未显示滚动条。
 
 
 ## 图标与许可
 
-当前实现使用 **Feather Icons 4.29.2 / MIT**，不是计划初稿所列的 Lucide / ISC。线性路径在 `Themes/Icons.xaml` 中适配为 WinUI Geometry；来源为 [Feather 上游](https://github.com/feathericons/feather/tree/v4.29.2)。完整版权和 MIT 文本已加入 `LICENSES/Feather-4.29.2-LICENSE.txt`，并登记在 `THIRD_PARTY_NOTICES.md`、`LICENSES/sources.json` 中。现有项目规则自动将许可文件复制到构建和发布目录。
+当前实现使用 **Feather Icons 4.29.2 / MIT**，不是计划初稿所列的 Lucide / ISC。线性路径在 `Themes/Icons.xaml` 中适配为 WinUI Geometry；来源为 [Feather 上游](https://github.com/feathericons/feather/tree/v4.29.2)。完整版权和 MIT 文本在 `LICENSES/Feather-4.29.2-LICENSE.txt`，并登记在 `THIRD_PARTY_NOTICES.md`、`LICENSES/sources.json` 中，随构建和发布目录分发。
 
-本次补齐图标归属不解除 `THIRD_PARTY_NOTICES.md` 已记录的 libmpv 对应源码分发限制。
+## 标题栏所有权的切换
 
-## 历史验证记录（2026-10-03，统一动效切换前）
+统一动效验收期间，全屏 Presenter 切换时出现原生释放错误（`CTitleBar → CDevice → CSurfaceFactory` 释放栈，以及 `Microsoft.UI.Input → CTitleBar` 链上的 `FAST_FAIL_GUARD_ICALL_CHECK_FAILURE`）。
 
-以下为本机实际执行结果；`artifacts/`、`publish/` 是本地验收产物，不入库。
+- **定位**：SDK 的高层标题栏路径先释放 provider A，再析构 provider B，B 又去释放已失效的 A。一个不含 Mambo 动效、服务、窗口子类化或 COM 辅助代码的独立 WinUI 最小程序，在第一次全屏切换时复现了同一个释放栈。这定位到高层标题栏路径的生命周期错误，但没有找到更早的引用失衡点。
+- **无效的尝试**：只移除全屏前的 `SetTitleBar(null)`、保留高层标题栏注册，没有解决问题；`null` 本身请求的是默认标题栏，不代表退出这条路径。锁屏也不是原因。
+- **修复**：按微软的说明（[隐藏系统窗口按钮不受支持，应使用 InputNonClientPointerSource 实现完整自绘标题栏](https://github.com/microsoft/microsoft-ui-xaml/issues/8705#issuecomment-1960689442)），移除 `ExtendsContentIntoTitleBar` / `SetTitleBar` 注册。Caption、Passthrough、Maximize 三类区域统一由 `WindowChrome` 计算，全屏时清除、返回时重建、释放时清理。外观、边框、可访问的 XAML 按钮和最大化 hook 保持不变，没有关闭 UIA、GC 或系统堆保护。
+- **未解决**：另一次出现在进入 50 次播放释放检查之前的 `MenuFlyout → CustomWriterRuntimeContext → CVisualStateGroupCollection` 原生释放栈，不是同一个问题，静态检查没有定位到原因，之后的完整门禁没有再出现。
 
-这些结果对应旧 560 ms 翻折与黑色关闭面，保留用于追溯；不是本轮统一动效的验证。尤其下表的系统高对比/动画开关操作不能沿用为本轮人工确认。
+## 验证结果
 
-| 检查 | 结果 |
-|---|---|
-| `dotnet build -p:Platform=x64` | 0 警告、0 错误。 |
-| `dotnet test --no-build -p:Platform=x64` | 360/360 通过，未跳过；包含三种旧选集设置的迁移/持久化用例。 |
-| `dotnet publish src/Mambo.App -p:Platform=x64 -p:PublishProfile=Aot -o publish/ui-parity-aot` | Native AOT 发布成功。 |
-| `scripts/test-ui-lab.ps1`，Debug / AOT 各一轮 | `p9-debug-final.json`、`p9-aot-final.json` 均通过，各有九张离屏截图。两轮均为 144 项播放交互检查通过，50 次实际开关帧、50 次焦点恢复，播放器与视频表面留存均为 0；三种深滚动恢复偏差均为 0 DIP，五组 UIA 检查全部通过，报告写入错误为空。 |
-| `scripts/test-native-overlay.ps1`，Debug / AOT 各一轮 | 本地真实 libmpv / composition 播放通过；窗口交换链为 2228×1200，全屏实际变为 2560×1599，两者均匹配视频视口。WASAPI、48 kHz 双声道、音量/静音、暂停/跳转/恢复、关闭解绑与停止上报均通过。 |
-| 真实假数据窗口 | 浅色、深色的首页、最近播放、资料库、详情、搜索、设置及播放页已查看；实际鼠标悬停出现 27:38 气泡，气泡跟随指针且播放位置保持不变。列表/集号、收起面板、全屏、独立按键提示和翻折均已操作。 |
-| 系统高对比度 / 关闭动画 | 分别实际启用高对比度、关闭客户端区域动画后运行窗口检查；高对比度各页使用系统颜色，关闭动画时直接到达播放终态。结束后重新读取系统选项，确认恢复原值。 |
-| 图标许可发布内容 | AOT 输出包含 Feather 完整 MIT 文本；SHA-256 与 `LICENSES/sources.json` 一致。 |
+- **自动门禁**：切换标题栏所有权后，Debug 与 Native AOT 的完整界面回归都通过，各含 Motion 90 项、导航、播放控制、翻折在 p≈.15 / .49 / .51 / .85 的中断与反向、50 次实际开关与焦点恢复；播放器与 Surface 留存为 0，播放呈现资源已释放。没有放宽 180 秒、5000 项或 50 次的门禁。
+- **原生播放**：Debug 与 AOT 的实际 composition、全屏、WASAPI、音量 / 静音和正常退出通过。窗口交换链与全屏交换链的尺寸都匹配视频视口。
+- **实际桌面记录**：1500×860 和 1100×720 两种尺寸（144 DPI、浅色、系统动画开启）各记录了 Hero、资料库、详情、返回、筛选、播放打开 / 关闭 / 反向。浏览整体交接，翻折的播放面保留静态 XAML 控件，不再是整面空黑。采集约每秒 6 次，只能辅助观察，不证明 GPU 帧率，也排除不了短于采样间隔的问题。
+- **物理窗口状态**：最小化、失活后恢复前台，标题栏拖动、双击最大化 / 还原、最大化按钮往返通过。
+- **性能**：5000 项资料库的峰值私有内存为 252–257 MiB，Rendering 回调间隔的 P95 为 10–11.5 ms，改动前后没有可区分的差异。这是单次采样，不声称更快或更省内存。
 
-最终证据：
+### 不稳定的界面检查
 
-- 界面报告：`artifacts/ui-parity/p9-debug-final.json`、`artifacts/ui-parity/p9-aot-final.json`。
-- 原生 Debug：`artifacts/native-overlay-validation/2305047d3b1b439fb2cfd3a91981a6a3/`。
-- 原生 AOT：`artifacts/native-overlay-validation/85c7eb17c40043d0ae359a83bbfa307b/`。
-- 实拍：`artifacts/ui-parity/window-light-verified/`、`window-dark-verified/`、`window-contrast/`、`window-reduced-motion/`。
+2026-10-04 播放页补动效（音量滑块向左展开、中央播放钮与「即将播放」卡片改由 `PopupTransition` 进退、Hero 背景改用 Symmetric、详情页播放钮去掉按下缩放）之后，Debug 的完整界面回归跑了四轮，只有一轮通过。其余三轮各失败在不同的检查上，没有重复：
 
-50 次生命周期样本使用假播放会话；真实 libmpv 的两轮验收不冒称为 50 次原生播放压力测试。一次性桌面驱动、文件共享复现脚本及临时原生诊断代码均已删除。
+- `Fold49ReversesBeforeFacingChange` 和 `OnboardingWholePhraseNavigatesToSettings`
+- `IdleBeforeFoldClose`
+- `EpisodeRailAwaitingDragOffset`
 
-## 本轮统一动效验证（2026-10-04）
+四轮的 50 次实际开关都完成，留存都是 0。同一环境下不含这次改动的版本跑了一轮通过，样本太少，区分不了「改动引入」和「偶发」。失败项都落在真实输入、指针位置或单帧时序上；改动没有新增焦点、指针或 Activity 路径，这是读代码的推断，不是定位结论。这次改动之后没有重跑 Native AOT 和原生播放验收，四处改动的实际观感也没有人工查看。
 
-实现、最终 Debug/Native AOT 自动化门禁和两种尺寸的实际桌面动态采集已完成。Native AOT 候选位于 `publish/motion-after-aot/`。Windows 动画设置切换及真实媒体观感仍需用户验收；以下通过结论不覆盖这些人工项。
-
-本轮实现与上面的历史候选分开验收。最终完整报告优先于分阶段和失败报告：
-
-| 检查 | 实测与证据 |
-|---|---|
-| Debug 构建、单元测试 | 最近构建为 0 警告、0 错误；360/360 项测试通过，未跳过。 |
-| 最终 Debug 完整 UI | `artifacts/motion-resume-debug.json`：整轮 Passed，Motion 90 项、导航、播放控制、50 次实际开关与焦点恢复通过；播放器/Surface 留存 0/0，播放呈现资源已释放，162.444 秒。 |
-| 最终 Native AOT 完整 UI | `artifacts/motion-final-aot.json`：整轮 Passed，同样保留 Motion 90 项、导航/播放控制、50 次开关与焦点恢复、留存 0/0 和呈现资源释放检查，161.593 秒；未放宽 180 秒、5000 项或 50 次门禁。 |
-| 分阶段完整 UI 门禁 | `artifacts/motion-browse-debug.json`、`motion-player-debug.json`、`motion-popups-fixed-debug.json` 通过；均保留 50 次实际打开/关闭帧及零播放器/Surface 留存。这些报告早于最终新增的 Motion 场景，不能代替最终完整报告。 |
-| Motion 场景单独运行 | `artifacts/motion-focused-debug.json` 的 Motion 为 Passed，90 项检查通过，36.625 秒；覆盖 Hero、弹层、媒体就绪/回收、三种卡片和三种轨道。该诊断轮的整个 UiLabReport 不算通过；仅运行 Motion 的临时入口已移除。 |
-| 实际桌面 Motion 观察 | `artifacts/motion-scenarios-desktop/` 的独立假数据进程记录了筛选/排序、Dialog/Toast、Hero 暂停与换项、媒体等待和导航交接；报告 Motion 90 项通过，实际系统动画开启，144 DPI。约 6 次采集/秒的 WebP 只能辅助观察，不证明 GPU 帧率，也不能代替完整翻折的动态验收。 |
-| 原生播放 | 标题栏切换后的 Debug `artifacts/native-overlay-validation/c0e241752028499cabf9800953dcd49c/` 与最终 AOT `e736521eaa844173ba62d98f53074548/` 均通过：实际 composition、全屏、WASAPI、音量/静音及正常退出成功，无强制清理。AOT `artifacts/p3-playback-release.json` 的实际播放、暂停、倍速、跳转、下一集、重试、解绑和上报顺序检查通过。 |
-| 历史 HTML 原型 | 实际浏览器操作、审阅开关和运行时 `prefers-reduced-motion` 切换通过，控制台/页面错误为空；具体操作与边界见 `design/README.md`。这不是 Windows 系统设置验收。 |
-| 原候选动态基线 | `artifacts/motion-before-large/` 与 `motion-before-small/`：1500×860、1100×720 DIP，144 DPI、浅色、实际系统动画开启；Hero、浏览、详情、筛选和播放开关共七段实际桌面记录。已查看接触表；原翻折播放面中段/关闭起始存在整面黑色。采集时间不是 GPU 帧率；旧候选未支持的反向操作不计为通过。 |
-| 最终候选动态记录 | `artifacts/motion-final-large/`、`motion-final-small/`：与原候选相同的两种尺寸、144 DPI、浅色和系统动画开启条件；各记录 Hero、资料库、详情、返回、筛选、播放打开/关闭/早期反向八段。已检查实际桌面帧：浏览整体交接，Hero 换项；翻折播放面保留静态 XAML 控件，不再是整面空黑。 |
-| 翻折中后段反向 | `artifacts/motion-caption-reversal-large/player-reverse-late.webp` 与 `motion-late-reversal-small/player-reverse-late.webp`：650 ms 后请求返回，两种尺寸均记录到播放面展开后反向回浏览；采集帧中播放控制条持续可见。完整 UI 门禁另覆盖 p≈.15/.49/.51/.85 的中断、冻结输入及资源释放。 |
-| 物理窗口状态 | 两种尺寸均实际最小化、失活 7.3 秒并恢复前台，恢复前后 Hero 标识一致。大尺寸实际标题栏拖动、双击最大化/还原、最大化按钮往返和原边界恢复通过；稳定布局截图位于 `artifacts/motion-caption-reversal-large/`。命中测试返回 Caption=2、Maximize=9；未将这些结果当作 Snap 弹出层视觉验收。 |
-
-本轮曾发生不同的原生释放错误；以下保留原因证据与切换过程，最终 Debug/AOT 完整门禁已通过：
-
-- `artifacts/motion-failed-debug.json` 对应全屏 Presenter 切换中的 `CTitleBar → CDevice → CSurfaceFactory` 释放栈。早期仅移除全屏前的 `SetTitleBar(null)`，但保留高层标题栏注册，并未解决后续错误；`null` 本身请求默认标题栏，不代表完全退出该路径。
-- `artifacts/motion-release-failed-debug.json` 对应进入 50 次播放释放检查前的 `MenuFlyout → CustomWriterRuntimeContext → CVisualStateGroupCollection` 原生释放栈，不是同一个全屏栈。静态所有权检查未定位到足以证明原因的共享释放；没有关闭 GC、缩减生命周期次数或放宽通过条件来绕过它。
-- 用户解锁后，`artifacts/motion-unlocked-failed-debug.json` 仍在全屏切换的 `Microsoft.UI.Input → CTitleBar` 释放链发生 `FAST_FAIL_GUARD_ICALL_CHECK_FAILURE`；锁屏并非充分解释，保留自绘标题栏绑定也未解决该错误。
-- `artifacts/motion-provider-last-release.txt` 捕获了 SDK 标题栏先释放 provider A，再析构 provider B，B 又释放已失效 A 的顺序。独立 WinUI 最小程序 `artifacts/caption-repro/hybrid-38bb1344fdfe4525845b3f8be9bbe74d/` 在第一次全屏切换中复现同一释放栈；该程序不含 Mambo 的动效、服务、原生窗口子类化或 COM 辅助代码，UIA 遍历由独立系统框架客户端完成，运行库 SHA-256 与应用相同。这定位了高层标题栏路径中的生命周期错误，但没有证明更早的引用失衡点。
-- 微软对该高层标题栏路径明确说明：[隐藏系统窗口按钮不受支持，应使用 InputNonClientPointerSource 实现完整自绘标题栏](https://github.com/microsoft/microsoft-ui-xaml/issues/8705#issuecomment-1960689442)。本轮保留既有外观、边框、可访问 XAML 按钮和最大化 hook，移除 `ExtendsContentIntoTitleBar` / `SetTitleBar` 注册；Caption、Passthrough、Maximize 三类区域统一由 WindowChrome 计算，全屏清除、返回重建、释放时清理。不关闭 UIA、GC 或系统堆保护。
-- 首次切换后 `artifacts/motion-after-debug.json` 完整运行至结束：导航、播放控制、p≈.15/.49/.51/.85 反向、静态可读开关面、空闲关闭及 50 次实际开关/焦点恢复通过，播放器与 Surface 留存均为 0，未再出现原生异常；但 Motion 在 Hero 覆盖后恢复自动轮播阶段超时，因此该轮仍记为失败。随后只增加失败状态诊断，没有延长等待或改动生产轮播逻辑；最终 Debug/AOT 两轮完整通过。这不证明已定位该次超时根因。
-- 最近 Windows 会话查询为已解锁；实际桌面采集仍会在本轮窗口失去前台或被遮挡时拒绝继续，不向其他程序发送输入。不修改全局锁屏、前台锁或动画设置。
-
-性能对比见 `artifacts/motion-performance-comparison.json`。三轮均为 5000 项、144 DPI，最大实现卡片数均为 57/58/58；标题栏切换使视口高度相差一个物理像素（664.666687 → 665.333313 DIP，宽度均为 1276 DIP）。实测如下：
-
-| 候选 | Peak Private Bytes（MiB） | 图片服务调用 / 解码缓存命中 | Top / Middle / Bottom P95 回调间隔（ms） |
-|---|---:|---:|---|
-| 改前 Debug | 252.00 | 327 / 168 | 11.1084 / 10.3128 / 10.0600 |
-| 最终 Debug | 254.62 | 332 / 177 | 11.4964 / 10.6912 / 10.0696 |
-| 最终 AOT | 256.81 | 330 / 179 | 11.3324 / 10.6468 / 10.3840 |
-
-这些是单次 XAML Rendering 回调与进程 Private Bytes 采样，不是 GPU 呈现帧率，也不是统计基准；Debug 与 AOT 不是同一构建配置。不声称更快或更省内存。桌面 WebP/接触表记录真实合成像素，但采样有间隔，不能排除短于采样间隔的视觉问题。
-
-本轮一次性桌面采集驱动、聚焦诊断入口脚本、调试器命令文件及独立标题栏复现项目/生成目录已清除；保留验收 JSON、动态记录和原生错误证据。
-
-自动化与桌面动态对比已完成；剩余用户参与项如下。不沿用旧候选的人工通过结论，不据此勾选 P9 或此前尚未完成的关卡。
-
-### 合并筛选与搜索分支后的复验（2026-10-04）
-
-- 合并前全部工作区改动的 Debug 构建、360 项测试及完整界面冒烟通过，报告为 `artifacts/pre-merge-ui.json`。
-- 合并 `fix/library-filter-search` 后，Debug 构建为 0 警告、0 错误，372/372 项测试通过且无跳过；最终完整界面报告 `artifacts/post-merge-ui-input-synchronized.json` 为 Passed，50 次实际开关与焦点恢复通过，播放器/Surface 留存为 0/0，播放呈现资源已释放。
-- 保留两轮失败报告：`artifacts/post-merge-ui.json` 记录 `IdleChromeHides` 与 `UiInputForegroundUnavailable`；`artifacts/post-merge-ui-final.json` 的播放控件通过，但 `SortOutsidePressDismisses` 失败。排序烟测发送真实点击或 Escape 后，现先等待 `IsSortOpen` 变为 false，再读取关闭动画任务，避免输入消息尚未处理时等待旧任务；业务代码、超时与最终断言不变。最终通过不代表已定位首轮前台丢失及空闲隐藏失败的原因。
-- 本次合并复验未重跑 Native AOT、真实服务器或原生视频验收，不替代前述人工验收边界。
-
-### 播放页补动效后的复验（2026-10-04）
-
-改动：音量滑块向左展开；中央大播放钮与「即将播放」卡片改由 `PopupTransition` 进退；Hero 背景淡变改用 Symmetric；详情页播放钮去掉按下缩放。
-
-- Debug 构建 0 警告、0 错误；372/372 项测试通过，无跳过。
-- 完整界面烟测（Debug）跑了四轮，只有 `artifacts/motion-polish-debug-3.json` 一轮为 Passed。其余三轮各失败在不同检查，没有重复：
-  - `motion-polish-debug.json`：`Fold49ReversesBeforeFacingChange`（关闭在 p=.4909 才被观察到，反向时 p=.502）和 `OnboardingWholePhraseNavigatesToSettings`（真实点击）。
-  - `motion-polish-debug-2.json`：`IdleBeforeFoldClose`（重开后的控制栏 3 秒内没有收起）。
-  - `motion-polish-debug-4.json`：`EpisodeRailAwaitingDragOffset`（按下时偏移读到 0，结束时为 10470）。
-- 四轮的 50 次实际开关均完成，播放器/Surface 留存均为 0/0。
-- 同一环境下不含本次改动的 96a75b0 跑一轮通过（`motion-polish-baseline.json`）。样本太少，不能据此区分「改动引入」和「偶发」。失败项都落在真实输入、指针位置或单帧时序上，本次改动没有新增焦点、指针或 Activity 路径；这是读代码的推断，不是定位结论。
-- 未重跑 Native AOT 和原生播放验收；四处改动的实际观感未经人工查看。
+合并筛选与搜索分支后的复验里，还出现过 `IdleChromeHides`、`UiInputForegroundUnavailable` 和 `SortOutsidePressDismisses` 失败。最后一项的原因是排序烟测在输入消息尚未处理时就去等旧的关闭动画任务，已改为先等 `IsSortOpen` 变为 false；前两项的原因没有定位。
 
 ## 验收边界
 
-离屏截图只用于检查布局、字体和间距，不能证明亚克力、原生视频或实际桌面合成效果。真实窗口检查使用独立假数据进程，原生播放使用本地样片和隔离诊断服务；都不需要记录真实服务器、令牌或密码。
+离屏截图只用于检查布局、字体和间距，不能证明亚克力、原生视频或实际桌面合成效果。真实窗口检查使用独立的假数据进程，原生播放使用本地样片和隔离的诊断服务，都不需要真实服务器、令牌或密码。
 
-【需用户】在 Windows 设置中首次关闭、运行中关闭及重新开启动画，观察实际窗口后恢复原设置；再使用自己的 Emby 账号确认真实海报、封面与视频内容的最终观感。布局可与原版并排参考，退休的残影、错峰和缩放不再是目标。假数据、本地样片和自动化均不能代替这些人工验收，不据此勾选 `docs/PLAN.md` 尚未完成的人工或硬件关卡。
+【需用户】在 Windows 设置中首次关闭、运行中关闭及重新开启动画，观察实际窗口后恢复原设置；再用自己的 Emby 账号确认真实海报、封面与视频内容的最终观感。布局可与原版并排参考，已退休的残影、错峰和缩放不再是目标。假数据、本地样片和自动化都不能代替这些人工验收。
 
-标题栏切换后的 Windows Snap 布局弹出层也保留人工视觉确认；自动化仅证明命中区域、物理拖动及最大化/还原行为。没有修改全局动画、锁屏或前台策略。
+标题栏切换后的 Windows Snap 布局弹出层也需要人工视觉确认；自动化只证明了命中区域、物理拖动及最大化 / 还原行为。

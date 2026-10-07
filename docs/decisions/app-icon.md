@@ -16,7 +16,7 @@ P2 第 1 轮移除了蓝色方块加播放三角的草稿，图标一直暂缓�
 
 ## 实现与边界
 
-- `scripts/build-app-icon.ps1` 是图形的唯一来源：按尺寸生成 SVG，用 Edge 无界面模式栅格化，写出 `src/Mambo.App/Assets/AppIcon.ico` 和矢量母版 `design/app-icon.svg`。只在改图标时运行，构建、发布和 CI 直接用已提交的 `.ico`。
+- `scripts/build-app-icon.ps1` 是图形的唯一来源：按尺寸生成 SVG，用 Edge 无界面模式栅格化，写出 `src/Mambo.App/Assets/AppIcon.ico` 和矢量母版 `scripts/app-icon.svg`。只在改图标时运行，构建、发布和 CI 直接用已提交的 `.ico`。
 - `Mambo.App.csproj` 用 `ApplicationIcon` 嵌入图标；WinUI 默认会把 `Assets/` 下的文件当内容带出，这里把 `.ico` 排除。
 - WinUI 窗口类没有图标（实测类图标为空）。`Windowing/WindowIcon.cs` 在主窗口创建后按当前 DPI 取大、小两份图标交给窗口，供任务栏、Alt+Tab 和任务视图使用。自绘标题栏不显示图标。诊断窗口没有接。
 - 安装器用 `SetupIconFile` 指向同一份 `.ico`；「应用和功能」里的图标原本就取自 `Mambo.exe`。
@@ -40,4 +40,4 @@ P2 第 1 轮移除了蓝色方块加播放三角的草稿，图标一直暂缓�
 - [线上构建与测试](https://github.com/Aaleo73/Mambo/actions/runs/37488644531)和 [AOT 打包与发布](https://github.com/Aaleo73/Mambo/actions/runs/37488675471)均成功。
 - [v0.1.7 Release](https://github.com/Aaleo73/Mambo/releases/tag/v0.1.7) 已公开，`releases/latest` 指向 v0.1.7。共 12 个资产：安装器、便携包、更新清单及五个组件包、应用源码、两个完整原生源码分包与 SHA256SUMS.txt。
 - 安装器 112,942,953 字节，便携包 165,607,610 字节，app 更新组件 12,366,984 字节，更新清单 686,655 字节。已下载更新清单和 SHA256SUMS.txt，并核对其 GitHub SHA-256、全部资产摘要、五个组件的大小与摘要。runtime、mpv、assets、licenses 四个组件的摘要与 v0.1.6 相同，从 v0.1.6 更新只需要下载 app 组件。没有重新下载 ZIP 或安装器内容。
-- 核验记录：忽略目录 `artifacts/release-0.1.7-verification/result.json`。本轮未替换用户的已安装程序；线上安装包装好后的任务栏、Alt+Tab 实际观感仍待用户确认。
+- 本轮未替换用户的已安装程序；线上安装包装好后的任务栏、Alt+Tab 实际观感仍待用户确认。

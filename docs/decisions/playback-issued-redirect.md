@@ -20,8 +20,6 @@
 
 单测覆盖服务器签发链接、直接跨域凭据清除、HTTPS 降级、签名查询逐字保留、CDN 后续跳转不能恢复信任及认证头、外挂字幕下载。另补齐原生 END_FILE 错误码、候选序号和最终失败的安全日志；诊断编号只进结构化错误与日志，界面仅显示短错误代码。
 
-`dotnet build --no-restore -p:Platform=x64` 零警告零错误；`dotnet test --no-build --no-restore -p:Platform=x64` 353/353 通过，零跳过。新增 `scripts/test-native-overlay.ps1`：用本地样片、隔离内存账号和报告处理器，通过正式 PlaybackLauncher → Shell → PlayerOverlay → VideoSurface，创建生产参数的 1×1 / audio=true libmpv。它验证实际 Playing、2228×1218 交换链与视口一致、真实按钮暂停/恢复、跳转、关闭、解绑、Stopped/发件箱及正常进程退出；不读取真实账号。Debug 报告 `artifacts/native-overlay-validation/5b2be3c9730a40a09e6b7478faccaeec/`，AOT 报告 `artifacts/native-overlay-validation/8da5c07e965c43d6ae89991b32bde28f/`，均 Passed / exit 0 / 无强制清理。此样片的 current-ao 未返回有效输出，本轮不作为声音或人工显示观感验收。
+新增 `scripts/test-native-overlay.ps1`：用本地样片、隔离内存账号和报告处理器，通过正式 PlaybackLauncher → Shell → PlayerOverlay → VideoSurface，创建生产参数的 1×1 / audio=true libmpv。它验证实际 Playing、2228×1218 交换链与视口一致、真实按钮暂停/恢复、跳转、关闭、解绑、Stopped/发件箱及正常进程退出；不读取真实账号。Debug 与 AOT 都通过，进程正常退出、没有强制清理。此样片的 current-ao 未返回有效输出，本轮不作为声音或人工显示观感验收。
 
-网络复现的脱敏结果保存在 `artifacts/playback-redirect-validation.json`。这些证据区分了真实服务器网络/解码与隔离正式界面验证，不将它们合称人工验收。
-
-发布到 `publish/releases/0.1.0/20261003-142004-535/app` 后再次通过完整 AOT 界面回归（`artifacts/ui-aot-playback-fix.json`）：页面、主题、播放控制、全屏、50 次假播放关闭、关闭确认路径均通过。安装器和便携包已重新生成，旧 `publish/aot` 入口按发布清单校验并更新。
+真实服务器的网络 / 解码复现与隔离的正式界面验证是两类证据，不合称为人工验收。修复后的 AOT 构建再次通过了完整界面回归：页面、主题、播放控制、全屏、50 次假播放关闭和关闭确认路径。

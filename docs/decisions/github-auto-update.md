@@ -4,7 +4,7 @@
 
 2026-10-06 后续修订：安装向导方式已扩展为安装版/便携版组件复用与原位更新，见 [组件更新](component-updates.md)。下文保留最初实现与公开发行验收的历史记录。
 
-用户要求上传 GitHub 并增加自动更新，随后指定新建公开仓库。目标为 `Aaleo73/Mambo`。本次上传授权覆盖 AGENTS.md 与 PLAN 原有“不推送远端”的日常约定；后续任务仍按其约定执行。P0/P2 的确认已有记录，本次不重新开启这些关卡。
+用户要求上传 GitHub 并增加自动更新，随后指定新建公开仓库。目标为 `Aaleo73/Mambo`。这次上传是用户的明确授权；日常约定仍是未经明确要求不推送远端。
 
 ## 更新方式
 
@@ -35,7 +35,7 @@ GitHub Actions 的 push / PR 工作流使用锁定 SDK、锁定还原、着色�
 - 默认 Debug 命令及独立 Release 输出目录构建均为 0 警告 / 0 错误；Native AOT 发布完成。555 项回归：532 通过、23 按配置跳过（22 项需显式启用 GPU，1 项需测量输出目录）；更新专项 37/37 通过。最初 Debug 输出被运行中的应用锁定，先用独立目录验证，后续默认构建也已完成。
 - 从 Git 索引全量检出到新目录，着色器生成与 SHA-256 验证通过，许可证来源清单全部匹配。修复 PowerShell CRLF here-string 改变生成字节的问题，并保留两份锁定 CMake 配方与一份 Markdown 许可的原始字节。
 - AOT 实际设置页深色/浅色渲染完成，无页面构造错误。完整 UI 首轮在 EpisodeRail 拖动检查超时，二轮被 UiInputTargetOccluded 拦截；其他页面、50 次开关和对象释放通过的证据仅来自首轮，不将两轮记作完整 UI 通过。本次没有改动 EpisodeRail 或输入探测逻辑。
-- 历史提交与待提交内容经过 Gitleaks 8.30.1 脱敏扫描，无发现；扫描工具按 GitHub 官方资产摘要校验，报告与工具保留在忽略的 artifacts/。
+- 历史提交与待提交内容经过 Gitleaks 8.30.1 脱敏扫描，无发现；扫描工具按 GitHub 官方资产摘要校验。
 - [线上构建与测试](https://github.com/Aaleo73/Mambo/actions/runs/37305037345)通过，提交 `eb4770c` 已推送到公开仓库 main，保留当前分支的完整提交历史。
 - `v0.1.0` 标签触发的[发布工作流](https://github.com/Aaleo73/Mambo/actions/runs/37305527521)通过。[首个源码 Release](https://github.com/Aaleo73/Mambo/releases/tag/v0.1.0)公开包含 `Mambo-0.1.0-sources.zip`（24,342,608 字节）与 `SHA256SUMS.txt`，没有安装器、便携包或原生 DLL。源码归档共有 581 个文件/目录项，没有 artifacts、publish、bin、obj、Git 或测试输出。
 - 重新下载线上源码资产，GitHub 摘要校验通过；581 个归档项的名称、字节数和内容 SHA-256 均与本地同提交的归档匹配。两个 ZIP 容器的哈希不同，但逐项内容一致；不将本地 ZIP 的容器哈希代替线上资产摘要。

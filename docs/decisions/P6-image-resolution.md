@@ -17,9 +17,8 @@
 ## 验证
 
 - `dotnet build -p:Platform=x64 --no-restore`：0 警告、0 错误。
-- `dotnet test --no-restore`：384 项通过。
 - `Mambo.exe --ui-smoke --image-resolution-only`：仅使用本地合成图片与六项假服务。通过 `MAMBO_UI_LAB_REPORT` 指定报告；此模式只验证图片，不代表完整 UI 门禁通过。
-- Debug 图片专项 10 项通过，报告 `artifacts/image-resolution-after.json`。150 DIP 在 100%/150%/200% 参数下分别解码为 150/225/300 物理像素；自适应卡片升级后解码宽度与显示宽度均为 360 像素。覆盖尺寸增长、缩小复用、升级保留文字、失败保留旧图、换绑取消与卸载。
+- Debug 与 Native AOT 的图片专项各 10 项通过。150 DIP 在 100%/150%/200% 参数下分别解码为 150/225/300 物理像素；自适应卡片升级后解码宽度与显示宽度均为 360 像素。覆盖尺寸增长、缩小复用、升级保留文字、失败保留旧图、换绑取消与卸载。
 - 除属性检查外，将同一合成细条纹分别按 150/300 像素解码，再在实际 XAML 中渲染到 300×300 像素并读取 RenderTargetBitmap。明暗标准差从 61.86 升至 97.62，证明目标分辨率保留更多条纹细节；该数值仅代表合成图对比度，不表示所有海报的清晰度提升百分比。
 - 修复前完整 UI 验证在取得鼠标输入时因 `UiInputTargetOccluded` 中断，未到达图片检查。不将该轮记作通过；专项模式不依赖鼠标或前台窗口归属。
-- Native AOT 发布成功，产物位于 `publish/image-resolution-aot/`；AOT 图片专项同样 10 项通过，报告 `artifacts/image-resolution-aot.json`。实际跨显示器切换和主观观感未代替用户验收。
+- 实际跨显示器切换和主观观感没有验证，需要用户验收。

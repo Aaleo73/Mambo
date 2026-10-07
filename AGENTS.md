@@ -1,19 +1,25 @@
 # AGENTS.md
 
-这个仓库正在把 Mambo（Windows 上的 Emby 媒体客户端）重写为 **WinUI 3 + C#/.NET 10 + libmpv**，画面通过 mpv 的 d3d11 composition 交换链挂到 SwapChainPanel 上。
+这个仓库是 Mambo（Windows 上的 Emby 媒体客户端）的 **WinUI 3 + C#/.NET 10 + libmpv** 实现，画面通过 mpv 的 d3d11 composition 交换链挂到 SwapChainPanel 上。
 
-## 必读
+## 开工前
 
-- `docs/PLAN.md` 是完整的实施计划。按阶段执行，每个阶段跑完验收后，在文末"进度"打勾。
-- **关卡**：P0 结束（视频技术验证）和 P2 结束（设计稿）时，必须停下来等用户确认。
-- **【需用户】**：计划里标了这个记号的步骤要请用户参与，不要擅自代办，例如安装软件、提供 Emby 服务器、人工检查显示效果。
+- `docs/STATUS.md`：进度和未完成的验收。先看这里，区分"实现完成"与"人工验收未完成"；已完成的阶段不要重新执行。
+- `docs/ARCHITECTURE.md`：模块设计与约束。`docs/SPEC.md`：功能与交互规格。按需查阅。
+- `docs/decisions/`：各项技术决定的原因与限制。
+- **【需用户】**：`docs/STATUS.md` 里标了这个记号的验收要请用户参与，不要擅自代办，例如提供 Emby 服务器、安装软件、人工检查显示效果。
+
+## 仓库与分支
+
+- 界面、内部服务、播放器和更新器都在本仓库的 `src/` 下，主分支是 `main`，远端是 `Aaleo73/Mambo`。
+- 如需并行开发，使用任务分支和仓库外的 `../Mambo-worktrees/<任务名>`；不要在主仓库内嵌套 worktree。
 
 ## 硬性约束
 
-- **旧项目**：不复用 `D:\MAKISEV\emby-mpv-player`（旧 Tauri 项目）的任何文件或资产，唯一例外是字体（用本仓库的 MiSans）。旧项目只能只读参考行为，`docs/PLAN.md` 附录 A 已经整理好了。
-- **前端依赖边界**：前端代码只能依赖 `Mambo.Core.Contracts` 和 `VideoSurface` 的公开 API，不得引用 Core 的实现类、DTO 或 Player 的内部类型。
+- **旧项目**：不复用重构前的 Tauri 项目 `emby-mpv-player` 的任何文件或资产，唯一例外是字体（用本仓库的 MiSans）。旧项目不在本仓库内，只能只读参考行为；所需规格已整理在 `docs/SPEC.md`。
+- **依赖边界**：`Mambo.App` 的界面代码只能依赖 `Mambo.Core.Contracts` 和 `VideoSurface` 的公开 API，不得引用 Core 的实现类、DTO 或 Player 的内部类型。
 - **敏感信息**：服务器地址、令牌、密码不得写入仓库、日志、测试数据或提交信息。
-- **AOT**：遵守 `docs/PLAN.md` §4.3 的兼容规则，即使用 `LibraryImport`、JSON 源生成、`{x:Bind}`、partial 类型。
+- **AOT**：遵守 `docs/ARCHITECTURE.md` §2.3 的兼容规则，即使用 `LibraryImport`、JSON 源生成、`{x:Bind}`、partial 类型。
 - **XAML 位置**：所有 XAML 只放在 `src/Mambo.App`。
 - **提交质量**：不要提交编译不过或测试失败的代码。
 
@@ -32,5 +38,5 @@
 - **C#**：启用 Nullable，使用文件范围命名空间；ViewModel 用 CommunityToolkit.Mvvm 的 partial 属性。
 - **提交**：
   - 提交信息用中文 conventional commits，scope 标明模块，例如 `feat(core): …`、`feat(player): …`、`feat(ui): …`；
-  - 不推送远端。
-- **决策记录**：重要的技术决定记在 `docs/decisions/` 下。
+  - 未经用户明确要求不推送远端。
+- **决策记录**：重要的技术决定记在 `docs/decisions/` 下，写清决定、原因、限制和未验收项，不记逐轮验收流水。

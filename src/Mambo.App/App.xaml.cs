@@ -43,7 +43,7 @@ public sealed partial class App : Application
                 .AddUiServices()
                 .BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
         Debug.StartupTimeline.Mark("ServicesBuilt");
-        // 先解析退出协调器：它同时挂接 WinUI 异常日志（R-003）。
+        // 先解析退出协调器：它同时挂接 WinUI 异常日志。
         _ = services.GetRequiredService<AppShutdownCoordinator>();
         Debug.StartupTimeline.Mark("BackendResolved");
         var main = new MainWindow(services);

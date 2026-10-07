@@ -34,15 +34,8 @@
 
 `scripts/test-external-handoff.ps1 -MpvPath <用户选择的 mpv.exe 或目录> -SamplePath <本地片源>` 使用隔离的账号与设置、拦截的报告传输以及正式 Shell/播放入口，检查真实配置、uosc 输入绑定、空格键、mpv 原生列表、浏览导航、退出及回退到内置播放层。不会读取真实账号或连接 Emby。诊断输出只保留布尔检查、阶段和安全错误码。
 
-- `dotnet build -p:Platform=x64 --no-restore`：零警告、零错误。
-- `dotnet test --no-build --no-restore`：377/377 通过，无失败或跳过。
-- Native AOT 发布成功，输出为 `publish/external-handoff/`。
-- 用户自备 mpv 的 Debug 与 Native AOT 接管专项均通过：配置、脚本、uosc、原生空格键、后续列表、跳集/重播、原页面保留、可继续浏览、正常退出、三次播放各一次 Stopped、没有 Mambo 播放层、实际回退内置及统一释放，共 18 项。报告分别在 `artifacts/external-handoff/f745cd44a7af4fea91d28acbef40f6fd/result.json` 和 `artifacts/external-handoff/1f8087314ae444cb9aa937a40bc0c38c/result.json`。
-- 附加完整 UI 回归未通过：首次被别的窗口遮挡（`UiInputTargetOccluded`）；重跑的播放控制通过，50 次开关完成且 Player/Surface 留存均为 0，但动效的物理输入步骤 `FilterReversal` 失去前台（`UiInputForegroundUnavailable`）。保留 `artifacts/external-handoff/ui-debug.json` 与 `ui-debug-retry.json`，不将该结果记为完整界面通过。
-- 经设置服务显式验证并启用用户给出的播放器目录，保存到本机用户设置；个人路径未写入代码或仓库配置。
+用户自备 mpv 的 Debug 与 Native AOT 接管专项都通过，共 24 项：配置、脚本、uosc、原生空格键、后续列表、跳集 / 重播、原页面保留、可继续浏览、正常退出、三次播放各一次 Stopped、没有 Mambo 播放层、实际回退内置及统一释放；后续集尚未播放时标题已存在，重排后标题保持，跳集及返回重播时续播位置与请求头正确，空请求头不会继承前一集。单元测试另外覆盖 Unicode / 逗号标题、换行注入、逐项选项、过期响应及无效编号。
 
-标题修正补充验证：构建零警告零错误，384/384 单元测试通过；新增 Unicode/逗号标题、换行注入、逐项选项、过期响应及无效编号覆盖。用户自备 mpv 的 Debug 专项 24 项通过，报告 `artifacts/external-handoff/eae9b66c04ae431186068cd0a7a14346/result.json`。新增项目检查三个标题在后续集尚未播放时已存在，重排后标题保持、跳集及返回重播时续播位置与请求头正确；测试中第三集空请求头不会继承前一集。Debug 假 IPC 冒烟通过。
+未通过：附加的完整 UI 回归两次都被环境打断。第一次被别的窗口遮挡（`UiInputTargetOccluded`）；重跑时播放控制通过、50 次开关后 Player / Surface 留存均为 0，但动效的物理输入步骤 `FilterReversal` 失去前台（`UiInputForegroundUnavailable`）。不把它记为完整界面通过。
 
-标题修正版 Native AOT 发布到 `publish/external-playlist-titles/`，同样 24 项真实 mpv 专项通过，报告 `artifacts/external-handoff/d44732d082b04561b69ee91edeaaa0f7/result.json`。AOT 假 IPC 冒烟通过（`artifacts/p7-external-ipc-release.json`）。没有关闭用户正在运行的旧版本，也没有覆盖其程序目录；使用新版需退出旧进程后启动新目录的 `Mambo.exe`。
-
-真实 Emby 后台与人工画面观感不由本地合成片源验证代替；本次没有重新标记 P0/P5 的人工验收项。
+播放器目录经设置服务显式验证后保存在本机用户设置里，个人路径没有写入代码或仓库配置。真实 Emby 后台与人工画面观感不由本地合成片源验证代替。

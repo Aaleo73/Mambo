@@ -1,14 +1,14 @@
 # P1 Core 平台层
 
-日期：2026-10-02。真实平台实现位于 `Mambo.Core`，Windows 凭据桥接位于 App 的 `Platform/`。前端只解析 `Contracts`；`BackendRuntime` 和 DTO 不进入 ViewModel。
+日期：2026-10-02。真实平台实现位于 `Mambo.Core`，Windows 凭据桥接位于 App 的 `Platform/`。界面只解析 `Contracts`；`BackendRuntime` 和 DTO 不进入 ViewModel。
 
 ## 组合与生命周期
 
 `BackendServices.AddBackendServices(fake: false, scheduler: …)` 以显式工厂注册会话、资料库、图片、设置和账号偏好。P1 交付时的真实播放为 Preparing → Failed 的准备会话；P3 已接入真实 libmpv 播放，见 [P3 播放引擎与会话](P3-playback.md)。离线 Preview 保持相同替换确认契约。
 
-外壳在启动时解析 `AppShutdownCoordinator`（同时挂接 WinUI 异常日志），再调用一次 `ISessionService.RestoreAsync`。退出时先 await coordinator.CloseAsync，再销毁 DI 容器；关闭包含播放、停止发件箱预算、查询快照和音量写入，以及图片/发件箱 I/O 的异步释放。Program / App / MainWindow 接入在 P4 完成。
+外壳在启动时解析 `AppShutdownCoordinator`（同时挂接 WinUI 异常日志），再调用一次 `ISessionService.RestoreAsync`。退出时先 await coordinator.CloseAsync，再销毁 DI 容器；关闭包含播放、停止发件箱预算、查询快照和音量写入，以及图片/发件箱 I/O 的异步释放。
 
-认证与图片使用独立 HttpClient/handler，禁止自动重定向和 Cookie，HTTP/2 可降级。API 不跟随重定向；图片手动限制同主机、同端口及允许的协议升级，认证只放请求头。JSON 使用 `EmbyJsonContext` 源生成，读取限制 16MB，Filters 同时兼容字符串和 Name 对象。继续观看与 Latest 分别按 PLAN 的字段集请求。
+认证与图片使用独立 HttpClient/handler，禁止自动重定向和 Cookie，HTTP/2 可降级。API 不跟随重定向；图片手动限制同主机、同端口及允许的协议升级，认证只放请求头。JSON 使用 `EmbyJsonContext` 源生成，读取限制 16MB，Filters 同时兼容字符串和 Name 对象。继续观看与 Latest 分别按 `docs/SPEC.md` A.1 的字段集请求。
 
 `RequestScheduler` 保留 metadata 的前台槽位及独立 reliability 通道，截止时间从排队开始计算；只对幂等请求重试。账号取消终止旧观察和请求。登录先保存凭据再公开账号；恢复在网络校验前提供账号作用域供磁盘缓存读取，短暂离线保留凭据；401/403 只使对应当前账号失效。注销先关闭播放和刷新旧账号停止记录，再清本地状态，远端失败由 LogoutResult 告知界面。
 
@@ -25,33 +25,14 @@
 
 ## 验证与用户验收
 
-自动验证使用合成 HttpMessageHandler、内存凭据和仓库内隔离数据目录，不调用实际 Windows 凭据读写。Debug 和 Native AOT 的组合工具验证登录、库列表、缓存重载、设置、发件箱、注销、日志落盘和令牌不落盘。
+自动验证使用合成 `HttpMessageHandler`、内存凭据和隔离数据目录，不调用实际的 Windows 凭据读写，也不访问真实服务器。Debug 与 Native AOT 都验证过登录、库列表、缓存重载、设置、发件箱、注销、日志落盘和令牌不落盘。
 
-```powershell
-dotnet build -p:Platform=x64
-dotnet test
-pwsh scripts/test-core-platform.ps1
-dotnet publish scripts/diagnostics/Mambo.CoreSmoke -c Release -p:Platform=x64 -o publish/core-smoke
-pwsh scripts/test-core-platform.ps1 -Aot
-```
+2026-10-02 用户确认真实 Emby 登录、列出视频库、重启恢复和凭据管理器目标 `Mambo:emby-session:v1` 检查通过。当时用的一次性命令行验收工具 `Mambo.CoreSmoke` 已从仓库移除；需要复验时直接用应用登录。
 
-【需用户】真实 Emby 与 Windows 凭据验收已于 2026-10-02 经用户确认通过。以下命令保留供本机复验：
-
-```powershell
-.\publish\core-smoke\Mambo.CoreSmoke.exe --login
-.\publish\core-smoke\Mambo.CoreSmoke.exe --restore
-```
-
-第一条在本机提示输入地址、用户名和隐藏的密码，并输出视频库数量。退出后第二条应恢复会话并再次列出库数量；Windows 凭据管理器应存在 `Mambo:emby-session:v1`。结果回复“通过”或安全错误文案即可，勿发送地址、密码或令牌。可选 `--logout` 会结束当前会话并清除本地凭据；无需注销来完成重启恢复验收。
-
-2026-10-02：用户在上述人工验收步骤后回复“好了”，确认真实登录、列出视频库、重启恢复及凭据管理器目标检查通过，PLAN 的 P1 已勾选。目标解析、媒体源、连播及真实播放上报的测试随 P3 实现；自动隐藏和导航规则随前端阶段实现，不把它们计入本阶段已完成的验证。P0 的未通过与待测遗留项不因本次确认改变。
-
-本阶段 `dotnet test` 为 174/174 通过、无跳过。回归覆盖队列截止时间、共享取消、SWR 精确过期、新旧请求代际、退出删除屏障、停止记录故障分类、备份恢复、缺图和重定向，以及契约修订。
-
-最终 Debug 构建、App 与 CoreSmoke 的 Native AOT 发布均为 0 警告、0 错误。Debug/AOT 的 Core 组合自测，以及 App 命令行/环境变量两种假模式入口全部通过；报告位于忽略的 artifacts/p1-core-debug.json、p1-core-aot.json 与 p1a-fake-*.json。Debug/Release 的 locked-mode 还原均通过，锁文件不漂移。自动验收只覆盖合成服务器和内存凭据；真实 Emby 登录与恢复、Windows 凭据检查由用户按上述步骤确认。
+## 实现中确认的坑
 
 验证中曾出现一次停止记录本地写入失败，原始异常没有 HRESULT，未确认该次的直接成因。新增边界测试在本机明确复现：File.Move(overwrite) 在旧读者允许 Delete 共享时仍返回 80070005，而 File.Replace 成功；行为与 [.NET runtime issue 114230](https://github.com/dotnet/runtime/issues/114230) 一致。现已用原子替换修复，并验证旧读者快照、短暂锁重试、长期锁失败保留原数据。Win32 错误分类参考 [Microsoft 系统错误码](https://learn.microsoft.com/en-us/windows/win32/debug/system-error-codes--0-499-)。
 
-R-015 修复前，`dotnet test -p:Platform=x64 --no-build` 曾运行零个测试（退出码 5），进一步复现发现普通 dotnet test 同样发现不到测试。P3 同批修复在中央 Directory.Build.props 显式启用 xUnit v3 的 MTP 入口，干净原 P1 基线真正执行 174 项测试；增加取消测试后 175 项通过，带 Platform 的命令也已可用。标准命令仍按 AGENTS 使用 dotnet test。中央 PublishAot 属性继续保证 Debug/Release 锁文件图一致；`.gitattributes` 固定 libmpv 头文件 LF，避免重新获取后的行尾漂移。
+测试项目必须在中央 `Directory.Build.props` 显式启用 xUnit v3 的 MTP 入口，否则 `dotnet test` 会「运行零个测试」并以退出码 5 结束。中央 `PublishAot` 属性保证 Debug / Release 的锁文件图一致；`.gitattributes` 固定 libmpv 头文件为 LF，避免重新获取后出现只有行尾差异的改动。
 
-P3 回归又捕获 File.Replace 的 80070497 / Win32 1175，按 ReplaceFileW 保持文件名称的错误语义补充有界重试，并验证取消后原件仍在、临时文件删除；原 P1 没有 HRESULT 的失败不追溯断言为此原因。详情见 P3 记录。
+后续回归又捕获 File.Replace 的 80070497 / Win32 1175，按 ReplaceFileW 保持文件名称的错误语义补充有界重试，并验证取消后原件仍在、临时文件删除；原 P1 没有 HRESULT 的失败不追溯断言为此原因。详情见 P3 记录。

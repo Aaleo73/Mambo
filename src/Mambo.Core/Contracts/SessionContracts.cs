@@ -37,7 +37,7 @@ public interface ISessionService
 {
     SessionInfo? Current { get; }
     SessionState State { get; }
-    [SuppressMessage("Naming", "CA1716:Identifiers should not match keywords", Justification = "Error 与 PLAN 的读取错误约定保持一致，不用于跨语言调用。")]
+    [SuppressMessage("Naming", "CA1716:Identifiers should not match keywords", Justification = "Error 与 docs/ARCHITECTURE.md §7 的读取错误约定保持一致，不用于跨语言调用。")]
     AppError? Error { get; }
     event EventHandler? Changed;
     Task LoginAsync(LoginRequest request, CancellationToken cancellationToken = default);

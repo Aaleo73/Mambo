@@ -4,6 +4,18 @@ Windows 上的 Emby 媒体客户端，使用 WinUI 3、C#/.NET 10 和 libmpv。�
 
 目前处于开发阶段，支持 Windows 10 22H2 / Windows 11 x64。
 
+## 仓库结构
+
+界面、内部服务、播放器与更新器都在这个仓库中，主分支为 `main`：
+
+- `src/Mambo.App`：WinUI 页面、窗口与视频显示层。
+- `src/Mambo.Core`：Emby 接口、登录、资料库、缓存、设置与播放会话。
+- `src/Mambo.Player`：内置 libmpv 和外部 mpv。
+- `src/Mambo.Updater`：独立更新器。
+- `tests/`：自动化测试；`scripts/`、`installer/`、`.github/`：构建、打包与发布。
+- `third_party/`、`LICENSES/`：锁定的原生组件、着色器与第三方许可。
+- `docs/`：[架构](docs/ARCHITECTURE.md)、[行为规格](docs/SPEC.md)、[当前状态](docs/STATUS.md)、决策记录与发行说明。
+
 ## 开发
 
 需要 .NET 10 SDK、Windows SDK 和 Visual Studio Build Tools 的 C++ Native AOT 工具链；不需要 Visual Studio IDE。SDK 与 NuGet 依赖由仓库锁定。
@@ -27,14 +39,14 @@ dotnet run --project src/Mambo.App -p:Platform=x64 -- --fake
 构建安装包：
 
 ```powershell
-pwsh scripts/publish.ps1 -Version 0.1.5 -Installer -UpdateRepository Aaleo73/Mambo
+pwsh scripts/publish.ps1 -Version 0.1.7 -Installer -UpdateRepository Aaleo73/Mambo
 ```
 
 安装包必须命名为 `Mambo-<版本>-win-x64-setup.exe`，对应 Release 标签为 `v<版本>`；只发布稳定版。发布脚本同时生成 `update.json` 清单和 app/runtime/mpv/assets/licenses 五类更新组件包，必须与安装器一同上传；客户端自动使用，无需手工下载。PDB 调试符号留在构建目录，不进入用户分发包。GitHub Actions 在推送和 PR 上构建及测试，推送 `v*` 标签时构建并发布安装器、便携包、更新组件、应用源码与全部原生对应源码分包。
 
 内置播放器已改用有匹配源码、补丁、构建记录和 Rust 锁定依赖的 MSYS2 原生组件。下载入口为 [GitHub Releases](https://github.com/Aaleo73/Mambo/releases)；普通安装使用 `setup.exe`，免安装使用 `portable.zip`。源码由 `sources.zip` 和全部 `native-sources-*.zip` 组成，使用同页 `SHA256SUMS.txt` 校验。发布审查绑定两份原生 lock 的哈希，变更输入后需重新核验。详见 [原生源码与发布记录](docs/decisions/native-distribution.md)。
 
-实施进度及待验收项见 [实施计划](docs/PLAN.md)，更新设计见 [GitHub 与自动更新](docs/decisions/github-auto-update.md)。
+进度及待验收项见 [当前状态](docs/STATUS.md)，更新设计见 [GitHub 与自动更新](docs/decisions/github-auto-update.md)。
 
 ## 许可
 
