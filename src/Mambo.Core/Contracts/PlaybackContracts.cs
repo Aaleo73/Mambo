@@ -14,6 +14,19 @@ public interface IPlaybackSession
     Task SetMutedAsync(bool muted, CancellationToken cancellationToken = default);
     Task SelectAudioTrackAsync(string? trackId, CancellationToken cancellationToken = default);
     Task SelectSubtitleTrackAsync(string? trackId, CancellationToken cancellationToken = default);
+    Task SelectAudioTrackAsync(string? trackId, long expectedEntryGeneration, CancellationToken cancellationToken = default)
+        => Snapshot.EntryGeneration == expectedEntryGeneration ? SelectAudioTrackAsync(trackId, cancellationToken) : Task.FromException(SubtitleCommandUnavailable());
+    Task SelectSubtitleTrackAsync(string? trackId, long expectedEntryGeneration, CancellationToken cancellationToken = default)
+        => Snapshot.EntryGeneration == expectedEntryGeneration ? SelectSubtitleTrackAsync(trackId, cancellationToken) : Task.FromException(SubtitleCommandUnavailable());
+    Task SetSubtitleDelayAsync(double seconds, long expectedEntryGeneration, string? expectedSubtitleTrackId,
+        CancellationToken cancellationToken = default) => Task.FromException(SubtitleCommandUnavailable());
+    Task SetSubtitleStyleAsync(SubtitleStyleSettings style, long expectedEntryGeneration,
+        CancellationToken cancellationToken = default) => Task.FromException(SubtitleCommandUnavailable());
+    SubtitleImportContext? BeginSubtitleImport() => null;
+    Task ImportSubtitlesAsync(SubtitleImportContext context, IReadOnlyList<LocalSubtitleFile> files,
+        CancellationToken cancellationToken = default) => Task.CompletedTask;
+    private static AppException SubtitleCommandUnavailable() => new(new(AppErrorKind.Player,
+        "playback.subtitle_unavailable", "当前字幕控制不可用。", false));
     Task PreviousAsync(CancellationToken cancellationToken = default);
     Task NextAsync(CancellationToken cancellationToken = default);
     Task SelectEntryAsync(string itemId, CancellationToken cancellationToken = default);

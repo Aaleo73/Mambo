@@ -91,6 +91,9 @@ public sealed record AppSettings
     public HdrMode HdrMode { get; init; } = HdrMode.Auto;
     public HardwareDecodingMode HardwareDecoding { get; init; } = HardwareDecodingMode.Auto;
     public double Volume { get; init; } = 100;
+    public string PreferredAudioLanguage { get; init; } = "auto";
+    public string PreferredSubtitleLanguage { get; init; } = "zh";
+    public SubtitleStyleSettings SubtitleStyle { get; init; } = new();
     public WindowPlacement? Window { get; init; }
     public BulletChatSettings BulletChat { get; init; } = new();
 }

@@ -49,11 +49,17 @@ public sealed record PlaybackEntry(string ItemId, string Title)
     public int? ProductionYear { get; init; }
 }
 
-/// <summary>Id 是不透明的命令标识；Label 最长 96 字符，不包含外部文件名。</summary>
+/// <summary>Id 是不透明的命令标识；Label 最长 96 字符。本地字幕可显示用户文件的安全名称，不含目录。</summary>
 public sealed record TrackInfo(string Id, TrackKind Kind, string Label)
 {
     public string? Language { get; init; }
     public bool IsDefault { get; init; }
+    public string? Title { get; init; }
+    public string? Codec { get; init; }
+    public string? AudioChannels { get; init; }
+    public bool IsForced { get; init; }
+    public TrackSource Source { get; init; }
+    public SubtitleStyleKind SubtitleStyleKind { get; init; } = SubtitleStyleKind.Unknown;
 }
 
 public sealed record BufferedRange(long StartTicks, long EndTicks);
@@ -84,6 +90,13 @@ public sealed record SessionSnapshot
     public ImmutableArray<TrackInfo> SubtitleTracks { get; init; } = [];
     public string? SelectedAudioTrackId { get; init; }
     public string? SelectedSubtitleTrackId { get; init; }
+    /// <summary>同一媒体重新打开也会改变；前端仅原样传回，不构造此值。</summary>
+    public long EntryGeneration { get; init; }
+    public double SubtitleDelaySeconds { get; init; }
+    public SubtitleStyleSettings SubtitleStyle { get; init; } = new();
+    public SubtitleStyleKind SubtitleStyleKind { get; init; } = SubtitleStyleKind.None;
+    public bool CanAdjustSubtitleDelay { get; init; }
+    public bool CanImportSubtitles { get; init; }
     public ImmutableArray<BufferedRange> BufferedRanges { get; init; } = [];
     public AppError? Error { get; init; }
     public DateTimeOffset CapturedAtUtc { get; init; }
