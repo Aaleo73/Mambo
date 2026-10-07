@@ -47,6 +47,14 @@ public sealed class SubtitleFilenameParserTests
     [InlineData("1920x1080.ass")]
     [InlineData("a12bc345.srt")]
     [InlineData("[ABCDEF12].ass")]
+    [InlineData("[ABCDEF12].chs.ass")]
+    [InlineData("a12bc345.zh-Hans.srt")]
+    [InlineData("1080p.chs.ass")]
+    [InlineData("4k.WEB-DL.zh-Hant.srt")]
+    [InlineData("01+03.ass")]
+    [InlineData("01&03.chs.ass")]
+    [InlineData("01,03.ass")]
+    [InlineData("01、03.chs.ass")]
     [InlineData("S01E02E03.srt")]
     [InlineData("S01E02-E03.srt")]
     [InlineData("S01E02+E03.srt")]
@@ -70,10 +78,31 @@ public sealed class SubtitleFilenameParserTests
         Assert.Equal("", parsed.SeriesName);
     }
 
+    [Theory]
+    [InlineData("A+B", "AB")]
+    [InlineData("A&B", "AB")]
+    [InlineData("A-B", "AB")]
+    [InlineData("A-", "A")]
+    [InlineData("A(B)", "AB")]
+    [InlineData("A[B]", "AB")]
+    public void MeaningfulTitleSymbolsSurviveParsingAndNormalization(string titled, string other)
+    {
+        var prefix = SubtitleFilenameParser.Parse(titled + ".S01E02.ass").SeriesName;
+        Assert.Equal(SubtitleFilenameParser.NormalizeTitle(titled), SubtitleFilenameParser.NormalizeTitle(prefix));
+        Assert.NotEqual(SubtitleFilenameParser.NormalizeTitle(other), SubtitleFilenameParser.NormalizeTitle(prefix));
+    }
+
+    [Theory]
+    [InlineData("My.Unknown.Captions.ass")]
+    [InlineData("A+B.ass")]
+    [InlineData("任意其它标题.srt")]
+    public void ArbitraryUnnumberedSingleFileNamesRemainEligible(string fileName) =>
+        Assert.True(SubtitleFilenameParser.Parse(fileName).IsUnnumbered);
+
     [Fact]
     public void UnknownReleaseGroupAndTranslatedNameAreNotFuzzilyRemoved()
     {
         Assert.NotEqual(SubtitleFilenameParser.NormalizeTitle("测试剧"), SubtitleFilenameParser.NormalizeTitle("Test Show"));
-        Assert.Equal("GROUPSHOW", SubtitleFilenameParser.NormalizeTitle(SubtitleFilenameParser.Parse("[Group] Show.S01E01.ass").SeriesName));
+        Assert.Equal("[GROUP]SHOW", SubtitleFilenameParser.NormalizeTitle(SubtitleFilenameParser.Parse("[Group] Show.S01E01.ass").SeriesName));
     }
 }
