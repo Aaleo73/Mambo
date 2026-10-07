@@ -226,8 +226,8 @@
                                     </Flyout>
                                 </Button.Flyout>
                             </Button>
-                            <Button x:Name="VideoQualityButton" Style="{ThemeResource PlayerButton}" Content="画质"
-                                    IsEnabled="{x:Bind ViewModel.CanChangeVideoQuality, Mode=OneWay}" AutomationProperties.Name="画质" ToolTipService.ToolTip="画质">
+                            <Button x:Name="VideoQualityButton" Style="{ThemeResource PlayerButton}" Content="{x:Bind ViewModel.VideoQualityText, Mode=OneWay}"
+                                    IsEnabled="{x:Bind ViewModel.CanChangeVideoQuality, Mode=OneWay}" AutomationProperties.Name="{x:Bind ViewModel.VideoQualityAccessibleName, Mode=OneWay}" ToolTipService.ToolTip="模式">
                                 <Button.Flyout>
                                     <Flyout x:Name="VideoQualityFlyout" Placement="Top" FlyoutPresenterStyle="{StaticResource PlayerPanelPresenter}">
                                         <views:PlayerChoicePanel x:Name="VideoQualityPanel" Width="200"/>
@@ -244,12 +244,19 @@
                                     </Flyout>
                                 </Button.Flyout>
                             </Button>
-                            <Button x:Name="TracksButton" Style="{ThemeResource PlayerButton}" AllowFocusOnInteraction="True" IsEnabled="{x:Bind ViewModel.CanControl, Mode=OneWay}"
-                                    AutomationProperties.Name="字幕和音轨" ToolTipService.ToolTip="字幕 / 音轨（C / V）">
-                                <themes:LineIcon Glyph="{StaticResource IconSubtitles}" Width="18" Height="18"/>
+                            <Button x:Name="SubtitlesButton" Style="{ThemeResource PlayerButton}" Content="字幕" AllowFocusOnInteraction="True" IsEnabled="{x:Bind ViewModel.CanControl, Mode=OneWay}"
+                                    AutomationProperties.Name="字幕" ToolTipService.ToolTip="字幕（C）">
                                 <Button.Flyout>
-                                    <Flyout x:Name="TracksFlyout" Placement="Top" FlyoutPresenterStyle="{StaticResource PlayerPanelPresenter}">
-                                        <views:PlayerChoicePanel x:Name="TracksPanel"/>
+                                    <Flyout x:Name="SubtitlesFlyout" Placement="Top" FlyoutPresenterStyle="{StaticResource PlayerPanelPresenter}">
+                                        <views:PlayerChoicePanel x:Name="SubtitlesPanel"/>
+                                    </Flyout>
+                                </Button.Flyout>
+                            </Button>
+                            <Button x:Name="AudioButton" Style="{ThemeResource PlayerButton}" Content="音轨" AllowFocusOnInteraction="True" IsEnabled="{x:Bind ViewModel.CanControl, Mode=OneWay}"
+                                    AutomationProperties.Name="音轨" ToolTipService.ToolTip="音轨（V）">
+                                <Button.Flyout>
+                                    <Flyout x:Name="AudioFlyout" Placement="Top" FlyoutPresenterStyle="{StaticResource PlayerPanelPresenter}">
+                                        <views:PlayerChoicePanel x:Name="AudioPanel"/>
                                     </Flyout>
                                 </Button.Flyout>
                             </Button>

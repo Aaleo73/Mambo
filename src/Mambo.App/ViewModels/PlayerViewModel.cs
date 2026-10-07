@@ -33,6 +33,13 @@ public sealed partial class PlayerViewModel : ObservableObject, IDisposable
     public bool CanControl => snapshot.Phase == PlayerPhase.Playing;
     public bool CanChangeVideoQuality => CanControl && !IsExternal && !snapshot.IsVideoQualityChanging && !IsVideoQualityCommandPending;
     public VideoQualityMode VideoQualityMode => snapshot.VideoQualityMode;
+    public string VideoQualityText => VideoQualityMode switch
+    {
+        VideoQualityMode.Clear => "清晰",
+        VideoQualityMode.Anime => "动画",
+        _ => "标准",
+    };
+    public string VideoQualityAccessibleName => "模式：" + VideoQualityText;
     public bool IsOpening => snapshot.Phase is PlayerPhase.Preparing or PlayerPhase.Opening or PlayerPhase.Interstitial;
     public bool IsFailed => snapshot.Phase == PlayerPhase.Failed;
     public bool IsExternal => snapshot.EngineKind == EngineKind.External;
@@ -173,7 +180,7 @@ public sealed partial class PlayerViewModel : ObservableObject, IDisposable
     }
 
     private static readonly string[] ProjectionProperties =
-    [nameof(Snapshot), nameof(CanControl), nameof(CanChangeVideoQuality), nameof(VideoQualityMode), nameof(IsOpening), nameof(IsFailed), nameof(IsExternal), nameof(IsSlowOpening), nameof(IsBuffering),
+    [nameof(Snapshot), nameof(CanControl), nameof(CanChangeVideoQuality), nameof(VideoQualityMode), nameof(VideoQualityText), nameof(VideoQualityAccessibleName), nameof(IsOpening), nameof(IsFailed), nameof(IsExternal), nameof(IsSlowOpening), nameof(IsBuffering),
         nameof(CanPrevious), nameof(CanNext), nameof(HasEpisodes), nameof(IsPaused), nameof(PauseGlyph), nameof(PauseAccessibleName), nameof(MuteAccessibleName), nameof(VolumeGlyph), nameof(RateText),
         nameof(DurationText), nameof(DurationSeconds), nameof(Volume), nameof(ErrorText), nameof(Title), nameof(Subtitle), nameof(ShellTitle), nameof(NextTitle)];
 

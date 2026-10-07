@@ -94,7 +94,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         this.bulletChat = bulletChat;
         ViewModel = new(session);
         InitializeComponent();
-        TracksPanel.EnableSubtitleControls(session);
+        SubtitlesPanel.EnableSubtitleControls(session);
         BulletChatPanel.Initialize(bulletChat, settings, () => ViewModel.Snapshot.Entry is { } entry ? entry.SeriesName ?? entry.Title : null);
         BulletChatView.Apply(settings.Current.BulletChat);
         episodePanelCollapsed = settings.Current.EpisodePanelCollapsed;
@@ -139,7 +139,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         BulletChatPanel.PreviewChanged += OnBulletChatPreview;
         BulletChatPanel.Completed += OnBulletChatPanelCompleted;
         // 面板随播放层存活，可以反复打开；打开与收起统一记账，供控制层显隐和 Esc 使用。
-        panelFlyouts = [RateFlyout, VideoQualityFlyout, BulletChatFlyout, TracksFlyout];
+        panelFlyouts = [RateFlyout, VideoQualityFlyout, BulletChatFlyout, SubtitlesFlyout, AudioFlyout];
         foreach (var flyout in panelFlyouts)
         {
             flyout.Opened += OnMenuOpened;
@@ -147,7 +147,8 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         }
         RateFlyout.Opening += OnRateOpening;
         VideoQualityFlyout.Opening += OnVideoQualityOpening;
-        TracksFlyout.Opening += OnTracksOpening;
+        SubtitlesFlyout.Opening += OnSubtitlesOpening;
+        AudioFlyout.Opening += OnAudioOpening;
         window.PresentationChanged += OnPresentationChanged;
         window.ActiveChanged += OnWindowActiveChanged;
         Loaded += OnLoaded;
@@ -213,8 +214,13 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
 
     internal PlayerChoicePanel ShowMenuForSmoke(bool tracks)
     {
-        (tracks ? TracksFlyout : RateFlyout).ShowAt(tracks ? TracksButton : RateButton);
-        return tracks ? TracksPanel : RatePanel;
+        (tracks ? SubtitlesFlyout : RateFlyout).ShowAt(tracks ? SubtitlesButton : RateButton);
+        return tracks ? SubtitlesPanel : RatePanel;
+    }
+    internal PlayerChoicePanel ShowAudioMenuForSmoke()
+    {
+        AudioFlyout.ShowAt(AudioButton);
+        return AudioPanel;
     }
     internal PlayerChoicePanel ShowVideoQualityMenuForSmoke()
     {
@@ -401,7 +407,8 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         BulletChatPanel.PreviewChanged -= OnBulletChatPreview;
         BulletChatPanel.Completed -= OnBulletChatPanelCompleted;
         BulletChatPanel.Dispose();
-        TracksPanel.DisposeSubtitleControls();
+        SubtitlesPanel.DisposeSubtitleControls();
+        AudioPanel.DisposeSubtitleControls();
         RatePanel.DisposeSubtitleControls();
         VideoQualityPanel.DisposeSubtitleControls();
         ViewModel.Dispose();
@@ -597,7 +604,8 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         DrawBuffers();
         UpdateEpisodePanel();
         UpdateBulletChat();
-        if (openFlyouts.Contains(TracksFlyout)) OnTracksOpening(null, EventArgs.Empty);
+        if (openFlyouts.Contains(SubtitlesFlyout)) OnSubtitlesOpening(null, EventArgs.Empty);
+        if (openFlyouts.Contains(AudioFlyout)) OnAudioOpening(null, EventArgs.Empty);
         TitleChanged?.Invoke(this, EventArgs.Empty);
         if (ViewModel.IsFailed && ViewModel.Snapshot.Error is { } error && error.Code != previousErrorCode)
         {
@@ -1407,25 +1415,34 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
             rate == 1 ? "正常" : rate.ToString("0.##", CultureInfo.InvariantCulture) + "×", Math.Abs(current - rate) < .001, () => SelectRate(rate)))])]);
     }
 
-    private void OnTracksOpening(object? sender, object e)
+    private void OnSubtitlesOpening(object? sender, object e)
     {
         if (disposed || presentationFrozen || closing || transitionActive) return;
         var snapshot = ViewModel.Snapshot;
-        PlayerChoice Track(TrackInfo track, bool subtitle) => new(track.Label.Length > 96 ? track.Label[..96] : track.Label,
-            (subtitle ? snapshot.SelectedSubtitleTrackId : snapshot.SelectedAudioTrackId) == track.Id, () => SelectTrack(track.Id, subtitle, snapshot.EntryGeneration));
-        TracksPanel.SetGroups(
+        SubtitlesPanel.SetGroups(
         [
             new("字幕", [new("关闭字幕", snapshot.SelectedSubtitleTrackId is null, () => SelectTrack(null, subtitle: true, snapshot.EntryGeneration)),
-                .. snapshot.SubtitleTracks.Take(32).Select(track => Track(track, subtitle: true))]),
-            new("音轨", [.. snapshot.AudioTracks.Take(32).Select(track => Track(track, subtitle: false))], "没有可选音轨"),
+                .. snapshot.SubtitleTracks.Take(32).Select(track => TrackChoice(track, subtitle: true, snapshot))]),
         ]);
     }
+
+    private void OnAudioOpening(object? sender, object e)
+    {
+        if (disposed || presentationFrozen || closing || transitionActive) return;
+        var snapshot = ViewModel.Snapshot;
+        AudioPanel.SetGroups([new("音轨", [.. snapshot.AudioTracks.Take(32).Select(track => TrackChoice(track, subtitle: false, snapshot))], "没有可选音轨")]);
+    }
+
+    private PlayerChoice TrackChoice(TrackInfo track, bool subtitle, SessionSnapshot snapshot) => new(
+        track.Label.Length > 96 ? track.Label[..96] : track.Label,
+        (subtitle ? snapshot.SelectedSubtitleTrackId : snapshot.SelectedAudioTrackId) == track.Id,
+        () => SelectTrack(track.Id, subtitle, snapshot.EntryGeneration));
 
     private void OnVideoQualityOpening(object? sender, object e)
     {
         if (disposed || presentationFrozen || closing || transitionActive || !ViewModel.CanChangeVideoQuality) return;
         var current = ViewModel.VideoQualityMode;
-        VideoQualityPanel.SetGroups([new("画质",
+        VideoQualityPanel.SetGroups([new("模式",
         [
             new("标准", current == VideoQualityMode.Standard, () => SelectVideoQuality(VideoQualityMode.Standard)),
             new("清晰", current == VideoQualityMode.Clear, () => SelectVideoQuality(VideoQualityMode.Clear)),
@@ -1521,7 +1538,8 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         // 选项的回调捕获着播放层，收起后不留在弹出层里。
         if (ReferenceEquals(menu, RateFlyout)) RatePanel.Clear();
         else if (ReferenceEquals(menu, VideoQualityFlyout)) VideoQualityPanel.Clear();
-        else if (ReferenceEquals(menu, TracksFlyout)) TracksPanel.Clear();
+        else if (ReferenceEquals(menu, SubtitlesFlyout)) SubtitlesPanel.Clear();
+        else if (ReferenceEquals(menu, AudioFlyout)) AudioPanel.Clear();
         if (disposed || presentationFrozen || closing || transitionActive || !IsLoaded) return;
         if (removed && openMenus == 0)
         {
@@ -1543,7 +1561,8 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         openMenus = 0;
         RatePanel.Clear();
         VideoQualityPanel.Clear();
-        TracksPanel.Clear();
+        SubtitlesPanel.Clear();
+        AudioPanel.Clear();
         // 离开可视树时只需收起；播放层冻结后才解除订阅，之后不会再打开。
         if (!presentationFrozen) return;
         foreach (var flyout in panelFlyouts)
@@ -1553,7 +1572,8 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         }
         RateFlyout.Opening -= OnRateOpening;
         VideoQualityFlyout.Opening -= OnVideoQualityOpening;
-        TracksFlyout.Opening -= OnTracksOpening;
+        SubtitlesFlyout.Opening -= OnSubtitlesOpening;
+        AudioFlyout.Opening -= OnAudioOpening;
         panelFlyouts = [];
     }
     private void Run(Func<Task> action, bool cancelSeekOnError = false) => lastCommand = RunAsync(action, cancelSeekOnError);

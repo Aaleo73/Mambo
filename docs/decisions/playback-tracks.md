@@ -4,7 +4,7 @@
 
 ## 决定与原因
 
-- 字幕时间、字体、字号、颜色、描边、底部距离及 ASS 覆盖开关直接置于原有轨道组件。没有二级样式面板；菜单编辑保持打开。选轨偏好自动保存，界面不暴露“记忆”。
+- 字幕与音轨按用户后续要求拆成控制条上的独立按钮。字幕时间、字体、字号、颜色、描边、底部距离及 ASS 覆盖开关直接置于字幕组件，音轨组件只列音轨。没有二级样式面板；菜单编辑保持打开。选轨偏好自动保存，界面不暴露“记忆”。模式入口显示实际生效的标准/清晰/动画名称。
 - 选轨记录使用账号作用域与稳定轨道指纹，语言变更带独立版本号，旧会话不能重新写入已失效的偏好。本地选择使用具体 ItemId，整剧语言习惯与单集字幕文件不混用。
 - 原生条目 ID、会话条目代际、逐项目用户操作修订分别约束实际加载目标、旧控件命令和异步导入采用。后台只做文件复制与元数据匹配，结果回到会话队列后检查采用资格。原生 START_FILE 在事件接收处立即登记，避免队列正等待旧字幕命令时仍向新一集写入旧选轨。
 - 使用 `sub-add ... auto` 后统一执行选择规则；mpv 的 auto 仍可能自动选轨，因此命令完成与属性事件两处保护手选和关闭。迟到到下一集的已知旧字幕轨按内部路径归属移除，路径不进入公开快照或日志。参考 [mpv 轨道操作文档](https://mpv.io/manual/stable/#track-manipulation)。
@@ -19,7 +19,8 @@
 - `dotnet build -p:Platform=x64 --no-restore`：通过，0 警告、0 错误。
 - `dotnet test`：741 通过、0 失败、23 跳过；跳过项为既有 GPU/画质性能专项。包括真实 libmpv 合成 SRT/ASS 加载、暂停时样式属性、延迟事件，以及跨集旧命令、关闭整批加载、账号/设置/文件事务、索引损坏及本地索引不回传服务器的回归。
 - `dotnet publish src/Mambo.App/Mambo.App.csproj -c Release -r win-x64 --self-contained true -p:Platform=x64 -p:PublishAot=true -p:WindowsAppSDKSelfContained=true -o publish/aot`：通过。按 STATUS 的既有说明补充 Visual Studio Installer 到进程 PATH。
-- `pwsh scripts/test-player-controls.ps1` 及 `-Aot`：字幕专属 24 项检查通过，覆盖原组件内编辑、ASS 覆盖、校时、关闭字幕、样式复位、输入隔离、C/V、全屏及 Esc 优先级；演示模式不读真实文件，退出会话正常。
+- `pwsh scripts/test-player-controls.ps1`（AOT 用 `-AppDirectory` 指定本轮目录）：字幕/音轨 30 项检查在 Debug、AOT 均通过，覆盖独立菜单及互斥清理、字幕组件内编辑、ASS 覆盖、校时、关闭字幕、样式复位、输入隔离、C/V、全屏及 Esc 优先级；演示模式不读真实文件，退出会话正常。
+- `pwsh scripts/test-video-quality-ui.ps1`：模式界面 20 项检查在 Debug、AOT 均通过，确认标准/清晰/动画按钮文字、异步切换时保留原模式名称、失败不误显示目标模式。AOT 弹幕诊断同时确认倍速与字幕菜单的共享路径、Esc 收起和关闭清理通过。
 - `pwsh scripts/test-release-user-data.ps1 -IsccPath <本机 Inno 编译器>`：临时 staging、release manifest、portable zip、全部更新组件和实际 Inno 样本编译通过；根 Subtitles 不进入资产，源文件保持原样。未运行真实安装器。
 - 设置页 `ClearCacheAsync` 的临时文件回归确认可执行目录旁字幕仍保留；更新、恢复和卸载辅助清理也有独立保留测试。分模块及整分支静态审查已通过。
 

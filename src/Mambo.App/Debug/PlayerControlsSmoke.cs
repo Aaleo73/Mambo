@@ -66,7 +66,7 @@ internal static class PlayerControlsSmoke
     {
         var report = new PlayerControlsReport
         {
-            Scope = "Subtitle controls only; in-memory fake session and real XAML shared event paths; no physical input or rendering claim",
+            Scope = "Subtitle and audio controls; in-memory fake session and real XAML shared event paths; no physical input or rendering claim",
         };
         var watch = Stopwatch.StartNew();
         var presentation = window.Services.GetRequiredService<WindowContext>();
@@ -88,12 +88,7 @@ internal static class PlayerControlsSmoke
             var audio = session.Snapshot.AudioTracks;
             Mark(report, "FakeTrackChoices", subtitles.Length == 2 && audio.Length == 2);
             player.ShowControlsForSmoke();
-            var panel = player.ShowMenuForSmoke(tracks: true);
-            await CheckAsync(report, "TrackMenuOpened", () => player.HasOpenMenu && panel.ChoiceCount == 5, token);
-            await player.DispatchSmokeTrackAsync(audio[1].Id, subtitle: false);
-            await CheckAsync(report, "AudioMenuSelects", () => player.ViewModel.Snapshot.SelectedAudioTrackId == audio[1].Id && player.HasOpenMenu, token);
-            await player.DispatchSmokeTrackAsync(subtitles[1].Id, subtitle: true);
-            await CheckAsync(report, "SubtitleMenuSelects", () => player.ViewModel.Snapshot.SelectedSubtitleTrackId == subtitles[1].Id && player.HasOpenMenu, token);
+            var panel = await ProbeSeparateTrackMenusAsync(player, report, token);
             await ProbeSubtitleControlsAsync(player, panel, report, token);
             await player.DispatchSmokeTrackAsync(null, subtitle: true);
             await CheckAsync(report, "NoSubtitleAllowsStyleButDisablesDelay", () => panel.SubtitleControls.CanEditStyle &&
@@ -331,15 +326,7 @@ internal static class PlayerControlsSmoke
             await KeyAsync("CCyclesSubtitles", VirtualKey.C, () => player.ViewModel.Snapshot.SelectedSubtitleTrackId == subtitles[0].Id);
             await KeyAsync("VNextAudio", VirtualKey.V, () => player.ViewModel.Snapshot.SelectedAudioTrackId == audio[1].Id);
             await KeyAsync("VCyclesAudio", VirtualKey.V, () => player.ViewModel.Snapshot.SelectedAudioTrackId == audio[0].Id);
-            var trackMenu = player.ShowMenuForSmoke(tracks: true);
-            await CheckAsync(report, "TrackMenuOpened", () => player.HasOpenMenu, token);
-            Mark(report, "TrackMenuChoices", trackMenu.ChoiceCount == 5);
-            await player.DispatchSmokeTrackAsync(audio[1].Id, subtitle: false);
-            await CheckAsync(report, "AudioMenuSelects", () => player.ViewModel.Snapshot.SelectedAudioTrackId == audio[1].Id && player.HasOpenMenu, token);
-            player.ShowMenuForSmoke(tracks: true);
-            await WaitAsync(() => player.HasOpenMenu, token);
-            await player.DispatchSmokeTrackAsync(subtitles[1].Id, subtitle: true);
-            await CheckAsync(report, "SubtitleMenuSelects", () => player.ViewModel.Snapshot.SelectedSubtitleTrackId == subtitles[1].Id && player.HasOpenMenu, token);
+            var trackMenu = await ProbeSeparateTrackMenusAsync(player, report, token);
             await ProbeSubtitleControlsAsync(player, trackMenu, report, token);
             player.ShowMenuForSmoke(tracks: true);
             await WaitAsync(() => player.HasOpenMenu, token);
@@ -690,6 +677,27 @@ internal static class PlayerControlsSmoke
             overlay.Dispose();
             parent.Focus(FocusState.Programmatic);
         }
+    }
+
+    private static async Task<PlayerChoicePanel> ProbeSeparateTrackMenusAsync(PlayerOverlay player, PlayerControlsReport report, CancellationToken token)
+    {
+        var subtitles = player.ViewModel.Snapshot.SubtitleTracks;
+        var audio = player.ViewModel.Snapshot.AudioTracks;
+        var panel = player.ShowMenuForSmoke(tracks: true);
+        await CheckAsync(report, "SubtitleMenuOpened", () => player.HasOpenMenu && panel.ChoiceCount == 3, token);
+        Mark(report, "SubtitleMenuContainsOnlySubtitles", panel.SubtitleControls.IsVisible && !panel.ChooseForSmoke(audio[1].Label));
+        var audioPanel = player.ShowAudioMenuForSmoke();
+        await CheckAsync(report, "AudioMenuReleasesSubtitleRows", () => player.HasOpenMenu && audioPanel.ChoiceCount == 2 && panel.ChoiceCount == 0, token);
+        Mark(report, "AudioMenuHasNoSubtitleEditor", !audioPanel.SubtitleControls.IsVisible && !audioPanel.ChooseForSmoke("关闭字幕"));
+        Mark(report, "AudioChoiceInvoked", audioPanel.ChooseForSmoke(audio[1].Label));
+        await CheckAsync(report, "AudioMenuSelects", () => player.ViewModel.Snapshot.SelectedAudioTrackId == audio[1].Id &&
+            audioPanel.SelectedLabels == audio[1].Label && player.HasOpenMenu, token);
+        panel = player.ShowMenuForSmoke(tracks: true);
+        await CheckAsync(report, "SubtitleMenuReleasesAudioRows", () => player.HasOpenMenu && panel.ChoiceCount == 3 && audioPanel.ChoiceCount == 0, token);
+        Mark(report, "SubtitleChoiceInvoked", panel.ChooseForSmoke(subtitles[1].Label));
+        await CheckAsync(report, "SubtitleMenuSelects", () => player.ViewModel.Snapshot.SelectedSubtitleTrackId == subtitles[1].Id &&
+            panel.SelectedLabels == subtitles[1].Label && player.HasOpenMenu, token);
+        return panel;
     }
 
     private static async Task ProbeSubtitleControlsAsync(PlayerOverlay player, PlayerChoicePanel panel, PlayerControlsReport report, CancellationToken token)

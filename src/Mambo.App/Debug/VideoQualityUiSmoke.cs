@@ -6,6 +6,7 @@ using Mambo.App.Views;
 using Mambo.Core.Contracts;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Windows.System;
 
@@ -39,20 +40,25 @@ internal static class VideoQualityUiSmoke
             var player = window.Shell.ActivePlayer!;
             Require(report, "DemoSession", session.Snapshot.EngineKind == EngineKind.Demo);
             player.ShowControlsForSmoke();
+            var modeButton = (Button)player.FindName("VideoQualityButton");
+            Require(report, "ModeButtonShowsStandard", Equals(modeButton.Content, "标准") && AutomationProperties.GetName(modeButton) == "模式：标准");
             var menu = player.ShowVideoQualityMenuForSmoke();
             await WaitAsync(() => player.HasOpenMenu && menu.ChoiceCount == 3, token);
             Require(report, "StandardChecked", menu.SelectedLabels == "标准");
             Require(report, "ClearChoice", menu.ChooseForSmoke("清晰"));
             await WaitAsync(() => player.ViewModel.VideoQualityMode == VideoQualityMode.Clear && !player.HasOpenMenu && menu.ChoiceCount == 0, token);
+            Require(report, "ModeButtonShowsClear", Equals(modeButton.Content, "清晰"));
             Require(report, "ChoiceAppliesAndReleasesRows", true);
             menu = player.ShowVideoQualityMenuForSmoke();
             await WaitAsync(() => player.HasOpenMenu && menu.SelectedLabels == "清晰", token);
             Require(report, "AnimeChoice", menu.ChooseForSmoke("动画"));
             await WaitAsync(() => player.ViewModel.VideoQualityMode == VideoQualityMode.Anime && !player.HasOpenMenu, token);
+            Require(report, "ModeButtonShowsAnime", Equals(modeButton.Content, "动画"));
             menu = player.ShowVideoQualityMenuForSmoke();
             await WaitAsync(() => player.HasOpenMenu && menu.SelectedLabels == "动画", token);
             Require(report, "StandardChoice", menu.ChooseForSmoke("标准"));
             await WaitAsync(() => player.ViewModel.VideoQualityMode == VideoQualityMode.Standard && !player.HasOpenMenu, token);
+            Require(report, "ModeButtonReturnsToStandard", Equals(modeButton.Content, "标准"));
             player.ShowVideoQualityMenuForSmoke();
             await WaitAsync(() => player.HasOpenMenu, token);
             var rateMenu = player.ShowMenuForSmoke(tracks: false);
@@ -71,6 +77,7 @@ internal static class VideoQualityUiSmoke
             probe.ShowControlsForSmoke();
             probeSession.HoldQualityChange();
             var pending = probe.DispatchSmokeVideoQualityAsync(VideoQualityMode.Clear);
+            Require(report, "PendingModeKeepsConfirmedLabel", Equals(((Button)probe.FindName("VideoQualityButton")).Content, "标准"));
             Require(report, "OnlyQualityDisabled", !((Button)probe.FindName("VideoQualityButton")).IsEnabled &&
                 ((Button)probe.FindName("PauseButton")).IsEnabled && ((Button)probe.FindName("RateButton")).IsEnabled &&
                 ((Slider)probe.FindName("SeekSlider")).IsEnabled);
@@ -85,6 +92,7 @@ internal static class VideoQualityUiSmoke
             await probe.DispatchSmokeVideoQualityAsync(VideoQualityMode.Anime);
             Require(report, "ManualFailureKeepsMode", probe.ViewModel.VideoQualityMode == VideoQualityMode.Clear &&
                 probe.ViewModel.CanChangeVideoQuality && toasts.Items.Count(item => item.Text == QualityProbeSession.ManualErrorText) == 1);
+            Require(report, "FailedModeKeepsConfirmedLabel", Equals(((Button)probe.FindName("VideoQualityButton")).Content, "清晰"));
             var automaticError = new AppError(AppErrorKind.Player, "diagnostic.video_quality_restore", "画质烟测：自动恢复失败", false);
             probeSession.SetSnapshot(probeSession.Snapshot with { VideoQualityError = automaticError });
             probeSession.SetSnapshot(probeSession.Snapshot with { PositionTicks = TimeSpan.FromSeconds(1).Ticks });

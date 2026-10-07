@@ -153,7 +153,9 @@ internal static class BulletChatSmoke
                 await Task.Delay(hold, token);
             }
             report.TracksPanelSelects = session.Snapshot.SelectedSubtitleTrackId is not null && tracksPanel.ChooseForSmoke("关闭字幕");
-            await WaitAsync(() => session.Snapshot.SelectedSubtitleTrackId is null && !player.HasOpenMenu, token);
+            await WaitAsync(() => session.Snapshot.SelectedSubtitleTrackId is null && player.HasOpenMenu, token);
+            await player.DispatchSmokeKeyAsync(VirtualKey.Escape);
+            await WaitAsync(() => !player.HasOpenMenu && tracksPanel.ChoiceCount == 0, token);
 
             report.Stage = "关闭";
             await session.CloseAsync(token);
