@@ -22,7 +22,6 @@ namespace Mambo.App.Debug;
 internal static class PlayerControlsSmoke
 {
     internal const string Argument = "--player-controls-smoke";
-    internal const string SubtitleOnlyArgument = "--subtitle-controls-only";
 
     /// <summary>只运行播放控件，不启动完整 UiLab 的导航、性能或外观旧阶段。</summary>
     internal static async Task RunStandaloneAsync(MainWindow window, string reportPath)
@@ -38,9 +37,8 @@ internal static class PlayerControlsSmoke
                 services.GetRequiredService<IImageService>() is not FakeImageService || services.GetRequiredService<ILibraryPreferences>() is not FakeLibraryPreferences)
                 throw new InvalidOperationException("RealBackendRejected");
             await WaitAsync(() => window.Shell.IsLoaded && window.Shell.ActualWidth > 0, deadline.Token);
-            report = Program.Arguments.Contains(SubtitleOnlyArgument, StringComparer.Ordinal)
-                ? await RunSubtitleOnlyAsync(window, playback, deadline.Token)
-                : await RunAsync(window, playback, deadline.Token);
+            // 完整 RunAsync 依赖 UiLab 的前台占用与动画预热，独立入口只验本轮字幕功能。
+            report = await RunSubtitleOnlyAsync(window, playback, deadline.Token);
         }
         catch (Exception error)
         {

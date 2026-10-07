@@ -2,7 +2,7 @@
 
 日期：2026-10-07。
 
-状态：用户已于 2026-10-07 批准开始，进入实施。本文中的验收均为计划，不代表已经通过。
+状态：2026-10-07 实现与自动验证完成。实际通过项见 docs/decisions/playback-tracks.md；本文验收清单仍是覆盖目标，真实服务器和显示观感继续标【需用户】。
 
 ## 1. 目标与范围
 
@@ -72,7 +72,7 @@
 | 字号 | 18–72，按 720 高度基准随播放器尺寸缩放 | 38 |
 | 文字颜色 | 不透明 RGB 颜色选择器 | 白色 |
 | 描边粗细 | 0–6；0 表示关闭，描边为黑色 | 1.65 |
-| 底部距离 | 0–180，按相同 720 高度基准缩放 | 34 |
+| 底部距离 | 0–180 整数，按相同 720 高度基准缩放 | 34 |
 
 默认字体沿用应用当前配置，其余值对应当前锁定播放器的默认样式。恢复默认样式只重置本节样式字段，不触及轨道记录、语言选择或时间偏移。首版不增加阴影、背景框、字距和行距设置。
 
@@ -212,4 +212,4 @@
 - [WinUI 拖放](https://learn.microsoft.com/en-us/windows/apps/develop/data/drag-and-drop)。
 - [Emby 播放上报](https://dev.emby.media/doc/restapi/Playback-Check-ins.html)、[当前 REST 字段定义](https://dev.emby.media/reference/RestAPI/PlaystateService/postSessionsPlayingProgress.html)。
 
-用户审阅通过后进入实施计划。实现时同步修订 `docs/SPEC.md` 和 `docs/STATUS.md`，重要决定按仓库约定汇总进 `docs/decisions/`，不记录逐轮验收流水。
+已按批准的实施计划完成，并同步修订 `docs/SPEC.md` 和 `docs/STATUS.md`，重要决定按仓库约定汇总进 `docs/decisions/`，不记录逐轮验收流水。

@@ -223,6 +223,7 @@
   - 「预览播放页」：用假数据打开播放层。
   - 状态行，四种之一：校验中 / 已批准 / 当前使用内置播放器 / 路径无效、已改用内置。
   - 新增：「HDR」（自动/始终/关闭）、「硬件解码」（自动/关闭）。
+  - 「首选音轨语言」（默认自动）、「首选字幕语言」（默认中文，中文无匹配时尝试英文）；字幕可选关闭。设置只用于下一次内置播放，修改对应语言会使该类旧选轨偏好失效。
 - **外部 mpv 路径规则**：
   - 去掉首尾空白，不能为空，长度 ≤ 32767 个 UTF-16 单元；
   - 必须是名为 mpv.exe 的文件，或包含 mpv.exe 的目录；要规范化成绝对路径；
@@ -285,8 +286,8 @@
   - 条目：ItemId、MediaSourceId?、PositionTicks、PlaySessionId?、LiveStreamId?、PlayMethod、PlaybackStartTimeTicks（开始时刻的 Unix 纪元 100ns ticks）
   - 状态：EventName（Progress 用 TimeUpdate / Pause / Unpause，Playing 不带）、IsPaused、IsMuted、VolumeLevel（默认 100）、PlaybackRate（真实倍速）
   - 播放列表：PlaylistIndex / PlaylistLength（在连播计划中的位置）、NowPlayingQueue=[]
-  - 固定值：MaxStreamingBitrate=2147483647、RepeatMode="RepeatNone"、SubtitleOffset=0、CanSeek=true、Shuffle=false
-  - 可选：AudioStreamIndex / SubtitleStreamIndex，由 track-list 的 ff-index 映射到 Emby MediaStream.Index
+  - 固定值：MaxStreamingBitrate=2147483647、RepeatMode="RepeatNone"、CanSeek=true、Shuffle=false；不发送 SubtitleOffset。
+  - 可选：AudioStreamIndex / SubtitleStreamIndex，仅内封轨和已识别的服务器外挂映射到 Emby MediaStream.Index；本地导入轨不发送服务器索引。
 - **Stopped**：ItemId、MediaSourceId?、PositionTicks、PlaySessionId?、LiveStreamId?、PlaybackStartTimeTicks、Failed=false。
 
 **上报节奏**
@@ -310,8 +311,23 @@
 | 下一集 | `playlist-next` | — |
 
 **轨道菜单**
-- 最多 32 条，文本截断到 96 个字符，不暴露 external-filename。
-- 标签格式「标题 · 语言」，缺省时显示「字幕 N」/「音轨 N」。
+- 字幕、音轨各最多 32 条，优先保留当前选中及本地轨；文本截断到 96 个字符，不暴露 external-filename。
+- 标签显示可用的标题、语言、编码、音轨声道及内封/外挂/本地来源；同名轨补序号。
+- 成功的手动选轨按账号及整剧/单片静默保存，下次自动匹配稳定元数据；本地字幕采用及其后的明确选择绑定具体 ItemId。没有记忆开关、保存/清除记忆按钮或状态提示。
+- 优先级：当前手选 → 当前项目明确选择 → 已采用本地字幕 → 整剧/单片选择 → 首选语言 → 原生默认。指纹不唯一或轨道缺失时回退；新导入可替换该项目之前的采用项，但不能覆盖之后的手选。
+
+**字幕时间与样式**
+- 所有编辑直接放在现有字幕/音轨控制组件中，统一滚动，无额外样式子面板。修改后保持组件打开，输入控件拥有 C/V、空格和方向键，不触发播放快捷键。
+- 字幕时间范围 -60.0 至 60.0 秒，精度 0.1 秒；负值提前，正值延后。只对当前已选字幕生效，暂停和跳转保留；切字幕、关闭字幕、换集、换源及重试归零，不持久化。
+- 文本样式全局自动保存并即时应用，包括暂停时：字体默认 MiSans（支持系统字体）、字号 38（18–72）、颜色 #FFFFFF、黑色描边 1.65（0–6）、底部距离 34（0–180 整数，按 720 高度缩放）。恢复默认只重置样式。
+- ASS/SSA 默认保留自带排版，打开「覆盖 ASS 样式」后才能改文字样式；图片/未知字幕禁用文字样式，仍可改时间。无选中字幕时可预设后续文本样式。
+
+**本地字幕拖放**
+- 内置播放器接受 SRT、ASS、SSA、VTT，拖入后复制到 Mambo.exe 同级的 `Subtitles/`；按账号和具体媒体 ItemId 保存，下次播放自动加载，源文件不修改。
+- 单个无明确编号冲突的字幕默认用于当前条目。批量必须通过真实服务器元数据唯一确定归属；支持同季、跨季及有唯一精确剧名的其他剧集，无法确定、多集组合或元数据失败的成员跳过，不显示分配面板。
+- 保留原始拖入批次数量和顺序；不能在过滤不支持文件后将批量误判为单文件。其他集只保存，播放对应集时加载；异步结果不改变拖入后已切换的条目，也不覆盖更晚手选/关闭。
+- 成功、跳过、写入失败和加载失败均静默，无 Toast、说明或导入状态；仅写固定脱敏错误码。退出、注销、清除缓存、升级和卸载保留受管字幕；发布包排除运行时 `Subtitles/`。
+- 外置 mpv 继续自行管理；假数据预览支持控制区设置，但不读取真实拖入文件。
 
 **Toast 文案**：跳过某集时「有一集无法加入连播，已跳过」；意外中断时「播放意外中断，已保存最新进度」（显示 8 秒）。
 
