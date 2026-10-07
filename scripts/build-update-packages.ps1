@@ -20,7 +20,7 @@ $updateFiles = @($releaseManifest.files) + @([pscustomobject]@{
 })
 $updateSeen = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
 foreach ($file in $updateFiles) {
-    if (-not $updateSeen.Add($file.path) -or $file.path -match '(^/|\\|:|(^|/)\.\.?(/|$)|(^|/)unins|(^|/)\.mambo-update)') { throw '发布文件路径不安全或重复。' }
+    if (-not $updateSeen.Add($file.path) -or $file.path -match '(^/|\\|:|(^|/)\.\.?(/|$)|(^|/)unins|(^|/)\.mambo-update|^Subtitles[ .]*(/|$))') { throw '发布文件路径不安全或重复。' }
     $source = [IO.Path]::GetFullPath((Join-Path $updateAppRoot $file.path))
     if (-not $source.StartsWith($updateAppRoot.TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) { throw '发布文件越出应用目录。' }
     $checkPath = $source
@@ -28,7 +28,7 @@ foreach ($file in $updateFiles) {
         if ((Test-Path -LiteralPath $checkPath) -and ((Get-Item -LiteralPath $checkPath -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw '发布文件包含链接。' }
         $checkPath = [IO.Path]::GetDirectoryName($checkPath)
     }
-    if ((Get-Item -LiteralPath $source).Length -ne $file.bytes -or (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash.ToLowerInvariant() -ne $file.sha256) { throw '发布文件与清单校验值不一致。' }
+    if ((Get-Item -LiteralPath $source -Force).Length -ne $file.bytes -or (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash.ToLowerInvariant() -ne $file.sha256) { throw '发布文件与清单校验值不一致。' }
     $group = if ($file.path -match '^mpv/') { 'mpv' }
         elseif ($file.path -match '^Assets/') { 'assets' }
         elseif ($file.path -match '^(LICENSES/|LICENSE$|THIRD_PARTY_NOTICES\.md$)') { 'licenses' }

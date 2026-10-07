@@ -111,6 +111,8 @@ public static class UpdateTransaction
             if (new FileInfo(journalPath).Length > UpdateFiles.MaximumManifestBytes) throw UpdateFiles.Invalid();
             var journal = JsonSerializer.Deserialize(File.ReadAllBytes(journalPath), ComponentJsonContext.Default.UpdateJournal);
             if (journal?.Existing is not { Length: <= 10000 } || journal.Added is not { Length: <= 10000 }) throw UpdateFiles.Invalid();
+            // Reject the whole recovery plan before restoring or deleting any application file.
+            foreach (var relative in journal.Existing.Concat(journal.Added)) UpdateFiles.ValidateRelativePath(relative);
             foreach (var relative in journal.Existing)
             {
                 var backup = UpdateFiles.Resolve(Path.Combine(transaction, "backup"), relative);

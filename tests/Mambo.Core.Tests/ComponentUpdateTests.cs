@@ -36,6 +36,7 @@ public sealed class ComponentUpdateTests
         Assert.False(fixture.SawAuthorization);
         service.Dispose();
         Assert.False(Directory.Exists(prepared.StagingDirectory));
+        Assert.Equal("saved subtitle", File.ReadAllText(fixture.SavedSubtitle));
     }
 
     [Fact]
@@ -63,6 +64,7 @@ public sealed class ComponentUpdateTests
             Assert.Equal("old app", File.ReadAllText(Path.Combine(fixture.App, "Mambo.exe")));
             Assert.Equal("old blocked", File.ReadAllText(Path.Combine(fixture.App, "blocked.dll")));
             Assert.False(Directory.Exists(Path.Combine(fixture.App, UpdateFiles.TransactionDirectory)));
+            Assert.Equal("saved subtitle", File.ReadAllText(fixture.SavedSubtitle));
         }
         await UpdateTransaction.ApplyAsync(fixture.App, prepared.StagingDirectory, Token);
         Assert.Equal("new app", File.ReadAllText(Path.Combine(fixture.App, "Mambo.exe")));
@@ -162,6 +164,9 @@ public sealed class ComponentUpdateTests
     [InlineData("file:stream")]
     [InlineData("unins000.exe")]
     [InlineData(".mambo-update/backup")]
+    [InlineData("Subtitles")]
+    [InlineData("Subtitles/movie.srt")]
+    [InlineData("sUbTiTlEs/item/nested.ass")]
     public void RejectsUnsafeWindowsPaths(string path) => Assert.Throws<AppUpdateException>(() => UpdateFiles.ValidateRelativePath(path));
 
     [Fact]
@@ -205,6 +210,7 @@ public sealed class ComponentUpdateTests
         Assert.Equal("old app", File.ReadAllText(Path.Combine(fixture.App, "Mambo.exe")));
         Assert.False(File.Exists(Path.Combine(fixture.App, "new-file.dll")));
         Assert.Equal("keep my settings", File.ReadAllText(Path.Combine(fixture.App, "custom.ini")));
+        Assert.Equal("saved subtitle", File.ReadAllText(fixture.SavedSubtitle));
     }
 
     [Fact]
@@ -233,6 +239,88 @@ public sealed class ComponentUpdateTests
         Assert.True(File.Exists(Path.Combine(fixture.App, "Mambo.Updater.exe")));
         Assert.Equal("keep my settings", File.ReadAllText(Path.Combine(fixture.App, "custom.ini")));
         Assert.Equal("uninstaller", File.ReadAllText(Path.Combine(fixture.App, "unins000.exe")));
+        Assert.Equal("saved subtitle", File.ReadAllText(fixture.SavedSubtitle));
+    }
+
+    [Theory]
+    [InlineData("Subtitles/movie.srt")]
+    [InlineData("sUbTiTlEs/item/nested.ass")]
+    [InlineData("Subtitles")]
+    public async Task ReservedSubtitleManifestIsRejectedBeforeDownloadOrApply(string relative)
+    {
+        using var fixture = new Fixture();
+        var app = fixture.Manifest.Components[0];
+        var invalid = fixture.Manifest with
+        { Components = [app with { Files = [.. app.Files, Fixture.FileRecord(relative, Encoding.UTF8.GetBytes("replacement"))] }, fixture.Manifest.Components[1]] };
+        fixture.SetManifest(invalid);
+        using var service = fixture.Service();
+        var update = (await service.CheckAsync(Token))!;
+        await Assert.ThrowsAsync<AppUpdateException>(() => service.PrepareAsync(update, cancellationToken: Token));
+        Assert.DoesNotContain(fixture.Requests, static path => path.EndsWith(".zip", StringComparison.Ordinal));
+        var staging = Path.Combine(fixture.Cache, "invalid-plan");
+        Directory.CreateDirectory(staging);
+        File.WriteAllBytes(Path.Combine(staging, "update.json"), fixture.Assets["Mambo-0.3.0-win-x64-update.json"]);
+        await Assert.ThrowsAsync<AppUpdateException>(() => UpdateTransaction.ApplyAsync(fixture.App, staging, Token));
+        Assert.Equal("old app", File.ReadAllText(Path.Combine(fixture.App, "Mambo.exe")));
+        Assert.Equal("saved subtitle", File.ReadAllText(fixture.SavedSubtitle));
+        Assert.False(Directory.Exists(Path.Combine(fixture.App, UpdateFiles.TransactionDirectory)));
+    }
+
+    [Fact]
+    public async Task InstalledManifestCannotClaimUserSubtitlesForObsoleteRemovalOrUninstall()
+    {
+        using var fixture = new Fixture();
+        using var service = fixture.Service();
+        var prepared = await service.PrepareAsync((await service.CheckAsync(Token))!, cancellationToken: Token);
+        var manifestPath = Path.Combine(fixture.App, "release-manifest.json");
+        var installed = JsonSerializer.Deserialize(File.ReadAllBytes(manifestPath), ComponentTestJsonContext.Default.TestInstalledRelease)!;
+        var invalid = installed with
+        { Files = [.. installed.Files, Fixture.FileRecord("Subtitles/movie.srt", File.ReadAllBytes(fixture.SavedSubtitle))] };
+        File.WriteAllBytes(manifestPath, JsonSerializer.SerializeToUtf8Bytes(invalid, ComponentTestJsonContext.Default.TestInstalledRelease));
+        await Assert.ThrowsAsync<AppUpdateException>(() => UpdateTransaction.ApplyAsync(fixture.App, prepared.StagingDirectory, Token));
+        Assert.Throws<AppUpdateException>(() => UpdateFiles.RemoveInstalledFiles(fixture.App));
+        Assert.Equal("old app", File.ReadAllText(Path.Combine(fixture.App, "Mambo.exe")));
+        Assert.Equal("saved subtitle", File.ReadAllText(fixture.SavedSubtitle));
+        Assert.True(File.Exists(manifestPath));
+    }
+
+    [Theory]
+    [InlineData("existing")]
+    [InlineData("added")]
+    public void RecoveryRejectsReservedSubtitlePathsBeforeAnyMutation(string kind)
+    {
+        using var fixture = new Fixture();
+        var transaction = Path.Combine(fixture.App, UpdateFiles.TransactionDirectory);
+        Directory.CreateDirectory(Path.Combine(transaction, "backup", "Subtitles"));
+        File.WriteAllText(Path.Combine(transaction, "backup", "Subtitles", "movie.srt"), "replacement");
+        File.WriteAllText(Path.Combine(transaction, "backup", "Mambo.exe"), "replacement app");
+        var json = kind == "existing"
+            ? "{\"existing\":[\"Mambo.exe\",\"Subtitles/movie.srt\"],\"added\":[]}"
+            : "{\"existing\":[\"Mambo.exe\"],\"added\":[\"Subtitles/movie.srt\"]}";
+        File.WriteAllText(Path.Combine(transaction, "journal.json"), json);
+        Assert.Throws<AppUpdateException>(() => UpdateTransaction.Recover(fixture.App));
+        Assert.Equal("old app", File.ReadAllText(Path.Combine(fixture.App, "Mambo.exe")));
+        Assert.Equal("saved subtitle", File.ReadAllText(fixture.SavedSubtitle));
+    }
+
+    [Fact]
+    public void CompletedUpdateCacheCleanupKeepsApplicationSubtitleTree()
+    {
+        using var fixture = new Fixture();
+        // Use the application root as the cache to exercise the cleanup boundary in the same tree.
+        var completed = Path.Combine(fixture.App, Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(completed);
+        File.WriteAllText(Path.Combine(completed, "result"), "success");
+        File.SetLastWriteTimeUtc(Path.Combine(completed, "result"), DateTime.UtcNow.AddMinutes(-2));
+        var subtitleDirectory = Path.Combine(fixture.App, "Subtitles", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(subtitleDirectory);
+        File.WriteAllText(Path.Combine(subtitleDirectory, "result"), "success");
+        File.SetLastWriteTimeUtc(Path.Combine(subtitleDirectory, "result"), DateTime.UtcNow.AddMinutes(-2));
+        File.WriteAllText(Path.Combine(subtitleDirectory, "episode.ass"), "persistent subtitle");
+        using var service = new GitHubUpdateService("example/Mambo", "0.1.0", fixture.App, applicationDirectory: fixture.App);
+        Assert.False(Directory.Exists(completed));
+        Assert.Equal("saved subtitle", File.ReadAllText(fixture.SavedSubtitle));
+        Assert.Equal("persistent subtitle", File.ReadAllText(Path.Combine(subtitleDirectory, "episode.ass")));
     }
 
     [Fact]
@@ -252,6 +340,7 @@ public sealed class ComponentUpdateTests
         private readonly string root = Path.Combine(Path.GetTempPath(), "Mambo-component-tests", Guid.NewGuid().ToString("N"));
         public string App => Path.Combine(root, "app");
         public string Cache => Path.Combine(root, "cache");
+        public string SavedSubtitle => Path.Combine(App, "Subtitles", "movie.srt");
         public Dictionary<string, byte[]> NewFiles { get; } = new(StringComparer.Ordinal);
         public Dictionary<string, byte[]> Assets { get; } = new(StringComparer.Ordinal);
         public List<string> Requests { get; } = [];
@@ -275,6 +364,7 @@ public sealed class ComponentUpdateTests
             foreach (var pair in old) Write(pair.Key, pair.Value);
             Write("release-manifest.json", JsonSerializer.SerializeToUtf8Bytes(new TestInstalledRelease("0.1.0", old.Select(static p => FileRecord(p.Key, p.Value)).ToArray()), ComponentTestJsonContext.Default.TestInstalledRelease));
             Write("custom.ini", Encoding.UTF8.GetBytes("keep my settings"));
+            Write("Subtitles/movie.srt", Encoding.UTF8.GetBytes("saved subtitle"));
             Write("unins000.exe", Encoding.UTF8.GetBytes("uninstaller"));
             Write("modified-old.dll", Encoding.UTF8.GetBytes("user changed old file"));
             foreach (var pair in old.Where(static p => p.Key is not ("obsolete.dll" or "modified-old.dll"))) NewFiles.Add(pair.Key, pair.Value);
