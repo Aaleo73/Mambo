@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.Json;
 using Mambo.App.Shell;
 using Mambo.App.Themes;
 using Mambo.App.Views;
@@ -20,6 +21,45 @@ namespace Mambo.App.Debug;
 /// <summary>使用真实播放层的共享事件分派及按钮 AutomationPeer；仅允许本地假服务。</summary>
 internal static class PlayerControlsSmoke
 {
+    internal const string Argument = "--player-controls-smoke";
+
+    /// <summary>只运行播放控件，不启动完整 UiLab 的导航、性能或外观旧阶段。</summary>
+    internal static async Task RunStandaloneAsync(MainWindow window, string reportPath)
+    {
+        var report = new PlayerControlsReport { Stage = "WaitForShell" };
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(120));
+        try
+        {
+            var services = window.Services;
+            var playback = services.GetRequiredService<IPlaybackService>();
+            if (playback is not FakePlaybackService || services.GetRequiredService<ISettingsService>() is not FakeSettingsService ||
+                services.GetRequiredService<ISessionService>() is not FakeSessionService || services.GetRequiredService<ILibraryService>() is not FakeLibraryService ||
+                services.GetRequiredService<IImageService>() is not FakeImageService || services.GetRequiredService<ILibraryPreferences>() is not FakeLibraryPreferences)
+                throw new InvalidOperationException("RealBackendRejected");
+            await WaitAsync(() => window.Shell.IsLoaded && window.Shell.ActualWidth > 0, deadline.Token);
+            report = await RunAsync(window, playback, deadline.Token);
+        }
+        catch (Exception error)
+        {
+            report.Passed = false;
+            report.Status = "Failed";
+            report.Reason = "独立控件诊断中止：" + error.GetType().Name;
+        }
+        finally
+        {
+            Environment.ExitCode = report.Passed ? 0 : 1;
+            try
+            {
+                var path = Path.GetFullPath(reportPath);
+                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                await File.WriteAllTextAsync(path, JsonSerializer.Serialize(report, UiLabJsonContext.Default.PlayerControlsReport));
+            }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+            { Environment.ExitCode = 1; }
+            window.Close();
+        }
+    }
+
     public static async Task<PlayerControlsReport> RunAsync(MainWindow window, IPlaybackService playback, CancellationToken token)
     {
         ArgumentNullException.ThrowIfNull(window);

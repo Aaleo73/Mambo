@@ -109,7 +109,7 @@ public sealed partial class SubtitleControlsViewModel : ObservableObject, IDispo
                 ApplyStyleFields(next.SubtitleStyle);
         }
         finally { applying = false; }
-        if (CanResetStyle && !styleRunning && pendingStyle is null &&
+        if (CanEditStyle && !styleRunning && pendingStyle is null &&
             !Fonts.Contains(next.SubtitleStyle.FontFamily, StringComparer.OrdinalIgnoreCase) &&
             attemptedFontFallback != (next.EntryGeneration, next.SubtitleStyle.FontFamily))
         {

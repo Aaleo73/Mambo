@@ -16,18 +16,19 @@ public sealed partial class App : Application
     {
         Debug.StartupTimeline.Mark("OnLaunched");
         var videoQualityUiSmoke = Program.Arguments.Contains(Debug.VideoQualityUiSmoke.Argument, StringComparer.Ordinal);
-        if (!videoQualityUiSmoke && LabWindow.IsRequested(Program.Arguments))
+        var playerControlsSmoke = Program.Arguments.Contains(Debug.PlayerControlsSmoke.Argument, StringComparer.Ordinal);
+        if (!videoQualityUiSmoke && !playerControlsSmoke && LabWindow.IsRequested(Program.Arguments))
         {
             window = new LabWindow();
             window.Activate();
             return;
         }
-        var nativeOverlaySmoke = !videoQualityUiSmoke && Program.Arguments.Contains(Debug.NativeOverlaySmoke.Argument, StringComparer.Ordinal);
-        var externalHandoffSmoke = !videoQualityUiSmoke && Program.Arguments.Contains(Debug.ExternalHandoffSmoke.Argument, StringComparer.Ordinal);
+        var nativeOverlaySmoke = !videoQualityUiSmoke && !playerControlsSmoke && Program.Arguments.Contains(Debug.NativeOverlaySmoke.Argument, StringComparer.Ordinal);
+        var externalHandoffSmoke = !videoQualityUiSmoke && !playerControlsSmoke && Program.Arguments.Contains(Debug.ExternalHandoffSmoke.Argument, StringComparer.Ordinal);
         var uiSmoke = Program.Arguments.Contains("--ui-smoke", StringComparer.Ordinal);
         var bulletChatSmoke = Program.Arguments.Contains(Debug.BulletChatSmoke.Argument, StringComparer.Ordinal);
-        var fake = videoQualityUiSmoke || uiSmoke || bulletChatSmoke || BackendServices.IsFakeMode(Program.Arguments, Environment.GetEnvironmentVariable("MAMBO_FAKE"));
-        if (videoQualityUiSmoke)
+        var fake = videoQualityUiSmoke || playerControlsSmoke || uiSmoke || bulletChatSmoke || BackendServices.IsFakeMode(Program.Arguments, Environment.GetEnvironmentVariable("MAMBO_FAKE"));
+        if (videoQualityUiSmoke || playerControlsSmoke)
         {
             Environment.SetEnvironmentVariable("MAMBO_FAKE_DELAY_MS", "10");
             Environment.SetEnvironmentVariable("MAMBO_FAKE_FAILURE_RATE", "0");
@@ -53,7 +54,14 @@ public sealed partial class App : Application
         main.Activate();
         Debug.StartupTimeline.Mark("Activated");
         main.StartSession();
-        if (videoQualityUiSmoke)
+        if (playerControlsSmoke)
+        {
+            var reportPath = Environment.GetEnvironmentVariable("MAMBO_PLAYER_CONTROLS_REPORT");
+            if (string.IsNullOrWhiteSpace(reportPath))
+                reportPath = Path.Combine(Path.GetTempPath(), "Mambo", "player-controls", Guid.NewGuid().ToString("N"), "report.json");
+            _ = Debug.PlayerControlsSmoke.RunStandaloneAsync(main, reportPath);
+        }
+        else if (videoQualityUiSmoke)
         {
             // 设置、账号和缓存均为本进程内存假服务；报告也使用本轮独立目录。
             var reportPath = Environment.GetEnvironmentVariable("MAMBO_VIDEO_QUALITY_UI_REPORT");

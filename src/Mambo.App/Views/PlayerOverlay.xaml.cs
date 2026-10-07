@@ -1490,9 +1490,9 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         {
             var items = await args.DataView.GetStorageItemsAsync();
             if (token.IsCancellationRequested) return;
-            var files = items.OfType<StorageFile>().Where(file => !string.IsNullOrWhiteSpace(file.Path) &&
-                Path.GetExtension(file.Name).ToLowerInvariant() is ".srt" or ".ass" or ".ssa" or ".vtt")
-                .Select(file => new LocalSubtitleFile(file.Path)).ToArray();
+            // 保留原始批次的成员数和顺序。Core 根据原始数量判断“单个无编号文件”，
+            // 目录、无路径附件和不支持格式不能在 UI 被删掉后意外变成单文件导入。
+            var files = items.Select(item => new LocalSubtitleFile(item is StorageFile file ? file.Path : "")).ToArray();
             if (files.Length > 0) await session.ImportSubtitlesAsync(context, files, token);
         }
         catch (Exception error) when (error is AppException or OperationCanceledException or IOException or UnauthorizedAccessException or
