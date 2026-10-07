@@ -1,11 +1,15 @@
 # 许可与归属原文
 
-此目录保存官方许可原文，不从旧项目复用。`sources.json` 给出来源及 SHA-256；Windows App SDK、.NET、Toolkit 的 NOTICE 覆盖各自发布包附带的组件。
+此目录保存第三方组件的官方许可原文和原生组件的来源记录，随应用一起分发。总览见仓库根目录的 `THIRD_PARTY_NOTICES.md`。
 
-`libmpv-components.json` 是锁定构建配方的递归依赖清单，包含条件依赖/构建头文件，不能等同于最终 DLL 的完整组成证明。`libmpv-upstream/` 为官方上游默认分支的许可快照；版本对应尚待核对的项在 JSON 和根 `THIRD_PARTY_NOTICES.md` 中说明。
+- **根目录下的许可文本**：GNU、Apache、Microsoft / .NET / Toolkit、MiSans、Feather、Inno Setup、画质着色器，以及 mpv、FFmpeg、Opus 的上游许可说明。来源和 SHA-256 记录在 `sources.json`；Windows App SDK、.NET、Toolkit 的 NOTICE 覆盖各自发布包附带的组件。
+- **`libmpv-components.json`**：内置播放器实际分发的 MSYS2 包清单，含版本、对应源码归档、许可标签和所属 DLL。MSYS2 的汇总许可标签只作索引。
+- **`msys2-native/`、`msys2-rust/`**：各原生包和 Rust 依赖的原始许可、版权与作者信息；来源及哈希索引为 `msys2-license-sources.json`。
+- **`msys2-build/`**：各包的 PKGBUILD 与构建环境记录，`rust/` 下是 Rust 库的 Cargo.lock。重建原生库时使用。
+- **`native-sources.lock.json`**：对应源码归档的文件名、字节数和 SHA-256，发布脚本按它获取并打包源码。
+- **`release-readiness.json`**：发布脚本读取的发布条件，绑定运行时 lock 与源码 lock 的哈希。原生依赖变更后要重新核验并更新。
+- **`msys2-rust-audit.json`、`msys2-rust-build-evidence.json`**：Rust 依赖实际编译版本的核对记录，以及对应的上游构建日志摘录。
 
-GitHub API 识别为 NOASSERTION 的文件已保留原文，不把多许可项目改写成单一许可。下载响应经文本检查，访问挑战/HTML错误页未作为许可证收入。尚无可用原文的组件仍在清单标记待核对。
+多许可项目保留各自的原文，不改写成单一许可。许可文件不替代对应源码：对应源码随每个 GitHub Release 提供，范围与重建方法见 `docs/decisions/native-distribution.md`。
 
-Fontconfig 的官方 Git COPYING 已补齐，固定了许可快照修订；仍不能证明它对应 20260610 的 DLL。Opus DNN 的官方发行证据和生成文件对比见 `opus-model-license-evidence.md`，整个模型包的许可范围仍待确认。
-
-**当前含 libmpv 的二进制输出仅供本地验收，暂不能公开分发。** 公开二进制分发前仍需补齐对应源码与所有原生组件的修订/逐文件归属。此目录的许可证文件不替代对应源码；开发源码 ZIP 也不是完整的原生对应源码包。
+这些文件带 SHA-256 记录，按原始字节保存（见 `.gitattributes`），不要调整换行或空白。

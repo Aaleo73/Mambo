@@ -46,7 +46,7 @@ Mambo 采用 GPL-3.0-or-later。mpv 为 GPL-2.0-or-later；FFmpeg 该包为 GPL-
 
 实际 DLL 所属源码包的 PKGBUILD 已与其二进制 `.BUILDINFO` 的配方哈希匹配。静态/头文件输入按原构建的安装版本核验，Rust 原日志的 226 个编译依赖版本均与保存的锁匹配。源码文件名、字节数与 SHA-256 固定在 `LICENSES/native-sources.lock.json`；源码 ZIP 的分包哈希在主包 source-manifest.json 与 Release SHA256SUMS.txt 中提供。获取、重建步骤及未分发的工具/示例范围详见 `docs/decisions/native-distribution.md`。
 
-旧 shinchiro 20260610 构建及其不完整依赖快照不再进入新发布包。历史文件 `libmpv-upstream/`、`winbuild-20260610-*.cmake`、`opus-model-license-evidence.md` 等用于保留旧开发包调查，不是当前组件的对应源码证据。
+旧 shinchiro 20260610 构建及其不完整的依赖快照不进入发布包；当时为调查它而保存的上游许可快照和构建配方已从 `LICENSES/` 移除。
 ## 许可原文来源
 
 GNU 文本从 [gnu.org](https://www.gnu.org/licenses/) 下载；Apache-2.0 从 [apache.org](https://www.apache.org/licenses/LICENSE-2.0.txt) 下载；Microsoft/.NET/Toolkit 文本原样取自本机已锁定并还原的官方 NuGet 包；MiSans PDF 从小米官方网站下载；Feather 文本取自 [v4.29.2 上游许可](https://raw.githubusercontent.com/feathericons/feather/v4.29.2/LICENSE)。文件 SHA-256 与来源在 `LICENSES/sources.json` 中记录。
