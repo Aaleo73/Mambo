@@ -9,7 +9,7 @@ using Mambo.Core.Session;
 namespace Mambo.Core.Playback;
 
 /// <summary>只有收件箱读循环改变播放状态；准备工作完成后投回收件箱。</summary>
-public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
+public sealed partial class PlaybackSession : IPlaybackSession, IAsyncDisposable
 {
     private static readonly string[] RemoveOldEntryCommand = ["playlist-remove", "0"];
     private static readonly string[] StopCommand = ["stop"];
@@ -78,7 +78,7 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
     public event Func<Task>? Detaching;
     public Task Completion => actor;
     internal string RequestedItemId => request.ItemId;
-    internal void Start() => Post(() => { Initialize(); return Task.CompletedTask; });
+    internal void Start() => Post(() => { CaptureTrackSettings(); Initialize(); return Task.CompletedTask; });
 
     private async Task RunAsync()
     {
@@ -144,6 +144,7 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
                     await owned.SetAsync("volume", new MpvValue.Number(desiredVolume), lifetime.Token).ConfigureAwait(false);
                     await owned.SetAsync("speed", new MpvValue.Number(desiredRate), lifetime.Token).ConfigureAwait(false);
                     await owned.SetAsync("mute", new MpvValue.Flag(desiredMuted), lifetime.Token).ConfigureAwait(false);
+                    await InitializeSubtitleEngineAsync(owned).ConfigureAwait(false);
                 }
                 scheduler.TryEnqueue(() => { if (Engine == owned && !finalized) EngineChanged?.Invoke(owned); });
                 background.Add(ConsumeAsync(owned));
@@ -166,6 +167,9 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
         {
             await foreach (var message in owner.Events.ReadAllAsync().ConfigureAwait(false))
             {
+                // 原生连播可先于 actor 消费完成；阻止旧 sub-add 完成后向新条目写入旧手选。
+                if (ReferenceEquals(owner, Engine) && message is EngineEvent.StartFile start)
+                    Volatile.Write(ref nativeEntryStamp, new(owner, start.EntryId));
                 shutdownSeen |= message is EngineEvent.Shutdown;
                 Post(() => ReferenceEquals(owner, engine) ? HandleAsync(message) : Task.CompletedTask);
             }
@@ -248,8 +252,13 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
                 (engine.Kind == EngineKind.External && externalPlaylist.Values.Any(value => !value.Ended && value != active));
             if (!append) await PrepareVideoQualityAsync(entry).ConfigureAwait(false);
             entry.Candidate = candidate;
+            var fileOptions = engine.Kind == EngineKind.Embedded ? candidate.FileOptions
+                .Where(pair => pair.Key is not ("aid" or "sid" or "sub-delay"))
+                .Concat(new KeyValuePair<string, string>[] { new("aid", "auto"),
+                    new("sid", trackEpoch.SubtitleLanguage == "off" ? "no" : "auto"), new("sub-delay", "0") }).ToArray()
+                : (IReadOnlyList<KeyValuePair<string, string>>)candidate.FileOptions;
             entry.NativeId = await engine.LoadAsync(candidate.Url.Address.AbsoluteUri,
-                append ? LoadMode.Append : LoadMode.Replace, candidate.FileOptions, lifetime.Token).ConfigureAwait(false);
+                append ? LoadMode.Append : LoadMode.Replace, fileOptions, lifetime.Token).ConfigureAwait(false);
             if (entry.NativeId < 0) throw new InvalidOperationException("播放器未返回播放条目标识。");
             entry.NativeFailureLogged = false;
             entry.Loaded = false;
@@ -315,13 +324,15 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
                     preparedEntries.Add(entry);
                 }
                 active = entry; appended = appended == entry ? null : appended;
+                ResetTrackEntry(entry);
                 if (!entry.VideoQualityPrepared) entry.VideoQualityMode = ResolveVideoQualityMode(entry.Prepared.Entry);
                 if (engine?.Kind == EngineKind.External) appended = ExternalNext(entry.Index);
                 entry.PositionTicks = entry.Prepared.StartTicks;
                 Update(snapshot with { Entry = entry.Prepared.Entry, CurrentEntryIndex = entry.Index,
                     PositionTicks = entry.PositionTicks, DurationTicks = entry.Prepared.Entry.DurationTicks ?? 0,
                     Phase = PlayerPhase.Opening, Error = null, AudioTracks = [], SubtitleTracks = [],
-                    SelectedAudioTrackId = null, SelectedSubtitleTrackId = null, BufferedRanges = [], IsSlowOpening = false });
+                    SelectedAudioTrackId = null, SelectedSubtitleTrackId = null, BufferedRanges = [], IsSlowOpening = false,
+                    EntryGeneration = entry.Generation, SubtitleDelaySeconds = 0 });
                 Update(snapshot with { IsVideoQualityChanging = engine is IVideoQualityEngine && engine.Kind == EngineKind.Embedded,
                     VideoQualityError = entry.VideoQualityPreparationError });
                 if (entry.WasAppended && engine is { Kind: not EngineKind.External })
@@ -344,6 +355,13 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
                 if (engine is IVideoQualityEngine && engine.Kind == EngineKind.Embedded)
                     StartVideoQualityChange(current, current.VideoQualityMode, null, lifetime.Token, current.VideoQualityPreparationError);
                 TrackPreparation(LoadSubtitlesAsync(current));
+                if (engine?.Kind == EngineKind.Embedded)
+                {
+                    try { await ResetSubtitleDelayAsync().ConfigureAwait(false); }
+                    catch (Exception) { LogSubtitleFailure("playback.subtitle_delay_reset_failed"); }
+                    TrackPreparation(LoadLocalSubtitlesAsync(current));
+                    await ApplyTrackSelectionAsync().ConfigureAwait(false);
+                }
                 break;
             case EngineEvent.PlaybackRestart when active is { Loaded: true, Ended: false } started && !closing:
                 if (!started.Confirmed)
@@ -395,7 +413,7 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
                         true, "playback.end-file", end.Error, endedEntry.LastNativeFailure?.DiagnosticId));
                 break;
             case EngineEvent.PropertyChanged property when !closing:
-                PropertyChanged(property);
+                await HandleTrackPropertyAsync(property).ConfigureAwait(false);
                 break;
             case EngineEvent.Shutdown when !closing:
                 if (active is { } interrupted) Stop(interrupted);
@@ -452,8 +470,12 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
                 entry.Subtitles = ready;
                 foreach (var subtitle in ready)
                     if (engine is not null)
-                        await engine.CommandAsync(new[] { "sub-add", subtitle.LocalPath, "auto", subtitle.Subtitle.Title,
-                            subtitle.Subtitle.Language }, lifetime.Token).ConfigureAwait(false);
+                        try
+                        {
+                            await AddSubtitleAsync(entry, subtitle.LocalPath, subtitle.Subtitle.Title,
+                                subtitle.Subtitle.Language).ConfigureAwait(false);
+                        }
+                        catch (Exception) { LogSubtitleFailure("playback.server_subtitle_load_failed"); }
             })) await preparer.ReleaseSubtitlesAsync(ready).ConfigureAwait(false);
         }
         catch (Exception exception)
@@ -545,35 +567,6 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
                 Update(snapshot with { BufferedRanges = ranges.ToImmutable() }); break;
         }
     }
-    private void Tracks(MpvValue.Array values)
-    {
-        var audio = ImmutableArray.CreateBuilder<TrackInfo>();
-        var subtitles = ImmutableArray.CreateBuilder<TrackInfo>();
-        active?.TrackIndexes.Clear();
-        foreach (var track in values.Values.OfType<MpvValue.Map>())
-        {
-            var type = Text(track.Values.GetValueOrDefault("type"));
-            var kind = type == "audio" ? TrackKind.Audio : TrackKind.Subtitle;
-            if (type is not ("audio" or "sub")) continue;
-            var list = kind == TrackKind.Audio ? audio : subtitles;
-            if (list.Count >= 32) continue;
-            var id = TrackId(track.Values.GetValueOrDefault("id"));
-            if (id is null) continue;
-            var language = CleanLabel(Text(track.Values.GetValueOrDefault("lang")));
-            var title = CleanLabel(Text(track.Values.GetValueOrDefault("title")));
-            var label = string.Join(" · ", new[] { title, language }.Where(part => !string.IsNullOrWhiteSpace(part)));
-            if (string.IsNullOrEmpty(label)) label = (kind == TrackKind.Audio ? "音轨 " : "字幕 ") + (list.Count + 1).ToString(CultureInfo.InvariantCulture);
-            list.Add(new(id, kind, label.Length > 96 ? label[..96] : label) { Language = language,
-                IsDefault = track.Values.GetValueOrDefault("default") is MpvValue.Flag { Value: true } });
-            if (Numeric(track.Values.GetValueOrDefault("ff-index")) is { } index && index >= 0 && index <= int.MaxValue && active is { } entry)
-            {
-                var mediaType = kind == TrackKind.Audio ? "Audio" : "Subtitle";
-                if (entry.Candidate?.Candidate.MediaSource.MediaStreams?.Any(stream => stream.Index == (int)index && stream.Type == mediaType) == true)
-                    entry.TrackIndexes[(kind, id)] = (int)index;
-            }
-        }
-        Update(snapshot with { AudioTracks = audio.ToImmutable(), SubtitleTracks = subtitles.ToImmutable() });
-    }
     private static string? CleanLabel(string? value)
     {
         if (value is null || value.Contains("://", StringComparison.Ordinal) || value.Contains('\\') || value.StartsWith('/')) return null;
@@ -601,6 +594,13 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
     }
     private void Update(SessionSnapshot value, bool throttle = false)
     {
+        var subtitle = value.SubtitleTracks.FirstOrDefault(track => track.Id == value.SelectedSubtitleTrackId);
+        var subtitleControls = value.EngineKind == EngineKind.Embedded && active is { Loaded: true, Ended: false } &&
+            !closing && !switching && value.Phase is PlayerPhase.Opening or PlayerPhase.Playing;
+        value = value with { SubtitleStyleKind = value.SelectedSubtitleTrackId is null ? SubtitleStyleKind.None :
+            subtitle?.SubtitleStyleKind ?? SubtitleStyleKind.Unknown,
+            CanAdjustSubtitleDelay = subtitleControls && value.SelectedSubtitleTrackId is not null,
+            CanImportSubtitles = subtitleControls && LocalSubtitles is not null };
         Volatile.Write(ref snapshot, value with { CapturedAtUtc = clock.GetUtcNow() });
         if (throttle)
         {
@@ -622,6 +622,7 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
     public Task CloseAsync(PlaybackEndReason reason, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        CancelSubtitleLoads();
         Post(() => BeginCloseAsync(reason));
         return closed.Task.WaitAsync(cancellationToken);
     }
@@ -844,15 +845,6 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
       Update(snapshot with { IsMuted = muted }); }, cancellationToken);
     private async Task SetAsync(string name, MpvValue value) => await EngineRequired.SetAsync(name, value, lifetime.Token).ConfigureAwait(false);
     private IPlayerEngine EngineRequired => engine ?? throw new AppException(new(AppErrorKind.Player, ErrorCodes.PlaybackBusy, "播放器尚未准备好。", true));
-    public Task SelectAudioTrackAsync(string? trackId, CancellationToken cancellationToken = default) => SelectTrackAsync(trackId, true, cancellationToken);
-    public Task SelectSubtitleTrackAsync(string? trackId, CancellationToken cancellationToken = default) => SelectTrackAsync(trackId, false, cancellationToken);
-    private Task SelectTrackAsync(string? id, bool audio, CancellationToken cancellationToken) => Command(async () =>
-    {
-        var tracks = audio ? snapshot.AudioTracks : snapshot.SubtitleTracks;
-        if (id is not null && !tracks.Any(track => track.Id == id)) throw InvalidCommand();
-        await SetAsync(audio ? "aid" : "sid", new MpvValue.Text(id ?? "no")).ConfigureAwait(false);
-        Update(audio ? snapshot with { SelectedAudioTrackId = id } : snapshot with { SelectedSubtitleTrackId = id });
-    }, cancellationToken);
     public Task PreviousAsync(CancellationToken cancellationToken = default) => Command(() => SwitchAsync(snapshot.CurrentEntryIndex - 1), cancellationToken);
     public Task NextAsync(CancellationToken cancellationToken = default) => Command(() => SwitchAsync(snapshot.CurrentEntryIndex + 1), cancellationToken);
     public Task SelectEntryAsync(string itemId, CancellationToken cancellationToken = default) => Command(() =>
@@ -897,7 +889,7 @@ public sealed class PlaybackSession : IPlaybackSession, IAsyncDisposable
     private sealed record Input(Func<Task> Action, TaskCompletionSource? Completion = null);
     private sealed record VideoQualityChange(long Revision, IPlayerEngine Engine, LoadedEntry Entry, VideoQualityMode Mode,
         TaskCompletionSource? Completion, CancellationTokenSource Cancellation, AppError? RetainedError);
-    private sealed class LoadedEntry(PreparedEntry prepared, int index)
+    private sealed partial class LoadedEntry(PreparedEntry prepared, int index)
     {
         public PreparedEntry Prepared { get; } = prepared;
         public int Index { get; } = index;

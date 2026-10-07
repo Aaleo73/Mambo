@@ -7,6 +7,63 @@ namespace Mambo.Player.Tests;
 
 public sealed class LibMpvEngineTests
 {
+    [Fact]
+    public async Task NativeTextSubtitlesExposeTracksDelayAndAllStylePropertiesWhilePaused()
+    {
+        RequireLibrary();
+        var token = TestContext.Current.CancellationToken;
+        var directory = Path.Combine(Path.GetTempPath(), "mambo-subtitle-native-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var srt = Path.Combine(directory, "sample.srt");
+            var ass = Path.Combine(directory, "sample.ass");
+            await File.WriteAllTextAsync(srt, "1\n00:00:00,000 --> 00:00:20,000\nSubtitle\n", token);
+            await File.WriteAllTextAsync(ass, """
+                [Script Info]
+                ScriptType: v4.00+
+                PlayResX: 1280
+                PlayResY: 720
+                [V4+ Styles]
+                Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+                Style: Default,Arial,40,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,0,2,10,10,20,1
+                [Events]
+                Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+                Dialogue: 0,0:00:00.00,0:00:20.00,Default,,0,0,0,,Subtitle
+                """, token);
+            await using var engine = await LibMpvEngine.CreateAsync(headless: true, enableAudio: false, cancellationToken: token);
+            await engine.LoadAsync(TestSource, LoadMode.Replace, [], token);
+            await ReadUntil(engine, value => value is EngineEvent.FileLoaded);
+            await engine.SetAsync("pause", new MpvValue.Flag(true), token);
+            await engine.CommandAsync(new[] { "sub-add", srt, "auto", "Text", "en" }, token);
+            await engine.CommandAsync(new[] { "sub-add", ass, "auto", "Styled", "en" }, token);
+            var trackEvent = Assert.IsType<EngineEvent.PropertyChanged>(await ReadUntil(engine, value => value is EngineEvent.PropertyChanged
+            {
+                Property: EngineProperty.TrackList, Value: MpvValue.Array array,
+            } && array.Values.OfType<MpvValue.Map>().Count(track => track.Values.GetValueOrDefault("type") is MpvValue.Text { Value: "sub" }) == 2));
+            var tracks = Assert.IsType<MpvValue.Array>(trackEvent.Value).Values.OfType<MpvValue.Map>()
+                .Where(track => track.Values.GetValueOrDefault("type") is MpvValue.Text { Value: "sub" }).ToArray();
+            Assert.Contains(tracks, track => track.Values.GetValueOrDefault("codec") is MpvValue.Text { Value: "ass" });
+            var id = Assert.IsType<MpvValue.WholeNumber>(tracks[0].Values["id"]).Value;
+            await engine.SetAsync("sid", new MpvValue.WholeNumber(id), token);
+            await engine.SetAsync("sub-delay", new MpvValue.Number(0.4), token);
+            await ReadUntil(engine, value => value is EngineEvent.PropertyChanged
+            { Property: EngineProperty.SubtitleDelay, Value: MpvValue.Number number } && Math.Abs(number.Value - 0.4) < 0.0001);
+            var style = new Mambo.Core.Contracts.SubtitleStyleSettings { FontSize = 48, OutlineSize = 2, BottomMargin = 40, OverrideAssStyle = true };
+            foreach (var pair in SubtitleStyle.Properties(style))
+            {
+                var error = await Record.ExceptionAsync(async () => await engine.SetAsync(pair.Key, pair.Value, token));
+                Assert.True(error is null, $"字幕样式属性 {pair.Key} 未被原生播放器接受：{error?.Message}");
+            }
+            Assert.Equal("force", Assert.IsType<Mambo.Player.LibMpv.MpvValue.Text>(engine.Core.GetProperty("sub-ass-override")).Value);
+            Assert.Equal(40, Assert.IsType<Mambo.Player.LibMpv.MpvValue.WholeNumber>(engine.Core.GetProperty("sub-margin-y")).Value);
+            Assert.True(Assert.IsType<Mambo.Player.LibMpv.MpvValue.Flag>(engine.Core.GetProperty("pause")).Value);
+            await engine.SetAsync("sub-ass-override", new MpvValue.Text("no"), token);
+            Assert.False(Assert.IsType<Mambo.Player.LibMpv.MpvValue.Flag>(engine.Core.GetProperty("sub-ass-override")).Value);
+        }
+        finally { Directory.Delete(directory, recursive: true); }
+    }
+
     private const string TestSource = "av://lavfi:testsrc=size=128x72:rate=24";
     private static readonly string[] PlaylistNextCommand = ["playlist-next"];
     private static readonly string[] QuitCommand = ["quit"];

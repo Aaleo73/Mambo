@@ -75,7 +75,9 @@ public sealed record PlaybackReport
     public PlaybackQueueItem[] NowPlayingQueue { get; init; } = [];
     public int MaxStreamingBitrate { get; init; } = int.MaxValue;
     public string RepeatMode { get; init; } = "RepeatNone";
-    public long SubtitleOffset { get; init; } public bool Shuffle { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? SubtitleOffset { get; init; }
+    public bool Shuffle { get; init; }
     public int? AudioStreamIndex { get; init; } public int? SubtitleStreamIndex { get; init; }
     public override string ToString() => "PlaybackReport { <redacted> }";
 }

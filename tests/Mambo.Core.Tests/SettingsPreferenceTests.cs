@@ -297,6 +297,28 @@ public sealed class SettingsPreferenceTests
         Assert.Equal(0, runtime.ImageCache.MemoryBytes);
     }
 
+    [Fact]
+    public async Task SettingsCacheCleanupPreservesSubtitlesBesideExecutable()
+    {
+        using var directory = new SettingsDirectory();
+        using var runtime = new BackendRuntime(directory.Paths, new EmptySecretStore(), new PreferenceScheduler(),
+            new WeakReferenceMessenger(), new FakeTimeProvider());
+        var subtitleDirectory = Path.Combine(AppContext.BaseDirectory, "Subtitles", "test-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(subtitleDirectory);
+        var subtitleFile = Path.Combine(subtitleDirectory, "preserved.srt");
+        try
+        {
+            await File.WriteAllTextAsync(subtitleFile, "synthetic subtitle", TestContext.Current.CancellationToken);
+            await runtime.Settings.ClearCacheAsync(TestContext.Current.CancellationToken);
+            Assert.Equal("synthetic subtitle", await File.ReadAllTextAsync(subtitleFile, TestContext.Current.CancellationToken));
+        }
+        finally
+        {
+            File.Delete(subtitleFile);
+            Directory.Delete(subtitleDirectory);
+        }
+    }
+
     private static SessionSecret Secret()
     {
         var address = new UriBuilder(Uri.UriSchemeHttps, Guid.NewGuid().ToString("N") + ".invalid").Uri.AbsoluteUri;

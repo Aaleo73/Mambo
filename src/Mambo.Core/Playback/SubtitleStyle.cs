@@ -14,7 +14,7 @@ public static class SubtitleStyle
             FontSize = ValidNumber(value.FontSize, 18, 72) ? value.FontSize : defaults.FontSize,
             TextColor = ValidColor(value.TextColor) ? value.TextColor : defaults.TextColor,
             OutlineSize = ValidNumber(value.OutlineSize, 0, 6) ? value.OutlineSize : defaults.OutlineSize,
-            BottomMargin = ValidNumber(value.BottomMargin, 0, 180) ? value.BottomMargin : defaults.BottomMargin,
+            BottomMargin = ValidNumber(value.BottomMargin, 0, 180) ? Math.Round(value.BottomMargin) : defaults.BottomMargin,
         };
     }
 
@@ -36,7 +36,7 @@ public static class SubtitleStyle
             ["sub-color"] = new MpvValue.Text(style.TextColor),
             ["sub-border-color"] = new MpvValue.Text("#000000"),
             ["sub-border-size"] = new MpvValue.Number(style.OutlineSize),
-            ["sub-margin-y"] = new MpvValue.Number(style.BottomMargin),
+            ["sub-margin-y"] = new MpvValue.WholeNumber((long)style.BottomMargin),
             ["sub-ass-override"] = new MpvValue.Text(style.OverrideAssStyle ? "force" : "no"),
         };
     }

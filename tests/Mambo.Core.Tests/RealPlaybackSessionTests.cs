@@ -10,12 +10,13 @@ using Mambo.Core.Persistence;
 using Mambo.Core.Playback;
 using Mambo.Core.Reliability;
 using Mambo.Core.Session;
+using Mambo.Core.Subtitles;
 using Microsoft.Extensions.Time.Testing;
 using Xunit;
 
 namespace Mambo.Core.Tests;
 
-public sealed class RealPlaybackSessionTests
+public sealed partial class RealPlaybackSessionTests
 {
     private static readonly string[] ReportKinds = ["Playing", "Progress", "Progress", "Progress", "Stopped"];
     private static readonly string[] ProgressNames = ["Pause", "TimeUpdate", "Unpause"];
@@ -760,6 +761,17 @@ public sealed class RealPlaybackSessionTests
         public SettingsStore Settings => settings;
         public AccountSession Account => accounts.Current!;
         public VideoQualityPreferences QualityPreferences { get; }
+        public TrackPreferences TrackPreferences { get; }
+        public LocalSubtitleLibrary LocalSubtitles { get; }
+        public TestSubtitleResolver SubtitleTargets { get; } = new();
+        public string SubtitleSource(string name, string text = "1\n00:00:00,000 --> 00:00:20,000\n测试字幕\n")
+        {
+            var directory = Path.Combine(paths.Root, "sources");
+            Directory.CreateDirectory(directory);
+            var path = Path.Combine(directory, name);
+            File.WriteAllText(path, text);
+            return path;
+        }
         private readonly EmbyApi api;
         public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 10, 2, 0, 0, 0, TimeSpan.Zero));
         public QueueScheduler Scheduler { get; } = new();
@@ -801,6 +813,8 @@ public sealed class RealPlaybackSessionTests
             }));
             settings = new(paths, Scheduler);
             QualityPreferences = new(settings, accounts);
+            TrackPreferences = new(settings, accounts);
+            LocalSubtitles = new(Path.Combine(paths.Root, "Subtitles"), accounts, SubtitleTargets, Diagnostics.Enqueue);
             Outbox = new(paths, api, Clock);
             Preparer = new(entryCount, candidateCount, seriesId);
             Coordinator = new(accounts, Preparer, _ =>
@@ -809,7 +823,7 @@ public sealed class RealPlaybackSessionTests
                 if (engine is FakeVideoQualityEngine quality) quality.PrepareFailureMode = prepareFailureMode;
                 engine.EmitInitialControls();
                 Engines.Enqueue(engine); return Task.FromResult<IPlayerEngine>(engine);
-            }, api, Outbox, settings, Scheduler, new WeakReferenceMessenger(), Clock, Diagnostics.Enqueue, QualityPreferences);
+            }, api, Outbox, settings, Scheduler, new WeakReferenceMessenger(), Clock, Diagnostics.Enqueue, QualityPreferences, TrackPreferences, LocalSubtitles);
         }
         public Task PreferAsync(VideoQualityMode mode) =>
             QualityPreferences.SaveAsync(Account, new("entry-0", "测试条目 0"), mode, TestContext.Current.CancellationToken);
@@ -841,7 +855,7 @@ public sealed class RealPlaybackSessionTests
             }
             await Coordinator.DisposeAsync();
             await Outbox.DisposeAsync();
-            settings.Dispose(); api.Dispose(); accounts.Dispose();
+            LocalSubtitles.Dispose(); settings.Dispose(); api.Dispose(); accounts.Dispose();
             Directory.Delete(paths.Root, recursive: true);
         }
     }
@@ -856,6 +870,7 @@ public sealed class RealPlaybackSessionTests
         private TaskCompletionSource? planGate;
         public TaskCompletionSource PlanCancelled { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public ConcurrentQueue<long> Starts { get; } = new();
+        public EmbyStreamInfo[] MediaStreams { get; set; } = [];
         public int Count(string id) => counts.GetValueOrDefault(id);
         public TaskCompletionSource Hold(string id, bool ignoreCancellation = false)
         {
@@ -879,7 +894,7 @@ public sealed class RealPlaybackSessionTests
             counts.AddOrUpdate(entry.ItemId, 1, (_, count) => count + 1); Starts.Enqueue(startTicks);
             if (held.TryGetValue(entry.ItemId, out var gate))
                 await gate.Source.Task.WaitAsync(gate.IgnoreCancellation ? CancellationToken.None : cancellationToken);
-            var source = new EmbyMediaSource { Id = "source", MediaStreams = [] };
+            var source = new EmbyMediaSource { Id = "source", MediaStreams = MediaStreams };
             var candidates = Enumerable.Range(0, candidateCount).Select(index => new StreamCandidate(
                 account.Address.Endpoint("Videos/" + entry.ItemId + "/candidate/" + index),
                 transcode.TryGetValue(entry.ItemId, out var firstOnly) && (!firstOnly || index == 0) ? "Transcode" : "DirectPlay", source,
@@ -906,9 +921,15 @@ public sealed class RealPlaybackSessionTests
         public ConcurrentQueue<string[]> Commands { get; } = new();
         public ConcurrentQueue<string> Lifecycle { get; } = new();
         public ConcurrentDictionary<string, MpvValue> Values { get; } = new();
+        public ConcurrentQueue<(string Property, MpvValue Value)> PropertyWrites { get; } = new();
         public bool AutoEndOnStop { get; set; } = true;
         public bool Disposed { get; private set; }
         public long ActiveId { get; private set; }
+        public List<MpvValue?> NativeTracks { get; } = [];
+        public bool SimulateSubtitleAutoselection { get; set; }
+        public string? FailNextProperty { get; set; }
+        public TaskCompletionSource? SubAddHold { get; set; }
+        public TaskCompletionSource SubAddEntered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public void EmitInitialControls()
         {
             Emit(new EngineEvent.PropertyChanged(EngineProperty.Speed, new MpvValue.Number(1)));
@@ -918,6 +939,8 @@ public sealed class RealPlaybackSessionTests
         public void Emit(EngineEvent message)
         {
             if (message is EngineEvent.StartFile start) ActiveId = start.EntryId;
+            if (message is EngineEvent.PropertyChanged { Property: EngineProperty.TrackList, Value: MpvValue.Array array })
+            { NativeTracks.Clear(); NativeTracks.AddRange(array.Values); }
             events.Writer.TryWrite(message);
         }
         public ValueTask<long> LoadAsync(string url, LoadMode mode, IReadOnlyList<KeyValuePair<string, string>> fileOptions, CancellationToken cancellationToken)
@@ -931,7 +954,7 @@ public sealed class RealPlaybackSessionTests
             if (mode == LoadMode.Replace) Emit(new EngineEvent.StartFile(id));
             return ValueTask.FromResult(id);
         }
-        public ValueTask CommandAsync(ReadOnlyMemory<string> arguments, CancellationToken cancellationToken)
+        public async ValueTask CommandAsync(ReadOnlyMemory<string> arguments, CancellationToken cancellationToken)
         {
             var args = arguments.ToArray(); Commands.Enqueue(args);
             if (args[0] == "stop")
@@ -945,12 +968,36 @@ public sealed class RealPlaybackSessionTests
                 Emit(new EngineEvent.EndFile(ActiveId, EngineEndReason.Stop, 0));
                 Emit(new EngineEvent.StartFile(next.Id));
             }
-            return ValueTask.CompletedTask;
+            else if (args[0] == "sub-add")
+            {
+                SubAddEntered.TrySetResult();
+                if (SubAddHold is { } hold) await hold.Task.WaitAsync(cancellationToken);
+                var id = 100 + NativeTracks.Count;
+                var codec = Path.GetExtension(args[1]).Equals(".ass", StringComparison.OrdinalIgnoreCase) ? "ass" : "subrip";
+                var tracks = NativeTracks.Append(new MpvValue.Map(new Dictionary<string, MpvValue?>
+                {
+                    ["type"] = new MpvValue.Text("sub"), ["id"] = new MpvValue.WholeNumber(id),
+                    ["title"] = new MpvValue.Text(args[3]), ["codec"] = new MpvValue.Text(codec),
+                    ["external"] = new MpvValue.Flag(true), ["external-filename"] = new MpvValue.Text(args[1]),
+                    ["ff-index"] = new MpvValue.WholeNumber(0),
+                })).ToArray();
+                Emit(new EngineEvent.PropertyChanged(EngineProperty.TrackList, new MpvValue.Array(tracks)));
+                if (SimulateSubtitleAutoselection) Emit(new EngineEvent.PropertyChanged(EngineProperty.SubtitleTrack, new MpvValue.Text(id.ToString(System.Globalization.CultureInfo.InvariantCulture))));
+            }
+            else if (args[0] == "sub-remove")
+            {
+                var tracks = NativeTracks.Where(track => track is not MpvValue.Map map ||
+                    map.Values.GetValueOrDefault("id") is not MpvValue.WholeNumber id ||
+                    id.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) != args[1]).ToArray();
+                Emit(new EngineEvent.PropertyChanged(EngineProperty.TrackList, new MpvValue.Array(tracks)));
+            }
         }
         public ValueTask SetAsync(string propertyName, MpvValue value, CancellationToken cancellationToken)
         {
+            if (FailNextProperty == propertyName) { FailNextProperty = null; throw new InvalidOperationException("synthetic failure"); }
             cancellationToken.ThrowIfCancellationRequested();
             Values[propertyName] = value;
+            PropertyWrites.Enqueue((propertyName, value));
             return ValueTask.CompletedTask;
         }
         public ValueTask DisposeAsync()

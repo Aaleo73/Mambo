@@ -159,7 +159,7 @@ public sealed partial class SubtitleControlsViewModel : ObservableObject, IDispo
         styleTimer.Stop();
         if (!TryNumber(FontSizeText, 18, 72, out var size)) { StyleError = "字号范围为 18–72"; return; }
         if (!TryNumber(OutlineText, 0, 6, out var outline)) { StyleError = "描边粗细范围为 0–6"; return; }
-        if (!TryNumber(MarginText, 0, 180, out var margin)) { StyleError = "底部距离范围为 0–180"; return; }
+        if (!TryNumber(MarginText, 0, 180, out var margin) || margin != Math.Round(margin)) { StyleError = "底部距离为 0–180 的整数"; return; }
         var color = TextColor.Trim();
         if (color.Length != 7 || color[0] != '#' || !uint.TryParse(color.AsSpan(1), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out _))
         { StyleError = "请输入 #RRGGBB 格式的文字颜色"; return; }

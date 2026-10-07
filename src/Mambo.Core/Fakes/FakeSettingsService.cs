@@ -221,7 +221,7 @@ public sealed class FakeSettingsService(FakeOperation operation, IUiScheduler sc
         style is not null && !string.IsNullOrWhiteSpace(style.FontFamily) && style.FontFamily.Length <= 256 && !style.FontFamily.Any(char.IsControl) &&
         double.IsFinite(style.FontSize) && style.FontSize is >= 18 and <= 72 &&
         double.IsFinite(style.OutlineSize) && style.OutlineSize is >= 0 and <= 6 &&
-        double.IsFinite(style.BottomMargin) && style.BottomMargin is >= 0 and <= 180 &&
+        double.IsFinite(style.BottomMargin) && style.BottomMargin is >= 0 and <= 180 && style.BottomMargin == Math.Round(style.BottomMargin) &&
         style.TextColor is { Length: 7 } color && color[0] == '#' &&
         uint.TryParse(color.AsSpan(1), System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out _);
 }

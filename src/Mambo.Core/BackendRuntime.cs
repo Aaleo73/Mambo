@@ -9,6 +9,7 @@ using Mambo.Core.Persistence;
 using Mambo.Core.Playback;
 using Mambo.Core.Reliability;
 using Mambo.Core.Session;
+using Mambo.Core.Subtitles;
 
 namespace Mambo.Core;
 
@@ -23,6 +24,7 @@ public sealed class BackendRuntime : IDisposable, IAsyncDisposable
     private readonly object volumeGate = new();
     private readonly IUiScheduler scheduler;
     private readonly IMessenger messenger;
+    private readonly LocalSubtitleLibrary? localSubtitleLibrary;
     public BackendRuntime(AppPaths paths, ISecretStore secrets, IUiScheduler scheduler, IMessenger messenger,
         TimeProvider? clock = null, HttpMessageHandler? apiHandler = null, HttpMessageHandler? imageHandler = null,
         Func<CancellationToken, Task<IPlayerEngine>>? engineFactory = null, HttpMessageHandler? playbackHandler = null,
@@ -45,8 +47,11 @@ public sealed class BackendRuntime : IDisposable, IAsyncDisposable
             playbackClient = playbackHandler is null ? StreamUrlResolver.CreateClient()
                 : new HttpClient(playbackHandler) { Timeout = Timeout.InfiniteTimeSpan };
             var preparer = new EntryPreparer(Api, new StreamUrlResolver(playbackClient), Settings.Current.DeviceId, paths, Requests);
+            localSubtitleLibrary = new(Path.Combine(AppContext.BaseDirectory, "Subtitles"), Accounts,
+                new LocalSubtitleTargetResolver(Api), error => Log.Error("字幕", error));
             Playback = new PlaybackCoordinator(Accounts, preparer, engineFactory, Api, Outbox, Settings, scheduler, messenger, clock,
-                error => Log.Error("播放会话", error), new VideoQualityPreferences(Settings, Accounts));
+                error => Log.Error("播放会话", error), new VideoQualityPreferences(Settings, Accounts),
+                new TrackPreferences(Settings, Accounts), localSubtitleLibrary);
         }
         bulletChatCache = new(paths, clock);
         bulletChatClient = new(bulletChatHandler, bulletChatCache);
@@ -158,7 +163,7 @@ public sealed class BackendRuntime : IDisposable, IAsyncDisposable
         BulletChat.Dispose(); bulletChatClient.Dispose(); bulletChatHistory.Dispose();
         Preferences.Dispose(); Library.Dispose(); Session.Dispose(); (Playback as IDisposable)?.Dispose();
         Images.Dispose(); ImageCache.Dispose(); QueryCache.Dispose(); Outbox.Dispose(); Requests.Dispose();
-        playbackClient?.Dispose(); Api.Dispose(); Accounts.Dispose(); Settings.Dispose(); Log.Dispose();
+        playbackClient?.Dispose(); localSubtitleLibrary?.Dispose(); Api.Dispose(); Accounts.Dispose(); Settings.Dispose(); Log.Dispose();
     }
     public async ValueTask DisposeAsync()
     {

@@ -97,7 +97,7 @@ public sealed class MpvCore : IAsyncDisposable
             ("sid", MpvFormat.String), ("track-list", MpvFormat.Node), ("video-params", MpvFormat.Node),
             ("video-target-params", MpvFormat.Node), ("hwdec-current", MpvFormat.String),
             ("demuxer-cache-state", MpvFormat.Node), ("playlist-pos", MpvFormat.Int64), ("playlist-count", MpvFormat.Int64),
-            ("current-ao", MpvFormat.String),
+            ("current-ao", MpvFormat.String), ("sub-delay", MpvFormat.Double),
         };
         for (var i = 0; i < properties.Length; i++)
             Check(LibMpvNative.mpv_observe_property(handle, (ulong)(i + 1), properties[i].Name, properties[i].Format));

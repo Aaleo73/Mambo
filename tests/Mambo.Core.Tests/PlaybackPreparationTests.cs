@@ -404,7 +404,7 @@ public sealed class PlaybackPreparationTests
         var root = json.RootElement;
         Assert.Equal(2, root.GetProperty("PlaylistIndex").GetInt32()); Assert.Equal(4, root.GetProperty("PlaylistLength").GetInt32());
         Assert.Equal(0, root.GetProperty("NowPlayingQueue").GetArrayLength()); Assert.Equal(int.MaxValue, root.GetProperty("MaxStreamingBitrate").GetInt32());
-        Assert.Equal("RepeatNone", root.GetProperty("RepeatMode").GetString()); Assert.Equal(0, root.GetProperty("SubtitleOffset").GetInt64());
+        Assert.Equal("RepeatNone", root.GetProperty("RepeatMode").GetString()); Assert.False(root.TryGetProperty("SubtitleOffset", out _));
         Assert.False(root.GetProperty("Shuffle").GetBoolean()); Assert.Equal(1.5, root.GetProperty("PlaybackRate").GetDouble());
         Assert.Equal(3, root.GetProperty("AudioStreamIndex").GetInt32()); Assert.False(root.TryGetProperty("EventName", out _));
     }

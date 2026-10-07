@@ -31,7 +31,7 @@ public enum EngineProperty
 {
     TimePosition, Duration, Pause, PausedForCache, Seeking, CoreIdle, IdleActive, EofReached,
     Speed, Volume, Mute, AudioTrack, SubtitleTrack, TrackList, VideoParameters,
-    VideoTargetParameters, HardwareDecoder, DemuxerCacheState, PlaylistPosition, PlaylistCount, AudioOutput,
+    VideoTargetParameters, HardwareDecoder, DemuxerCacheState, PlaylistPosition, PlaylistCount, AudioOutput, SubtitleDelay,
 }
 
 // 无 object/dynamic 或反射：数据在事件线程上复制后才能离开 native 调用。

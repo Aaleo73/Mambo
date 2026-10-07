@@ -23,6 +23,7 @@ public sealed class SubtitleStyleTests
     [InlineData(38, 7, 0)]
     [InlineData(38, 1, -1)]
     [InlineData(38, 1, 181)]
+    [InlineData(38, 1, 34.5)]
     [InlineData(double.NaN, 1, 0)]
     public void ValidateRejectsInvalidRange(double font, double outline, double margin) =>
         Assert.Throws<AppException>(() => SubtitleStyle.Validate(new() { FontSize = font, OutlineSize = outline, BottomMargin = margin }));
@@ -36,7 +37,7 @@ public sealed class SubtitleStyleTests
         Assert.Equal(new MpvValue.Text("#FFFFFF"), values["sub-color"]);
         Assert.Equal(new MpvValue.Text("#000000"), values["sub-border-color"]);
         Assert.Equal(new MpvValue.Number(1.65), values["sub-border-size"]);
-        Assert.Equal(new MpvValue.Number(34), values["sub-margin-y"]);
+        Assert.Equal(new MpvValue.WholeNumber(34), values["sub-margin-y"]);
         Assert.Equal(new MpvValue.Text("no"), values["sub-ass-override"]);
         Assert.Equal(new MpvValue.Text("force"), SubtitleStyle.Properties(new() { OverrideAssStyle = true })["sub-ass-override"]);
         Assert.DoesNotContain("sub-scale", values.Keys);

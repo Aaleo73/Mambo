@@ -162,6 +162,7 @@ public sealed class LibMpvEngine : IPlayerEngine, IVideoQualityEngine
         ["video-target-params"] = EngineProperty.VideoTargetParameters, ["hwdec-current"] = EngineProperty.HardwareDecoder,
         ["demuxer-cache-state"] = EngineProperty.DemuxerCacheState, ["playlist-pos"] = EngineProperty.PlaylistPosition,
         ["playlist-count"] = EngineProperty.PlaylistCount, ["current-ao"] = EngineProperty.AudioOutput,
+        ["sub-delay"] = EngineProperty.SubtitleDelay,
     };
 
     private static EngineValue? ToEngineValue(MpvValue? value) => value switch
