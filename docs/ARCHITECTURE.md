@@ -608,7 +608,7 @@ PlayerOverlay（Grid，RequestedTheme=Dark，IsTabStop=True，持有焦点）
 ├─ 状态层：打开中（ProgressRing + 20 秒"加载较慢"提示 + 关闭）| 缓冲胶囊 | 失败（重试 / 关闭）
 ├─ BottomBar（渐变 + 半透明纯色面板）：带已缓冲区间的进度条、上一集 / 下一集、播放 / 暂停、时间、
 │     倍速面板、弹幕面板（开关 / 样式 / 匹配状态 / 搜索）、轨道面板（字幕 / 音轨 / 关闭字幕），三者同一套实底样式；
-│     悬停展开的音量、全屏、最大化
+│     悬停展开的音量、全屏
 └─ 选集面板：布局与收起入口见 `docs/decisions/P9-visual-parity.md`、`player-card-frame.md`
 ```
 

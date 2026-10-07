@@ -510,7 +510,6 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         NextButton.Click -= OnNextClick;
         MuteButton.Click -= OnMuteClick;
         FullscreenButton.Click -= OnFullscreenClick;
-        MaximizeButton.Click -= OnMaximizeClick;
         SlowOpeningCloseButton.Click -= OnCloseClick;
         BigPlay.Click -= OnPauseClick;
         RetryButton.Click -= OnRetryClick;
@@ -794,7 +793,6 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         if (disposed || presentationFrozen) return;
         TopBar.Visibility = window.IsFullscreen ? Visibility.Visible : Visibility.Collapsed;
         FullscreenGlyph.Glyph = (string)Application.Current.Resources[window.IsFullscreen ? "IconFullscreenExit" : "IconFullscreen"];
-        MaximizeGlyph.Glyph = (string)Application.Current.Resources[window.IsMaximized ? "IconRestore" : "IconMaximize"];
         // 全屏、最大化这类切换直接落终态，不带着半透明的选集栏过去
         episodeTransition.Settle();
         UpdateEpisodePanel();
@@ -1285,10 +1283,6 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     private void OnFullscreenClick(object sender, RoutedEventArgs e)
     {
         if (!disposed && !presentationFrozen && !closing && !transitionActive) window.ToggleFullscreen();
-    }
-    private void OnMaximizeClick(object sender, RoutedEventArgs e)
-    {
-        if (!disposed && !presentationFrozen && !closing && !transitionActive) window.ToggleMaximize();
     }
     private void OnDismissUpNextClick(object sender, RoutedEventArgs e)
     {

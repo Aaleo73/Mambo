@@ -47,6 +47,7 @@
 | 长篇剧集分页修复 | 2026-10-06，v0.1.6 | [episode-pagination](decisions/episode-pagination.md) |
 | 应用图标 | 2026-10-06，v0.1.7 | [app-icon](decisions/app-icon.md) |
 | 输入框竖线光标 | 2026-10-07，尚未发布 | [input-caret](decisions/input-caret.md) |
+| 播放控制条精简 | 2026-10-07，移除最右侧最大化/还原按钮，尚未发布 | [播放页交互](SPEC.md#a10-播放页交互) |
 | 字幕与音轨体验（实现与自动验证） | 2026-10-07，静默选轨偏好、现有组件内的时间/样式、按项目保存并自动加载拖入字幕；尚未发布，真实体验待上方人工验收 | [playback-tracks](decisions/playback-tracks.md) |
 | 人工验收 | 2026-10-07，用户确认此前全部【需用户】项通过：P5 真实键鼠与光标、P6 讲述人、P0 遗留的 DPI / 多显示器 / 闪烁 / 跨域令牌抓包、P9 动画设置与 Snap、P10 弹幕、画质模式、输入光标、海报清晰度、应用图标、外部播放器 | 各项对应的记录 |
 | 完整界面输入回归 | 2026-10-07，Debug 与 AOT 各跑通；脚本能识别桌面被打断并自动重跑 | [P4–P6 集成](decisions/P4-P6-integration.md) |

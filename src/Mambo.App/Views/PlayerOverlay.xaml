@@ -264,7 +264,6 @@
                                         ValueChanged="OnVolumeChanged" IsEnabled="{x:Bind ViewModel.CanControl, Mode=OneWay}" AutomationProperties.Name="音量"/>
                             </Grid>
                             <Button x:Name="FullscreenButton" Style="{ThemeResource PlayerButton}" Click="OnFullscreenClick" AutomationProperties.Name="切换全屏" ToolTipService.ToolTip="全屏（F11）"><themes:LineIcon x:Name="FullscreenGlyph" Glyph="{StaticResource IconFullscreen}" Width="18" Height="18"/></Button>
-                            <Button x:Name="MaximizeButton" Style="{ThemeResource PlayerButton}" Click="OnMaximizeClick" AutomationProperties.Name="最大化或还原" ToolTipService.ToolTip="最大化 / 还原"><themes:LineIcon x:Name="MaximizeGlyph" Glyph="{StaticResource IconMaximize}" Width="18" Height="18"/></Button>
                         </StackPanel>
                     </Grid>
                 </StackPanel>

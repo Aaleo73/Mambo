@@ -240,10 +240,6 @@ internal static class PlayerControlsSmoke
             await CheckAsync(report, "FullscreenButtonEnters", () => presentation.IsFullscreen, token);
             await InvokeButtonAsync(player, "切换全屏", token);
             await CheckAsync(report, "FullscreenButtonLeaves", () => !presentation.IsFullscreen, token);
-            await InvokeButtonAsync(player, "最大化或还原", token);
-            await CheckAsync(report, "MaximizeButton", () => presentation.IsMaximized != originalMaximized, token);
-            await InvokeButtonAsync(player, "最大化或还原", token);
-            await CheckAsync(report, "MaximizeButtonRestores", () => presentation.IsMaximized == originalMaximized, token);
 
             await player.DispatchSmokeVolumeAsync(50);
             await CheckAsync(report, "VolumeSlider", () => player.ViewModel.Volume == 50, token);
