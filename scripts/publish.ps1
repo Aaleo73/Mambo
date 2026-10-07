@@ -26,6 +26,14 @@ if ((Get-FileHash -LiteralPath $nativeDll -Algorithm SHA256).Hash.ToLowerInvaria
 if (Test-Path -LiteralPath $outputRoot) { throw '发布目录已存在，请稍后重试以创建新的构建目录。' }
 New-Item -ItemType Directory -Path $appRoot -Force | Out-Null
 
+# vcvarsall 内部按名字调用 vswhere.exe。它不在 PATH 上时，报错文字会混进 ILCompiler 取到的链接器路径，
+# 链接步骤以“文件名、目录名或卷标语法不正确”失败。
+$vsInstaller = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer'
+if (-not (Get-Command vswhere.exe -ErrorAction SilentlyContinue) -and
+    (Test-Path -LiteralPath (Join-Path $vsInstaller 'vswhere.exe') -PathType Leaf)) {
+    $env:PATH = "$vsInstaller;$env:PATH"
+}
+
 Push-Location $repoRoot
 try {
     & dotnet restore $project -p:Platform=x64 --locked-mode | Out-Host
