@@ -108,8 +108,8 @@ internal static class NativeOverlaySmoke
             report.SizeMatched = player.VideoSurface.BufferSize == player.VideoSurface.PixelSize;
             report.BufferWidth = player.VideoSurface.BufferSize.Width;
             report.BufferHeight = player.VideoSurface.BufferSize.Height;
-            report.ExpectedPixelWidth = (int)Math.Round(player.ViewportElement.ActualWidth * player.VideoSurface.DpiScale);
-            report.ExpectedPixelHeight = (int)Math.Round(player.ViewportElement.ActualHeight * player.VideoSurface.DpiScale);
+            report.ExpectedPixelWidth = (int)Math.Round(player.VideoViewportElement.ActualWidth * player.VideoSurface.DpiScale);
+            report.ExpectedPixelHeight = (int)Math.Round(player.VideoViewportElement.ActualHeight * player.VideoSurface.DpiScale);
             report.ViewportMatched = ViewportMatched(player);
             report.TitleBound = player.ViewModel.Title == LocalPreparer.Title;
             report.ProductionEngineParameters = fixture.EngineCreateCount == 1;
@@ -258,8 +258,8 @@ internal static class NativeOverlaySmoke
     {
         // A stale initial 1x1 target must not pass merely because buffer == PixelSize.
         // Measure the video rectangle independently of the episode panel and top gutter.
-        var expected = ((int)Math.Round(player.ViewportElement.ActualWidth * player.VideoSurface.DpiScale),
-            (int)Math.Round(player.ViewportElement.ActualHeight * player.VideoSurface.DpiScale));
+        var expected = ((int)Math.Round(player.VideoViewportElement.ActualWidth * player.VideoSurface.DpiScale),
+            (int)Math.Round(player.VideoViewportElement.ActualHeight * player.VideoSurface.DpiScale));
         return expected.Item1 > 200 && expected.Item2 > 200 && player.VideoSurface.BufferSize == expected;
     }
 

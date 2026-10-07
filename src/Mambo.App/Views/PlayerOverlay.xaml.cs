@@ -50,8 +50,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     private ScalarKeyFrameAnimation? chromeAnimation;
     private CubicBezierEasingFunction? chromeEasing;
     private CompositionScopedBatch? chromeBatch;
-    private CompositionRoundedRectangleGeometry? viewportClipGeometry;
-    private CompositionGeometricClip? viewportClip;
+    private RectangleClip? frameClip;
     private ScalarKeyFrameAnimation? hintAnimation;
     private CubicBezierEasingFunction? hintEasing;
     private CompositionScopedBatch? hintBatch;
@@ -169,7 +168,8 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     internal bool EpisodePanelVisible => EpisodePanel.Visibility == Visibility.Visible;
     internal bool EpisodePanelCollapsed => episodePanelCollapsed;
     internal bool CanToggleEpisodes => episodesAvailable;
-    internal FrameworkElement ViewportElement => VideoViewport;
+    internal FrameworkElement ViewportElement => PlayerFrame;
+    internal FrameworkElement VideoViewportElement => VideoHost;
     internal bool KeyHintVisible => KeyHint.Visibility == Visibility.Visible;
     internal string KeyHintText => KeyHintLabel.Text;
     internal double SeekTipSeconds => seekTipSeconds;
@@ -472,11 +472,9 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         EpisodeList.ItemsSource = null;
         EpisodeGrid.ItemsSource = null;
         // 退场翻折仍显示冻结的播放层，直到最终销毁才释放外框裁剪。
-        if (viewportClip is not null) ElementCompositionPreview.GetElementVisual(VideoViewport).Clip = null;
-        viewportClip?.Dispose();
-        viewportClip = null;
-        viewportClipGeometry?.Dispose();
-        viewportClipGeometry = null;
+        if (frameClip is not null) ElementCompositionPreview.GetElementVisual(PlayerFrame).Clip = null;
+        frameClip?.Dispose();
+        frameClip = null;
         Content = null;
     }
 
@@ -517,7 +515,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         InputSurface.PointerReleased -= OnSurfacePointerReleased;
         InputSurface.PointerCanceled -= OnSurfacePointerReleased;
         SeekHost.SizeChanged -= OnSeekHostSizeChanged;
-        VideoViewport.SizeChanged -= OnViewportSizeChanged;
+        PlayerFrame.SizeChanged -= OnViewportSizeChanged;
         SeekSlider.ValueChanged -= OnSeekValueChanged;
         VolumeSlider.ValueChanged -= OnVolumeChanged;
         VolumeHost.PointerEntered -= OnVolumeEntered;
@@ -834,26 +832,30 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     private void UpdateViewportFrame()
     {
         var framed = !window.IsFullscreen;
-        VideoViewport.Margin = framed ? new Thickness(12, 12, EpisodePanelVisible ? 0 : 12, 12) : new Thickness(0);
-        VideoViewport.CornerRadius = new CornerRadius(framed ? 12 : 0);
-        VideoHost.CornerRadius = VideoViewport.CornerRadius;
-        Surface.SetViewportClip(framed ? 12 : 0, topOnly: false);
-        UpdateViewportClip();
+        PlayerFrame.Margin = framed ? new Thickness(12, 12, EpisodePanelVisible ? 0 : 12, 12) : new Thickness(0);
+        PlayerFrame.CornerRadius = new CornerRadius(framed ? 12 : 0);
+        // SwapChainPanel 的矩形底层不支持透明圆角。让它落在外框圆角内，
+        // 保留完整矩形画面；4 DIP 已覆盖半径 12 DIP 的四角切口。
+        VideoHost.Margin = new Thickness(framed ? 4 : 0);
+        Surface.SetViewportClip(0, topOnly: false);
+        UpdateFrameClip();
     }
 
-    private void UpdateViewportClip()
+    private void UpdateFrameClip()
     {
-        if (disposed || presentationFrozen || VideoViewport.ActualWidth <= 0 || VideoViewport.ActualHeight <= 0) return;
-        // CornerRadius 只约束 Grid 背景；控制条渐变、弹幕等子层也必须服从同一外框。
-        if (viewportClipGeometry is null)
+        if (disposed || presentationFrozen || PlayerFrame.ActualWidth <= 0 || PlayerFrame.ActualHeight <= 0) return;
+        // 只裁切最外层黑色边框；原生画面、留黑和控制层共享这个边界。
+        if (frameClip is null)
         {
-            var visual = ElementCompositionPreview.GetElementVisual(VideoViewport);
-            viewportClipGeometry = visual.Compositor.CreateRoundedRectangleGeometry();
-            viewportClip = visual.Compositor.CreateGeometricClip(viewportClipGeometry);
-            visual.Clip = viewportClip;
+            var visual = ElementCompositionPreview.GetElementVisual(PlayerFrame);
+            frameClip = visual.Compositor.CreateRectangleClip();
+            visual.Clip = frameClip;
         }
-        viewportClipGeometry.CornerRadius = new Vector2((float)VideoViewport.CornerRadius.TopLeft);
-        viewportClipGeometry.Size = new Vector2((float)VideoViewport.ActualWidth, (float)VideoViewport.ActualHeight);
+        var radius = new Vector2((float)PlayerFrame.CornerRadius.TopLeft);
+        frameClip.TopLeftRadius = frameClip.TopRightRadius = radius;
+        frameClip.BottomLeftRadius = frameClip.BottomRightRadius = radius;
+        frameClip.Right = (float)PlayerFrame.ActualWidth;
+        frameClip.Bottom = (float)PlayerFrame.ActualHeight;
     }
 
     private void OnEpisodePanelPointerEntered(object sender, PointerRoutedEventArgs e)
@@ -1428,7 +1430,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     private void OnViewportSizeChanged(object sender, SizeChangedEventArgs e)
     {
         if (disposed || presentationFrozen) return;
-        UpdateViewportClip();
+        UpdateFrameClip();
         LayoutChanged?.Invoke(this, EventArgs.Empty);
     }
     private void OnEpisodeListClick(object sender, RoutedEventArgs e) => SetEpisodeLayout(false);

@@ -238,7 +238,7 @@ gpu-shader-cache-dir=%LOCALAPPDATA%\Mambo\mpv\shader-cache（缩短 gpu-next 首
   - 新尺寸通过写 `d3d11-composition-size` 生效。
   - 每 8ms 用 `IDXGISwapChain2::GetDesc1` 检查缓冲区实际尺寸，1 秒后放弃；尺寸到位后再等一帧（约 40ms）才提交。
   - 拖动缩放期间（`WM_ENTERSIZEMOVE` 到 `WM_EXITSIZEMOVE`）不改 mpv 的尺寸。
-- **圆角**：视频区的圆角在宿主视觉上用 `CompositionGeometricClip` + `CompositionRoundedRectangleGeometry` 实现。
+- **圆角**：只在 `PlayerOverlay` 最外层黑色 `PlayerFrame` 上使用 `RectangleClip`。影片保持矩形；窗口模式视频宿主四边内缩 4 DIP，避开 12 DIP 圆角处的原生矩形黑底，全屏归零。详见 [播放卡片外框](decisions/player-card-frame.md)。
 - **解绑**：销毁 mpv 前先 `SetSwapChain(null)`。
 
 ### 3.9 HDR（composition 模式下 mpv 看不到显示器，必须由应用告诉它）
