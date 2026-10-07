@@ -2,7 +2,7 @@
 
 当前进度和尚未完成的验收。开工前先看这里；完成一项后在这里更新，验证细节记在 `docs/decisions/` 对应的记录里。
 
-最新发布版本为 v0.1.7。模块设计见 [ARCHITECTURE.md](ARCHITECTURE.md)，行为规格见 [SPEC.md](SPEC.md)。
+最新公开发布版本为 v0.1.7，v0.1.8 正在执行发布验证。字幕任务分支、播放页圆角黑框与播放快捷键修复已收拢到 `main`。模块设计见 [ARCHITECTURE.md](ARCHITECTURE.md)，行为规格见 [SPEC.md](SPEC.md)。
 
 逐轮验收的原始记录（候选构建编号、截图、报告文件路径、各阶段任务清单）已从文档中移除。需要追溯时查看 `v0.1.7` 标签下的 `docs/PLAN.md`、`docs/decisions/` 和 `docs/handoff/`。
 
