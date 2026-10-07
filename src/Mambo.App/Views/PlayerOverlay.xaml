@@ -217,20 +217,21 @@
                                 <TextBlock FontFamily="{StaticResource MiSansMediumFontFamily}" Text="{x:Bind ViewModel.DurationText, Mode=OneWay}" Foreground="{ThemeResource PlayerTextSecondaryBrush}" FontSize="12" FontWeight="Medium" Typography.NumeralAlignment="Tabular"/>
                             </StackPanel>
                         </StackPanel>
-                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                            <Button x:Name="RateButton" Style="{ThemeResource PlayerButton}" Content="{x:Bind ViewModel.RateText, Mode=OneWay}"
-                                    IsEnabled="{x:Bind ViewModel.CanControl, Mode=OneWay}" AutomationProperties.Name="播放速度" ToolTipService.ToolTip="倍速（[ / ]）">
-                                <Button.Flyout>
-                                    <Flyout x:Name="RateFlyout" Placement="Top" FlyoutPresenterStyle="{StaticResource PlayerPanelPresenter}">
-                                        <views:PlayerChoicePanel x:Name="RatePanel" Width="200"/>
-                                    </Flyout>
-                                </Button.Flyout>
-                            </Button>
+                        <StackPanel x:Name="PlaybackActions" Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" SizeChanged="OnVolumeLayoutChanged">
                             <Button x:Name="VideoQualityButton" Style="{ThemeResource PlayerButton}" Content="{x:Bind ViewModel.VideoQualityText, Mode=OneWay}"
                                     IsEnabled="{x:Bind ViewModel.CanChangeVideoQuality, Mode=OneWay}" AutomationProperties.Name="{x:Bind ViewModel.VideoQualityAccessibleName, Mode=OneWay}" ToolTipService.ToolTip="模式">
                                 <Button.Flyout>
                                     <Flyout x:Name="VideoQualityFlyout" Placement="Top" FlyoutPresenterStyle="{StaticResource PlayerPanelPresenter}">
                                         <views:PlayerChoicePanel x:Name="VideoQualityPanel" Width="200"/>
+                                    </Flyout>
+                                </Button.Flyout>
+                            </Button>
+                            <Button x:Name="RateButton" Style="{ThemeResource PlayerButton}"
+                                    IsEnabled="{x:Bind ViewModel.CanControl, Mode=OneWay}" AutomationProperties.Name="{x:Bind ViewModel.RateAccessibleName, Mode=OneWay}" ToolTipService.ToolTip="{x:Bind ViewModel.RateToolTip, Mode=OneWay}">
+                                <themes:LineIcon Glyph="{StaticResource IconPlaybackSpeed}" Width="18" Height="18"/>
+                                <Button.Flyout>
+                                    <Flyout x:Name="RateFlyout" Placement="Top" FlyoutPresenterStyle="{StaticResource PlayerPanelPresenter}">
+                                        <views:PlayerChoicePanel x:Name="RatePanel" Width="200"/>
                                     </Flyout>
                                 </Button.Flyout>
                             </Button>
@@ -244,31 +245,29 @@
                                     </Flyout>
                                 </Button.Flyout>
                             </Button>
-                            <Button x:Name="SubtitlesButton" Style="{ThemeResource PlayerButton}" Content="字幕" AllowFocusOnInteraction="True" IsEnabled="{x:Bind ViewModel.CanControl, Mode=OneWay}"
+                            <Button x:Name="SubtitlesButton" Style="{ThemeResource PlayerButton}" AllowFocusOnInteraction="True" IsEnabled="{x:Bind ViewModel.CanControl, Mode=OneWay}"
                                     AutomationProperties.Name="字幕" ToolTipService.ToolTip="字幕（C）">
+                                <themes:LineIcon Glyph="{StaticResource IconSubtitles}" Width="18" Height="18"/>
                                 <Button.Flyout>
                                     <Flyout x:Name="SubtitlesFlyout" Placement="Top" FlyoutPresenterStyle="{StaticResource PlayerPanelPresenter}">
                                         <views:PlayerChoicePanel x:Name="SubtitlesPanel"/>
                                     </Flyout>
                                 </Button.Flyout>
                             </Button>
-                            <Button x:Name="AudioButton" Style="{ThemeResource PlayerButton}" Content="音轨" AllowFocusOnInteraction="True" IsEnabled="{x:Bind ViewModel.CanControl, Mode=OneWay}"
+                            <Button x:Name="AudioButton" Style="{ThemeResource PlayerButton}" AllowFocusOnInteraction="True" IsEnabled="{x:Bind ViewModel.CanControl, Mode=OneWay}"
                                     AutomationProperties.Name="音轨" ToolTipService.ToolTip="音轨（V）">
+                                <themes:LineIcon Glyph="{StaticResource IconAudioTrack}" Width="18" Height="18"/>
                                 <Button.Flyout>
                                     <Flyout x:Name="AudioFlyout" Placement="Top" FlyoutPresenterStyle="{StaticResource PlayerPanelPresenter}">
                                         <views:PlayerChoicePanel x:Name="AudioPanel"/>
                                     </Flyout>
                                 </Button.Flyout>
                             </Button>
-                            <!-- 音量：收起时和其他按钮一样没有底，展开滑块时才出现胶囊底。
-                                 按钮组靠右对齐，滑块向左展开，静音按钮才不会从指针下移走；树内仍是先按钮后滑块，Tab 顺序不变 -->
-                            <Grid x:Name="VolumeHost" Background="Transparent" PointerEntered="OnVolumeEntered" PointerExited="OnVolumeExited" GotFocus="OnVolumeGotFocus" LostFocus="OnVolumeLostFocus">
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                <Border x:Name="VolumeFill" Grid.ColumnSpan="2" Background="{ThemeResource PlayerHoverBrush}" CornerRadius="18" Opacity="0" IsHitTestVisible="False"/>
-                                <Button x:Name="MuteButton" Grid.Column="1" Style="{ThemeResource PlayerButton}" Click="OnMuteClick" IsEnabled="{x:Bind ViewModel.CanControl, Mode=OneWay}"
+                            <!-- 固定按钮占位；竖向音量层在 Chrome 内覆盖显示，不挤动控制条。 -->
+                            <Grid x:Name="VolumeHost" Width="40" Height="36" Background="Transparent" PointerEntered="OnVolumeEntered" PointerExited="OnVolumeExited" GotFocus="OnVolumeGotFocus" LostFocus="OnVolumeLostFocus">
+                                <Border x:Name="VolumeFill" Background="{ThemeResource PlayerHoverBrush}" CornerRadius="18" Opacity="0" IsHitTestVisible="False"/>
+                                <Button x:Name="MuteButton" Style="{ThemeResource PlayerButton}" Click="OnMuteClick" IsEnabled="{x:Bind ViewModel.CanControl, Mode=OneWay}"
                                         AutomationProperties.Name="{x:Bind ViewModel.MuteAccessibleName, Mode=OneWay}" ToolTipService.ToolTip="静音（M）"><Grid Width="20" Height="20"><themes:LineIcon Glyph="{StaticResource IconVolumeBody}" Filled="True"/><themes:LineIcon Glyph="{x:Bind ViewModel.VolumeGlyph, Mode=OneWay}"/></Grid></Button>
-                                <Slider x:Name="VolumeSlider" Style="{StaticResource PlayerSeek}" IsThumbToolTipEnabled="False" Width="84" Margin="14,0,2,0" VerticalAlignment="Center" Minimum="0" Maximum="100" SmallChange="5" LargeChange="10" Visibility="Collapsed" AllowFocusOnInteraction="False"
-                                        ValueChanged="OnVolumeChanged" IsEnabled="{x:Bind ViewModel.CanControl, Mode=OneWay}" AutomationProperties.Name="音量"/>
                             </Grid>
                             <Button x:Name="FullscreenButton" Style="{ThemeResource PlayerButton}" Click="OnFullscreenClick" AutomationProperties.Name="切换全屏" ToolTipService.ToolTip="全屏（F11）"><themes:LineIcon x:Name="FullscreenGlyph" Glyph="{StaticResource IconFullscreen}" Width="18" Height="18"/></Button>
                         </StackPanel>
@@ -278,6 +277,17 @@
             <Button x:Name="BigPlay" Style="{StaticResource PlayerSolidButton}" Tag="Center" Width="80" Height="80" CornerRadius="40"
                     AllowFocusOnInteraction="False" HorizontalAlignment="Center" VerticalAlignment="Center" Click="OnPauseClick"
                     Visibility="Collapsed" IsHitTestVisible="True" AutomationProperties.Name="继续播放"><themes:LineIcon Glyph="{StaticResource IconPlay}" Width="32" Height="32" Filled="True"/></Button>
+            <Canvas x:Name="VolumeCanvas" SizeChanged="OnVolumeLayoutChanged">
+                <!-- 底部透明区连到按钮，鼠标移到滑块时不会穿过空隙。 -->
+                <Border x:Name="VolumePopup" Width="40" Height="144" Padding="0,0,0,8" Background="Transparent" Visibility="Collapsed"
+                        PointerEntered="OnVolumeEntered" PointerExited="OnVolumeExited" GotFocus="OnVolumeGotFocus" LostFocus="OnVolumeLostFocus">
+                    <Border Background="{ThemeResource PlayerPanelBrush}" BorderBrush="{ThemeResource PlayerPanelStrokeBrush}" BorderThickness="1" CornerRadius="18" Padding="3,9">
+                        <Slider x:Name="VolumeSlider" Orientation="Vertical" IsThumbToolTipEnabled="False" Width="32" MinWidth="0" Height="116"
+                                Minimum="0" Maximum="100" SmallChange="5" LargeChange="10" AllowFocusOnInteraction="False"
+                                ValueChanged="OnVolumeChanged" IsEnabled="{x:Bind ViewModel.CanControl, Mode=OneWay}" AutomationProperties.Name="音量"/>
+                    </Border>
+                </Border>
+            </Canvas>
         </Grid>
 
         <Grid x:Name="StateLayer">

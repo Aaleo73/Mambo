@@ -22,6 +22,7 @@ namespace Mambo.App.Debug;
 internal static class PlayerControlsSmoke
 {
     internal const string Argument = "--player-controls-smoke";
+    private static readonly string[] IconActionNames = ["RateButton", "BulletChatButton", "SubtitlesButton", "AudioButton", "FullscreenButton"];
 
     /// <summary>只运行播放控件，不启动完整 UiLab 的导航、性能或外观旧阶段。</summary>
     internal static async Task RunStandaloneAsync(MainWindow window, string reportPath)
@@ -66,7 +67,7 @@ internal static class PlayerControlsSmoke
     {
         var report = new PlayerControlsReport
         {
-            Scope = "Subtitle and audio controls; in-memory fake session and real XAML shared event paths; no physical input or rendering claim",
+            Scope = "Playback toolbar layout, vertical volume, subtitle and audio controls; fake session and real XAML; no physical input or rendering claim",
         };
         var watch = Stopwatch.StartNew();
         var presentation = window.Services.GetRequiredService<WindowContext>();
@@ -88,6 +89,7 @@ internal static class PlayerControlsSmoke
             var audio = session.Snapshot.AudioTracks;
             Mark(report, "FakeTrackChoices", subtitles.Length == 2 && audio.Length == 2);
             player.ShowControlsForSmoke();
+            await ProbeToolbarAsync(player, report, token);
             var panel = await ProbeSeparateTrackMenusAsync(player, report, token);
             await ProbeSubtitleControlsAsync(player, panel, report, token);
             await player.DispatchSmokeTrackAsync(null, subtitle: true);
@@ -679,6 +681,80 @@ internal static class PlayerControlsSmoke
         }
     }
 
+    private static async Task ProbeToolbarAsync(PlayerOverlay player, PlayerControlsReport report, CancellationToken token)
+    {
+        report.Stage = "ToolbarLayout";
+        var actions = player.FindName("PlaybackActions").As<StackPanel>();
+        var mode = player.FindName("VideoQualityButton").As<Button>();
+        Mark(report, "ModeFirstAndText", ReferenceEquals(actions.Children[0], mode) && (string)mode.Content == player.ViewModel.VideoQualityText);
+        Mark(report, "OtherActionsUseIcons", IconActionNames
+            .All(name => player.FindName(name).As<Button>().Content is LineIcon));
+        var rate = player.FindName("RateButton").As<Button>();
+        await player.Session.SetRateAsync(1.5, token);
+        await CheckAsync(report, "IconSpeedStillExposesCurrentValue", () => AutomationProperties.GetName(rate) == "播放速度：1.5×" &&
+            ToolTipService.GetToolTip(rate) as string == "播放速度：1.5×（[ / ]）", token);
+        await player.Session.SetRateAsync(1, token);
+        var mute = player.FindName("MuteButton").As<Button>();
+        var popup = player.FindName("VolumePopup").As<Border>();
+        var slider = player.FindName("VolumeSlider").As<Slider>();
+        var seek = player.FindName("SeekHost").As<Grid>();
+        Windows.Foundation.Rect Bounds(FrameworkElement element) => element.TransformToVisual(player)
+            .TransformBounds(new(0, 0, element.ActualWidth, element.ActualHeight));
+        player.UpdateLayout();
+        var closedActions = Bounds(actions);
+        var closedSeek = Bounds(seek);
+        var closedMute = Bounds(mute);
+        Mark(report, "VolumeInitiallyCollapsed", popup.Visibility == Visibility.Collapsed);
+        Mark(report, "VolumeFocusOpens", mute.Focus(FocusState.Keyboard));
+        await WaitAsync(() => popup.Visibility == Visibility.Visible && slider.ActualHeight > 0, token);
+        player.UpdateLayout();
+        var expanded = Bounds(popup);
+        Mark(report, "VolumeExpandsAboveButton", slider.Orientation == Orientation.Vertical &&
+            expanded.Height > expanded.Width && Math.Abs(expanded.Bottom - closedMute.Top) < 1 &&
+            Math.Abs(expanded.X + expanded.Width / 2 - closedMute.X - closedMute.Width / 2) < 1);
+        Mark(report, "VolumeExpansionKeepsToolbarStill", Bounds(actions) == closedActions && Bounds(mute) == closedMute && Bounds(seek) == closedSeek);
+        var bridge = popup.TransformToVisual(null).TransformPoint(new(popup.ActualWidth / 2, popup.ActualHeight - 1));
+        Mark(report, "VolumeBridgeHitTestable", VisualTreeHelper.FindElementsInHostCoordinates(bridge, player).Any(element => ReferenceEquals(element, popup)));
+        Mark(report, "VolumeTabFromMuteReachesSlider", player.HandleVolumeTab(reverse: false) && IsFocusedWithin(slider));
+        await Task.Delay(50, token);
+        Mark(report, "VolumeFocusHandoffStaysOpen", popup.Visibility == Visibility.Visible && !await player.DispatchSmokeKeyAsync(VirtualKey.Up));
+        Mark(report, "VolumeShiftTabReturnsToMute", player.HandleVolumeTab(reverse: true) && IsFocusedWithin(mute));
+        player.HandleVolumeTab(reverse: false);
+        player.SetVolumePointerInside(popup: true, inside: true);
+        Mark(report, "VolumeTabReachesFullscreen", player.HandleVolumeTab(reverse: false) && IsFocusedWithin(player.FindName("FullscreenButton").As<Button>()));
+        await CheckAsync(report, "VolumeTabOutCollapsesEvenWhenHovered", () => popup.Visibility == Visibility.Collapsed, token);
+        player.SetVolumePointerInside(popup: true, inside: true);
+        Mark(report, "FullscreenTabCannotLoopBackToHoveredSlider", !player.HandleVolumeTab(reverse: false) && popup.Visibility == Visibility.Collapsed);
+        Mark(report, "VolumeShiftTabFromFullscreenReopensSlider", player.HandleVolumeTab(reverse: true) && IsFocusedWithin(slider) && popup.Visibility == Visibility.Visible);
+        var thumb = Descendants(slider).OfType<FrameworkElement>().FirstOrDefault(element => element.Name == "VerticalThumb");
+        Mark(report, "VolumeUsesVerticalTemplate", thumb is not null);
+        await player.DispatchSmokeVolumeAsync(0);
+        player.UpdateLayout();
+        var bottom = Bounds(thumb!).Top;
+        await player.DispatchSmokeVolumeAsync(100);
+        player.UpdateLayout();
+        Mark(report, "VolumeTopIsLouder", Bounds(thumb!).Top < bottom && player.ViewModel.Volume == 100);
+        await player.DispatchSmokeVolumeAsync(55);
+        await CheckAsync(report, "VerticalVolumeUpdatesSession", () => player.ViewModel.Volume == 55, token);
+        player.Focus(FocusState.Programmatic);
+        await CheckAsync(report, "VolumeClosesAfterFocusLeaves", () => popup.Visibility == Visibility.Collapsed, token);
+        mute.Focus(FocusState.Keyboard);
+        await WaitAsync(() => popup.Visibility == Visibility.Visible, token);
+        await player.DispatchSmokeKeyAsync(VirtualKey.Escape);
+        Mark(report, "VolumeEscapeKeepsPlaybackOpen", popup.Visibility == Visibility.Collapsed && player.ViewModel.CanControl);
+        player.Focus(FocusState.Programmatic);
+
+        static IEnumerable<DependencyObject> Descendants(DependencyObject node)
+        {
+            for (var index = 0; index < VisualTreeHelper.GetChildrenCount(node); index++)
+            {
+                var child = VisualTreeHelper.GetChild(node, index);
+                yield return child;
+                foreach (var descendant in Descendants(child)) yield return descendant;
+            }
+        }
+    }
+
     private static async Task<PlayerChoicePanel> ProbeSeparateTrackMenusAsync(PlayerOverlay player, PlayerControlsReport report, CancellationToken token)
     {
         var subtitles = player.ViewModel.Snapshot.SubtitleTracks;
@@ -765,11 +841,11 @@ internal static class PlayerControlsSmoke
         return Find(root) ?? throw new SmokeCheckException("MissingButton");
     }
 
-    private static bool IsFocusedWithin(PlayerOverlay player)
+    private static bool IsFocusedWithin(FrameworkElement root)
     {
-        if (player.XamlRoot is null) return false;
-        for (var element = FocusManager.GetFocusedElement(player.XamlRoot) as DependencyObject; element is not null; element = VisualTreeHelper.GetParent(element))
-            if (ReferenceEquals(element, player)) return true;
+        if (root.XamlRoot is null) return false;
+        for (var element = FocusManager.GetFocusedElement(root.XamlRoot) as DependencyObject; element is not null; element = VisualTreeHelper.GetParent(element))
+            if (ReferenceEquals(element, root)) return true;
         return false;
     }
 

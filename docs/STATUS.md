@@ -14,7 +14,7 @@
 
 | 项 | 待办 | 记录 |
 |---|---|---|
-| 字幕与音轨体验【需用户】 | 真实 Emby 上拖入单字幕/多集字幕、重启后采用、晚到服务器外挂与手选保护；暂停时检查 SRT/ASS 字体、描边、位置和覆盖效果；实际键鼠输入及高 DPI 布局 | [playback-tracks](decisions/playback-tracks.md) |
+| 字幕与音轨体验【需用户】 | 真实 Emby 上拖入单字幕/多集字幕、重启后采用、晚到服务器外挂与手选保护；暂停时检查 SRT/ASS 字体、描边、位置和覆盖效果；实际键鼠输入及高 DPI 布局，包括音量向上展开、跨入滑块和拖出释放 | [playback-tracks](decisions/playback-tracks.md) |
 | 5000 项资料库滚动 60 fps | GPU 呈现帧率没有验收：本机没有 PresentMon，当前账户也没有启动实时 ETW 跟踪的权限。已测的是 UI 回调间隔，不等于呈现帧率 | [P4–P6 集成](decisions/P4-P6-integration.md) |
 | 长篇剧集分页 | 真实片库复验。需要真实服务器，但原先没有标【需用户】，不确定是否包含在 2026-10-07 的确认里 | [episode-pagination](decisions/episode-pagination.md) |
 | 筛选响应优化 | 真实服务器耗时复验。同上 | [library-filter-responsiveness](decisions/library-filter-responsiveness.md) |
@@ -47,7 +47,7 @@
 | 长篇剧集分页修复 | 2026-10-06，v0.1.6 | [episode-pagination](decisions/episode-pagination.md) |
 | 应用图标 | 2026-10-06，v0.1.7 | [app-icon](decisions/app-icon.md) |
 | 输入框竖线光标 | 2026-10-07，尚未发布 | [input-caret](decisions/input-caret.md) |
-| 播放控制条精简 | 2026-10-07，移除最右侧最大化按钮，字幕/音轨拆为独立入口，模式按钮直接显示标准/清晰/动画；尚未发布 | [播放页交互](SPEC.md#a10-播放页交互) |
+| 播放控制条精简 | 2026-10-07，移除最右侧最大化按钮，字幕/音轨拆为独立入口，模式按钮置首并显示标准/清晰/动画，其余按钮图标化，音量向上竖向展开；尚未发布 | [播放页交互](SPEC.md#a10-播放页交互) |
 | 字幕与音轨体验（实现与自动验证） | 2026-10-07，静默选轨偏好、现有组件内的时间/样式、按项目保存并自动加载拖入字幕；尚未发布，真实体验待上方人工验收 | [playback-tracks](decisions/playback-tracks.md) |
 | 人工验收 | 2026-10-07，用户确认此前全部【需用户】项通过：P5 真实键鼠与光标、P6 讲述人、P0 遗留的 DPI / 多显示器 / 闪烁 / 跨域令牌抓包、P9 动画设置与 Snap、P10 弹幕、画质模式、输入光标、海报清晰度、应用图标、外部播放器 | 各项对应的记录 |
 | 完整界面输入回归 | 2026-10-07，Debug 与 AOT 各跑通；脚本能识别桌面被打断并自动重跑 | [P4–P6 集成](decisions/P4-P6-integration.md) |
@@ -58,7 +58,7 @@
 
 - **每次改动后**：`dotnet build -p:Platform=x64` 成功，`dotnet test` 全部通过。
 - **界面与播放**：`scripts/test-*.ps1` 是本机验收脚本，配合 `src/Mambo.App/Debug/` 下的入口运行，会激活窗口，不在 CI 里。
-- **字幕控件定向检查**：`pwsh scripts/test-player-controls.ps1`（加 `-Aot` 检查 AOT），只运行字幕/音轨组件及其全屏、输入隔离路径，不重复完整 UiLab。
+- **播放控件定向检查**：`pwsh scripts/test-player-controls.ps1`（加 `-Aot` 检查 AOT），只运行控制条布局、竖向音量、字幕/音轨组件及其全屏、输入隔离路径，不重复完整 UiLab。
 - **完整界面回归**：`pwsh scripts/test-ui-lab.ps1`（加 `-Aot` 验 AOT 产物），一轮约 3 分钟，用真实键鼠输入，窗口必须全程在前台。运行期间不要操作这台电脑，包括点聊天或终端窗口；被打断时脚本会报出占用前台的进程并自动重跑，最多 3 次。
 - **AOT 诊断目录**：带 `-Aot` 的验收脚本读取 `publish/aot`，需要先发布：`dotnet publish src/Mambo.App/Mambo.App.csproj -c Release -r win-x64 --self-contained true -p:Platform=x64 -p:PublishAot=true -p:WindowsAppSDKSelfContained=true -o publish/aot`。链接步骤报「文件名、目录名或卷标语法不正确」时，把 `%ProgramFiles(x86)%\Microsoft Visual Studio\Installer` 加进 PATH 再试；`scripts/publish.ps1` 已自动处理。
 - **真实服务器**【需用户】：直链播放、302 到 CDN、强制转码、带外挂字幕的片源、一整季连播、断网后恢复；在 Emby 后台核对会话、进度和已播放标记。

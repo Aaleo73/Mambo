@@ -83,6 +83,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     private Task lastCommand = Task.CompletedTask;
     private Task layoutSave = Task.CompletedTask;
     private bool volumePointerInside;
+    private bool volumePopupPointerInside;
     private double seekTipSeconds;
 
     public PlayerOverlay(IPlaybackSession session, WindowContext window, ToastService toasts, ISettingsService settings, IBulletChatService bulletChat)
@@ -123,15 +124,16 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         RegisterRoutedHandler(SeekHost, PointerEnteredEvent, new PointerEventHandler(OnSeekPointerMoved));
         RegisterRoutedHandler(SeekHost, PointerExitedEvent, new PointerEventHandler(OnSeekPointerExited));
         RegisterRoutedHandler(VolumeSlider, PointerPressedEvent, new PointerEventHandler((_, _) => dragVolume = true));
-        RegisterRoutedHandler(VolumeSlider, PointerReleasedEvent, new PointerEventHandler((_, _) => dragVolume = false));
-        RegisterRoutedHandler(VolumeSlider, PointerCaptureLostEvent, new PointerEventHandler((_, _) => dragVolume = false));
+        RegisterRoutedHandler(VolumeSlider, PointerReleasedEvent, new PointerEventHandler(OnVolumeDragEnded));
+        RegisterRoutedHandler(VolumeSlider, PointerCanceledEvent, new PointerEventHandler(OnVolumeDragEnded));
+        RegisterRoutedHandler(VolumeSlider, PointerCaptureLostEvent, new PointerEventHandler(OnVolumeDragEnded));
         RegisterRoutedHandler(Chrome, PointerMovedEvent, new PointerEventHandler((_, _) => { pointerInside = true; Activity(); }));
         RegisterRoutedHandler(Chrome, PointerPressedEvent, new PointerEventHandler((_, _) => { pointerPressed = true; Activity(); }));
         RegisterRoutedHandler(EpisodePanel, PointerEnteredEvent, new PointerEventHandler(OnEpisodePanelPointerEntered));
         RegisterRoutedHandler(EpisodePanel, PointerMovedEvent, new PointerEventHandler(OnEpisodePanelPointerEntered));
-        RegisterRoutedHandler(this, PointerReleasedEvent, new PointerEventHandler((_, _) => pointerPressed = false));
-        RegisterRoutedHandler(this, PointerCanceledEvent, new PointerEventHandler((_, _) => pointerPressed = false));
-        RegisterRoutedHandler(this, PointerCaptureLostEvent, new PointerEventHandler((_, _) => pointerPressed = false));
+        RegisterRoutedHandler(this, PointerReleasedEvent, new PointerEventHandler(OnAnyPointerReleased));
+        RegisterRoutedHandler(this, PointerCanceledEvent, new PointerEventHandler(OnAnyPointerReleased));
+        RegisterRoutedHandler(this, PointerCaptureLostEvent, new PointerEventHandler(OnAnyPointerReleased));
         session.SnapshotChanged += OnSnapshotChanged;
         ViewModel.PropertyChanged += OnProjectionChanged;
         bulletChat.Changed += OnBulletChatChanged;
@@ -321,6 +323,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         IsHitTestVisible = !active;
         if (active)
         {
+            CloseVolume();
             Surface.Detach();
             attached = false;
             Surface.Visibility = Visibility.Collapsed;
@@ -348,6 +351,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         if (closing || disposed || presentationFrozen) return;
         closing = true;
         singleClick.Stop();
+        CloseVolume();
         HideMenus();
         window.SetPlaybackActive(false);
         Surface.Detach();
@@ -390,6 +394,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     private void ReleaseActiveResources()
     {
         if (presentationFrozen) return;
+        CloseVolume();
         closing = true;
         // An idle player can have no visible controls. Resolve its static closing
         // face before freezing; otherwise detaching video leaves only black canvas.
@@ -511,6 +516,12 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         VolumeHost.PointerExited -= OnVolumeExited;
         VolumeHost.GotFocus -= OnVolumeGotFocus;
         VolumeHost.LostFocus -= OnVolumeLostFocus;
+        VolumePopup.PointerEntered -= OnVolumeEntered;
+        VolumePopup.PointerExited -= OnVolumeExited;
+        VolumePopup.GotFocus -= OnVolumeGotFocus;
+        VolumePopup.LostFocus -= OnVolumeLostFocus;
+        VolumeCanvas.SizeChanged -= OnVolumeLayoutChanged;
+        PlaybackActions.SizeChanged -= OnVolumeLayoutChanged;
         CloseButton.Click -= OnCloseClick;
         PreviousButton.Click -= OnPreviousClick;
         PauseButton.Click -= OnPauseClick;
@@ -646,6 +657,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         var focused = XamlRoot is null ? null : FocusManager.GetFocusedElement(XamlRoot) as DependencyObject;
         var focusInControls = IsWithin(focused, Chrome) || IsWithin(focused, UpNext);
         return ViewModel.IsFailed || pointerPressed || openMenus > 0 || focusInControls
+            || volumePointerInside || volumePopupPointerInside || dragVolume
             || pointerInside && Environment.TickCount64 - lastActivity < 3000;
     }
 
@@ -736,6 +748,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         if (disposed || presentationFrozen) return;
         if (!window.IsActive)
         {
+            CloseVolume();
             SettleChrome();
             SettleOverlays();
             SettleHint();
@@ -799,6 +812,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     private void OnPresentationChanged(object? sender, EventArgs e)
     {
         if (disposed || presentationFrozen) return;
+        CloseVolume();
         TopBar.Visibility = window.IsFullscreen ? Visibility.Visible : Visibility.Collapsed;
         FullscreenGlyph.Glyph = (string)Application.Current.Resources[window.IsFullscreen ? "IconFullscreenExit" : "IconFullscreen"];
         // 全屏、最大化这类切换直接落终态，不带着半透明的选集栏过去
@@ -875,7 +889,12 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     {
         if (disposed || presentationFrozen || closing || transitionActive) return;
         // Tab reveals the controls before normal focus navigation; the episode panel is not a focus trap.
-        if (e.Key == VirtualKey.Tab) Activity();
+        if (e.Key == VirtualKey.Tab)
+        {
+            Activity();
+            var reverse = (InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Shift) & Windows.UI.Core.CoreVirtualKeyStates.Down) != 0;
+            if (HandleVolumeTab(reverse)) { e.Handled = true; return; }
+        }
         var alt = (InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Menu) & Windows.UI.Core.CoreVirtualKeyStates.Down) != 0;
         var control = (InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control) & Windows.UI.Core.CoreVirtualKeyStates.Down) != 0;
         if (HandleKey(e.Key, alt, control)) e.Handled = true;
@@ -889,6 +908,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         if (key == VirtualKey.Escape)
         {
             if (openMenus > 0) HideMenus();
+            else if (VolumePopup.Visibility == Visibility.Visible) CloseVolume();
             else if (window.IsFullscreen) window.ExitFullscreen();
             else lastCommand = CloseAsync();
             return true;
@@ -932,6 +952,27 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         {
             if (current is TextBox or PasswordBox or AutoSuggestBox or ComboBox or Slider or ColorPicker or CheckBox) return true;
             if (ReferenceEquals(current, this)) break;
+        }
+        return false;
+    }
+
+    // 覆盖层不在按钮组的视觉顺序内，显式连接静音、滑块和全屏的双向 Tab 顺序。
+    internal bool HandleVolumeTab(bool reverse)
+    {
+        if (disposed || presentationFrozen || closing || transitionActive || !ViewModel.CanControl || XamlRoot is null) return false;
+        var focused = FocusManager.GetFocusedElement(XamlRoot) as DependencyObject;
+        if (IsWithin(focused, VolumeSlider))
+        {
+            var moved = (reverse ? MuteButton : FullscreenButton).Focus(FocusState.Keyboard);
+            if (moved && !reverse) CloseVolume();
+            return moved;
+        }
+        // 鼠标仍悬停时，向前离开全屏按钮也不再遍历 Chrome 末尾的覆盖层。
+        if (!reverse && IsWithin(focused, FullscreenButton)) CloseVolume();
+        if ((!reverse && IsWithin(focused, MuteButton)) || (reverse && IsWithin(focused, FullscreenButton)))
+        {
+            SetVolumeOpen(true);
+            return VolumeSlider.Focus(FocusState.Keyboard);
         }
         return false;
     }
@@ -1225,17 +1266,24 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         while (BufferedCanvas.Children.Count > used) BufferedCanvas.Children.RemoveAt(BufferedCanvas.Children.Count - 1);
     }
     private void OnVolumeEntered(object sender, PointerRoutedEventArgs e)
+        => SetVolumePointerInside(ReferenceEquals(sender, VolumePopup), true);
+    private void OnVolumeExited(object sender, PointerRoutedEventArgs e)
+        => SetVolumePointerInside(ReferenceEquals(sender, VolumePopup), false);
+    internal void SetVolumePointerInside(bool popup, bool inside)
     {
         if (disposed || presentationFrozen || closing || transitionActive) return;
-        volumePointerInside = true;
-        SetVolumeOpen(true);
-        Activity();
-    }
-    private void OnVolumeExited(object sender, PointerRoutedEventArgs e)
-    {
-        if (disposed || presentationFrozen) return;
-        volumePointerInside = false;
-        HideVolumeIfIdle();
+        if (popup) volumePopupPointerInside = inside;
+        else volumePointerInside = inside;
+        if (inside)
+        {
+            SetVolumeOpen(true);
+            Activity();
+        }
+        else
+        {
+            // 按钮和覆盖层是兄弟节点；等本次指针路由完成再判断，避免跨入滑块时闪退。
+            DispatcherQueue.TryEnqueue(HideVolumeIfIdle);
+        }
     }
     private void OnVolumeGotFocus(object sender, RoutedEventArgs e)
     {
@@ -1251,19 +1299,44 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     }
     private void HideVolumeIfIdle()
     {
-        if (disposed || presentationFrozen || volumePointerInside || pointerPressed) return;
+        if (disposed || presentationFrozen || volumePointerInside || volumePopupPointerInside || dragVolume || pointerPressed) return;
         var focused = XamlRoot is null ? null : FocusManager.GetFocusedElement(XamlRoot) as DependencyObject;
-        while (focused is not null)
-        {
-            if (ReferenceEquals(focused, VolumeHost)) return;
-            focused = VisualTreeHelper.GetParent(focused);
-        }
+        if (IsWithin(focused, VolumeHost) || IsWithin(focused, VolumePopup)) return;
         SetVolumeOpen(false);
     }
     private void SetVolumeOpen(bool open)
     {
-        VolumeSlider.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
+        VolumePopup.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
         VolumeFill.Opacity = open ? 1 : 0;
+        if (open) PositionVolumePopup();
+    }
+    private void CloseVolume()
+    {
+        volumePointerInside = volumePopupPointerInside = dragVolume = false;
+        if (XamlRoot is not null && IsWithin(FocusManager.GetFocusedElement(XamlRoot) as DependencyObject, VolumePopup))
+            Focus(FocusState.Programmatic);
+        SetVolumeOpen(false);
+    }
+    private void OnVolumeLayoutChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (!disposed && !presentationFrozen && VolumePopup is not null && VolumePopup.Visibility == Visibility.Visible)
+            PositionVolumePopup();
+    }
+    private void PositionVolumePopup()
+    {
+        var anchor = VolumeHost.TransformToVisual(VolumeCanvas).TransformPoint(new(0, 0));
+        Canvas.SetLeft(VolumePopup, anchor.X + (VolumeHost.ActualWidth - VolumePopup.Width) / 2);
+        Canvas.SetTop(VolumePopup, Math.Max(0, anchor.Y - VolumePopup.Height));
+    }
+    private void OnVolumeDragEnded(object sender, PointerRoutedEventArgs e)
+    {
+        dragVolume = false;
+        DispatcherQueue.TryEnqueue(HideVolumeIfIdle);
+    }
+    private void OnAnyPointerReleased(object sender, PointerRoutedEventArgs e)
+    {
+        pointerPressed = false;
+        DispatcherQueue.TryEnqueue(HideVolumeIfIdle);
     }
     private void OnVolumeChanged(object sender, RangeBaseValueChangedEventArgs e)
     {
@@ -1524,6 +1597,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         }
         foreach (var other in openFlyouts.ToArray())
             if (!ReferenceEquals(other, menu)) other.Hide();
+        CloseVolume();
         if (!openFlyouts.Contains(menu)) openFlyouts.Add(menu);
         openMenus = openFlyouts.Count;
         Activity();

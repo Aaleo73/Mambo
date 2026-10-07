@@ -53,7 +53,8 @@ public sealed partial class PlayerViewModel : ObservableObject, IDisposable
     public string PauseAccessibleName => snapshot.IsPaused ? "继续播放" : "暂停播放";
     public string MuteAccessibleName => snapshot.IsMuted ? "取消静音" : "静音";
     public string VolumeGlyph => (string)Application.Current.Resources[snapshot.IsMuted || snapshot.Volume == 0 ? "IconVolumeMuted" : "IconVolumeWaves"];
-    public string RateText => Math.Abs(snapshot.PlaybackRate - 1) < .001 ? "倍速" : snapshot.PlaybackRate.ToString("0.##", CultureInfo.InvariantCulture) + "×";
+    public string RateAccessibleName => "播放速度：" + snapshot.PlaybackRate.ToString("0.##", CultureInfo.InvariantCulture) + "×";
+    public string RateToolTip => RateAccessibleName + "（[ / ]）";
     public string DurationText => FormatTicks(snapshot.DurationTicks);
     public double DurationSeconds => Math.Max(1, TimeSpan.FromTicks(Math.Max(0, snapshot.DurationTicks)).TotalSeconds);
     public double Volume => Math.Clamp(snapshot.Volume, 0, 100);
@@ -181,7 +182,7 @@ public sealed partial class PlayerViewModel : ObservableObject, IDisposable
 
     private static readonly string[] ProjectionProperties =
     [nameof(Snapshot), nameof(CanControl), nameof(CanChangeVideoQuality), nameof(VideoQualityMode), nameof(VideoQualityText), nameof(VideoQualityAccessibleName), nameof(IsOpening), nameof(IsFailed), nameof(IsExternal), nameof(IsSlowOpening), nameof(IsBuffering),
-        nameof(CanPrevious), nameof(CanNext), nameof(HasEpisodes), nameof(IsPaused), nameof(PauseGlyph), nameof(PauseAccessibleName), nameof(MuteAccessibleName), nameof(VolumeGlyph), nameof(RateText),
+        nameof(CanPrevious), nameof(CanNext), nameof(HasEpisodes), nameof(IsPaused), nameof(PauseGlyph), nameof(PauseAccessibleName), nameof(MuteAccessibleName), nameof(VolumeGlyph), nameof(RateAccessibleName), nameof(RateToolTip),
         nameof(DurationText), nameof(DurationSeconds), nameof(Volume), nameof(ErrorText), nameof(Title), nameof(Subtitle), nameof(ShellTitle), nameof(NextTitle)];
 
     public static string FormatTicks(long ticks)
