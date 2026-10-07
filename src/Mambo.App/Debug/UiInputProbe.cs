@@ -20,6 +20,9 @@ internal sealed partial class UiInputProbe : IDisposable
     private uint injectedTime;
     private bool acquired, moved, leftDown, disposed;
 
+    /// <summary>Who held the foreground or covered the target when the last input was refused.</summary>
+    internal string LastInterference { get; private set; } = "";
+
     internal UiInputProbe(MainWindow window)
     {
         this.window = window;
@@ -27,6 +30,39 @@ internal sealed partial class UiInputProbe : IDisposable
     }
 
     internal bool IsForeground => !disposed && OwnsWindow() && GetForegroundWindow() == hwnd;
+
+    /// <summary>
+    /// Null while this window is foreground. Otherwise only the owning image name and window
+    /// class of whatever holds the foreground; never its title or content.
+    /// </summary>
+    internal string? DescribeForegroundHolder()
+    {
+        var foreground = GetForegroundWindow();
+        return foreground == hwnd ? null : DescribeWindow(foreground);
+    }
+
+    private static unsafe string DescribeWindow(nint target)
+    {
+        if (target == 0) return "none";
+        var owner = "unknown";
+        if (GetWindowThreadProcessId(target, out var process) != 0)
+        {
+            if (process == Environment.ProcessId) owner = "self";
+            else
+            {
+                try
+                {
+                    using var other = Process.GetProcessById((int)process);
+                    owner = other.ProcessName;
+                }
+                catch (Exception error) when (error is ArgumentException or InvalidOperationException
+                    or System.ComponentModel.Win32Exception) { }
+            }
+        }
+        var name = stackalloc char[128];
+        var length = GetClassName(target, name, 128);
+        return length > 0 ? $"{owner}/{new string(name, 0, length)}" : owner;
+    }
 
     internal async Task AcquireAsync(CancellationToken token)
     {
@@ -62,7 +98,11 @@ internal sealed partial class UiInputProbe : IDisposable
             {
                 await UiLabSmoke.AwaitNextRenderingAsync(token);
             } while (!IsForeground && Stopwatch.GetElapsedTime(activation) < TimeSpan.FromSeconds(2));
-            if (!IsForeground) throw Failure("UiInputForegroundUnavailable");
+            if (!IsForeground)
+            {
+                LastInterference = DescribeForegroundHolder() ?? "";
+                throw Failure("UiInputForegroundUnavailable");
+            }
             acquired = true;
         }
         catch
@@ -205,7 +245,10 @@ internal sealed partial class UiInputProbe : IDisposable
         var target = WindowFromPoint(screen);
         if (target == 0) throw Failure("UiInputTargetUnavailable");
         if (GetWindowThreadProcessId(target, out var process) == 0 || process != Environment.ProcessId)
+        {
+            LastInterference = DescribeWindow(target);
             throw Failure("UiInputTargetOccluded");
+        }
         if (GetAncestor(target, 3) != hwnd) throw Failure("UiInputTargetScopeMismatch");
         var inserted = SendInput(count, inputs, sizeof(NativeInput));
         if (inserted >= 1)
@@ -238,7 +281,11 @@ internal sealed partial class UiInputProbe : IDisposable
         inputs[0] = down;
         inputs[1] = down;
         inputs[1].Data.Keyboard.Flags |= 2;
-        if (!IsForeground) throw Failure("UiInputForegroundUnavailable");
+        if (!IsForeground)
+        {
+            LastInterference = DescribeForegroundHolder() ?? "";
+            throw Failure("UiInputForegroundUnavailable");
+        }
         var inserted = SendInput(2, inputs, sizeof(NativeInput));
         if (inserted == 1)
         {
@@ -306,7 +353,9 @@ internal sealed partial class UiInputProbe : IDisposable
         EnsureThread();
         ObjectDisposedException.ThrowIf(disposed, this);
         token.ThrowIfCancellationRequested();
-        if (!acquired || !IsForeground) throw Failure("UiInputForegroundUnavailable");
+        if (acquired && IsForeground) return;
+        LastInterference = DescribeForegroundHolder() ?? "";
+        throw Failure("UiInputForegroundUnavailable");
     }
 
     private void EnsureThread()
@@ -373,6 +422,8 @@ internal sealed partial class UiInputProbe : IDisposable
     private static partial nint WindowFromPoint(NativePoint point);
     [LibraryImport("user32.dll")]
     private static partial nint GetAncestor(nint window, uint flags);
+    [LibraryImport("user32.dll", EntryPoint = "GetClassNameW")]
+    private static unsafe partial int GetClassName(nint window, char* name, int capacity);
     [LibraryImport("user32.dll")]
     private static partial short GetAsyncKeyState(int key);
     [LibraryImport("user32.dll", EntryPoint = "MapVirtualKeyW")]

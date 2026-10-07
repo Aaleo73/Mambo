@@ -369,6 +369,10 @@ internal static partial class UiLabSmoke
             await SelectHeroAsync(hero, 0, token);
             await SettleHeroAsync(hero, backdrop, token);
             var foreground = DisplayedHeroPanel(hero);
+            // 窗口失活时 Hero 不会提交新请求，仍显示带 Logo 的原推荐；这几项用来区分它和真实的提交顺序错误。
+            report.Measurements["HeroCommitWindowActive"] = services.GetRequiredService<WindowContext>().IsActive ? 1 : 0;
+            report.Measurements["HeroCommitDisplayedIsFixture"] = hero.DisplayedSlide?.HasSameContent(slides[0]) == true ? 1 : 0;
+            report.Measurements["HeroCommitRequestPending"] = hero.IsRequestPending ? 1 : 0;
             MotionCheck(report, "HeroCommitsBeforeDelayedLogo", hero.DisplayedSlide?.Id == slides[0].Id &&
                 backdrop.DisplayedSource == slides[0].Backdrop && backdrop.DisplayedSurface is not null &&
                 foreground.FindName("TitleText").As<TextBlock>().Visibility == Visibility.Visible &&

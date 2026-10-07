@@ -27,7 +27,8 @@ internal static partial class UiLabSmoke
     public static async Task RunAsync(MainWindow window, string reportPath)
     {
         var report = new UiLabReport();
-        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(180));
+        // 这是防止挂死的看门狗，不是性能指标：完整跑完实测 170–179 秒，原先的 180 秒没有余量。
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(300));
         var token = deadline.Token;
         var services = window.Services;
         var navigation = services.GetRequiredService<Navigator>();
@@ -63,6 +64,7 @@ internal static partial class UiLabSmoke
         }
         var shotRoot = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(reportPath))!, Path.GetFileNameWithoutExtension(reportPath));
         using var input = new UiInputProbe(window);
+        ForegroundWatch? foreground = null;
         // 六项假服务已验证；只为本轮合成页面保存构造错误，不订阅真实页面。
         void OnPageFailure(Exception error)
         {
@@ -84,6 +86,7 @@ internal static partial class UiLabSmoke
             await SaveReportAsync(report, reportPath);
             report.Stage = "取得本轮窗口输入";
             await input.AcquireAsync(token);
+            foreground = new ForegroundWatch(window, input, report);
             await VerifyWindowActivationInputAsync(window, input, report.WindowActivation, token);
             report.AnimationsEnabled = Themes.Motion.AnimationsEnabled;
             using var libraries = library.ObserveLibraries(token);
@@ -299,6 +302,8 @@ internal static partial class UiLabSmoke
         }
         finally
         {
+            foreground?.Dispose();
+            report.InputInterference = input.LastInterference;
             window.Shell.PageHost.DiagnosticFailure -= OnPageFailure;
             try { await CloseFromCaptionAsync(window, report, reportPath); }
             catch (Exception error)
@@ -530,6 +535,9 @@ internal sealed class UiLabReport
     public PlaybackRefreshReport? PlaybackRefresh { get; set; }
     public MotionReport? Motion { get; set; }
     public MotionReport? WindowActivation { get; set; }
+    public ForegroundReport? Foreground { get; set; }
+    /// <summary>物理输入被拒绝时，占用前台或盖住目标的进程名和窗口类。</summary>
+    public string InputInterference { get; set; } = "";
 }
 
 internal sealed class MotionReport
