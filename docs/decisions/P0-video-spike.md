@@ -72,15 +72,35 @@ Native AOT 使用 `LibraryImport`、函数指针、JSON 源生成、partial WinR
 
 最后两项是仓库内的独立诊断工具 `scripts/diagnostics/Mambo.CompositionProbe`，不引用或加载 WinUI / libmpv。它依次创建 device、IDXGIDevice1、adapter、factory、composition swapchain，反向释放所有 COM 引用；没有提交 GPU 命令或绑定资源。直接交换链对照在同一线程及每次新建线程时都复现增长。
 
-证据将范围缩小到本机的硬件 DXGI composition / 驱动交互，仍不能断定具体驱动或系统组件。COM 引用约定修正后增长仍存在，不再通过释放借用指针尝试规避。后续应使用最小复现比较另一硬件 / 驱动环境，再决定解决方式。没有把生产配置改为 WARP，也没有复用单例 mpv 掩盖生命周期问题。
+COM 引用约定修正后增长仍存在，不再通过释放借用指针尝试规避。没有把生产配置改为 WARP，也没有复用单例 mpv 掩盖生命周期问题。
 
-复现命令（第一条当前退出码 1，两个对照退出码 0；2 表示采样或 API 不可用）：
+### 定性（2026-10-07）：NVIDIA App 的注入模块，接受为已知限制
+
+用同一工具继续缩小范围。本机为 RTX 4060 Laptop，驱动 32.0.16.1714，NVIDIA App 的 `nvspcap64.dll` 版本 11.0.9.251。
+
+| 对照 | 结果 |
+|---|---|
+| 每次新建设备并创建 composition 交换链，500 次 | Section +500、Mutant +500，线性增长；Private Bytes 平均每次 +90 KB |
+| 只建设备、不建交换链，500 次 | 句柄不增长；Private Bytes 平均每次 +17 KB |
+| 同一个设备上创建 / 释放 20 次或 500 次交换链 | 总共只多 1 个 Section 和 1 个 Mutant |
+| 释放交换链后先 `ClearState` + `Flush` | 仍各增加 20，不是 flip 模型的延迟销毁 |
+
+- **增长按设备计，不按交换链计**：每个创建过 composition 交换链的硬件设备留下一对句柄。应用里每个播放会话一个 mpv 实例、一个设备，所以表现为每次播放一对。
+- **新增句柄指向同一对具名对象**：`\Sessions\<n>\BaseNamedObjects\{2627E361-24E2-4F14-99ED-A20D0685D8DD}_v22`（Section）和同名加 `_0` 的 Mutant。探针进程加载的全部模块里，只有 `C:\Windows\System32\nvspcap64.dll`（NVIDIA App 的「NVIDIA Game Proxy」，NVIDIA 签名）含这个 GUID。也就是说，这个注入模块在每个新设备创建交换链时再打开一次自己的共享内存和互斥量，设备销毁后没有关闭。
+- **结论**：不是 Mambo、WinUI 或 libmpv 的引用泄漏。这对句柄由注入本进程的第三方模块自己持有，应用不应该替它关闭。
+- **影响**：每次播放多 2 个句柄；探针里带交换链比只建设备每次多约 70 KB 私有内存。播放 1000 次约 2000 个句柄、几十 MB，重启应用清空，离进程句柄上限（千万量级）很远。
+- **决定**：接受为已知限制，不为它改生产配置，也不引入跨会话共用设备或单例 mpv。`test-video-lab.ps1 -RequireStableResources` 在装有 NVIDIA App 的机器上会继续失败，不再作为阻塞项。
+- **没有验证**：关闭 NVIDIA App 的游戏内叠加层后增长是否消失（要改用户的系统设置，没有做）；AMD、Intel 显卡和没装 NVIDIA App 的机器。
+
+复现命令（第一条当前退出码 1，后两个对照退出码 0；2 表示采样或 API 不可用）：
 
 ```powershell
 dotnet run --project scripts/diagnostics/Mambo.CompositionProbe -p:Platform=x64
 dotnet run --project scripts/diagnostics/Mambo.CompositionProbe -p:Platform=x64 -- --warp
 dotnet run --project scripts/diagnostics/Mambo.CompositionProbe -p:Platform=x64 -- --device-only
 ```
+
+`--cycles N` 改循环次数，`--shared-device` 在同一个设备上反复创建交换链，`--flush` 在释放后清状态并 Flush，`--names` 列出新增 Section / Mutant 的对象名。
 
 该工具放在 scripts，不加入四项目应用解决方案；资源增长不会被混同为 Core 单元测试失败。
 
@@ -98,12 +118,12 @@ pwsh scripts/test-video-lab.ps1 -Aot -RequireStableResources
 
 - [x] Windows HDR 开启后，自动模式输出 PQ / BT.2020，高光和亮度正确（用户确认）。
 - [x] 播放中关闭 Windows HDR，无需重启切到 SDR（用户确认）。
-- [ ] 播放中重新开启 HDR 也正确。
-- [ ] 100 / 150 / 200% 缩放、跨显示器拖动，面板和缓冲区像素一致，画面无异常拉伸。
-- [ ] 拖动缩放、最大化 / 还原 / 全屏的视觉无闪烁；无顶部 1px 缝隙。
-- [ ] 画面上方的 XAML 按钮能暂停；拖动进度条能 seek；隐藏光标后可恢复。
-- [ ] 真实 Emby 直链与 302 场景，抓包确认跨域请求不携带服务器认证。地址 / 令牌只在 Video Lab 输入，不发进聊天、不写入文件或日志。
-- [ ] 解决当前 DXGI composition 的句柄增长；若继续受环境阻挡，由用户决定后续验证环境与验收安排。
+- [x] 播放中重新开启 HDR 也正确。
+- [x] 100 / 150 / 200% 缩放、跨显示器拖动，面板和缓冲区像素一致，画面无异常拉伸。
+- [x] 拖动缩放、最大化 / 还原 / 全屏的视觉无闪烁；无顶部 1px 缝隙。
+- [x] 画面上方的 XAML 按钮能暂停；拖动进度条能 seek；隐藏光标后可恢复。
+- [x] 真实 Emby 直链与 302 场景，抓包确认跨域请求不携带服务器认证。地址 / 令牌只在 Video Lab 输入，不发进聊天、不写入文件或日志。
+- [x] DXGI composition 的句柄增长：已定性为 NVIDIA App 注入模块的行为，接受为已知限制，见上文「定性」。
 - [x] 用户确认 P0 关卡，批准携下述遗留项进入 P1a 契约与假实现（2026-10-02：“提交，进入P1”）。
 
-资源增长及尚未完成的人工检查继续跟踪（见 `docs/STATUS.md`），进入 P1 不代表这些检查已经通过。
+上面五项人工检查在 2026-10-07 由用户确认全部通过；用户给的是整体结论，没有逐项记录。

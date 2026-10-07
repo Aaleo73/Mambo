@@ -38,4 +38,4 @@
 
 假 IPC 的会话回归覆盖候选失败后回退、控制、追加 / 下一集、季末、严格的 Playing / Stopped 顺序、真实倍速、断线停止和手动选择非追加条目，不访问真实 Emby，也不执行未知 exe。`pwsh scripts/test-external-ipc-lab.ps1`（及 `-Aot`）实际执行命名管道 PID 的 LibraryImport、21 属性初始化、文件选项、真实条目标识、Unicode / 嵌套节点和 quit。
 
-【需用户】播放中杀掉 mpv.exe 后 Emby 后台的活跃播放应结束；替换 mpv.exe 后应要求重新批准。进程终止与指纹重批已有自动验收，真实 Emby 后台的人工观察仍未做，见 `docs/STATUS.md`。
+【需用户】播放中杀掉 mpv.exe 后 Emby 后台的活跃播放应结束；替换 mpv.exe 后应要求重新批准。进程终止与指纹重批已有自动验收；真实 Emby 后台的人工观察在 2026-10-07 由用户确认通过（整体结论，没有逐项记录）。
