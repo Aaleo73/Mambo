@@ -142,6 +142,73 @@ public sealed class LocalSubtitleTargetResolverTests
         Assert.Empty(await fixture.Resolver.ResolveAsync(fixture.Account, movie, [new(0, "S01E02E03.ass", 1)], Token));
     }
 
+    [Theory]
+    [InlineData("01+03.ass")]
+    [InlineData("01&03.chs.ass")]
+    [InlineData("01,03.ass")]
+    [InlineData("01、03.chs.ass")]
+    [InlineData("[ABCDEF12].chs.ass")]
+    [InlineData("1080p.chs.ass")]
+    [InlineData("4k.WEB-DL.zh-Hant.srt")]
+    public async Task AmbiguousNamesCannotUseSingleFileCurrentItemFallback(string fileName)
+    {
+        var calls = 0;
+        using var fixture = new Fixture(_ => { calls++; return Page([Episode(1)], 1); });
+        Assert.Empty(await fixture.Resolver.ResolveAsync(fixture.Account, Context, [new(0, fileName, 1)], Token));
+        Assert.Equal(0, calls);
+    }
+
+    [Theory]
+    [InlineData("A+B", "AB")]
+    [InlineData("AB", "A+B")]
+    [InlineData("A-B", "AB")]
+    [InlineData("A(B)", "AB")]
+    public async Task DifferentMeaningfulSymbolsRequireExactOtherSeriesSearch(string currentTitle, string fileTitle)
+    {
+        var searches = 0;
+        using var fixture = new Fixture(request =>
+        {
+            var query = Query(request);
+            if (query["IncludeItemTypes"] == "Series")
+            {
+                searches++;
+                Assert.Equal(fileTitle, query["SearchTerm"]);
+                // 只有当前剧的结果，不能把不等价标题认作另一前缀的精确结果。
+                return Page([new() { Id = "series", Name = currentTitle, Type = "Series" }], 1);
+            }
+            return Page([Episode(2)], 1);
+        });
+        var result = await fixture.Resolver.ResolveAsync(fixture.Account, Context with { SeriesName = currentTitle },
+            [new(0, fileTitle + ".S01E02.ass", 1)], Token);
+        Assert.Empty(result);
+        Assert.Equal(1, searches);
+    }
+
+    [Fact]
+    public async Task MatchingSymbolicTitleStillUsesCurrentSeriesWithoutSearch()
+    {
+        using var fixture = new Fixture(request =>
+        {
+            var query = Query(request);
+            Assert.Equal("Episode", query["IncludeItemTypes"]);
+            Assert.Equal("season", query["ParentId"]);
+            return Page([Episode(2)], 1);
+        });
+        var result = await fixture.Resolver.ResolveAsync(fixture.Account, Context with { SeriesName = "A+B" },
+            [new(0, "A+B.S01E02.ass", 1)], Token);
+        Assert.Equal("episode-2", Assert.Single(result).Value);
+    }
+
+    [Theory]
+    [InlineData("任意其它标题.ass")]
+    [InlineData("A+B.srt")]
+    public async Task UnknownUnnumberedSingleFileStillUsesCurrentButBatchDoesNot(string fileName)
+    {
+        using var fixture = new Fixture(_ => throw new InvalidOperationException("无编号名称不应搜索猜测归属。"));
+        Assert.Equal(Context.ItemId, (await fixture.Resolver.ResolveAsync(fixture.Account, Context, [new(0, fileName, 1)], Token))[0]);
+        Assert.Empty(await fixture.Resolver.ResolveAsync(fixture.Account, Context, [new(0, fileName, 2)], Token));
+    }
+
     [Fact]
     public async Task MissingSeasonContextDoesNotAssumeSeasonOne()
     {

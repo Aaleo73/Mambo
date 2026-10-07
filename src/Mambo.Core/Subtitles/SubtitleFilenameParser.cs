@@ -27,22 +27,29 @@ public static partial class SubtitleFilenameParser
             int? season = match.Groups["season"].Success && TryNumber(match.Groups["season"].Value, out var parsed) ? parsed : null;
             // 裸 NxM 也用于分辨率，不将这些常见尺寸解释为数百季的剧集。
             if (match.Value.Contains('x', StringComparison.OrdinalIgnoreCase) && season is >= 100) return Ambiguous();
-            return new(Separators().Replace(stem[..match.Index], " ").Trim(), season, episode, false);
+            // 季集号之前的连接分隔符可以修剪，剧名内部的符号必须保留。
+            var title = stem[..match.Index];
+            if (title.EndsWith('-')) title = title[..^1];
+            return new(TitleSeparators().Replace(title, " ").Trim(), season, episode, false);
         }
         // 残缺的季集、多集范围和校验码不能绕过到“单文件用于当前片”。
-        if (IncompleteMarker().IsMatch(stem) || BareRange().IsMatch(stem) || Checksum().IsMatch(stem.Trim())) return Ambiguous();
+        // 先移除明确语言/编码等元数据，但保留分辨率，避免 .chs 等后缀遮住歧义检查。
+        var identifier = Metadata().Replace(stem, static match => ResolutionOnly().IsMatch(match.Value) ? match.Value : " ")
+            .Trim(' ', '.', '_', '-');
+        if (IncompleteMarker().IsMatch(stem) || BareRange().IsMatch(identifier) || Checksum().IsMatch(identifier) ||
+            ResolutionOnly().IsMatch(identifier)) return Ambiguous();
         var cleaned = CleanTitle(stem);
-        if (int.TryParse(cleaned, NumberStyles.None, CultureInfo.InvariantCulture, out var number))
+        var numeric = Separators().Replace(cleaned, " ").Trim();
+        if (int.TryParse(numeric, NumberStyles.None, CultureInfo.InvariantCulture, out var number))
             return number is >= 0 and <= 999999 && number is not (>= 1900 and <= 2099)
                 ? new("", null, number, false) : Ambiguous();
-        if (ResolutionOnly().IsMatch(stem)) return Ambiguous();
         return new(NeutralName().IsMatch(cleaned) ? "" : cleaned, null, null, false);
     }
 
     public static string NormalizeTitle(string title) => new(title.Normalize(NormalizationForm.FormKC)
-        .Where(char.IsLetterOrDigit).Select(char.ToUpperInvariant).ToArray());
+        .Where(character => !char.IsWhiteSpace(character) && character is not '.' and not '_').Select(char.ToUpperInvariant).ToArray());
 
-    private static string CleanTitle(string text) => Separators().Replace(Metadata().Replace(text, " "), " ").Trim();
+    private static string CleanTitle(string text) => TitleSeparators().Replace(Metadata().Replace(text, " "), " ").Trim();
     private static ParsedSubtitleFilename Ambiguous() => new("", null, null, true);
 
     private static bool TryNumber(string text, out int value)
@@ -92,16 +99,18 @@ public static partial class SubtitleFilenameParser
     private static partial Regex RangeTail();
     [GeneratedRegex(@"(?<![\p{L}\p{N}])(?:S[0-9]+|E[0-9]+)(?![\p{L}\p{N}])|第[0-9零〇一二两三四五六七八九十百千万]+季", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex IncompleteMarker();
-    [GeneratedRegex(@"(?:^|[ ._\[])\d+\s*[-~～至到]\s*\d+(?:$|[ ._\]])", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"(?:^|[ ._\[(])\d+\s*[-+&,、~～至到]\s*\d+(?:$|[ ._\])])", RegexOptions.CultureInvariant)]
     private static partial Regex BareRange();
     [GeneratedRegex(@"^[\[(]?[0-9a-f]{8,64}[\])]?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex Checksum();
-    [GeneratedRegex(@"^[ ._\[\]-]*(?:\d{3,5}[pi]|[248]k)[ ._\[\]-]*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"^[ ._\[\]()-]*(?:\d{3,5}[pi]|[248]k)[ ._\[\]()-]*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex ResolutionOnly();
     [GeneratedRegex(@"(?<![\p{L}\p{N}])(?:chs|cht|chi|zho|zh(?:[-_]?(?:cn|tw|hans|hant))?|eng|en|jpn|ja|kor|ko|简中|繁中|简体|繁体|中文字幕|中文|[248]k|\d{3,5}[pi]|h[ ._-]?26[45]|x26[45]|hevc|avc|web[ ._-]?dl|webrip|bluray|aac|flac)(?![\p{L}\p{N}])", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex Metadata();
     [GeneratedRegex(@"[\s._\-\[\]()]+", RegexOptions.CultureInvariant)]
     private static partial Regex Separators();
+    [GeneratedRegex(@"[\s._]+", RegexOptions.CultureInvariant)]
+    private static partial Regex TitleSeparators();
     [GeneratedRegex(@"^(?:字幕|subtitle|subtitles)?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex NeutralName();
 }
