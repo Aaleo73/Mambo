@@ -22,6 +22,7 @@ namespace Mambo.App.Debug;
 internal static class PlayerControlsSmoke
 {
     internal const string Argument = "--player-controls-smoke";
+    internal const string SubtitleOnlyArgument = "--subtitle-controls-only";
 
     /// <summary>只运行播放控件，不启动完整 UiLab 的导航、性能或外观旧阶段。</summary>
     internal static async Task RunStandaloneAsync(MainWindow window, string reportPath)
@@ -37,7 +38,9 @@ internal static class PlayerControlsSmoke
                 services.GetRequiredService<IImageService>() is not FakeImageService || services.GetRequiredService<ILibraryPreferences>() is not FakeLibraryPreferences)
                 throw new InvalidOperationException("RealBackendRejected");
             await WaitAsync(() => window.Shell.IsLoaded && window.Shell.ActualWidth > 0, deadline.Token);
-            report = await RunAsync(window, playback, deadline.Token);
+            report = Program.Arguments.Contains(SubtitleOnlyArgument, StringComparer.Ordinal)
+                ? await RunSubtitleOnlyAsync(window, playback, deadline.Token)
+                : await RunAsync(window, playback, deadline.Token);
         }
         catch (Exception error)
         {
@@ -58,6 +61,95 @@ internal static class PlayerControlsSmoke
             { Environment.ExitCode = 1; }
             window.Close();
         }
+    }
+
+    /// <summary>本轮字幕功能的独立范围；旧播放器/Fold 断言仍完整保留在 RunAsync。</summary>
+    private static async Task<PlayerControlsReport> RunSubtitleOnlyAsync(MainWindow window, IPlaybackService playback, CancellationToken token)
+    {
+        var report = new PlayerControlsReport
+        {
+            Scope = "Subtitle controls only; in-memory fake session and real XAML shared event paths; no physical input or rendering claim",
+        };
+        var watch = Stopwatch.StartNew();
+        var presentation = window.Services.GetRequiredService<WindowContext>();
+        try
+        {
+            Mark(report, "FakeServiceOnly", playback is FakePlaybackService);
+            Mark(report, "StartsWithoutPlayback", playback.Current is null && window.Shell.ActivePlayer is null);
+            var session = await playback.PreviewAsync(token);
+            report.SessionsOpened++;
+            await WaitAsync(() => !window.Shell.IsTransitioning && window.Shell.ActivePlayer is { IsLoaded: true } active &&
+                ReferenceEquals(active.Session, session) && active.ViewModel.CanControl, token);
+            var player = window.Shell.ActivePlayer!;
+            if (!session.Snapshot.IsPaused) await session.TogglePauseAsync(token);
+            await WaitAsync(() => player.ViewModel.IsPaused, token);
+            Mark(report, "DemoRejectsRealFileImport", session.Snapshot.EngineKind == EngineKind.Demo &&
+                !session.Snapshot.CanImportSubtitles && session.BeginSubtitleImport() is null);
+            report.SeriesEpisodeCount = session.Snapshot.Entries.Length;
+            var subtitles = session.Snapshot.SubtitleTracks;
+            var audio = session.Snapshot.AudioTracks;
+            Mark(report, "FakeTrackChoices", subtitles.Length == 2 && audio.Length == 2);
+            player.ShowControlsForSmoke();
+            var panel = player.ShowMenuForSmoke(tracks: true);
+            await CheckAsync(report, "TrackMenuOpened", () => player.HasOpenMenu && panel.ChoiceCount == 5, token);
+            await player.DispatchSmokeTrackAsync(audio[1].Id, subtitle: false);
+            await CheckAsync(report, "AudioMenuSelects", () => player.ViewModel.Snapshot.SelectedAudioTrackId == audio[1].Id && player.HasOpenMenu, token);
+            await player.DispatchSmokeTrackAsync(subtitles[1].Id, subtitle: true);
+            await CheckAsync(report, "SubtitleMenuSelects", () => player.ViewModel.Snapshot.SelectedSubtitleTrackId == subtitles[1].Id && player.HasOpenMenu, token);
+            await ProbeSubtitleControlsAsync(player, panel, report, token);
+            await player.DispatchSmokeTrackAsync(null, subtitle: true);
+            await CheckAsync(report, "NoSubtitleAllowsStyleButDisablesDelay", () => panel.SubtitleControls.CanEditStyle &&
+                !panel.SubtitleControls.CanAdjustDelay && player.HasOpenMenu, token);
+            await player.DispatchSmokeKeyAsync(VirtualKey.Escape);
+            await CheckAsync(report, "TracksEscapeOnlyClosesComponent", () => !player.HasOpenMenu && player.ViewModel.CanControl, token);
+            await player.DispatchSmokeKeyAsync(VirtualKey.C);
+            await CheckAsync(report, "CStillSelectsSubtitleAfterEditing", () => player.ViewModel.Snapshot.SelectedSubtitleTrackId == subtitles[0].Id, token);
+            await player.DispatchSmokeKeyAsync(VirtualKey.V);
+            await CheckAsync(report, "VStillSelectsAudioAfterEditing", () => player.ViewModel.Snapshot.SelectedAudioTrackId == audio[0].Id, token);
+            await player.DispatchSmokeKeyAsync(VirtualKey.F11);
+            await WaitAsync(() => presentation.IsFullscreen, token);
+            player.ShowControlsForSmoke();
+            panel = player.ShowMenuForSmoke(tracks: true);
+            await WaitAsync(() => player.HasOpenMenu && panel.SubtitleControls.CanEditStyle, token);
+            panel.FindName("SubtitleDelayInput").As<TextBox>().Text = "0.5";
+            await CheckAsync(report, "FullscreenSubtitleControlsApply", () => player.ViewModel.Snapshot.SubtitleDelaySeconds == .5 && player.HasOpenMenu, token);
+            await player.DispatchSmokeKeyAsync(VirtualKey.Escape);
+            await CheckAsync(report, "FullscreenEscapeClosesSubtitleComponentFirst", () => !player.HasOpenMenu && presentation.IsFullscreen, token);
+            await player.DispatchSmokeKeyAsync(VirtualKey.Escape);
+            await CheckAsync(report, "FullscreenEscapeLeavesVideoPlaying", () => !presentation.IsFullscreen && playback.Current is not null, token);
+            report.Passed = true;
+            report.Status = "Passed";
+            report.Stage = "Complete";
+        }
+        catch (SmokeCheckException error)
+        {
+            report.Status = "Failed";
+            report.Reason = "字幕控件检查未通过：" + error.Check;
+        }
+        catch (Exception error)
+        {
+            report.Status = "Failed";
+            report.Reason = "字幕控件在 " + report.Stage + " 阶段中止：" + error.GetType().Name;
+        }
+        finally
+        {
+            try
+            {
+                presentation.ExitFullscreen();
+                if (playback.Current is { } remaining) await remaining.CloseAsync(cancellationToken: CancellationToken.None);
+                using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+                await WaitAsync(() => playback.Current is null && window.Shell.ActivePlayer is null && !window.Shell.IsTransitioning, cleanup.Token);
+                report.SessionClosed = true;
+            }
+            catch (Exception error)
+            {
+                report.Passed = false;
+                report.Status = "Failed";
+                report.Reason += " 清理失败：" + error.GetType().Name;
+            }
+            report.ElapsedMilliseconds = watch.Elapsed.TotalMilliseconds;
+        }
+        return report;
     }
 
     public static async Task<PlayerControlsReport> RunAsync(MainWindow window, IPlaybackService playback, CancellationToken token)

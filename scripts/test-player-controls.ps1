@@ -2,6 +2,7 @@
 [CmdletBinding()]
 param(
     [switch]$Aot,
+    [switch]$SubtitlesOnly,
     [string]$AppDirectory,
     [ValidateRange(30, 600)][int]$TimeoutSeconds = 180
 )
@@ -28,6 +29,7 @@ try {
     $controlsStart.WindowStyle = [Diagnostics.ProcessWindowStyle]::Hidden
     $controlsStart.WorkingDirectory = $controlsRunRoot
     $controlsStart.ArgumentList.Add('--player-controls-smoke')
+    if ($SubtitlesOnly) { $controlsStart.ArgumentList.Add('--subtitle-controls-only') }
     foreach ($controlsEnvironmentName in @('MAMBO_UI_LAB_REPORT', 'MAMBO_STARTUP_REPORT', 'MAMBO_BULLET_CHAT_REPORT', 'MAMBO_VIDEO_QUALITY_UI_REPORT', 'MAMBO_FAKE_LIFETIME_REPORT_DIR')) {
         $null = $controlsStart.Environment.Remove($controlsEnvironmentName)
     }
@@ -51,6 +53,7 @@ try {
         ExitCode = $controlsProcess.ExitCode
         Stage = $controlsReport.Stage
         Reason = $controlsReport.Reason
+        Scope = $controlsReport.Scope
         ElapsedMilliseconds = $controlsClock.ElapsedMilliseconds
         ReportPath = $controlsReportPath
     }
