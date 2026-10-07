@@ -1,7 +1,7 @@
 <ResourceDictionary
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <!-- 视觉基准是原项目的取值（见 docs/decisions/P9-visual-parity.md）；强调色改为中性色，见 docs/decisions/P9-neutral-accent.md，与 design/tokens.css 同步。深色键为 Default，高对比度跟随系统颜色。 -->
+    <!-- 视觉基准是原项目的取值（见 docs/decisions/P9-visual-parity.md）；强调色改为中性色，见 docs/decisions/P9-neutral-accent.md。深色键为 Default，高对比度跟随系统颜色。 -->
     <ResourceDictionary.ThemeDictionaries>
         <ResourceDictionary x:Key="Light">
             <SolidColorBrush x:Key="TextPrimaryBrush" Color="#E6181818"/>

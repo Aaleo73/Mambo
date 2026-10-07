@@ -1,7 +1,7 @@
 #Requires -Version 7.0
 <#
 .SYNOPSIS
-    生成应用图标：src/Mambo.App/Assets/AppIcon.ico 和矢量母版 design/app-icon.svg。
+    生成应用图标：src/Mambo.App/Assets/AppIcon.ico 和矢量母版 scripts/app-icon.svg。
 .DESCRIPTION
     图形在本脚本里按像素尺寸逐个生成 SVG（边缘对齐到整像素），用 Edge 无界面模式栅格化，
     再写成多尺寸 .ico。只在改图标时运行；构建和发布直接使用已提交的 .ico。
@@ -15,7 +15,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $repoRoot = [IO.Path]::GetFullPath((Split-Path $PSScriptRoot -Parent))
 $iconPath = Join-Path $repoRoot 'src/Mambo.App/Assets/AppIcon.ico'
-$masterPath = Join-Path $repoRoot 'design/app-icon.svg'
+$masterPath = Join-Path $repoRoot 'scripts/app-icon.svg'
 $workRoot = Join-Path $repoRoot 'artifacts/app-icon'
 $sizes = 256, 96, 72, 64, 60, 48, 40, 36, 32, 30, 24, 20, 16
 $cell = 256
