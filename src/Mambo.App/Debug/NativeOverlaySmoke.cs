@@ -146,6 +146,7 @@ internal static class NativeOverlaySmoke
             await player.DispatchSmokeSeekAsync(2);
             await WaitAsync(() => session.Snapshot.PositionTicks >= TimeSpan.TicksPerSecond, token);
             report.SeekControl = true;
+            await VerifyViewportChangesAsync(window, player, report, token);
             await VerifyVideoQualityAsync(player, session, engine, fixture, report, token);
             InvokeButton(player, player.ViewModel.PauseAccessibleName);
             await WaitAsync(() => !session.Snapshot.IsPaused && !player.ViewModel.IsPaused, token);
@@ -232,6 +233,7 @@ internal static class NativeOverlaySmoke
                 && report.ProductionEngineParameters && report.TitleBound && report.Playing && report.Bound && report.SizeMatched && report.ViewportMatched && report.FullscreenViewportMatched
                 && report.RestoredViewportMatched && report.NativeReleaseBeforeShellAwait &&
                     (!report.AnimationsEnabled || report.FrozenFaceRenderingObserved)
+                && report.EpisodeCollapseViewportMatched && report.EpisodeExpandViewportMatched && report.ResizeViewportMatched
                 && report.AudioFixtureGenerated && report.AudioOutputAvailable && report.AudioTrackSelected && report.ExternalAudioTrackSelected
                 && report.AudioOutputSampleRate > 0 && report.AudioOutputChannels > 0 && report.AudioPlaybackAdvanced
                 && report.VolumeControl && report.MuteButton && report.UnmuteButton && report.NativeUnmuted && Math.Abs(report.NativeVolume - 10) < .01
@@ -260,7 +262,46 @@ internal static class NativeOverlaySmoke
         // Measure the video rectangle independently of the episode panel and top gutter.
         var expected = ((int)Math.Round(player.VideoViewportElement.ActualWidth * player.VideoSurface.DpiScale),
             (int)Math.Round(player.VideoViewportElement.ActualHeight * player.VideoSurface.DpiScale));
-        return expected.Item1 > 200 && expected.Item2 > 200 && player.VideoSurface.BufferSize == expected;
+        return expected.Item1 > 200 && expected.Item2 > 200 && player.VideoSurface.BufferSize == expected
+            && Math.Abs(player.ViewportElement.ActualWidth - player.VideoViewportElement.ActualWidth) < .75
+            && Math.Abs(player.ViewportElement.ActualHeight - player.VideoViewportElement.ActualHeight) < .75
+            && Math.Abs(player.VideoSurface.ActualWidth - player.VideoViewportElement.ActualWidth) < .75
+            && Math.Abs(player.VideoSurface.ActualHeight - player.VideoViewportElement.ActualHeight) < .75
+            && player.VideoSurface.RenderTransform is CompositeTransform { ScaleX: 1, ScaleY: 1 };
+    }
+
+    private static async Task VerifyViewportChangesAsync(MainWindow window, PlayerOverlay player, NativeOverlayReport report, CancellationToken token)
+    {
+        async Task ObserveAsync(string stage)
+        {
+            report.Stage = stage;
+            await WaitAsync(() => ViewportMatched(player), token);
+            await Task.Delay(700, token);
+        }
+        await ObserveAsync("初始选集展开");
+        var expanded = player.VideoViewportElement.ActualWidth;
+        InvokeButton(window.Shell, "收起选集");
+        await WaitAsync(() => !player.EpisodePanelVisible && player.VideoViewportElement.ActualWidth > expanded + 180, token);
+        await ObserveAsync("选集收起");
+        report.EpisodeCollapseViewportMatched = true;
+        InvokeButton(window.Shell, "展开选集");
+        await WaitAsync(() => player.EpisodePanelVisible && Math.Abs(player.VideoViewportElement.ActualWidth - expanded) < 1, token);
+        await ObserveAsync("选集再次展开");
+        report.EpisodeExpandViewportMatched = true;
+        var size = window.AppWindow.Size;
+        player.SetLiveResize(true);
+        window.AppWindow.Resize(new Windows.Graphics.SizeInt32(size.Width - 120, size.Height - 80));
+        await WaitAsync(() => player.VideoViewportElement.ActualWidth < expanded - 20, token);
+        await Task.Delay(200, token);
+        player.SetLiveResize(false);
+        await ObserveAsync("窗口缩小");
+        player.SetLiveResize(true);
+        window.AppWindow.Resize(size);
+        await WaitAsync(() => Math.Abs(player.VideoViewportElement.ActualWidth - expanded) < 1, token);
+        await Task.Delay(200, token);
+        player.SetLiveResize(false);
+        await ObserveAsync("窗口恢复");
+        report.ResizeViewportMatched = true;
     }
 
     private static async Task VerifyVideoQualityAsync(PlayerOverlay player, IPlaybackSession session, LibMpvEngine engine,
@@ -489,7 +530,7 @@ internal static class NativeOverlaySmoke
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (request.ItemId != ItemId) throw new InvalidOperationException("NativeOverlayItemInvalid");
-            return Task.FromResult(new PreparedPlan([Entry], 0, Math.Max(0, request.StartTicks ?? 0)));
+            return Task.FromResult(new PreparedPlan([Entry, new("native-overlay-local-2", "本地第二集")], 0, Math.Max(0, request.StartTicks ?? 0)));
         }
         public Task<PreparedEntry> PrepareAsync(AccountSession account, PlaybackEntry entry, long startTicks, CancellationToken cancellationToken)
         {
@@ -574,6 +615,9 @@ internal sealed class NativeOverlayReport
     public bool ViewportMatched { get; set; }
     public bool FullscreenViewportMatched { get; set; }
     public bool RestoredViewportMatched { get; set; }
+    public bool EpisodeCollapseViewportMatched { get; set; }
+    public bool EpisodeExpandViewportMatched { get; set; }
+    public bool ResizeViewportMatched { get; set; }
     public bool NativeReleaseBeforeShellAwait { get; set; }
     public bool FrozenFaceRenderingObserved { get; set; }
     public int FullscreenPixelWidth { get; set; }

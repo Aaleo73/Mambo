@@ -50,7 +50,6 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     private ScalarKeyFrameAnimation? chromeAnimation;
     private CubicBezierEasingFunction? chromeEasing;
     private CompositionScopedBatch? chromeBatch;
-    private RectangleClip? frameClip;
     private ScalarKeyFrameAnimation? hintAnimation;
     private CubicBezierEasingFunction? hintEasing;
     private CompositionScopedBatch? hintBatch;
@@ -168,7 +167,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     internal bool EpisodePanelVisible => EpisodePanel.Visibility == Visibility.Visible;
     internal bool EpisodePanelCollapsed => episodePanelCollapsed;
     internal bool CanToggleEpisodes => episodesAvailable;
-    internal FrameworkElement ViewportElement => PlayerFrame;
+    internal FrameworkElement ViewportElement => VideoViewport;
     internal FrameworkElement VideoViewportElement => VideoHost;
     internal bool KeyHintVisible => KeyHint.Visibility == Visibility.Visible;
     internal string KeyHintText => KeyHintLabel.Text;
@@ -471,10 +470,6 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         DetachXamlEvents();
         EpisodeList.ItemsSource = null;
         EpisodeGrid.ItemsSource = null;
-        // 退场翻折仍显示冻结的播放层，直到最终销毁才释放外框裁剪。
-        if (frameClip is not null) ElementCompositionPreview.GetElementVisual(PlayerFrame).Clip = null;
-        frameClip?.Dispose();
-        frameClip = null;
         Content = null;
     }
 
@@ -515,7 +510,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         InputSurface.PointerReleased -= OnSurfacePointerReleased;
         InputSurface.PointerCanceled -= OnSurfacePointerReleased;
         SeekHost.SizeChanged -= OnSeekHostSizeChanged;
-        PlayerFrame.SizeChanged -= OnViewportSizeChanged;
+        VideoViewport.SizeChanged -= OnViewportSizeChanged;
         SeekSlider.ValueChanged -= OnSeekValueChanged;
         VolumeSlider.ValueChanged -= OnVolumeChanged;
         VolumeHost.PointerEntered -= OnVolumeEntered;
@@ -832,30 +827,10 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     private void UpdateViewportFrame()
     {
         var framed = !window.IsFullscreen;
-        PlayerFrame.Margin = framed ? new Thickness(12, 12, EpisodePanelVisible ? 0 : 12, 12) : new Thickness(0);
-        PlayerFrame.CornerRadius = new CornerRadius(framed ? 12 : 0);
-        // SwapChainPanel 的矩形底层不支持透明圆角。让它落在外框圆角内，
-        // 保留完整矩形画面；4 DIP 已覆盖半径 12 DIP 的四角切口。
-        VideoHost.Margin = new Thickness(framed ? 4 : 0);
+        VideoViewport.Margin = framed ? new Thickness(12, 12, EpisodePanelVisible ? 0 : 12, 12) : new Thickness(0);
+        VideoViewport.CornerRadius = new CornerRadius(0);
+        VideoHost.CornerRadius = VideoViewport.CornerRadius;
         Surface.SetViewportClip(0, topOnly: false);
-        UpdateFrameClip();
-    }
-
-    private void UpdateFrameClip()
-    {
-        if (disposed || presentationFrozen || PlayerFrame.ActualWidth <= 0 || PlayerFrame.ActualHeight <= 0) return;
-        // 只裁切最外层黑色边框；原生画面、留黑和控制层共享这个边界。
-        if (frameClip is null)
-        {
-            var visual = ElementCompositionPreview.GetElementVisual(PlayerFrame);
-            frameClip = visual.Compositor.CreateRectangleClip();
-            visual.Clip = frameClip;
-        }
-        var radius = new Vector2((float)PlayerFrame.CornerRadius.TopLeft);
-        frameClip.TopLeftRadius = frameClip.TopRightRadius = radius;
-        frameClip.BottomLeftRadius = frameClip.BottomRightRadius = radius;
-        frameClip.Right = (float)PlayerFrame.ActualWidth;
-        frameClip.Bottom = (float)PlayerFrame.ActualHeight;
     }
 
     private void OnEpisodePanelPointerEntered(object sender, PointerRoutedEventArgs e)
@@ -1429,9 +1404,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
     }
     private void OnViewportSizeChanged(object sender, SizeChangedEventArgs e)
     {
-        if (disposed || presentationFrozen) return;
-        UpdateFrameClip();
-        LayoutChanged?.Invoke(this, EventArgs.Empty);
+        if (!disposed && !presentationFrozen) LayoutChanged?.Invoke(this, EventArgs.Empty);
     }
     private void OnEpisodeListClick(object sender, RoutedEventArgs e) => SetEpisodeLayout(false);
     private void OnEpisodeGridClick(object sender, RoutedEventArgs e) => SetEpisodeLayout(true);

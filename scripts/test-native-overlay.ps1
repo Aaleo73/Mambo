@@ -168,7 +168,7 @@ try {
         'AudioTrackSelected', 'ExternalAudioTrackSelected', 'AudioPlaybackAdvanced', 'VolumeControl', 'MuteButton', 'UnmuteButton', 'NativeUnmuted',
         'PauseButton', 'SeekControl', 'ResumeButton', 'VideoQualitySwitches', 'StandardRestores',
         'VideoQualityPauseAndPositionPreserved', 'VideoQualityFileUnchanged', 'Closed', 'Detached',
-        'RestoredViewportMatched', 'NativeReleaseBeforeShellAwait',
+        'RestoredViewportMatched', 'EpisodeCollapseViewportMatched', 'EpisodeExpandViewportMatched', 'ResizeViewportMatched', 'NativeReleaseBeforeShellAwait',
         'Stopped', 'OutboxEmpty', 'ReportSequenceOrdered', 'ShutdownCompleted')
     $overlayAllChecks = $true
     $overlayAllChecks = $overlayAllChecks -and (-not $overlayReport.AnimationsEnabled -or $overlayReport.FrozenFaceRenderingObserved)
