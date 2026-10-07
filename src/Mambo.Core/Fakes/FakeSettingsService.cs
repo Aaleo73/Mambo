@@ -31,7 +31,7 @@ public sealed class FakeSettingsService(FakeOperation operation, IUiScheduler sc
             ThrowIfStopped(token);
             var value = update(current);
             if (value.DeviceId != current.DeviceId || !double.IsFinite(value.Volume) || value.Volume is < 0 or > 100 || !Enum.IsDefined(value.HdrMode) ||
-                !Enum.IsDefined(value.PlaybackMode) || !Enum.IsDefined(value.HardwareDecoding) || !Enum.IsDefined(value.ThemeMode))
+                !Enum.IsDefined(value.PlaybackMode) || !Enum.IsDefined(value.HardwareDecoding) || !Enum.IsDefined(value.ThemeMode) || !ValidSubtitleSettings(value))
                 throw InvalidInput("播放器设置无效。");
             current = value with { PlaybackMode = PlaybackMode.Embedded, ExternalMpvPath = null, ExternalMpvApproval = null };
             externalPlayerStatus = ExternalPlayerStatus.UsingEmbedded;
@@ -43,7 +43,7 @@ public sealed class FakeSettingsService(FakeOperation operation, IUiScheduler sc
     {
         ArgumentNullException.ThrowIfNull(settings);
         if (!double.IsFinite(settings.Volume) || settings.Volume is < 0 or > 100 || settings.DeviceId == Guid.Empty ||
-            !Enum.IsDefined(settings.HdrMode) || !Enum.IsDefined(settings.PlaybackMode) || !Enum.IsDefined(settings.HardwareDecoding) || !Enum.IsDefined(settings.ThemeMode))
+            !Enum.IsDefined(settings.HdrMode) || !Enum.IsDefined(settings.PlaybackMode) || !Enum.IsDefined(settings.HardwareDecoding) || !Enum.IsDefined(settings.ThemeMode) || !ValidSubtitleSettings(settings))
             throw InvalidInput("播放器设置无效。");
         return RunCommandAsync(async token =>
         {
@@ -210,4 +210,18 @@ public sealed class FakeSettingsService(FakeOperation operation, IUiScheduler sc
 
     private static AppException InvalidInput(string message) =>
         new(new AppError(AppErrorKind.Contract, "demo.settings", message, false));
+
+    private static bool ValidSubtitleSettings(AppSettings settings) =>
+        ValidLanguage(settings.PreferredAudioLanguage, false) && ValidLanguage(settings.PreferredSubtitleLanguage, true) && ValidSubtitleStyle(settings.SubtitleStyle);
+
+    private static bool ValidLanguage(string language, bool subtitle) =>
+        language is "auto" or "zh" or "ja" or "en" or "ko" or "fr" or "de" or "es" or "ru" || subtitle && language == "off";
+
+    internal static bool ValidSubtitleStyle(SubtitleStyleSettings style) =>
+        style is not null && !string.IsNullOrWhiteSpace(style.FontFamily) && style.FontFamily.Length <= 256 && !style.FontFamily.Any(char.IsControl) &&
+        double.IsFinite(style.FontSize) && style.FontSize is >= 18 and <= 72 &&
+        double.IsFinite(style.OutlineSize) && style.OutlineSize is >= 0 and <= 6 &&
+        double.IsFinite(style.BottomMargin) && style.BottomMargin is >= 0 and <= 180 &&
+        style.TextColor is { Length: 7 } color && color[0] == '#' &&
+        uint.TryParse(color.AsSpan(1), System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out _);
 }

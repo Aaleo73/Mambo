@@ -209,15 +209,19 @@ internal static class PlayerControlsSmoke
             await CheckAsync(report, "TrackMenuOpened", () => player.HasOpenMenu, token);
             Mark(report, "TrackMenuChoices", trackMenu.ChoiceCount == 5);
             await player.DispatchSmokeTrackAsync(audio[1].Id, subtitle: false);
-            await CheckAsync(report, "AudioMenuSelects", () => player.ViewModel.Snapshot.SelectedAudioTrackId == audio[1].Id && !player.HasOpenMenu, token);
+            await CheckAsync(report, "AudioMenuSelects", () => player.ViewModel.Snapshot.SelectedAudioTrackId == audio[1].Id && player.HasOpenMenu, token);
             player.ShowMenuForSmoke(tracks: true);
             await WaitAsync(() => player.HasOpenMenu, token);
             await player.DispatchSmokeTrackAsync(subtitles[1].Id, subtitle: true);
-            await CheckAsync(report, "SubtitleMenuSelects", () => player.ViewModel.Snapshot.SelectedSubtitleTrackId == subtitles[1].Id && !player.HasOpenMenu, token);
+            await CheckAsync(report, "SubtitleMenuSelects", () => player.ViewModel.Snapshot.SelectedSubtitleTrackId == subtitles[1].Id && player.HasOpenMenu, token);
+            await ProbeSubtitleControlsAsync(player, trackMenu, report, token);
             player.ShowMenuForSmoke(tracks: true);
             await WaitAsync(() => player.HasOpenMenu, token);
             await player.DispatchSmokeTrackAsync(null, subtitle: true);
-            await CheckAsync(report, "SubtitleMenuOff", () => player.ViewModel.Snapshot.SelectedSubtitleTrackId is null && !player.HasOpenMenu, token);
+            await CheckAsync(report, "SubtitleMenuOff", () => player.ViewModel.Snapshot.SelectedSubtitleTrackId is null && player.HasOpenMenu, token);
+            Mark(report, "NoSubtitleAllowsStyleButDisablesDelay", trackMenu.SubtitleControls.CanEditStyle && !trackMenu.SubtitleControls.CanAdjustDelay);
+            await player.DispatchSmokeKeyAsync(VirtualKey.Escape);
+            await CheckAsync(report, "TracksEscapeOnlyClosesComponent", () => !player.HasOpenMenu && player.ViewModel.CanControl, token);
 
             var preferences = window.Services.GetRequiredService<ISettingsService>();
             Mark(report, "EpisodePanelExpanded", player.EpisodePanelVisible);
@@ -560,6 +564,47 @@ internal static class PlayerControlsSmoke
             overlay.Dispose();
             parent.Focus(FocusState.Programmatic);
         }
+    }
+
+    private static async Task ProbeSubtitleControlsAsync(PlayerOverlay player, PlayerChoicePanel panel, PlayerControlsReport report, CancellationToken token)
+    {
+        var editor = panel.SubtitleControls;
+        var size = panel.FindName("SubtitleSizeInput").As<TextBox>();
+        var outline = panel.FindName("SubtitleOutlineInput").As<TextBox>();
+        var margin = panel.FindName("SubtitleMarginInput").As<TextBox>();
+        var color = panel.FindName("SubtitleColorPicker").As<ColorPicker>();
+        var delay = panel.FindName("SubtitleDelayInput").As<TextBox>();
+        Mark(report, "SubtitleEditorsInExistingComponent", editor.IsVisible &&
+            AutomationProperties.GetName(size) == "字幕字号" && AutomationProperties.GetName(outline) == "字幕描边粗细" &&
+            AutomationProperties.GetName(margin) == "字幕底部距离" && AutomationProperties.GetName(color) == "字幕文字颜色");
+        await CheckAsync(report, "AssStyleInitiallyPreserved", () => !editor.CanEditStyle && editor.CanOverrideAss && editor.StyleNote == "当前字幕使用自带样式", token);
+        var toggle = panel.FindName("SubtitleOverrideToggle").As<CheckBox>();
+        new ToggleButtonAutomationPeer(toggle).Toggle();
+        await CheckAsync(report, "AssOverrideEnablesInlineStyle", () => player.ViewModel.Snapshot.SubtitleStyle.OverrideAssStyle && editor.CanEditStyle, token);
+        size.Text = "48";
+        outline.Text = "2.4";
+        margin.Text = "50";
+        color.Color = Windows.UI.Color.FromArgb(255, 255, 160, 64);
+        await CheckAsync(report, "InlineStyleAppliesWithoutClosing", () => player.HasOpenMenu && player.ViewModel.Snapshot.SubtitleStyle is
+            { FontSize: 48, OutlineSize: 2.4, BottomMargin: 50, TextColor: "#FFA040" }, token);
+        delay.Text = "-0.3";
+        await CheckAsync(report, "SubtitleEarlierDirection", () => player.ViewModel.Snapshot.SubtitleDelaySeconds == -.3, token);
+        var originalPosition = player.ViewModel.Snapshot.PositionTicks;
+        var originalTrack = player.ViewModel.Snapshot.SelectedSubtitleTrackId;
+        delay.Focus(FocusState.Programmatic);
+        Mark(report, "SubtitleTextOwnsPlaybackKeys", !await player.DispatchSmokeKeyAsync(VirtualKey.C) &&
+            !await player.DispatchSmokeKeyAsync(VirtualKey.V) && !await player.DispatchSmokeKeyAsync(VirtualKey.Space) &&
+            !await player.DispatchSmokeKeyAsync(VirtualKey.Left) && !await player.DispatchSmokeKeyAsync(VirtualKey.Right));
+        Mark(report, "SubtitleTextDoesNotSeekOrSelect", player.ViewModel.Snapshot.PositionTicks == originalPosition &&
+            player.ViewModel.Snapshot.SelectedSubtitleTrackId == originalTrack);
+        delay.Text = "61";
+        await Task.Delay(200, token);
+        Mark(report, "InvalidSubtitleDelayStaysInline", editor.DelayError.Length > 0 && player.ViewModel.Snapshot.SubtitleDelaySeconds == -.3);
+        delay.Text = "0.0";
+        await CheckAsync(report, "SubtitleDelayReturnsToZero", () => player.ViewModel.Snapshot.SubtitleDelaySeconds == 0, token);
+        await InvokeButtonAsync(panel, "恢复默认样式", token, byContent: true);
+        await CheckAsync(report, "SubtitleResetOnlyRestoresStyle", () => player.ViewModel.Snapshot.SubtitleStyle == new SubtitleStyleSettings() &&
+            player.ViewModel.Snapshot.SelectedSubtitleTrackId == originalTrack && player.HasOpenMenu, token);
     }
 
     private static async Task InvokeButtonAsync(DependencyObject root, string label, CancellationToken token, bool byContent = false)

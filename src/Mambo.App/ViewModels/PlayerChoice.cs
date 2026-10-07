@@ -1,11 +1,14 @@
+using CommunityToolkit.Mvvm.ComponentModel;
+
 namespace Mambo.App.ViewModels;
 
 /// <summary>播放页选择面板里的一行。</summary>
-public sealed class PlayerChoice(string label, bool isSelected, Action choose)
+public sealed partial class PlayerChoice(string label, bool isSelected, Action choose) : ObservableObject
 {
     public string Label { get; } = label;
-    public bool IsSelected { get; } = isSelected;
-    internal Action Choose { get; } = choose;
+    [ObservableProperty]
+    public partial bool IsSelected { get; set; } = isSelected;
+    internal Action Choose { get; set; } = choose;
 }
 
 /// <summary>选择面板里带标题的一组；没有可选项时显示 <see cref="EmptyText"/>。</summary>

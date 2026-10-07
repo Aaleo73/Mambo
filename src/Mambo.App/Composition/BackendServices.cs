@@ -66,7 +66,7 @@ public static class BackendServices
         services.AddSingleton<ILibraryPreferences>(p => new FakeLibraryPreferences(p.GetRequiredService<IUiScheduler>()));
         services.AddSingleton<IPlaybackService>(p => new FakePlaybackService(p.GetRequiredService<DemoCatalog>(),
             p.GetRequiredService<FakeOperation>(), p.GetRequiredService<FakeOptions>(), p.GetRequiredService<TimeProvider>(),
-            p.GetRequiredService<IUiScheduler>(), p.GetRequiredService<IMessenger>()));
+            p.GetRequiredService<IUiScheduler>(), p.GetRequiredService<IMessenger>(), p.GetRequiredService<ISettingsService>()));
         services.AddSingleton<IImageService>(p => new FakeImageService(p.GetRequiredService<DemoCatalog>(), p.GetRequiredService<FakeOperation>()));
         // 演示弹幕也跟随内置引擎，本地真实播放的诊断可以直接看到合成效果。
         services.AddSingleton<IBulletChatService>(p => new BulletChatService(p.GetRequiredService<IPlaybackService>(), p.GetRequiredService<ISettingsService>(),

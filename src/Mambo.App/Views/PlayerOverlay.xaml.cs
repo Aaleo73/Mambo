@@ -17,6 +17,8 @@ using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Hosting;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using Windows.ApplicationModel.DataTransfer;
+using Windows.Storage;
 using WinRT;
 using VirtualKey = Windows.System.VirtualKey;
 
@@ -92,6 +94,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         this.bulletChat = bulletChat;
         ViewModel = new(session);
         InitializeComponent();
+        TracksPanel.EnableSubtitleControls(session);
         BulletChatPanel.Initialize(bulletChat, settings, () => ViewModel.Snapshot.Entry is { } entry ? entry.SeriesName ?? entry.Title : null);
         BulletChatView.Apply(settings.Current.BulletChat);
         episodePanelCollapsed = settings.Current.EpisodePanelCollapsed;
@@ -398,6 +401,9 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         BulletChatPanel.PreviewChanged -= OnBulletChatPreview;
         BulletChatPanel.Completed -= OnBulletChatPanelCompleted;
         BulletChatPanel.Dispose();
+        TracksPanel.DisposeSubtitleControls();
+        RatePanel.DisposeSubtitleControls();
+        VideoQualityPanel.DisposeSubtitleControls();
         ViewModel.Dispose();
         window.PresentationChanged -= OnPresentationChanged;
         window.ActiveChanged -= OnWindowActiveChanged;
@@ -592,6 +598,7 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         DrawBuffers();
         UpdateEpisodePanel();
         UpdateBulletChat();
+        if (openFlyouts.Contains(TracksFlyout)) OnTracksOpening(null, EventArgs.Empty);
         TitleChanged?.Invoke(this, EventArgs.Empty);
         if (ViewModel.IsFailed && ViewModel.Snapshot.Error is { } error && error.Code != previousErrorCode)
         {
@@ -882,6 +889,8 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         }
         if (alt && key == VirtualKey.Left) { lastCommand = CloseAsync(); return true; }
         if (alt && key == VirtualKey.Right) return true;
+        // 文本、下拉选择与滑块使用自己的按键；编辑字幕时不能触发 C/V、空格或左右跳转。
+        if (IsEditingControlFocused()) return false;
         if (alt || control) return false;
         if (!ViewModel.CanControl) return false;
         switch (key)
@@ -908,6 +917,17 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
             default: return false;
         }
         return true;
+    }
+
+    private bool IsEditingControlFocused()
+    {
+        var focused = XamlRoot is null ? null : FocusManager.GetFocusedElement(XamlRoot) as DependencyObject;
+        for (var current = focused; current is not null; current = VisualTreeHelper.GetParent(current))
+        {
+            if (current is TextBox or PasswordBox or AutoSuggestBox or ComboBox or Slider or ColorPicker or CheckBox) return true;
+            if (ReferenceEquals(current, this)) break;
+        }
+        return false;
     }
 
     private void ChangeVolume(double delta)
@@ -1066,7 +1086,8 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         var index = -1;
         for (var i = 0; i < tracks.Length; i++) if (tracks[i].Id == ViewModel.Snapshot.SelectedSubtitleTrackId) index = i;
         var next = index + 1 < tracks.Length ? tracks[index + 1] : null;
-        Run(() => session.SelectSubtitleTrackAsync(next?.Id, lifetime.Token));
+        var generation = ViewModel.Snapshot.EntryGeneration;
+        Run(() => session.SelectSubtitleTrackAsync(next?.Id, generation, lifetime.Token));
         ShowKeyHint("字幕：" + (next?.Label ?? "关闭"));
     }
     private void CycleAudio()
@@ -1076,7 +1097,8 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         var index = -1;
         for (var i = 0; i < tracks.Length; i++) if (tracks[i].Id == ViewModel.Snapshot.SelectedAudioTrackId) index = i;
         var next = tracks[(index + 1) % tracks.Length];
-        Run(() => session.SelectAudioTrackAsync(next.Id, lifetime.Token));
+        var generation = ViewModel.Snapshot.EntryGeneration;
+        Run(() => session.SelectAudioTrackAsync(next.Id, generation, lifetime.Token));
         ShowKeyHint("音轨：" + next.Label);
     }
 
@@ -1396,10 +1418,10 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         if (disposed || presentationFrozen || closing || transitionActive) return;
         var snapshot = ViewModel.Snapshot;
         PlayerChoice Track(TrackInfo track, bool subtitle) => new(track.Label.Length > 96 ? track.Label[..96] : track.Label,
-            (subtitle ? snapshot.SelectedSubtitleTrackId : snapshot.SelectedAudioTrackId) == track.Id, () => SelectTrack(track.Id, subtitle));
+            (subtitle ? snapshot.SelectedSubtitleTrackId : snapshot.SelectedAudioTrackId) == track.Id, () => SelectTrack(track.Id, subtitle, snapshot.EntryGeneration));
         TracksPanel.SetGroups(
         [
-            new("字幕", [new("关闭字幕", snapshot.SelectedSubtitleTrackId is null, () => SelectTrack(null, subtitle: true)),
+            new("字幕", [new("关闭字幕", snapshot.SelectedSubtitleTrackId is null, () => SelectTrack(null, subtitle: true, snapshot.EntryGeneration)),
                 .. snapshot.SubtitleTracks.Take(32).Select(track => Track(track, subtitle: true))]),
             new("音轨", [.. snapshot.AudioTracks.Take(32).Select(track => Track(track, subtitle: false))], "没有可选音轨"),
         ]);
@@ -1438,11 +1460,47 @@ public sealed partial class PlayerOverlay : UserControl, IDisposable
         HideMenus();
         Run(() => session.SetRateAsync(rate, lifetime.Token));
     }
-    private void SelectTrack(string? trackId, bool subtitle)
+    private void SelectTrack(string? trackId, bool subtitle, long? expectedGeneration = null)
     {
         if (disposed || presentationFrozen || closing || transitionActive) return;
-        HideMenus();
-        Run(() => subtitle ? session.SelectSubtitleTrackAsync(trackId, lifetime.Token) : session.SelectAudioTrackAsync(trackId, lifetime.Token));
+        var generation = expectedGeneration ?? ViewModel.Snapshot.EntryGeneration;
+        Run(() => subtitle ? session.SelectSubtitleTrackAsync(trackId, generation, lifetime.Token) : session.SelectAudioTrackAsync(trackId, generation, lifetime.Token));
+    }
+
+    private bool CanReceiveSubtitleFiles => !disposed && !presentationFrozen && !closing && !transitionActive &&
+        ViewModel.Snapshot.EngineKind == EngineKind.Embedded && ViewModel.Snapshot.CanImportSubtitles;
+
+    private void OnSubtitleDragOver(object sender, DragEventArgs args)
+    {
+        args.AcceptedOperation = CanReceiveSubtitleFiles && args.DataView.Contains(StandardDataFormats.StorageItems)
+            ? DataPackageOperation.Copy : DataPackageOperation.None;
+        args.Handled = true;
+    }
+
+    private async void OnSubtitleDrop(object sender, DragEventArgs args)
+    {
+        args.Handled = true;
+        if (!CanReceiveSubtitleFiles || !args.DataView.Contains(StandardDataFormats.StorageItems)) return;
+        // 在系统异步交付文件列表前绑定账号、条目与操作代际；演示会话连路径也不读取。
+        var context = session.BeginSubtitleImport();
+        if (context is null) return;
+        var deferral = args.GetDeferral();
+        var token = lifetime.Token;
+        try
+        {
+            var items = await args.DataView.GetStorageItemsAsync();
+            if (token.IsCancellationRequested) return;
+            var files = items.OfType<StorageFile>().Where(file => !string.IsNullOrWhiteSpace(file.Path) &&
+                Path.GetExtension(file.Name).ToLowerInvariant() is ".srt" or ".ass" or ".ssa" or ".vtt")
+                .Select(file => new LocalSubtitleFile(file.Path)).ToArray();
+            if (files.Length > 0) await session.ImportSubtitlesAsync(context, files, token);
+        }
+        catch (Exception error) when (error is AppException or OperationCanceledException or IOException or UnauthorizedAccessException or
+            System.Runtime.InteropServices.COMException or ArgumentException or InvalidOperationException)
+        {
+            // 导入全程静默；不转交普通播放 Toast，也不输出原始系统异常或源路径。
+        }
+        finally { deferral.Complete(); }
     }
     private void OnMenuOpened(object? sender, object args)
     {

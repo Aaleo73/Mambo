@@ -5,11 +5,8 @@
     xmlns:vm="using:Mambo.App.ViewModels"
     xmlns:themes="using:Mambo.App.Themes"
     RequestedTheme="Dark" Width="320">
-    <ScrollViewer MaxHeight="420" VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
-        <ItemsRepeater x:Name="GroupList" Margin="16,12,16,10">
-            <ItemsRepeater.Layout><StackLayout Spacing="6"/></ItemsRepeater.Layout>
-            <ItemsRepeater.ItemTemplate>
-                <DataTemplate x:DataType="vm:PlayerChoiceGroup">
+    <UserControl.Resources>
+                <DataTemplate x:Key="ChoiceGroupTemplate" x:DataType="vm:PlayerChoiceGroup">
                     <StackPanel>
                         <Grid Height="40"><TextBlock Text="{x:Bind Title}" Style="{StaticResource PlayerPanelHeader}" AutomationProperties.HeadingLevel="Level2"/></Grid>
                         <TextBlock Text="{x:Bind EmptyText}" Style="{StaticResource PlayerPanelNote}" Margin="0,4,0,8" Visibility="{x:Bind IsEmpty}"/>
@@ -23,14 +20,53 @@
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="16"/></Grid.ColumnDefinitions>
                                         <TextBlock Text="{x:Bind Label}" Style="{StaticResource PlayerPanelLabel}" TextTrimming="CharacterEllipsis"/>
                                         <themes:LineIcon Grid.Column="1" Glyph="{StaticResource IconCheck}" Width="16" Height="16"
-                                                         Foreground="{ThemeResource PlayerTextPrimaryBrush}" Visibility="{x:Bind IsSelected}"/>
+                                                         Foreground="{ThemeResource PlayerTextPrimaryBrush}" Visibility="{x:Bind IsSelected, Mode=OneWay}"/>
                                     </Grid>
                                 </DataTemplate>
                             </ListView.ItemTemplate>
                         </ListView>
                     </StackPanel>
                 </DataTemplate>
-            </ItemsRepeater.ItemTemplate>
-        </ItemsRepeater>
+    </UserControl.Resources>
+    <ScrollViewer x:Name="PanelScroller" MaxHeight="520" VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel>
+            <ItemsRepeater x:Name="GroupList" Margin="16,12,16,10" ItemTemplate="{StaticResource ChoiceGroupTemplate}">
+                <ItemsRepeater.Layout><StackLayout Spacing="6"/></ItemsRepeater.Layout>
+            </ItemsRepeater>
+            <StackPanel x:Name="SubtitleEditor" Spacing="8" Margin="16,8,16,16" Visibility="{x:Bind SubtitleControls.IsVisible, Mode=OneWay}">
+                <TextBlock Text="字幕时间" Style="{StaticResource PlayerPanelHeader}" AutomationProperties.HeadingLevel="Level2"/>
+                <TextBlock Text="正数延后，负数提前 · 单位：秒" Style="{StaticResource PlayerPanelNote}"/>
+                <Grid ColumnSpacing="6">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <Button Content="提前" ToolTipService.ToolTip="提前 0.1 秒" AutomationProperties.Name="字幕提前 0.1 秒" Style="{StaticResource PlayerPanelButton}" Click="OnDelayEarlier" IsEnabled="{x:Bind SubtitleControls.CanAdjustDelay, Mode=OneWay}"/>
+                    <TextBox x:Name="SubtitleDelayInput" IsEnabled="{x:Bind SubtitleControls.CanAdjustDelay, Mode=OneWay}" Grid.Column="1" Text="{x:Bind SubtitleControls.DelayText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" MaxLength="8" IsSpellCheckEnabled="False" AutomationProperties.Name="字幕偏移秒数" KeyDown="OnEditorKeyDown"/>
+                    <Button Grid.Column="2" Content="延后" ToolTipService.ToolTip="延后 0.1 秒" AutomationProperties.Name="字幕延后 0.1 秒" Style="{StaticResource PlayerPanelButton}" Click="OnDelayLater" IsEnabled="{x:Bind SubtitleControls.CanAdjustDelay, Mode=OneWay}"/>
+                    <Button Grid.Column="3" Content="归零" Style="{StaticResource PlayerPanelButton}" Click="OnDelayReset" IsEnabled="{x:Bind SubtitleControls.CanAdjustDelay, Mode=OneWay}"/>
+                </Grid>
+                <TextBlock Text="{x:Bind SubtitleControls.DelayError, Mode=OneWay}" Style="{StaticResource PlayerPanelNote}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+                <TextBlock Text="字幕样式" Style="{StaticResource PlayerPanelHeader}" AutomationProperties.HeadingLevel="Level2" Margin="0,8,0,0"/>
+                <TextBlock Text="{x:Bind SubtitleControls.StyleNote, Mode=OneWay}" Style="{StaticResource PlayerPanelNote}" TextWrapping="Wrap"/>
+                <CheckBox x:Name="SubtitleOverrideToggle" Content="覆盖字幕原样式" IsChecked="{x:Bind SubtitleControls.OverrideAssStyle, Mode=TwoWay}" IsEnabled="{x:Bind SubtitleControls.CanOverrideAss, Mode=OneWay}" AutomationProperties.Name="覆盖字幕原样式"/>
+                <StackPanel Spacing="8">
+                    <TextBlock Text="字体" Style="{StaticResource PlayerPanelLabel}"/>
+                    <ComboBox x:Name="SubtitleFontInput" IsEnabled="{x:Bind SubtitleControls.CanEditStyle, Mode=OneWay}" ItemsSource="{x:Bind SubtitleControls.Fonts, Mode=OneWay}" SelectedItem="{x:Bind SubtitleControls.FontFamily, Mode=TwoWay}" HorizontalAlignment="Stretch" AutomationProperties.Name="字幕字体"/>
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <StackPanel Spacing="4"><TextBlock Text="字号 · 18–72" Style="{StaticResource PlayerPanelLabel}"/><TextBox x:Name="SubtitleSizeInput" IsEnabled="{x:Bind SubtitleControls.CanEditStyle, Mode=OneWay}" Text="{x:Bind SubtitleControls.FontSizeText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" MaxLength="8" IsSpellCheckEnabled="False" AutomationProperties.Name="字幕字号" KeyDown="OnEditorKeyDown"/></StackPanel>
+                        <StackPanel Grid.Column="1" Spacing="4"><TextBlock Text="描边 · 0–6" Style="{StaticResource PlayerPanelLabel}"/><TextBox x:Name="SubtitleOutlineInput" IsEnabled="{x:Bind SubtitleControls.CanEditStyle, Mode=OneWay}" Text="{x:Bind SubtitleControls.OutlineText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" MaxLength="8" IsSpellCheckEnabled="False" AutomationProperties.Name="字幕描边粗细" KeyDown="OnEditorKeyDown"/></StackPanel>
+                    </Grid>
+                    <TextBlock Text="底部距离 · 0–180" Style="{StaticResource PlayerPanelLabel}"/>
+                    <TextBox x:Name="SubtitleMarginInput" IsEnabled="{x:Bind SubtitleControls.CanEditStyle, Mode=OneWay}" Text="{x:Bind SubtitleControls.MarginText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" MaxLength="8" IsSpellCheckEnabled="False" AutomationProperties.Name="字幕底部距离" KeyDown="OnEditorKeyDown"/>
+                    <TextBlock Text="文字颜色" Style="{StaticResource PlayerPanelLabel}"/>
+                    <ColorPicker x:Name="SubtitleColorPicker" IsEnabled="{x:Bind SubtitleControls.CanEditStyle, Mode=OneWay}" IsAlphaEnabled="False" IsMoreButtonVisible="False" IsColorSliderVisible="False" IsAlphaSliderVisible="False" IsColorChannelTextInputVisible="False" IsHexInputVisible="False" HorizontalAlignment="Stretch" ColorChanged="OnColorChanged" AutomationProperties.Name="字幕文字颜色"/>
+                    <TextBox x:Name="SubtitleColorInput" IsEnabled="{x:Bind SubtitleControls.CanEditStyle, Mode=OneWay}" Text="{x:Bind SubtitleControls.TextColor, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" MaxLength="7" IsSpellCheckEnabled="False" AutomationProperties.Name="字幕颜色 RGB" KeyDown="OnEditorKeyDown"/>
+                </StackPanel>
+                <TextBlock Text="{x:Bind SubtitleControls.StyleError, Mode=OneWay}" Style="{StaticResource PlayerPanelNote}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+                <Button Content="恢复默认样式" Style="{StaticResource PlayerPanelButton}" IsEnabled="{x:Bind SubtitleControls.CanResetStyle, Mode=OneWay}" Click="OnStyleReset" HorizontalAlignment="Left"/>
+            </StackPanel>
+            <ItemsRepeater x:Name="TrailingGroupList" Margin="16,0,16,10" ItemTemplate="{StaticResource ChoiceGroupTemplate}">
+                <ItemsRepeater.Layout><StackLayout Spacing="6"/></ItemsRepeater.Layout>
+            </ItemsRepeater>
+        </StackPanel>
     </ScrollViewer>
 </UserControl>

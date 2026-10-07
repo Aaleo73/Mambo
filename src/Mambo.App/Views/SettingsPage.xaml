@@ -191,6 +191,54 @@
                                 <ToggleSwitch x:Name="HardwareSwitch" Grid.Column="1" MinWidth="0" OnContent="" OffContent="" HorizontalAlignment="Left" VerticalAlignment="Center"
                                               IsOn="{x:Bind ViewModel.HardwareDecoding, Mode=OneWay}" Toggled="OnHardwareToggled" AutomationProperties.Name="硬件解码"/>
                             </Grid>
+                            <Grid Style="{StaticResource RowStyle}" Visibility="{x:Bind ViewModel.IsEmbedded, Mode=OneWay}">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="112"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource RowLabelStyle}" Text="首选音轨语言"/>
+                                <Button Grid.Column="1" Style="{StaticResource SoftButtonStyle}" MinWidth="150" Padding="14,0,12,0" HorizontalAlignment="Left" HorizontalContentAlignment="Stretch" AutomationProperties.Name="首选音轨语言">
+                                    <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBlock Style="{StaticResource ButtonLabelTextStyle}" VerticalAlignment="Center" Text="{x:Bind ViewModel.AudioLanguageLabel, Mode=OneWay}"/>
+                                        <themes:LineIcon Grid.Column="1" Glyph="{StaticResource IconChevronDown}" Width="12" Height="12" StrokeWidth="2"/>
+                                    </Grid>
+                                    <Button.Flyout>
+                                        <MenuFlyout Placement="BottomEdgeAlignedLeft" MenuFlyoutPresenterStyle="{StaticResource PopupMenuPresenterStyle}">
+                                            <MenuFlyoutItem Text="自动" Tag="auto" Click="OnAudioLanguageClick"/>
+                                            <MenuFlyoutItem Text="中文" Tag="zh" Click="OnAudioLanguageClick"/>
+                                            <MenuFlyoutItem Text="日语" Tag="ja" Click="OnAudioLanguageClick"/>
+                                            <MenuFlyoutItem Text="英语" Tag="en" Click="OnAudioLanguageClick"/>
+                                            <MenuFlyoutItem Text="韩语" Tag="ko" Click="OnAudioLanguageClick"/>
+                                            <MenuFlyoutItem Text="法语" Tag="fr" Click="OnAudioLanguageClick"/>
+                                            <MenuFlyoutItem Text="德语" Tag="de" Click="OnAudioLanguageClick"/>
+                                            <MenuFlyoutItem Text="西班牙语" Tag="es" Click="OnAudioLanguageClick"/>
+                                            <MenuFlyoutItem Text="俄语" Tag="ru" Click="OnAudioLanguageClick"/>
+                                        </MenuFlyout>
+                                    </Button.Flyout>
+                                </Button>
+                            </Grid>
+                            <Grid Style="{StaticResource RowStyle}" Visibility="{x:Bind ViewModel.IsEmbedded, Mode=OneWay}">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="112"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource RowLabelStyle}" Text="首选字幕语言"/>
+                                <Button Grid.Column="1" Style="{StaticResource SoftButtonStyle}" MinWidth="150" Padding="14,0,12,0" HorizontalAlignment="Left" HorizontalContentAlignment="Stretch" AutomationProperties.Name="首选字幕语言">
+                                    <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBlock Style="{StaticResource ButtonLabelTextStyle}" VerticalAlignment="Center" Text="{x:Bind ViewModel.SubtitleLanguageLabel, Mode=OneWay}"/>
+                                        <themes:LineIcon Grid.Column="1" Glyph="{StaticResource IconChevronDown}" Width="12" Height="12" StrokeWidth="2"/>
+                                    </Grid>
+                                    <Button.Flyout>
+                                        <MenuFlyout Placement="BottomEdgeAlignedLeft" MenuFlyoutPresenterStyle="{StaticResource PopupMenuPresenterStyle}">
+                                            <MenuFlyoutItem Text="自动" Tag="auto" Click="OnSubtitleLanguageClick"/>
+                                            <MenuFlyoutItem Text="中文" Tag="zh" Click="OnSubtitleLanguageClick"/>
+                                            <MenuFlyoutItem Text="日语" Tag="ja" Click="OnSubtitleLanguageClick"/>
+                                            <MenuFlyoutItem Text="英语" Tag="en" Click="OnSubtitleLanguageClick"/>
+                                            <MenuFlyoutItem Text="韩语" Tag="ko" Click="OnSubtitleLanguageClick"/>
+                                            <MenuFlyoutItem Text="法语" Tag="fr" Click="OnSubtitleLanguageClick"/>
+                                            <MenuFlyoutItem Text="德语" Tag="de" Click="OnSubtitleLanguageClick"/>
+                                            <MenuFlyoutItem Text="西班牙语" Tag="es" Click="OnSubtitleLanguageClick"/>
+                                            <MenuFlyoutItem Text="俄语" Tag="ru" Click="OnSubtitleLanguageClick"/>
+                                            <MenuFlyoutItem Text="默认关闭" Tag="off" Click="OnSubtitleLanguageClick"/>
+                                        </MenuFlyout>
+                                    </Button.Flyout>
+                                </Button>
+                            </Grid>
+                            <TextBlock Margin="128,0,0,0" Style="{StaticResource CaptionTextStyle}" Text="首选语言在下次打开内置播放时生效" Visibility="{x:Bind ViewModel.IsEmbedded, Mode=OneWay}"/>
                         </StackPanel>
                     </Grid>
 

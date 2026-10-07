@@ -14,6 +14,7 @@ public sealed class FakePlaybackService : IPlaybackService, IDisposable, IAsyncD
     private readonly TimeProvider clock;
     private readonly IUiScheduler scheduler;
     private readonly IMessenger messenger;
+    private readonly ISettingsService? settings;
     private readonly object gate = new();
     private FakePlaybackSession? current;
     private string? requestedId;
@@ -21,7 +22,7 @@ public sealed class FakePlaybackService : IPlaybackService, IDisposable, IAsyncD
     private bool disposed;
 
     public FakePlaybackService(DemoCatalog catalog, FakeOperation operation, FakeOptions options,
-        TimeProvider clock, IUiScheduler scheduler, IMessenger messenger)
+        TimeProvider clock, IUiScheduler scheduler, IMessenger messenger, ISettingsService? settings = null)
     {
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(operation);
@@ -35,6 +36,7 @@ public sealed class FakePlaybackService : IPlaybackService, IDisposable, IAsyncD
         this.clock = clock;
         this.scheduler = scheduler;
         this.messenger = messenger;
+        this.settings = settings;
     }
 
     public IPlaybackSession? Current { get { lock (gate) return current is { IsClosed: false } ? current : null; } }
@@ -77,7 +79,7 @@ public sealed class FakePlaybackService : IPlaybackService, IDisposable, IAsyncD
                 ObjectDisposedException.ThrowIf(disposed, this);
                 cancellationToken.ThrowIfCancellationRequested();
                 created = new FakePlaybackSession([new PlaybackEntry(request.ItemId, "正在准备播放")], 0, request.StartTicks ?? 0, operation, options,
-                    clock, scheduler, messenger, OnClosed, OnEntrySkipped, () => Resolve(request));
+                    clock, scheduler, messenger, OnClosed, OnEntrySkipped, () => Resolve(request), settings);
                 current = created;
                 requestedId = request.ItemId;
                 isStarting = false;
