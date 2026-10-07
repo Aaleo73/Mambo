@@ -19,7 +19,7 @@ internal sealed partial class SingleInstanceLifetime : IDisposable
     internal static SingleInstanceLifetime? Register(string[] args)
     {
         // 诊断是独立进程，不能重定向到正在使用的正常窗口。
-        var diagnostic = Windowing.LabWindow.IsRequested(args) || args.Any(argument => argument is "--ui-smoke" or "--startup-smoke" or "--native-overlay-smoke" or "--external-handoff-smoke" or "--bullet-chat-smoke" or "--video-quality-ui-smoke");
+        var diagnostic = Windowing.LabWindow.IsRequested(args) || args.Any(argument => argument is "--ui-smoke" or "--startup-smoke" or "--native-overlay-smoke" or "--external-handoff-smoke" or "--bullet-chat-smoke" or "--video-quality-ui-smoke" or "--player-controls-smoke");
         var fake = args.Contains("--fake", StringComparer.Ordinal) || Environment.GetEnvironmentVariable("MAMBO_FAKE") == "1";
         var key = diagnostic ? "Mambo:diagnostic:" + Environment.ProcessId : fake ? "Mambo:fake" : "Mambo";
         var target = AppInstance.FindOrRegisterForKey(key);
