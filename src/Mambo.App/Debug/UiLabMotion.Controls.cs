@@ -20,6 +20,35 @@ namespace Mambo.App.Debug;
 
 internal static partial class UiLabSmoke
 {
+    private static async Task RunPlaybackSettingsAsync(MainWindow window, UiInputProbe input, MotionReport report, CancellationToken token)
+    {
+        report.Stage = "PlaybackSettingsFirstSetup";
+        var services = window.Services;
+        var settings = services.GetRequiredService<ISettingsService>();
+        services.GetRequiredService<Navigator>().Navigate(Route.Settings);
+        await window.Shell.PageHost.PendingTransition.WaitAsync(token);
+        var page = window.Shell.PageHost.CurrentPage.As<SettingsPage>();
+        var model = page.ViewModel;
+        var pathRow = page.FindName("MpvPathRow").As<Grid>();
+        var modes = MotionDescendants<RadioButton>(page).Where(button => button.GroupName == "PlaybackMode").ToArray();
+        var external = modes.Single(button => Equals(button.Content, "外置 MPV"));
+        var embedded = modes.Single(button => Equals(button.Content, "内置播放器"));
+        MotionCheck(report, "EmbeddedHidesMpvPathBeforeFirstSetup", model.IsEmbedded && pathRow.Visibility == Visibility.Collapsed);
+        external.StartBringIntoView(new BringIntoViewOptions { AnimationDesired = false });
+        await AwaitNextRenderingAsync(token);
+        await ClickMotionAsync(input, external, token);
+        await MotionUntilAsync(() => model.IsExternal && pathRow.Visibility == Visibility.Visible, token);
+        MotionCheck(report, "UnapprovedExternalSelectionAllowsSetupOnly", external.IsChecked == true && !model.CanUseExternal &&
+            settings.Current.PlaybackMode == PlaybackMode.Embedded);
+        // FakeSettingsService never reads or runs this path; its validator deliberately rejects it.
+        await model.ChooseMpvAsync(@"C:\MamboUiLab\mpv.exe");
+        MotionCheck(report, "RejectedExternalValidationKeepsSetupVisible", model.IsExternal && model.HasMpvError &&
+            pathRow.Visibility == Visibility.Visible && settings.Current.PlaybackMode == PlaybackMode.Embedded);
+        await ClickMotionAsync(input, embedded, token);
+        await MotionUntilAsync(() => model.IsEmbedded && pathRow.Visibility == Visibility.Collapsed, token);
+        MotionCheck(report, "ReturningToEmbeddedHidesMpvPath", embedded.IsChecked == true && settings.Current.PlaybackMode == PlaybackMode.Embedded);
+    }
+
     private static async Task RunCardAndRailMotionAsync(MainWindow window, UiInputProbe input, MotionReport report, CancellationToken token)
     {
         report.Stage = "HomeRailLifecycle";

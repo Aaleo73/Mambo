@@ -21,6 +21,9 @@ public sealed class MpvCore : IAsyncDisposable
     private long shaderFailureVersion;
     private string? shaderFailureStage;
     private readonly ConcurrentBag<MpvSwapChain> swapChainReferences = [];
+    private long currentEntryId = -1;
+
+    internal long CurrentEntryId => Interlocked.Read(ref currentEntryId);
 
     public ChannelReader<MpvMessage> Messages => messages.Reader;
     /// <summary>只暴露着色器故障计数；原始 native 日志不离开事件线程。</summary>
@@ -98,6 +101,7 @@ public sealed class MpvCore : IAsyncDisposable
             ("video-target-params", MpvFormat.Node), ("hwdec-current", MpvFormat.String),
             ("demuxer-cache-state", MpvFormat.Node), ("playlist-pos", MpvFormat.Int64), ("playlist-count", MpvFormat.Int64),
             ("current-ao", MpvFormat.String), ("sub-delay", MpvFormat.Double),
+            ("sub-ass-extradata", MpvFormat.String),
         };
         for (var i = 0; i < properties.Length; i++)
             Check(LibMpvNative.mpv_observe_property(handle, (ulong)(i + 1), properties[i].Name, properties[i].Format));
@@ -231,6 +235,9 @@ public sealed class MpvCore : IAsyncDisposable
             while (!abortWait)
             {
                 var current = *(MpvEvent*)LibMpvNative.mpv_wait_event(handle, -1);
+                if (current.Id == MpvEventId.StartFile) Interlocked.Exchange(ref currentEntryId, *(long*)current.Data);
+                if (current.Id == MpvEventId.EndFile)
+                    Interlocked.CompareExchange(ref currentEntryId, -1, ((MpvEventEndFile*)current.Data)->PlaylistEntryId);
                 if (current.Id == MpvEventId.LogMessage) ClassifyShaderFailure(current.Data);
                 MpvMessage? message = current.Id switch
                 {

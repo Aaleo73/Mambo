@@ -130,10 +130,10 @@
                                     <RadioButton Style="{StaticResource SegmentStyle}" GroupName="PlaybackMode" Content="内置播放器"
                                                  IsChecked="{x:Bind ViewModel.IsEmbedded, Mode=OneWay}" Click="OnEmbeddedClick"/>
                                     <RadioButton Style="{StaticResource SegmentStyle}" GroupName="PlaybackMode" Content="外置 MPV"
-                                                 IsChecked="{x:Bind ViewModel.IsExternal, Mode=OneWay}" IsEnabled="{x:Bind ViewModel.CanUseExternal, Mode=OneWay}" Click="OnExternalClick"/>
+                                                 IsChecked="{x:Bind ViewModel.IsExternal, Mode=OneWay}" Click="OnExternalClick"/>
                                 </StackPanel>
                             </Grid>
-                            <Grid Style="{StaticResource RowStyle}">
+                            <Grid x:Name="MpvPathRow" Style="{StaticResource RowStyle}" Visibility="{x:Bind ViewModel.IsExternal, Mode=OneWay}">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="112"/>
                                     <ColumnDefinition Width="*"/>
@@ -187,9 +187,24 @@
                                     <ColumnDefinition Width="112"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Style="{StaticResource RowLabelStyle}" Text="硬件解码"/>
-                                <ToggleSwitch x:Name="HardwareSwitch" Grid.Column="1" MinWidth="0" OnContent="" OffContent="" HorizontalAlignment="Left" VerticalAlignment="Center"
-                                              IsOn="{x:Bind ViewModel.HardwareDecoding, Mode=OneWay}" Toggled="OnHardwareToggled" AutomationProperties.Name="硬件解码"/>
+                                <TextBlock Style="{StaticResource RowLabelStyle}" Text="解码方式"/>
+                                <Button x:Name="DecodingButton" Grid.Column="1" Style="{StaticResource SoftButtonStyle}" MinWidth="150" Padding="14,0,12,0" HorizontalAlignment="Left"
+                                        HorizontalContentAlignment="Stretch" AutomationProperties.Name="解码方式">
+                                    <Grid ColumnSpacing="10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Style="{StaticResource ButtonLabelTextStyle}" VerticalAlignment="Center" Text="{x:Bind ViewModel.DecodingLabel, Mode=OneWay}"/>
+                                        <themes:LineIcon Grid.Column="1" Glyph="{StaticResource IconChevronDown}" Width="12" Height="12" StrokeWidth="2"/>
+                                    </Grid>
+                                    <Button.Flyout>
+                                        <MenuFlyout Placement="BottomEdgeAlignedLeft" MenuFlyoutPresenterStyle="{StaticResource PopupMenuPresenterStyle}">
+                                            <RadioMenuFlyoutItem GroupName="Decoding" Text="软解" IsChecked="{x:Bind ViewModel.SoftwareDecoding, Mode=OneWay}" Click="OnSoftwareDecodingClick"/>
+                                            <RadioMenuFlyoutItem GroupName="Decoding" Text="硬解" IsChecked="{x:Bind ViewModel.HardwareDecoding, Mode=OneWay}" Click="OnHardwareDecodingClick"/>
+                                        </MenuFlyout>
+                                    </Button.Flyout>
+                                </Button>
                             </Grid>
                             <Grid Style="{StaticResource RowStyle}" Visibility="{x:Bind ViewModel.IsEmbedded, Mode=OneWay}">
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="112"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>

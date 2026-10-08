@@ -104,7 +104,8 @@ public sealed partial class SettingsPage : UserControl, INavigablePage, IDisposa
     private async void OnHdrAutoClick(object sender, RoutedEventArgs e) => await ViewModel.SetHdrAsync(HdrMode.Auto);
     private async void OnHdrAlwaysClick(object sender, RoutedEventArgs e) => await ViewModel.SetHdrAsync(HdrMode.Always);
     private async void OnHdrOffClick(object sender, RoutedEventArgs e) => await ViewModel.SetHdrAsync(HdrMode.Off);
-    private async void OnHardwareToggled(object sender, RoutedEventArgs e) => await ViewModel.SetHardwareDecodingAsync(HardwareSwitch.IsOn);
+    private async void OnSoftwareDecodingClick(object sender, RoutedEventArgs e) => await ViewModel.SetHardwareDecodingAsync(false);
+    private async void OnHardwareDecodingClick(object sender, RoutedEventArgs e) => await ViewModel.SetHardwareDecodingAsync(true);
     private async void OnAudioLanguageClick(object sender, RoutedEventArgs e)
     {
         if (sender is MenuFlyoutItem { Tag: string code }) await ViewModel.SetAudioLanguageAsync(code);

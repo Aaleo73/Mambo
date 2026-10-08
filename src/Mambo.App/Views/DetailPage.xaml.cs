@@ -24,10 +24,8 @@ public sealed partial class DetailPage : UserControl, INavigablePage, IMotionPar
     private WindowMotionObserver? motionObserver;
     private WindowContrastObserver? contrastObserver;
     private XamlRoot? observedRoot;
-    private ScrollViewer? peopleScroller;
     private readonly RailScroller episodeRail;
-    private RailScroller? peopleRail;
-    private bool peopleAttached;
+    private readonly RailScroller peopleRail;
     private bool active;
     private NavEntry? owner;
     private bool disposed;
@@ -64,6 +62,12 @@ public sealed partial class DetailPage : UserControl, INavigablePage, IMotionPar
             Pitch = (double)Application.Current.Resources["LandscapeWidth"] + (double)Application.Current.Resources["RailSpacing"],
             IsWheelEnabled = false,
         };
+        peopleRail = new RailScroller(PeopleScroller, () => PeopleScroller.HorizontalOffset, () => PeopleScroller.ScrollableWidth, () => PeopleScroller.ViewportWidth,
+            (offset, animate) => PeopleScroller.ScrollTo(offset, 0, animate && Motion.AnimationsEnabled ? Animated : Instant))
+        {
+            Pitch = (double)Application.Current.Resources["PersonCardWidth"] + 16,
+            IsWheelEnabled = false,
+        };
         // 原版的文字阴影：标题 0 2px 10px .65，评分信息 0 1px 3px .65，其余 0 1px 4px .6。
         SoftShadow.AttachDrop(TitleShadow, Heading, 10, 2, 0.65f);
         SoftShadow.AttachDrop(MetaShadow, MetaRow, 3, 1, 0.65f);
@@ -87,7 +91,7 @@ public sealed partial class DetailPage : UserControl, INavigablePage, IMotionPar
     internal bool PlayProgressVisible => PlayProgress.Visibility == Visibility.Visible && PlayProgress.IsLoaded && PlayProgress.ActualWidth > 0;
     internal double ShownPlayProgress { get; private set; }
     internal RailScroller EpisodeRailInteraction => episodeRail;
-    internal RailScroller? PeopleRailInteraction => peopleRail;
+    internal RailScroller PeopleRailInteraction => peopleRail;
 
     public void OnNavigatedTo(NavEntry entry, NavigationMode mode, bool created)
     {
@@ -246,22 +250,9 @@ public sealed partial class DetailPage : UserControl, INavigablePage, IMotionPar
             transitions.UpdateBackdropGeometry(current, Scroller.VerticalOffset, ActualWidth, Hero.Height + HeroArt.FadeExtent);
     }
 
-    private void OnPeopleListLoaded(object sender, RoutedEventArgs e) => AttachPeopleScroller();
-
     private void AttachPeopleScroller()
     {
-        if (disposed || !active || peopleAttached) return;
-        peopleScroller ??= FindScroller(PeopleList);
-        if (peopleScroller is not { } scroller) return;
-        peopleAttached = true;
-        scroller.ViewChanged += OnPeopleViewChanged;
-        scroller.SizeChanged += OnPeopleScrollerSizeChanged;
-        if (scroller.Content is FrameworkElement content) content.SizeChanged += OnPeopleScrollerSizeChanged;
-        peopleRail ??= new RailScroller(scroller, () => scroller.HorizontalOffset, () => scroller.ScrollableWidth, () => scroller.ViewportWidth,
-            (offset, animate) => scroller.ChangeView(offset, null, null, !animate || !Motion.AnimationsEnabled))
-        {
-            Pitch = (double)Application.Current.Resources["PersonCardWidth"] + 16,
-        };
+        if (disposed || !active) return;
         peopleRail.Attach();
         UpdatePeopleArrows();
     }
@@ -269,31 +260,14 @@ public sealed partial class DetailPage : UserControl, INavigablePage, IMotionPar
     private void DetachScrollers()
     {
         episodeRail.Detach();
-        peopleRail?.Detach();
-        if (peopleAttached && peopleScroller is not null)
-        {
-            peopleScroller.ViewChanged -= OnPeopleViewChanged;
-            peopleScroller.SizeChanged -= OnPeopleScrollerSizeChanged;
-            if (peopleScroller.Content is FrameworkElement people) people.SizeChanged -= OnPeopleScrollerSizeChanged;
-            peopleAttached = false;
-        }
-    }
-
-    private static ScrollViewer? FindScroller(DependencyObject root)
-    {
-        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
-        {
-            var child = VisualTreeHelper.GetChild(root, i);
-            if (child is ScrollViewer scroller) return scroller;
-            if (FindScroller(child) is { } nested) return nested;
-        }
-        return null;
+        peopleRail.Detach();
     }
 
     private void OnEpisodeViewChanged(ScrollView sender, object args) { CheckLoadMore(); UpdateEpisodeArrows(); }
     private void OnEpisodeExtentChanged(ScrollView sender, object args) { CheckLoadMore(); UpdateEpisodeArrows(); }
     private void OnEpisodeScrollerSizeChanged(object sender, SizeChangedEventArgs e) { CheckLoadMore(); UpdateEpisodeArrows(); }
-    private void OnPeopleViewChanged(object? sender, ScrollViewerViewChangedEventArgs e) => UpdatePeopleArrows();
+    private void OnPeopleViewChanged(ScrollView sender, object args) => UpdatePeopleArrows();
+    private void OnPeopleExtentChanged(ScrollView sender, object args) => UpdatePeopleArrows();
     private void OnPeopleScrollerSizeChanged(object sender, SizeChangedEventArgs e) => UpdatePeopleArrows();
     private void UpdateEpisodeArrows() => episodeRail?.UpdateArrows(EpisodeArrows, EpisodesLeft, EpisodesRight);
     private void UpdatePeopleArrows() => peopleRail?.UpdateArrows(PeopleArrows, PeopleLeft, PeopleRight);

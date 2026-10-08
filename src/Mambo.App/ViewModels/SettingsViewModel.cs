@@ -23,6 +23,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private long cacheReadVersion;
     private bool draftDirty;
     private bool validatingMpv;
+    private PlaybackMode? playbackModeSelection;
     private bool applying;
     private bool disposed;
 
@@ -148,7 +149,11 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     public bool IsHdrOff => Hdr == HdrMode.Off;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DecodingLabel), nameof(SoftwareDecoding))]
     public partial bool HardwareDecoding { get; private set; }
+
+    public string DecodingLabel => HardwareDecoding ? "硬解" : "软解";
+    public bool SoftwareDecoding => !HardwareDecoding;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(AudioLanguageLabel))]
@@ -248,9 +253,20 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         }
     }
 
-    public Task SetPlaybackModeAsync(PlaybackMode mode) =>
-        mode == PlaybackMode.External && !CanUseExternal ? Task.CompletedTask
-            : UpdateAsync(s => s with { PlaybackMode = mode });
+    public async Task SetPlaybackModeAsync(PlaybackMode mode)
+    {
+        if (disposed) return;
+        // 未验证时也能选中外置方式以配置路径；实际播放仍由 Core 保持为内置。
+        playbackModeSelection = mode;
+        ApplyPlaybackMode();
+        if (mode == PlaybackMode.External && !CanUseExternal) return;
+        await UpdateAsync(s => s with { PlaybackMode = mode });
+        if (playbackModeSelection == mode)
+        {
+            playbackModeSelection = null;
+            ApplySettings();
+        }
+    }
     public Task SetHdrAsync(HdrMode mode) => UpdateAsync(s => s with { HdrMode = mode });
     public Task SetAudioLanguageAsync(string code) => UpdateAsync(s => s with { PreferredAudioLanguage = code });
     public Task SetSubtitleLanguageAsync(string code) => UpdateAsync(s => s with { PreferredSubtitleLanguage = code });
@@ -315,6 +331,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     partial void OnMpvPathChanged(string value)
     {
         if (applying) return;
+        if (IsExternal) playbackModeSelection = PlaybackMode.External;
         ++draftVersion;
         draftDirty = true;
         pathSaveTimer.Stop();
@@ -346,8 +363,11 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             if (version != draftVersion || disposed) return;
             draftDirty = false;
             SetMpvDraft(settings.Current.ExternalMpvPath ?? "");
-            if (settings.ExternalPlayerStatus == ExternalPlayerStatus.Approved)
+            if (IsExternal && settings.ExternalPlayerStatus == ExternalPlayerStatus.Approved)
+            {
                 await settings.UpdateAsync(s => s with { PlaybackMode = PlaybackMode.External }, lifetime.Token);
+                if (playbackModeSelection == PlaybackMode.External) playbackModeSelection = null;
+            }
         }
         catch (AppException ex)
         {
@@ -416,8 +436,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         applying = true;
         try
         {
-            IsEmbedded = current.PlaybackMode == PlaybackMode.Embedded;
-            IsExternal = current.PlaybackMode == PlaybackMode.External;
+            ApplyPlaybackMode();
             Hdr = current.HdrMode;
             HardwareDecoding = current.HardwareDecoding == HardwareDecodingMode.Auto;
             PreferredAudioLanguage = current.PreferredAudioLanguage;
@@ -444,13 +463,20 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         applying = wasApplying;
     }
 
+    private void ApplyPlaybackMode()
+    {
+        var selected = playbackModeSelection ?? settings.Current.PlaybackMode;
+        IsEmbedded = selected == PlaybackMode.Embedded;
+        IsExternal = selected == PlaybackMode.External;
+    }
+
     private void ApplyMpvStatus()
     {
         var status = settings.ExternalPlayerStatus;
         IsValidatingMpv = validatingMpv || status == ExternalPlayerStatus.Validating;
         var draftMatches = string.Equals(MpvPath.Trim(), settings.Current.ExternalMpvPath ?? "", StringComparison.OrdinalIgnoreCase);
         CanUseExternal = status == ExternalPlayerStatus.Approved && draftMatches && !IsValidatingMpv;
-        // 只在需要用户处理时出文字：批准过的文件变了。验证中写在按钮上，其余状态看分段按钮就够。
+        // 编辑中的路径不显示旧验证错误；验证中写在按钮上。
         var pendingDraft = !draftMatches && MpvPath.Trim().Length > 0;
         MpvError = !IsValidatingMpv && !pendingDraft && status == ExternalPlayerStatus.Invalid ? "需要重新验证" : "";
     }

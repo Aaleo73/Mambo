@@ -2,7 +2,7 @@
 [CmdletBinding()]
 param(
     [ValidatePattern('^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$')]
-    [string]$Version = '0.1.8',
+    [string]$Version = '0.1.9',
     [switch]$Installer,
     [ValidatePattern('^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$')]
     [string]$UpdateRepository = 'Aaleo73/Mambo',

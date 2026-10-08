@@ -59,7 +59,7 @@ Mambo/
 │  │  └─ BackendRuntime.cs   真实服务的组合根
 │  ├─ Mambo.Player/  net10.0
 │  │  ├─ LibMpv/       LibMpvNative（LibraryImport）、MpvStructs、MpvNodeReader/Builder、MpvRuntime、MpvCore、MpvSwapChain、
-│  │  │                LibMpvEngine、VideoQualityController
+│  │  │                LibMpvEngine、AssScriptCompatibility/AssSubtitleRecovery、VideoQualityController
 │  │  └─ External/     ExternalMpvEngine、MpvIpcClient、MpvExecutableApproval
 │  ├─ Mambo.Updater/  独立 Native AOT 更新器；等待退出、原位更新/恢复及重启，无 XAML
 │  └─ Mambo.App/     net10.0-windows10.0.26100.0，WinUI 3，全部 XAML 都在这里
@@ -172,7 +172,7 @@ config=no load-scripts=no ytdl=no terminal=no input-default-bindings=no input-vo
 osd-level=0 osd-bar=no cursor-autohide=no idle=yes force-window=immediate keep-open=no
 vo=gpu-next gpu-api=d3d11 gpu-context=d3d11 d3d11-output-mode=composition
 d3d11-composition-size=<面板像素 WxH，拿不到时用 1280x720>   ← 必须在 VO 启动前就有效，否则初始化失败
-hwdec=d3d11va（设置项"硬件解码：自动/关闭"）
+hwdec=d3d11va（设置项"解码方式：硬解/软解"；软解使用 hwdec=no）
 cache=yes demuxer-max-bytes=128MiB demuxer-max-back-bytes=64MiB demuxer-readahead-secs=15 network-timeout=15
 user-agent=Mambo/<版本> audio-client-name=Mambo media-controls=no sub-auto=no
 slang=zh-CN,zh-Hans,chi,zho,chs,zh,eng,en
@@ -583,7 +583,7 @@ public interface IPlayerEngine : IAsyncDisposable {
 ### 6.4 列表与虚拟化
 
 - **资料库和最近播放**：`ScrollViewer` 内的 `ItemsRepeater` + `UniformGridLayout`，按可用宽度分配列数与条目宽度。
-- **横向卡片行**（继续观看、最新、剧集、演职人员）：`CardRail`，内部是 `ItemsRepeater` + 水平 `StackLayout`，鼠标滚轮映射为横向滚动。
+- **横向卡片行**（继续观看、最新、剧集、演职人员）：`ScrollView` 内的 `ItemsRepeater` + 水平 `StackLayout`，共用 `RailScroller` 处理鼠标拖动、卡片吸附和翻页箭头。首页通过 `CardRail` 封装，详情页直接组合；忽略原生鼠标滚轮，竖向滚轮留给整页，剧集与演职人员也不接受 Shift/横向滚轮。
 - **增量加载**：`GridLoader` 监听滚动，距末尾不足 1.5 屏时加载下一页，并负责返回时的滚动位置恢复。不用 `ISupportIncrementalLoading`，以规避 AOT 下泛型 WinRT 集合的问题。
 - **筛选胶囊**：自写的 `WrapPanel` 按行排列、放不下就换行。
 - **渲染开销**：图片按显示尺寸解码、容器回收时取消请求；卡片上不用阴影和亚克力。

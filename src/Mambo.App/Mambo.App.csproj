@@ -6,7 +6,7 @@
     <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <AssemblyName>Mambo</AssemblyName>
-    <Version>0.1.8</Version>
+    <Version>0.1.9</Version>
     <UpdateRepository Condition="'$(UpdateRepository)' == ''">Aaleo73/Mambo</UpdateRepository>
     <RootNamespace>Mambo.App</RootNamespace>
     <UseWinUI>true</UseWinUI>

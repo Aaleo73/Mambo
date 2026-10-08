@@ -39,7 +39,7 @@ dotnet run --project src/Mambo.App -p:Platform=x64 -- --fake
 构建安装包：
 
 ```powershell
-pwsh scripts/publish.ps1 -Version 0.1.8 -Installer -UpdateRepository Aaleo73/Mambo
+pwsh scripts/publish.ps1 -Version 0.1.9 -Installer -UpdateRepository Aaleo73/Mambo
 ```
 
 安装包必须命名为 `Mambo-<版本>-win-x64-setup.exe`，对应 Release 标签为 `v<版本>`；只发布稳定版。发布脚本同时生成 `update.json` 清单和 app/runtime/mpv/assets/licenses 五类更新组件包，必须与安装器一同上传；客户端自动使用，无需手工下载。PDB 调试符号留在构建目录，不进入用户分发包。GitHub Actions 在推送和 PR 上构建及测试，推送 `v*` 标签时构建并发布安装器、便携包、更新组件、应用源码与全部原生对应源码分包。

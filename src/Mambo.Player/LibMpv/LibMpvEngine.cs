@@ -18,6 +18,7 @@ public sealed class LibMpvEngine : IPlayerEngine, IVideoQualityEngine
     private MpvSwapChain? currentSwapChain;
     private double videoAspect;
     private readonly VideoQualityController videoQuality;
+    private readonly AssSubtitleRecovery subtitleRecovery;
 
     public EngineKind Kind => EngineKind.Embedded;
     public ChannelReader<EngineEvent> Events => events.Reader;
@@ -36,6 +37,7 @@ public sealed class LibMpvEngine : IPlayerEngine, IVideoQualityEngine
     private LibMpvEngine(MpvCore core, Func<VideoQualityMode, string[]>? videoQualityResources)
     {
         Core = core;
+        subtitleRecovery = new(core);
         videoQuality = new(core, videoQualityResources);
         videoQuality.Lost += () => events.Writer.TryWrite(new EngineEvent.VideoQualityLost());
         forwarding = ForwardEventsAsync();
@@ -89,7 +91,8 @@ public sealed class LibMpvEngine : IPlayerEngine, IVideoQualityEngine
         await Core.CommandAsync(arguments, cancellationToken).ConfigureAwait(false);
 
     public async ValueTask SetAsync(string propertyName, EngineValue value, CancellationToken cancellationToken) =>
-        await Core.SetPropertyAsync(propertyName, ToNativeValue(value), cancellationToken).ConfigureAwait(false);
+        await (propertyName == "sid" ? subtitleRecovery.SetSubtitleAsync(ToNativeValue(value), cancellationToken)
+            : Core.SetPropertyAsync(propertyName, ToNativeValue(value), cancellationToken)).ConfigureAwait(false);
 
     public void SetCompositionSize(int width, int height) => Core.SetOutputSize(width, height);
 
@@ -119,8 +122,9 @@ public sealed class LibMpvEngine : IPlayerEngine, IVideoQualityEngine
     {
         try
         {
-            await foreach (var message in Core.Messages.ReadAllAsync().ConfigureAwait(false))
+            await foreach (var nativeMessage in Core.Messages.ReadAllAsync().ConfigureAwait(false))
             {
+                var message = await subtitleRecovery.TransformAsync(nativeMessage).ConfigureAwait(false);
                 if (message is MpvMessage.SwapChainChanged changed)
                 {
                     Volatile.Write(ref currentSwapChain, changed.Reference);
@@ -137,11 +141,13 @@ public sealed class LibMpvEngine : IPlayerEngine, IVideoQualityEngine
                     {
                         var value = Core.GetProperty(pair.Key);
                         if (pair.Key == "video-params") UpdateVideoAspect(value);
-                        events.Writer.TryWrite(new EngineEvent.PropertyChanged(pair.Value, ToEngineValue(value)));
+                        var projected = await subtitleRecovery.TransformAsync(new MpvMessage.PropertyChanged(pair.Key, value)).ConfigureAwait(false);
+                        if (ToEngineEvent(projected) is { } recovered) events.Writer.TryWrite(recovered);
                     }
             }
         }
         catch (ObjectDisposedException) { }
+        catch (OperationCanceledException) { }
         catch { events.Writer.TryWrite(new EngineEvent.Failure("播放器事件转发意外结束。")); }
         finally { events.Writer.TryComplete(); }
     }
@@ -232,6 +238,7 @@ public sealed class LibMpvEngine : IPlayerEngine, IVideoQualityEngine
 
     private async Task CloseAsync()
     {
+        subtitleRecovery.Cancel();
         try
         {
             try { await videoQuality.DisposeAsync().ConfigureAwait(false); }
@@ -240,6 +247,7 @@ public sealed class LibMpvEngine : IPlayerEngine, IVideoQualityEngine
         finally
         {
             await forwarding.ConfigureAwait(false);
+            await subtitleRecovery.DisposeAsync().ConfigureAwait(false);
             Volatile.Write(ref currentSwapChain, null);
             SwapChainChanged = null;
             VideoAspectChanged = null;

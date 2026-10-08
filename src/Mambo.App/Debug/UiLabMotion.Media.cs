@@ -215,12 +215,11 @@ internal static partial class UiLabSmoke
         for (var index = 0; index < 8; index++)
             detail.ViewModel.People.Add(new DetailPersonViewModel(
                 new PersonInfo("motion-person-" + index, "诊断演员 " + index, PersonKind.Actor)));
-        var people = detail.FindName("PeopleList").As<ListView>();
-        people.StartBringIntoView(new BringIntoViewOptions { AnimationDesired = false });
+        var peopleScroller = detail.FindName("PeopleScroller").As<ScrollView>();
+        peopleScroller.StartBringIntoView(new BringIntoViewOptions { AnimationDesired = false });
         await AwaitNextRenderingAsync(token);
-        var peopleScroller = MotionDescendants<ScrollViewer>(people).First();
-        await MotionUntilAsync(() => detail.PeopleRailInteraction is not null && peopleScroller.ScrollableWidth > 1, token);
-        await ExerciseMotionRailAsync("People", peopleScroller, detail.PeopleRailInteraction!,
+        await MotionUntilAsync(() => peopleScroller.ScrollableWidth > 1, token);
+        await ExerciseMotionRailAsync("People", peopleScroller, detail.PeopleRailInteraction,
             detail.FindName("PeopleRight").As<Button>(), () => peopleScroller.HorizontalOffset, input, report, token);
     }
 }

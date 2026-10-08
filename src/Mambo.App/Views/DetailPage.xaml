@@ -145,20 +145,6 @@
                 </Setter.Value>
             </Setter>
         </Style>
-        <Style x:Key="RailItemStyle" TargetType="ListViewItem">
-            <Setter Property="Padding" Value="0"/>
-            <Setter Property="Margin" Value="0,0,12,0"/>
-            <Setter Property="MinWidth" Value="0"/>
-            <Setter Property="MinHeight" Value="0"/>
-            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-            <Setter Property="VerticalContentAlignment" Value="Stretch"/>
-            <Setter Property="Template">
-                <Setter.Value><ControlTemplate TargetType="ListViewItem"><ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"/></ControlTemplate></Setter.Value>
-            </Setter>
-        </Style>
-        <Style x:Key="PersonItemStyle" TargetType="ListViewItem" BasedOn="{StaticResource RailItemStyle}">
-            <Setter Property="Margin" Value="0,0,16,0"/>
-        </Style>
         <Style x:Key="HeroShadowedTextStyle" TargetType="TextBlock" BasedOn="{StaticResource HeroMetaTextStyle}">
             <Setter Property="FontFamily" Value="{StaticResource MiSansSemiboldFontFamily}"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
@@ -317,26 +303,28 @@
                             </Button>
                         </StackPanel>
                     </Grid>
-                    <ListView x:Name="PeopleList" Height="228" Padding="24,0,8,4" ItemsSource="{x:Bind ViewModel.People}" SelectionMode="None" IsItemClickEnabled="False"
-                              ItemContainerStyle="{StaticResource PersonItemStyle}" Loaded="OnPeopleListLoaded"
-                              ScrollViewer.HorizontalScrollBarVisibility="Hidden" ScrollViewer.VerticalScrollBarVisibility="Disabled"
-                              ScrollViewer.HorizontalScrollMode="Enabled" ScrollViewer.VerticalScrollMode="Disabled">
-                        <ListView.ItemsPanel><ItemsPanelTemplate><ItemsStackPanel Orientation="Horizontal"/></ItemsPanelTemplate></ListView.ItemsPanel>
-                        <ListView.ItemTemplate>
-                            <DataTemplate x:DataType="vm:DetailPersonViewModel">
-                                <StackPanel Width="132">
-                                    <Grid Height="176" Margin="0,0,0,8" CornerRadius="{StaticResource PersonCornerRadius}" Background="{ThemeResource ControlFillBrush}">
-                                        <themes:LineIcon Glyph="{StaticResource IconUser}" Width="36" Height="36" Foreground="{ThemeResource TextTertiaryBrush}" Opacity="0.6"
-                                                         HorizontalAlignment="Center"/>
-                                        <images:RemoteImage Source="{x:Bind Image}" DecodeWidth="132" CornerRadius="{StaticResource PersonCornerRadius}"/>
-                                        <Border CornerRadius="{StaticResource PersonCornerRadius}" BorderThickness="1" BorderBrush="{ThemeResource PersonStrokeBrush}"/>
-                                    </Grid>
-                                    <TextBlock Style="{StaticResource CardTitleTextStyle}" LineHeight="20" Text="{x:Bind Name}"/>
-                                    <TextBlock Style="{StaticResource CardSubtitleTextStyle}" Margin="0,2,0,0" Text="{x:Bind Role}"/>
-                                </StackPanel>
-                            </DataTemplate>
-                        </ListView.ItemTemplate>
-                    </ListView>
+                    <ScrollView x:Name="PeopleScroller" Height="228" ContentOrientation="Horizontal"
+                                HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden"
+                                VerticalScrollMode="Disabled" IgnoredInputKinds="MouseWheel"
+                                ViewChanged="OnPeopleViewChanged" ExtentChanged="OnPeopleExtentChanged" SizeChanged="OnPeopleScrollerSizeChanged">
+                        <ItemsRepeater x:Name="PeopleList" Margin="24,0,24,4" ItemsSource="{x:Bind ViewModel.People}">
+                            <ItemsRepeater.Layout><StackLayout Orientation="Horizontal" Spacing="16"/></ItemsRepeater.Layout>
+                            <ItemsRepeater.ItemTemplate>
+                                <DataTemplate x:DataType="vm:DetailPersonViewModel">
+                                    <StackPanel Width="132">
+                                        <Grid Height="176" Margin="0,0,0,8" CornerRadius="{StaticResource PersonCornerRadius}" Background="{ThemeResource ControlFillBrush}">
+                                            <themes:LineIcon Glyph="{StaticResource IconUser}" Width="36" Height="36" Foreground="{ThemeResource TextTertiaryBrush}" Opacity="0.6"
+                                                             HorizontalAlignment="Center"/>
+                                            <images:RemoteImage Source="{x:Bind Image}" DecodeWidth="132" CornerRadius="{StaticResource PersonCornerRadius}"/>
+                                            <Border CornerRadius="{StaticResource PersonCornerRadius}" BorderThickness="1" BorderBrush="{ThemeResource PersonStrokeBrush}"/>
+                                        </Grid>
+                                        <TextBlock Style="{StaticResource CardTitleTextStyle}" LineHeight="20" Text="{x:Bind Name}"/>
+                                        <TextBlock Style="{StaticResource CardSubtitleTextStyle}" Margin="0,2,0,0" Text="{x:Bind Role}"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsRepeater.ItemTemplate>
+                        </ItemsRepeater>
+                    </ScrollView>
                 </StackPanel>
             </StackPanel>
         </ScrollViewer>
